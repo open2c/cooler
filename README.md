@@ -13,7 +13,7 @@ type            : <string> Table type (a controlled vocabulary)
 bintype         : <string> "fixed" or "variable"
 binsize         : <int or null> Size of bins in bp if bintype is fixed.
 format-url      : <url> A string with a static URL providing format details
-format-version  : <tuple> The version of the current biom format, major and minor
+format-version  : <tuple> The version of the current format, major and minor
 generated-by    : <string> Package and revision that built the table
 creation-date   : <datetime> Date the table was built (ISO 8601 format)
 ```
