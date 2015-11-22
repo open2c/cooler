@@ -7,4 +7,4 @@ from . import genome
 
 __version__ = '0.1dev'
 __all__ = ['from_dense', 'get_slice', 'get_matrix', 'get_scaffolds', 
-           'get_bins', 'get_metadata', 'legacy', 'open_hdf5', 'genome']
+           'get_bins', 'get_metadata', 'open_hdf5', 'genome']
