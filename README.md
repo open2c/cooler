@@ -21,13 +21,13 @@ creation-date   : <datetime> Date the table was built (ISO 8601 format)
 ### Required groups
 
 ```
-chromosomes/        : <HDF5 group> chromosome table
-bins/               : <HDF5 group> genomic bin table
-tracks/             : <HDF5 group> additional columns along genomic bins
-heatmap/            : <HDF5 group> contact matrix in COO format
-indexes/            : <HDF5 group> stores indexes for fast lookup
-    chrom2bin/      : <HDF5 group> maps chromosome IDs to ranges of bin IDs
-    bin2heatmap/    : <HDF5 group> maps bin IDs to ranges of heatmap record IDs
+contigs/              : <HDF5 group> chromosome table
+bins/                 : <HDF5 group> genomic bin table
+tracks/               : <HDF5 group> additional columns along genomic bins
+matrix/               : <HDF5 group> contact matrix in COO format
+indexes/              : <HDF5 group> stores indexes for fast lookup
+    contig_to_bin/    : <HDF5 group> maps chromosome IDs to ranges of bin IDs
+    bin_to_matrix/    : <HDF5 group> maps bin IDs to ranges of matrix record IDs
 ```
 
 ### Required datasets
@@ -35,21 +35,21 @@ indexes/            : <HDF5 group> stores indexes for fast lookup
 All datasets are 1D arrays that represent table columns. Datasets in the same group must have the same length. The implicit primary key (ID) for each table is the 0-based array index. Genomic coordinates are assumed to be 0-based and intervals half-open (1-based ends).
 
 ```
-chromosomes/name                : <HDF5 dataset> chromosome name
-chromosomes/length              : <HDF5 dataset> chromosome length in bp
+contigs/name                    : <HDF5 dataset> <S32> chromosome name
+contigs/length                  : <HDF5 dataset> <int32> chromosome length in bp
 
-bins/chrom_id                   : <HDF5 dataset> bin chromosome id
-bins/start                      : <HDF5 dataset> bin start coordinate (bp)
-bins/end                        : <HDF5 dataset> bin end coorindate (bp)
+bins/chrom_id                   : <HDF5 dataset> <int32> bin chromosome id
+bins/start                      : <HDF5 dataset> <int64> bin start coordinate (bp)
+bins/end                        : <HDF5 dataset> <int64> bin end coorindate (bp)
 
-heatmap/bin1_id                 : <HDF5 dataset> heatmap pixel index along 1st axis
-heatmap/bin2_id                 : <HDF5 dataset> heatmap pixel index along 2nd axis
-heatmap/count                   : <HDF5 dataset> heatmap pixel value
+matrix/bin1_id                  : <HDF5 dataset> <int64> matrix pixel index along 1st axis
+matrix/bin2_id                  : <HDF5 dataset> <int64> matrix pixel index along 2nd axis
+matrix/count                    : <HDF5 dataset> <float64> matrix pixel value
 
-indexes/chrom2bin/bin_lo        : <HDF5 dataset> start of range in bin table
-indexes/chrom2bin/bin_hi        : <HDF5 dataset> end of range in bin table
+indexes/contig_to_bin/bin_lo    : <HDF5 dataset> <int64> start of range in bin table
+indexes/contig_to_bin/bin_hi    : <HDF5 dataset> <int64> end of range in bin table
 
-indexes/bin2heatmap/heatmap_lo  : <HDF5 dataset> start of range in heatmap table
-indexes/bin2heatmap/heatmap_hi  : <HDF5 dataset> end of range in heatmap table
+indexes/bin_to_matrix/mat_lo    : <HDF5 dataset> <int64> start of range in matrix table
+indexes/bin_to_matrix/mat_hi    : <HDF5 dataset> <int64> end of range in matrix table
 ```
 
