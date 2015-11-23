@@ -9,10 +9,13 @@ import h5py
 
 import cooler
 
+testdir = os.path.dirname(os.path.realpath(__file__))
+testfile_path = os.path.join(testdir, 'test.cool')
+
 
 def teardown_func():
     try:
-        os.remove('test.cool')
+        os.remove(testfile_path)
     except OSError:
         pass
 
@@ -27,14 +30,14 @@ def test_roundtrip():
     binsize = 2000000
     bin_table = cooler.genome.binnify(chrom_table, binsize)
 
-    store = np.load('IMR90_inSitu-all-MboI-2000k.npy')
-    with h5py.File('test.cool', 'w') as h5:
-        cooler.from_dense(h5, chrom_table, bin_table, store['heatmap'][:],
+    heatmap = np.load(os.path.join(testdir, 'IMR90_inSitu-all-MboI-2000k.npy'))
+    with h5py.File(testfile_path, 'w') as h5:
+        cooler.from_dense(h5, chrom_table, bin_table, heatmap,
                           bintype='fixed',
                           metadata={'genome-assembly': 'hg19'},
                           h5opts={})
 
-    clr = h5py.File('test.cool', 'r')
+    clr = h5py.File(testfile_path, 'r')
     new_chrom_table = cooler.get_scaffolds(clr)
     assert np.all(chrom_table.index == new_chrom_table.index)
 
@@ -47,7 +50,7 @@ def test_roundtrip():
     assert info['bin-size'] == binsize
 
     mat = cooler.get_matrix(clr, ('chr1', 0, 200000000), dense=False)
-    assert mat.shape == (1000, 1000)
+    assert mat.shape == (100, 100)
 
 test_roundtrip.teardown = teardown_func
 

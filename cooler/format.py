@@ -259,7 +259,7 @@ def get_matrix(h5, region=None, region2=None, dense=False):
 
 
 def get_scaffolds(h5):
-    names = h5['scaffolds']['name'][:]
+    names = h5['scaffolds']['name'][:].astype('U')
     lengths = h5['scaffolds']['length'][:]
     return pandas.DataFrame(
         {'name': names, 'id': np.arange(len(names)), 'length': lengths}, 
@@ -267,7 +267,7 @@ def get_scaffolds(h5):
 
 
 def get_bins(h5):
-    names = h5['scaffolds']['name'][:]
+    names = h5['scaffolds']['name'][:].astype('U')
     chrom_ids = h5['bins']['chrom_id'][:]
     chroms = names[chrom_ids]
     starts = h5['bins']['start'][:]
