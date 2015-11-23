@@ -24,10 +24,10 @@ def test_roundtrip():
     # exclude Y and M
     chrom_table = chrom_table.loc['chr1':'chrX']
 
-    binsize = 200000
+    binsize = 2000000
     bin_table = cooler.genome.binnify(chrom_table, binsize)
 
-    store = h5py.File('/net/levsha/hic/Erez2014/hg19/IMR90_inSitu-all-MboI-200k.hm', 'r')
+    store = np.load('IMR90_inSitu-all-MboI-2000k.npy')
     with h5py.File('test.cool', 'w') as h5:
         cooler.from_dense(h5, chrom_table, bin_table, store['heatmap'][:],
                           bintype='fixed',
