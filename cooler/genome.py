@@ -12,27 +12,62 @@ from .exception import RegionParseError
 from .util import natsorted, read_tsv, atoi
 
 
-__all__ = ['Region', 'read_chromsizes', 'binnify']
+__all__ = ['read_chromsizes', 'binnify', 'Region']
 
 
 def read_chromsizes(filepath_or_fp, all_seqs=False,
                     name_patterns=(r'^chr[0-9]+$', r'^chr[XY]$', r'^chrM$')):
-    df = read_tsv(filepath_or_fp, 
+    """
+    Parse a ``<db>.chrom.sizes`` or ``<db>.chromInfo.txt`` file from the UCSC 
+    database, where ``db`` is a genome assembly name.
+
+    Input
+    -----
+    filepath_or_fp : str or file-like
+        ``<db>.chrom.sizes`` text file
+    all_seqs : bool, optional
+        Whether to return all scaffolds listed in the file. Default is 
+        ``False``.
+    name_patterns: sequence, optional
+        Sequence of regular expressions to capture desired sequence names.
+        Each corresponding set of records will be sorted in natural order.
+
+    Returns
+    -------
+    Data frame indexed by sequence name, with columns 'name' and 'length'.
+
+    """
+    chrom_table = read_tsv(filepath_or_fp, 
                   usecols=[0, 1], names=['name', 'length'])
     if all_seqs:
-        df = df.reindex(index=df['name'])
+        chrom_table = chrom_table.reindex(index=chrom_table['name'])
     else:
         parts = []
         for pattern in name_patterns:
-            part = df[df['name'].str.contains(pattern)]
+            part = chrom_table[chrom_table['name'].str.contains(pattern)]
             part.index = part['name']
             part = part.reindex(index=natsorted(part.index))
             parts.append(part)
-        df = pandas.concat(parts, axis=0)
-    return df
+        chrom_table = pandas.concat(parts, axis=0)
+    return chrom_table
 
 
 def binnify(chrom_table, binsize):
+    """
+    Divide a genome into uniformly sized bins.
+
+    Input
+    -----
+    chrom_table : DataFrame
+        data frame indexed by chromosome name with chromosome lengths in bp.
+    binsize : int
+        size of bins in bp
+
+    Returns
+    -------
+    Data frame with columns: 'chrom', 'start', 'end'.
+
+    """
     def _binnify_each(chrom):
         clen = chrom_table['length'].at[chrom]
         n_bins = int(np.ceil(clen / binsize))
@@ -110,19 +145,18 @@ class Region(namedtuple('Region', 'chrom start end')):
     Genomic regions are represented as half-open intervals (0-based starts,
     1-based ends) along the length coordinate of an assembled sequence. 
 
-    Input
-    -----
+    Parameters
+    ----------
     reg : str or tuple
         Genomic region string, or 
-        Triple (chrom, start, end), where ``start`` or ``end`` may be ```None``.
+        Triple (chrom, start, end), where ``start`` or ``end`` may be ``None``.
     chromsizes : mapping, optional
         Lookup table of scaffold lengths to check against ``chrom`` and the 
         ``end`` coordinate. Required if ``end`` is not supplied.
     
     Returns
     -------
-    Region
-        Well-formed genomic region triple (str, int, int)
+    A well-formed genomic region triple (str, int, int)
     
     """
     def __new__(cls, reg, chromsizes=None):
@@ -181,8 +215,8 @@ class Region(namedtuple('Region', 'chrom start end')):
         return (not self.comes_before(other, strict=True) 
                 and not self.comes_after(other, strict=True))
 
-    strictly_comes_before = lambda self, other: self.comes_before(other, strict=True)
-    strictly_comes_after = lambda self, other: self.comes_after(other, strict=True)
+    comes_strictly_before = lambda self, other: self.comes_before(other, strict=True)
+    comes_strictly_after = lambda self, other: self.comes_after(other, strict=True)
     strictly_contains = lambda self, other: self.contains(other, strict=True)
 
 
@@ -196,7 +230,6 @@ class Region(namedtuple('Region', 'chrom start end')):
         if start > end: raise ValueError("Empty intersection.")
         return Region((self.chrom, start, end))
 
-
     def combined(self, other):
         if self.chrom != other.chrom: 
             raise ValueError("Regions are on different chromosomes")
@@ -204,19 +237,22 @@ class Region(namedtuple('Region', 'chrom start end')):
         start, end = min(self.start, other.start), max(self.end, other.end)
         return Region((self.chrom, start, end))
 
-
     def hull(self, other):
         if self.chrom != other.chrom: 
             raise ValueError("Regions are on different chromosomes")
         start, end = min(self.start, other.start), max(self.end, other.end)
         return Region((self.chrom, start, end))
 
-    def diff(self, other):
+    def diffleft(self, other):
         if self.chrom != other.chrom: 
             raise ValueError("Regions are on different chromosomes")
-        if not self.overlaps(other) or self.contains(other):
+        if not self.overlaps(other) or self.start > other.start:
             raise ValueError("No difference")
-        if self.comes_before(other):
-            return Region((self.chrom, self.start, other.start))
-        else:
-            return Region((self.chrom, other.end, self.end))
+        return Region((self.chrom, self.start, other.start))
+
+    def diffright(self, other):
+        if self.chrom != other.chrom: 
+            raise ValueError("Regions are on different chromosomes")
+        if not self.overlaps(other) or self.end < other.end:
+            raise ValueError("No difference")
+        return Region((self.chrom, other.end, self.end))

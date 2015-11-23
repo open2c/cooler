@@ -39,9 +39,9 @@ def test_bool_ops():
 
     a, b = Region(('chr1', 5, 10)), Region(('chr1', 0, 5))
     assert a.comes_before(b) == False
-    assert a.strictly_comes_before(b) == False
+    assert a.comes_strictly_before(b) == False
     assert a.comes_after(b) == True
-    assert a.strictly_comes_after(b) == True
+    assert a.comes_strictly_after(b) == True
     assert a.contains(b) == False
     assert a.overlaps(b) == False
 
@@ -63,6 +63,6 @@ def test_set_ops():
     assert a.hull(b) == Region(('chr1', 5, 20))
 
     a, b = Region(('chr1', 5, 15)), Region(('chr1', 10, 20))
-    assert a.diff(b) == Region(('chr1', 5, 10))
+    assert a.diffleft(b) == Region(('chr1', 5, 10))
 
 
