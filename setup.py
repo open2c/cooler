@@ -47,7 +47,7 @@ install_requires = ['six', 'numpy', 'scipy', 'pandas', 'h5py', 'numexpr']
 
 
 setup(
-    name='pqdict',
+    name='cooler',
     version=get_version(),
     #license='MIT',
     description='Sparse binary format for Hi-C genomic contact heatmaps',

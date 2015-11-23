@@ -139,28 +139,68 @@ def _get_region_extent(h5, chrom_id, region, binsize=None):
     return bin_lo, bin_hi
 
 
-def _get_slice_from_bins(h5, bin1_lo, bin1_hi, bin2_lo, bin2_hi):
-    bin1_ids = np.arange(bin1_lo, bin1_hi)    
+def _get_slice_from_bins(h5, bin1_lo, bin1_hi, bin2_lo, bin2_hi):    
+    bin1_ids = np.arange(bin1_lo, bin1_hi)
     hm1_lo = h5['indexes']['bin_to_matrix']['mat_lo'][bin1_lo:bin1_hi]
     hm1_hi = h5['indexes']['bin_to_matrix']['mat_hi'][bin1_lo:bin1_hi]
-    i, j, v = [], [], []
-    for bin1_id, lo1, hi1 in zip(bin1_ids, hm1_lo, hm1_hi):
-        hm_bin2 = h5['matrix']['bin2_id'][lo1:hi1]
-        lo = lo1 + np.searchsorted(hm_bin2, bin2_lo)
-        hi = lo1 + np.searchsorted(hm_bin2, bin2_hi)
-        i.append(np.zeros(hi-lo) + bin1_id)
-        j.append(h5['matrix']['bin2_id'][lo:hi])
-        v.append(h5['matrix']['count'][lo:hi])
-    i = np.concatenate(i, axis=0).astype(int)
-    j = np.concatenate(j, axis=0).astype(int)
-    v = np.concatenate(v, axis=0)
-
-    # remove offsets
-    i -= bin1_lo
-    j -= bin2_lo
+    if bin1_hi - bin1_lo != 0 or bin2_hi - bin2_lo != 0:
+        i, j, v = [], [], []
+        for bin1_id, lo1, hi1 in zip(bin1_ids, hm1_lo, hm1_hi):
+            hm_bin2 = h5['matrix']['bin2_id'][lo1:hi1]
+            lo = lo1 + np.searchsorted(hm_bin2, bin2_lo)
+            hi = lo1 + np.searchsorted(hm_bin2, bin2_hi)
+            i.append(np.zeros(hi-lo) + bin1_id)
+            j.append(h5['matrix']['bin2_id'][lo:hi])
+            v.append(h5['matrix']['count'][lo:hi])
+        i = np.concatenate(i, axis=0).astype(int)
+        j = np.concatenate(j, axis=0).astype(int)
+        v = np.concatenate(v, axis=0)
+        i -= bin1_lo
+        j -= bin2_lo
+    else:
+        i, j, v = np.array([], dtype=int), np.array([], dtype=int), np.array([])
     m = bin1_hi - bin1_lo
     n = bin2_hi - bin2_lo
+    return (i, j, v), (m, n)
 
+
+def _get_slice_overlap(h5, region1, region2):
+    # Two corner cases: the regions partially overlap or one is inside the other
+    transpose = False
+    if region1.start < region2.start:
+        region2, region1 = region1, region2
+        transpose = True
+
+    chrom = region1.chrom
+    if region2.comes_before(region1):    
+        b1a1 = Region((chrom, region2.start, region1.start))
+        a1b2 = Region((chrom, region1.start, region2.end))
+        b2a2 = Region((chrom, region2.end, region1.end))
+        (i1, j1, v1), (m1, n1) = get_slice(h5, region1, b1a1)
+        (i2, j2, v2), (m2, n2) = get_slice(h5, a1b2)
+        (i3, j3, v3), (m3, n3) = get_slice(h5, b2a2, a1b2)
+        j2 += n1
+        i3 += m2
+        j3 += n1
+        i, j, v = np.r_[i1, i2, i3], np.r_[j1, j2, j3], np.r_[v1, v2, v3]
+        m, n = m1, n1 + n2
+    elif region2.contains(region1):
+        b1a1 = Region((chrom, region2.start, region1.start))
+        a1a2 = Region((chrom, region1.start, region1.end))
+        a2b2 = Region((chrom, region1.end, region2.end))
+        (i1, j1, v1), (m1, n1) = get_slice(h5, a1a2, b1a1)
+        (i2, j2, v2), (m2, n2) = get_slice(h5, a1a2)
+        (j3, i3, v3), (n3, m3) = get_slice(h5, a2b2, a1a2)
+        j2 += n1
+        j3 += n1 + n2
+        i, j, v = np.r_[i1, i2, i3], np.r_[j1, j2, j3], np.r_[v1, v2, v3]
+        m, n = m1, n1 + n2 + n3
+    else:
+        raise RuntimeError("This shouldn't happen")
+
+    if transpose:
+        i, j = j, i
+        m, n = n, m
     return (i, j, v), (m, n)
 
 
@@ -174,49 +214,40 @@ def get_slice(h5, region=None, region2=None):
         return (i, j, v), (m, n)
 
     # Parse the region queries
-    chrom_table = get_scaffolds(h5)
     if region2 is None: region2 = region
-    region1, region2 = map(
-        lambda x: Region(x, chrom_table['length']), (region, region2))
+    chrom_table = get_scaffolds(h5)
+    binsize = h5.attrs.get('bin-size', None)
+    region1 = Region(region, chrom_table['length'])
+    region2 = Region(region2, chrom_table['length'])
     chrom1_id = chrom_table['id'].at[region1[0]]
     chrom2_id = chrom_table['id'].at[region2[0]]
-
-    # Since the data is lower triangular, the region along axis1 region must 
-    # come before the region along axis0, otherwise swap and transpose the 
-    # result.
-    transpose = False
-    if chrom1_id < chrom2_id or region1.comes_before(region2):
-        region2, region1 = region1, region2
-        transpose = True
-
-    # Three query cases: same, overlapping, non-overlapping regions
-    binsize = h5.attrs.get('bin-size', None)
+    
+    # Three query cases: same, different but overlapping, non-overlapping
     if region1 == region2:
         bin1_lo, bin1_hi = _get_region_extent(h5, chrom1_id, region1, binsize)
         bin2_lo, bin2_hi = bin1_lo, bin1_hi
         (i, j, v), (m, n) = _get_slice_from_bins(
             h5, bin1_lo, bin1_hi, bin2_lo, bin2_hi)
         i, j, v = np.r_[i, j], np.r_[j, i], np.r_[v, v]
+        return (i, j, v), (m, n)
     elif region1.overlaps(region2):
-        r1 = region1.diff(region2)
-        r2 = region1.intersection(region2)
-        r3 = region2.diff(region1)
-        (i1, j1, v1), (m1, n1) = get_slice(r1, r2)
-        (i2, j2, v2), (m2, n2) = get_slice(r2, r2)
-        (i3, j3, v3), (m3, n3) = get_slice(r2, r3)
-        i, j, v = np.r_[i1, i2, i3], np.r_[j1, j2, j3], np.r_[v1, v2, v3]
-        m, n = (m1 + m2), (n2 + n3)
+        return _get_slice_overlap(h5, region1, region2)
     else:
+        # Since the data is lower triangular, the region along axis1 region must 
+        # come strictly before the region along axis0, otherwise swap and 
+        # transpose the result.
+        transpose = False
+        if chrom1_id < chrom2_id or region1.start < region2.start:
+            chrom2_id, chrom1_id = chrom1_id, chrom2_id
+            region2, region1 = region1, region2
+            transpose = True
         bin1_lo, bin1_hi = _get_region_extent(h5, chrom1_id, region1, binsize)
         bin2_lo, bin2_hi = _get_region_extent(h5, chrom2_id, region2, binsize)
         (i, j, v), (m, n) = _get_slice_from_bins(
             h5, bin1_lo, bin1_hi, bin2_lo, bin2_hi)
-
-    if transpose:
-        i, j = j, i
-        m, n = n, m
-
-    return (i, j, v), (m, n)
+        if transpose:
+            i, j, m, n = j, i, n, m
+        return (i, j, v), (m, n)
 
 
 def get_matrix(h5, region=None, region2=None, dense=False):
@@ -228,7 +259,7 @@ def get_matrix(h5, region=None, region2=None, dense=False):
 
 
 def get_scaffolds(h5):
-    names = h5['scaffolds']['name'][:]
+    names = h5['scaffolds']['name'][:].astype('U')
     lengths = h5['scaffolds']['length'][:]
     return pandas.DataFrame(
         {'name': names, 'id': np.arange(len(names)), 'length': lengths}, 
@@ -236,7 +267,7 @@ def get_scaffolds(h5):
 
 
 def get_bins(h5):
-    names = h5['scaffolds']['name'][:]
+    names = h5['scaffolds']['name'][:].astype('U')
     chrom_ids = h5['bins']['chrom_id'][:]
     chroms = names[chrom_ids]
     starts = h5['bins']['start'][:]
