@@ -15,8 +15,9 @@ from .util import natsorted, read_tsv, atoi
 __all__ = ['read_chromsizes', 'binnify', 'Region']
 
 
-def read_chromsizes(filepath_or_fp, all_seqs=False,
-                    name_patterns=(r'^chr[0-9]+$', r'^chr[XY]$', r'^chrM$')):
+def read_chromsizes(filepath_or_fp,
+                    name_patterns=(r'^chr[0-9]+$', r'^chr[XY]$', r'^chrM$'),
+                    all_names=False):
     """
     Parse a ``<db>.chrom.sizes`` or ``<db>.chromInfo.txt`` file from the UCSC 
     database, where ``db`` is a genome assembly name.
@@ -25,7 +26,7 @@ def read_chromsizes(filepath_or_fp, all_seqs=False,
     -----
     filepath_or_fp : str or file-like
         ``<db>.chrom.sizes`` text file
-    all_seqs : bool, optional
+    all_names : bool, optional
         Whether to return all scaffolds listed in the file. Default is 
         ``False``.
     name_patterns: sequence, optional
@@ -39,7 +40,7 @@ def read_chromsizes(filepath_or_fp, all_seqs=False,
     """
     chrom_table = read_tsv(filepath_or_fp, 
                   usecols=[0, 1], names=['name', 'length'])
-    if all_seqs:
+    if all_names:
         chrom_table = chrom_table.reindex(index=chrom_table['name'])
     else:
         parts = []
