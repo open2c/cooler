@@ -37,53 +37,19 @@ def make_bin_table(genome, binsize):
         columns=['chrom', 'start', 'end'])
 
 
-class _PixelGrouper(object):
-    def __init__(self, chromtable, bintable, binsize):
-        # Create a reverse lookup table to assign reads to bins:
-        # hash -> binID where hash = chrmID * mult + pos / resolution
-        mult = int(np.ceil(chromtable['length'].max() / binsize)) # + 1
-        chrom_ids = chromtable['id'].loc[bintable['chrom']].values
-        chrom_ids = chrom_ids.astype(np.int64)
-        offset = bintable['start'] // binsize
-        hashes = chrom_ids * mult + offset
-        n_bins = len(bintable)
-        self.binsize = binsize
-        self.mult = mult
-        self.lookup = np.zeros(hashes.max() + 1, dtype=np.int32)
-        self.lookup[hashes] = np.arange(n_bins)
-
-    def count(self, chrom1, pos1, chrom2, pos2):
-        """
-        Count number of read pairs provided that fall inside the pixels of the 
-        2-D grid.
-
-        """
-        # assign read pairs to pixels
-        binsize = self.binsize
-        mult = self.mult
-        bin1_ids = self.lookup[
-            numexpr.evaluate("chrom1 * mult + pos1 / binsize").astype(int)]
-        bin2_ids = self.lookup[
-            numexpr.evaluate("chrom2 * mult + pos2 / binsize").astype(int)]
-        # make a two-element hash to aggregate and count pixel occurrences
-        S = len(self.lookup) + 1000
-        pair_hashes = numexpr.evaluate("bin1_ids * S + bin2_ids")
-        pair_hashes_u, counts = np.unique(pair_hashes, return_counts=True)
-        bin1_ids_u = numexpr.evaluate("pair_hashes_u / S").astype(int)
-        bin2_ids_u = numexpr.evaluate("pair_hashes_u % S").astype(int)
-        return bin1_ids_u, bin2_ids_u, counts
+def _load(h5frag, lo, hi):
+    return pandas.DataFrame(OrderedDict([
+        ('chrom1', h5frag['chrms1'][lo:hi]),
+        ('cut1', h5frag['cuts1'][lo:hi]),
+        ('strand1', h5frag['strands1'][lo:hi]),
+        ('chrom2', h5frag['chrms2'][lo:hi]),
+        ('cut2', h5frag['cuts2'][lo:hi]),
+        ('strand2', h5frag['strands2'][lo:hi]),
+    ]))
 
 
-def from_read_table(h5, chrom_table, bin_table, binsize, h5frag, h5opts, 
-                    chunksize=40000000):
-    n_bins  = len(bin_table)
+def write_chromtable(grp, chrom_table, h5opts):
     n_chroms = len(chrom_table)
-    FragChrms1, FragCuts1 = h5frag["chrms1"], h5frag["cuts1"]
-    FragChrms2, FragCuts2 = h5frag["chrms2"], h5frag["cuts2"]
-    n_records = len(FragChrms1)
-
-    print('sequence assemblies')
-    grp = h5.create_group('scaffolds')
     grp.create_dataset('name', 
                         shape=(n_chroms,), 
                         dtype='S32',
@@ -95,8 +61,10 @@ def from_read_table(h5, chrom_table, bin_table, binsize, h5frag, h5opts,
                         data=chrom_table['length'],
                         **h5opts)
 
-    print('bins')
-    grp = h5.create_group('bins')
+    
+def write_bintable(grp, chrom_table, bin_table, h5opts):
+    n_chroms = len(chrom_table)
+    n_bins  = len(bin_table)
     if 'id' not in chrom_table.columns:
         chrom_table['id'] = np.arange(n_chroms)
     chrom_ids = chrom_table['id'].loc[bin_table['chrom']]
@@ -115,64 +83,112 @@ def from_read_table(h5, chrom_table, bin_table, binsize, h5frag, h5opts,
                         dtype=np.int64,
                         data=bin_table['end'], 
                         **h5opts)
-
-    print('matrix')
-    grp = h5.create_group('matrix')
-    grouper = _PixelGrouper(chrom_table, bin_table, binsize)
+    
+def write_matrix(grp, chrom_table, bin_table, h5frag, h5opts, chunksize):
+    n_records = len(h5frag["chrms1"])
+    n_chroms = len(chrom_table)
+    n_bins  = len(bin_table)
+    
     init_size = 5 * n_bins
     max_size  = min(n_records, n_bins * (n_bins - 1) // 2) + 10000
-    HMBin1  = grp.create_dataset('bin1_id', 
+    Bin1  = grp.create_dataset('bin1_id', 
                                  dtype=np.int64, 
                                  shape=(init_size,), 
-                                 maxshape=(max_size,))
-    HMBin2  = grp.create_dataset('bin2_id',
+                                 maxshape=(max_size,), 
+                                 **h5opts)
+    Bin2  = grp.create_dataset('bin2_id',
                                  dtype=np.int64, 
                                  shape=(init_size,),
-                                 maxshape=(max_size,))
-    HMCount = grp.create_dataset('count', 
+                                 maxshape=(max_size,),
+                                 **h5opts)
+    Count = grp.create_dataset('count', 
                                  dtype=np.int64, 
                                  shape=(init_size,), 
-                                 maxshape=(max_size,))
-    mat_lo = np.zeros(n_bins, dtype=np.int64)
-    bin_lo, bin_hi = 0, 0
-    frag_lo, frag_hi = 0, 0
+                                 maxshape=(max_size,),
+                                 **h5opts)
+    
+    chrom_lengths_bin = np.ceil(chrom_table['length'].values/binsize).astype(int)
+    chrom_offset = np.r_[0, np.cumsum(chrom_lengths_bin)]
+    binedges = np.arange(0, int(chrom_table['length'].max()) + binsize, binsize)
+    binlabels = np.arange(len(binedges)-1)
+    
+    mat_offset = np.zeros(n_bins+1, dtype=np.int64)
+    bin_hi = 0
+    hi = 0
     i = 0
     while True:
-        frag_hi = min(frag_hi + chunksize, n_records)
-        chrom = FragChrms1[frag_hi - 1]
-        pos = int(np.ceil(FragCuts1[frag_hi - 1]/binsize)) * binsize
-        frag_hi = h5dictBinarySearch(
-            FragChrms1, FragCuts1, (chrom, pos), 'right')
-        # bin the fragment counts
-        c1, p1 = FragChrms1[frag_lo:frag_hi], FragCuts1[frag_lo:frag_hi]
-        c2, p2 = FragChrms2[frag_lo:frag_hi], FragCuts2[frag_lo:frag_hi]
-        bin1_ids, bin2_ids, counts = grouper.count(c1, p1, c2, p2)
-        n_unique = len(counts)
-        for dset in [HMBin1, HMBin2, HMCount]:
-            dset.resize((i + n_unique,))
+        lo, hi = hi, min(hi + chunksize, n_records)
+        chrom = h5frag["chrms1"][hi - 1]
+        pos = h5frag["cuts1"][hi - 1]
+        pos_floor = int(np.ceil(pos/binsize)) * binsize
+        hi = h5dictBinarySearch(h5frag["chrms1"], h5frag["cuts1"], (chrom, pos_floor), 'right')
+        
+        table = _load(h5frag, lo, hi)
+        coord_bin1 = np.floor(table['cut1']/binsize).astype(int)
+        coord_bin2 = np.floor(table['cut2']/binsize).astype(int)
+        table['bin1'] = chrom_offset[table['chrom1']] + coord_bin1
+        table['bin2'] = chrom_offset[table['chrom2']] + coord_bin2
+        print(lo, hi)
+        
+        gby = table.groupby(['bin1', 'bin2'])
+        agg = gby['chrom1'].count().reset_index().rename(columns={'chrom1':'count'})
+        n_unique = len(agg)
+
         # insert new matrix elements
-        HMBin1[i:i+n_unique] = bin1_ids
-        HMBin2[i:i+n_unique] = bin2_ids
-        HMCount[i:i+n_unique] = counts
+        for dset in [Bin1, Bin2, Count]:
+            dset.resize((i + n_unique,))
+        Bin1[i:i+n_unique] = agg['bin1']
+        Bin2[i:i+n_unique] = agg['bin2']
+        Count[i:i+n_unique] = agg['count']
+        
         # add to the bin_to_matrix index
-        bin_lo, bin_hi = bin_hi, bin1_ids.max()
-        mat_lo[bin_lo:bin_hi] = i + np.searchsorted(
-            bin1_ids, np.arange(bin_lo, bin_hi), side='left')
+        bin_lo, bin_hi = bin_hi, agg['bin1'].max()
+        mat_offset[bin_lo:bin_hi] = i + np.searchsorted(agg['bin1'], np.arange(bin_lo, bin_hi), side='left')
+    
         i += n_unique
-        if frag_hi == n_records:
+        if hi == n_records:
             break
+    nnz = len(Count)
+    mat_offset[n_bins] = nnz
+    return chrom_offset, mat_offset, nnz
+    
+
+def from_readtable(h5, chrom_table, bin_table, binsize, h5frag, h5opts, metadata, chunksize=40000000):
+    n_records = len(h5frag["chrms1"])
+    n_chroms = len(chrom_table)
+    n_bins  = len(bin_table)
+    
+    print('sequence assemblies')
+    grp = h5.create_group('scaffolds')
+    write_chromtable(grp, chrom_table, h5opts)
+    
+    print('bins')
+    grp = h5.create_group('bins')
+    write_bintable(grp, chrom_table, bin_table, h5opts)
+    
+    print('matrix')
+    grp = h5.create_group('matrix')
+    chrom_offset, mat_offset, nnz = write_matrix(grp, chrom_table, bin_table, h5frag, h5opts, chunksize)
     
     print('indexes')
-    grp = h5.create_group('indexes')
-    nnz = len(HMCount)
-    mat_hi = np.r_[mat_lo[1:], nnz].astype(np.int32)
-    chrom_lengths_bin = np.ceil(chrom_table['length'].values/binsize)
-    chrom_binedges = np.r_[0, np.cumsum(chrom_lengths_bin)].astype(np.int64)
+    grp = h5.create_group('indexes') 
     idx1 = grp.create_group('chrom_to_bin')
-    idx1["bin_lo"] = chrom_binedges[:-1]
-    idx1["bin_hi"] = chrom_binedges[1:]
+    idx1["bin_lo"] = chrom_offset[:-1]
+    idx1["bin_hi"] = chrom_offset[1:]
     idx2 = grp.create_group('bin_to_matrix')
-    idx2["mat_lo"] = mat_lo
-    idx2["mat_hi"] = mat_hi
-
+    idx2["mat_lo"] = mat_offset[:-1]
+    idx2["mat_hi"] = mat_offset[1:]
+    
+    # Attributes
+    print('metadata')
+    h5.attrs['id'] = metadata.get('id', "No ID")
+    h5.attrs['bin-type'] = 'fixed'
+    h5.attrs['bin-size'] = binsize
+    h5.attrs['genome-assembly'] = metadata.get('genome-assembly', 'unknown')
+    h5.attrs['format-url'] = "https://bitbucket.org/nvictus/cooler"
+    h5.attrs['format-version'] = (0, 1)
+    h5.attrs['generated-by'] = metadata.get('generated-by', "cooler")
+    h5.attrs['creation-date'] = datetime.now().isoformat()
+    h5.attrs['shape'] = (n_bins, n_bins)
+    h5.attrs['nnz'] = nnz
 
