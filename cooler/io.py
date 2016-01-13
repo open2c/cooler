@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import division, print_function, unicode_literals
 from contextlib import contextmanager
+from collections import OrderedDict
 from datetime import datetime
 import six
 
@@ -90,7 +91,18 @@ def write_bintable(grp, chromtable, bintable, h5opts):
                         **h5opts)
 
 
-def _from_fraghdf5(grp, chromtable, bintable, h5frag, h5opts, chunksize):
+def write_indexes(grp, chrom_offset, bin1_offset):
+    n_chroms = len(chrom_offset)
+    n_bins  = len(bin1_offset)
+    grp.create_dataset("chrom_offset",
+                        shape=(len(chrom_offset),), dtype=np.int32, 
+                        data=chrom_offset, **h5opts)
+    grp.create_dataset("bin_offset",
+                        shape=(len(bin1_offset),), dtype=np.int32,
+                        data=bin1_offset, **h5opts)
+
+
+def _from_fraghdf5(grp, chromtable, bintable, h5frag, binsize, h5opts, chunksize):
     n_records = len(h5frag["chrms1"])
     n_chroms = len(chromtable)
     n_bins  = len(bintable)
@@ -183,29 +195,28 @@ def from_fraghdf5(h5, chromtable, bintable, h5frag, binsize=None, info=None, h5o
     
     print('bins')
     bintype = 'fixed'
-    if binsize is not None:
+    if binsize is None:
         raise ValueError("variable bin size not yet supported")
     grp = h5.create_group('bins')
     write_bintable(grp, chromtable, bintable, h5opts)
     
     print('matrix')
     grp = h5.create_group('matrix')
-    chrom_offset, bin_offset, nnz = _from_fraghdf5(grp, chromtable, bintable, h5frag, h5opts, chunksize)
+    chrom_offset, bin1_offset, nnz = _from_fraghdf5(grp, chromtable, bintable, h5frag, binsize, h5opts, chunksize)
     
     print('indexes')
     grp = h5.create_group('indexes') 
-    grp["chrom_offset"] = chrom_offset
-    grp["bin_offset"] = bin_offset
+    write_indexes(chrom_offset, bin1_offset)
     
     print('info')
     h5.attrs['id'] = info.get('id', "No ID")
-    h5.attrs['bin-type'] = bintype
-    h5.attrs['bin-size'] = binsize
-    h5.attrs['genome-assembly'] = info.get('genome-assembly', 'unknown')
-    h5.attrs['format-url'] = "https://bitbucket.org/nvictus/cooler"
-    h5.attrs['format-version'] = __version__
     h5.attrs['generated-by'] = info.get('generated-by', "cooler")
     h5.attrs['creation-date'] = datetime.now().isoformat()
+    h5.attrs['format-version'] = __version__
+    h5.attrs['format-url'] = "https://github.com/mirnylab/cooler"
+    h5.attrs['genome-assembly'] = info.get('genome-assembly', 'unknown')
+    h5.attrs['bin-type'] = bintype
+    h5.attrs['bin-size'] = binsize
     h5.attrs['nchroms'] = n_chroms
     h5.attrs['nbins'] = n_bins
     h5.attrs['nnz'] = nnz
@@ -241,30 +252,33 @@ def from_dense(h5, chromtable, bintable, heatmap, binsize=None, h5opts=None, inf
     nnz = len(values)
     grp = h5.create_group('matrix')
     grp.create_dataset('bin1_id',
-                        shape=(len(values),), dtype=np.int32,
+                        shape=(len(values),), 
+                        dtype=np.int32,
                         data=triu_i, **h5opts)
     grp.create_dataset('bin2_id',
-                        shape=(len(values),), dtype=np.int32,
+                        shape=(len(values),), 
+                        dtype=np.int32,
                         data=triu_j, **h5opts)
     grp.create_dataset('count',
-                        shape=(len(values),), dtype=np.int32,
+                        shape=(len(values),),
+                        dtype=np.int32,
                         data=values, **h5opts)
 
     print('indexes')
     grp = h5.create_group('indexes') 
-    grp["chrom_offset"] = np.r_[0, np.cumsum(np.ceil(chromtable['length']/binsize))]
-    grp["bin_offset"]   = np.r_[np.searchsorted(triu_i, np.arange(n_bins), side='left'), nnz]
-
+    chrom_offset = np.r_[0, np.cumsum(np.ceil(chromtable['length']/binsize))]
+    bin1_offset = np.r_[np.searchsorted(triu_i, np.arange(n_bins), side='left'), nnz]
+    write_indexes(chrom_offset, bin1_offset)
 
     print('info')
     h5.attrs['id'] = info.get('id', "No ID")
-    h5.attrs['bin-type'] = bintype
-    h5.attrs['bin-size'] = binsize
-    h5.attrs['genome-assembly'] = info.get('genome-assembly', 'unknown')
-    h5.attrs['format-url'] = "https://bitbucket.org/nvictus/cooler"
-    h5.attrs['format-version'] = __version__
     h5.attrs['generated-by'] = info.get('generated-by', "cooler")
     h5.attrs['creation-date'] = datetime.now().isoformat()
+    h5.attrs['format-version'] = __version__
+    h5.attrs['format-url'] = "https://github.com/mirnylab/cooler"
+    h5.attrs['genome-assembly'] = info.get('genome-assembly', 'unknown')
+    h5.attrs['bin-type'] = bintype
+    h5.attrs['bin-size'] = binsize
     h5.attrs['nchroms'] = len(chromtable)
     h5.attrs['nbins'] = heatmap.shape[0]
     h5.attrs['nnz'] = nnz
