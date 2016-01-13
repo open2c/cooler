@@ -40,9 +40,9 @@ The required tables and indexes can be represented in the [Datashape](http://dat
     name:     typevar['Nchroms'] * string[32, 'A']
   },
   bins: {
-    chrom_id: typevar['Nbins'] * int32, 
-    end:      typevar['Nbins'] * int64, 
-    start:    typevar['Nbins'] * int64
+    chrom_id: typevar['Nbins'] * int32,
+    start:    typevar['Nbins'] * int64,
+    end:      typevar['Nbins'] * int64
   },
   matrix: {
     bin1_id:  typevar['Nnz'] * int32,
@@ -60,7 +60,7 @@ Notes:
 - Any number of additional optional columns can be added to each table. (e.g. quality masks, normalization vectors).
 - Genomic coordinates are assumed to be 0-based and intervals half-open (1-based ends).
 - The `bins` table is lexicographically sorted by `chrom_id`, `start`, `end`.
-- The `matrix` table is lexicographically sorted by `bin1_id`, then `bin2_id`.s
+- The `matrix` table is lexicographically sorted by `bin1_id`, then `bin2_id`.
 - Simple offset pointer indexes are used to speed up matrix queries.
 
 
