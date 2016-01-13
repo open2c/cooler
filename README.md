@@ -1,55 +1,66 @@
 # Cooler
 
-## A sparse binary format for Hi-C contact maps
+## A cool place to store your Hi-C
 
-The `cooler` format is based on HDF5. It will use the file extension `.coo`.
+Cooler is a **sparse, compressed, binary** persistent storage format for Hi-C contact maps based on HDF5.
 
-### Top-level attributes (metadata)
-...Copied most of this from biom format spec.
+The `cooler` library implements a simple **schema** to store a high resolution contact matrix along with important auxiliary data such as scaffold information, genomic bin annotations, and basic metadata.
 
+Data tables are stored in a **columnar** representation as groups of 1D HDF5 array datasets of the same length. The contact matrix itself is stored as a table containing only the _nonzero upper triangle entries_.
+
+The library API provides a thin Python wrapper over [h5py](http://docs.h5py.org/en/latest/) for **range queries** on the data: 
+- Table sections are retrieved as Pandas `DataFrame`s
+- Matrix slices are retrieved as SciPy sparse matrices or NumPy `ndarray`s
+- The metadata is retrieved as a dictionary.
+
+Rather than build on top of a more full-featured, opinionated library like PyTables (or `pandas.HDFStore` built on top of that), we provide a simple and transparent data layout on top of HDF5 that supports random access range queries and can be easily [migrated](https://github.com/blaze/odo).
+
+
+### Schema
+
+Required attributes (metadata):
 ```
-id              : <string or null> a field that can be used to id a table (or null)
-type            : <string> Table type (a controlled vocabulary)
-bintype         : <string> "fixed" or "variable"
-binsize         : <int or null> Size of bins in bp if bintype is fixed.
-format-url      : <url> A string with a static URL providing format details
-format-version  : <tuple> The version of the current format, major and minor
-generated-by    : <string> Package and revision that built the table
-creation-date   : <datetime> Date the table was built (ISO 8601 format)
+id              : <string or null> Name or id for a file
+bin-type        : {"fixed" or "variable"}
+bin-size        : <int or null> Size of bins in bp if bin-type is "fixed"
+format-url      : <url> Static URL to page providing format details
+format-version  : <tuple> The version of the current format
+creation-date   : <datetime> Date the file was built
+genome-assembly : <string> Name of genome assembly
+nchroms         : <int> Number of rows in scaffolds table
+nbins			: <int> Number of rows in bins table
+nnz				: <int> Number of rows in matrix table
 ```
 
-### Required groups
-
+The required tables and indexes can be represented in the [Datashape](http://datashape.readthedocs.org/en/latest/) layout language:
 ```
-contigs/              : <HDF5 group> chromosome table
-bins/                 : <HDF5 group> genomic bin table
-tracks/               : <HDF5 group> additional columns along genomic bins
-matrix/               : <HDF5 group> contact matrix in COO format
-indexes/              : <HDF5 group> stores indexes for fast lookup
-    contig_to_bin/    : <HDF5 group> maps chromosome IDs to ranges of bin IDs
-    bin_to_matrix/    : <HDF5 group> maps bin IDs to ranges of matrix record IDs
+{
+  scaffolds: {
+    length:   typevar['Nchroms'] * int64, 
+    name:     typevar['Nchroms'] * string[32, 'A']
+  },
+  bins: {
+    chrom_id: typevar['Nbins'] * int32, 
+    end:      typevar['Nbins'] * int64, 
+    start:    typevar['Nbins'] * int64
+  },
+  matrix: {
+    bin1_id:  typevar['Nnz'] * int32,
+    bin2_id:  typevar['Nnz'] * int32,
+    count:    typevar['Nnz'] * int32
+  },
+  indexes: {
+    chrom_offset: typevar['Nchroms'] * int32,
+  	bin1_offset:   typevar['Nbins'] * int32
+  }
+}
 ```
 
-### Required datasets
+Notes:
+- Any number of additional optional columns can be added to each table. (e.g. quality masks, normalization vectors).
+- Genomic coordinates are assumed to be 0-based and intervals half-open (1-based ends).
+- The `bins` table is lexicographically sorted by `chrom_id`, `start`, `end`.
+- The `matrix` table is lexicographically sorted by `bin1_id`, then `bin2_id`.s
+- Simple offset pointer indexes are used to speed up matrix queries.
 
-All datasets are 1D arrays that represent table columns. Datasets in the same group must have the same length. The implicit primary key (ID) for each table is the 0-based array index. Genomic coordinates are assumed to be 0-based and intervals half-open (1-based ends).
-
-```
-contigs/name                    : <HDF5 dataset> <S32> chromosome name
-contigs/length                  : <HDF5 dataset> <int32> chromosome length in bp
-
-bins/chrom_id                   : <HDF5 dataset> <int32> bin chromosome id
-bins/start                      : <HDF5 dataset> <int64> bin start coordinate (bp)
-bins/end                        : <HDF5 dataset> <int64> bin end coorindate (bp)
-
-matrix/bin1_id                  : <HDF5 dataset> <int64> matrix pixel index along 1st axis
-matrix/bin2_id                  : <HDF5 dataset> <int64> matrix pixel index along 2nd axis
-matrix/count                    : <HDF5 dataset> <float64> matrix pixel value
-
-indexes/contig_to_bin/bin_lo    : <HDF5 dataset> <int64> start of range in bin table
-indexes/contig_to_bin/bin_hi    : <HDF5 dataset> <int64> end of range in bin table
-
-indexes/bin_to_matrix/mat_lo    : <HDF5 dataset> <int64> start of range in matrix table
-indexes/bin_to_matrix/mat_hi    : <HDF5 dataset> <int64> end of range in matrix table
-```
 
