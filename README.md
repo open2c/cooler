@@ -1,5 +1,7 @@
 # Cooler
 
+[![Build Status](https://travis-ci.org/mirnylab/cooler.svg?branch=master)](https://travis-ci.org/mirnylab/cooler)
+
 ## A cool place to store your Hi-C
 
 Cooler is a **sparse, compressed, binary** persistent storage format for Hi-C contact maps based on HDF5.
