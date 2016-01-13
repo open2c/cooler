@@ -55,7 +55,6 @@ setup(
     description='Sparse binary format for Hi-C genomic contact heatmaps',
     long_description=get_long_description(),
     keywords=['genomics'],
-    author='Mirny Lab',
     url='https://bitbucket.org/nvictus/cooler',
     packages=['cooler'],
     zip_safe=False,
