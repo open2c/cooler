@@ -123,7 +123,7 @@ def argnatsort(array):
     return np.lexsort(cols[::-1])
 
 
-def read_chrominfo(filepath_or_fp,
+def read_chrominfo(filepath_or,
                    name_patterns=(r'^chr[0-9]+$', r'^chr[XY]$', r'^chrM$'),
                    name_index=True,
                    all_names=False, 
@@ -133,7 +133,7 @@ def read_chrominfo(filepath_or_fp,
     database, where ``db`` is a genome assembly name.
     Input
     -----
-    filepath_or_fp : str or file-like
+    filepath_or : str or file-like
         Path or url to text file, or buffer.
     name_patterns : sequence, optional
         Sequence of regular expressions to capture desired sequence names.
@@ -148,7 +148,9 @@ def read_chrominfo(filepath_or_fp,
     -------
     Data frame indexed by sequence name, with columns 'name' and 'length'.
     """
-    chromtable = pandas.read_csv(filepath_or_fp, sep='\t', usecols=[0, 1], 
+    if isinstance(filepath_or, six.string_types) and filepath_or.endswith('.gz'):
+        kwargs.setdefault('compression', 'gzip')
+    chromtable = pandas.read_csv(filepath_or, sep='\t', usecols=[0, 1], 
         names=['name', 'length'], **kwargs)
     if not all_names:
         parts = []
