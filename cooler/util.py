@@ -1,80 +1,114 @@
 # -*- coding: utf-8 -*-
 from __future__ import division, print_function, unicode_literals
-from contextlib import contextmanager
-import gzip
 import six
 import re
 
 import numpy as np
 import pandas
-import h5py
-
-
-@contextmanager
-def open_hdf5(fp, mode='r', *args, **kwargs):
-    """
-    Context manager like ``h5py.File`` but accepts already open HDF5 file 
-    handles which do not get closed on teardown.
-
-    Parameters
-    ----------
-    fp : str or ``h5py.File`` object
-        If an open file object is provided, it passes through unchanged, 
-        provided that the requested mode is compatible.
-        If a filepath is passed, the context manager will close the file on
-        tear down.
-
-    mode : str
-        r        Readonly, file must exist
-        r+       Read/write, file must exist
-        a        Read/write if exists, create otherwise
-        w        Truncate if exists, create otherwise
-        w- or x  Fail if exists, create otherwise
-
-    """
-    if isinstance(fp, six.string_types):
-        own_fh = True
-        fh = h5py.File(fp, mode, *args, **kwargs)
-    else:
-        own_fh = False
-        if mode =='r' and fp.mode == 'r+':
-            raise ValueError("File object provided is not in readonly mode")
-        elif mode in ('r+', 'a', 'w') and fp.mode == 'r':
-            raise ValueError("File object provided is not writeable")
-        else:
-            raise ValueError("File exists")
-        fh = fp
-    try:
-        yield fh
-    finally:
-        if own_fh:
-            fh.close()
 
 
 def atoi(s):
     return int(s.replace(',', ''))
 
 
-def to_tsv(fp, table, index=False, **kwargs):
-    kwargs['index'] = index
-    if isinstance(fp, six.string_types) and fp.endswith('.gz'):
-        with gzip.open(fp, 'wb') as f:
-            table.to_csv(f, sep=b'\t', **kwargs)
+def parse_region_string(s):
+
+    def _tokenize(s):
+        token_spec = [
+            ('COORD',   r'[0-9,]+'),
+            ('CHROM',   r'\w+'), 
+            ('COLON',   r':'),   
+            ('HYPHEN',  r'-'),
+        ]
+        tok_regex = r'\s*' + r'|\s*'.join(
+            r'(?P<%s>%s)' % pair for pair in token_spec)
+        tok_regex = re.compile(tok_regex)
+        for match in tok_regex.finditer(s):
+            typ = match.lastgroup
+            yield typ, match.group(typ)
+
+    def _expect(tokens):
+        try:
+            token = next(tokens)
+        except StopIteration:
+            raise RegionParseError
+
+        if token[0] != 'CHROM':
+            raise RegionParseError
+        chrom = token[1]
+        try:
+            token = next(tokens)
+        except StopIteration:
+            return (chrom, None, None)
+
+        if token[0] != 'COLON':
+            raise RegionParseError
+        try:
+            token = next(tokens)
+            if token[0] != 'COORD':
+                raise RegionParseError
+            start = atoi(token[1])
+
+            token = next(tokens)
+            if token[0] != 'HYPHEN':
+                raise RegionParseError
+
+            token = next(tokens)
+            if token[0] != 'COORD':
+                raise RegionParseError
+            end = atoi(token[1])
+        except StopIteration:
+            raise RegionParseError
+        
+        if end < start:
+            raise RegionParseError
+        return chrom, start, end
+
+    return _expect(_tokenize(s))
+
+
+def parse_region(reg, chromsizes=None):
+    """
+    Genomic regions are represented as half-open intervals (0-based starts,
+    1-based ends) along the length coordinate of a contig/scaffold/chromosome. 
+
+    Parameters
+    ----------
+    reg : str or tuple
+        UCSC-style genomic region string, or 
+        Triple (chrom, start, end), where ``start`` or ``end`` may be ``None``.
+    chromsizes : mapping, optional
+        Lookup table of scaffold lengths to check against ``chrom`` and the 
+        ``end`` coordinate. Required if ``end`` is not supplied.
+    
+    Returns
+    -------
+    A well-formed genomic region triple (str, int, int)
+    
+    """
+    if isinstance(reg, six.string_types):
+        chrom, start, end = parse_region_string(reg)
     else:
-        table.to_csv(fp, sep=b'\t', **kwargs)
+        chrom, start, end = reg
+        start, end = map(int, (start, end))
+    try:
+        clen = chromsizes[chrom] if chromsizes is not None else None
+    except KeyError:
+        raise ValueError("Unknown scaffold {}".format(chrom))
+    start = 0 if start is None else start
+    if end is None:
+        if clen is None: # XXX --- remove?
+            raise ValueError("Cannot determine end coordinate.")
+        end = clen
+    if end < start:
+        raise ValueError("End cannot be less than start")
+    if start < 0 or (clen is not None and end > clen):
+        raise ValueError(
+            "Genomic region out of bounds: [0, {})".format(clen))
+    return chrom, start, end
 
 
-
-def read_tsv(fp, **kwargs):
-    if isinstance(fp, six.string_types) and fp.endswith('.gz'):
-        kwargs['compression'] = 'gzip'
-    return pandas.read_csv(fp, sep=b'\t', **kwargs)
-
-
-_NS_REGEX = re.compile(r'(\d+)', re.U)
-
-
-def natsort_key(s):
+def natsort_key(s, _NS_REGEX=re.compile(r'(\d+)', re.U)):
     return tuple([int(x) if x.isdigit() else x for x in _NS_REGEX.split(s) if x])
 
 
@@ -82,18 +116,134 @@ def natsorted(iterable):
     return sorted(iterable, key=natsort_key)
 
 
-# def validate(h5):
-#     pass
+def argnatsort(array):
+    array = np.asarray(array)
+    if not len(array): return np.array([], dtype=int)
+    cols = tuple(zip(*(natsort_key(x) for x in array)))
+    return np.lexsort(cols[::-1])
 
 
-# class CoolerValidator(object):
-#     FORMAT_URL = 'https://bitbucket.org/nvictus/cooler'
-#     FORMAT_VERSIONS = set([(0, 1)])
+def read_chrominfo(filepath_or_fp,
+                   name_patterns=(r'^chr[0-9]+$', r'^chr[XY]$', r'^chrM$'),
+                   name_index=True,
+                   all_names=False, 
+                   **kwargs):
+    """
+    Parse a ``<db>.chrom.sizes`` or ``<db>.chromInfo.txt`` file from the UCSC 
+    database, where ``db`` is a genome assembly name.
+    Input
+    -----
+    filepath_or_fp : str or file-like
+        Path or url to text file, or buffer.
+    name_patterns : sequence, optional
+        Sequence of regular expressions to capture desired sequence names.
+        Each corresponding set of records will be sorted in natural order.
+    name_index : bool, optional
+        Index table by chromosome name.
+    all_names : bool, optional
+        Whether to return all scaffolds listed in the file. Default is 
+        ``False``.
+        
+    Returns
+    -------
+    Data frame indexed by sequence name, with columns 'name' and 'length'.
+    """
+    chromtable = pandas.read_csv(filepath_or_fp, sep='\t', usecols=[0, 1], 
+        names=['name', 'length'], **kwargs)
+    if not all_names:
+        parts = []
+        for pattern in name_patterns:
+            part = chromtable[chromtable['name'].str.contains(pattern)]
+            part = part.iloc[argnatsort(part['name'])]
+            parts.append(part)
+        chromtable = pandas.concat(parts, axis=0)
+    chromtable.insert(0, 'id', np.arange(len(chromtable)))
+    if name_index:
+        chromtable.index = chromtable['name'].values
+    return chromtable
 
-#     ATTRS = {(0, 1): (
-#         'id', 'generated-by', 'creation-date',
-#         'format-url', 'format-version',
-#         'bin-type', 'bin-size', 
-#         'genome-assembly',
-#         'shape', 'nnz')}
-#     GROUPS = {(0, 1): ('contigs', 'bins', 'matrix', 'indexes')}
+
+def make_bintable(chromsizes, binsize):
+    """
+    Divide a genome into evenly sized bins.
+    Parameters
+    ----------
+    chromsizes : Series
+        pandas Series indexed by chromosome name with chromosome lengths in bp.
+    binsize : int
+        size of bins in bp
+    Returns
+    -------
+    Data frame with columns: 'chrom', 'start', 'end'.
+    """
+    def _each(chrom):
+        clen = chromsizes[chrom]
+        n_bins = int(np.ceil(clen / binsize))
+        binedges = np.arange(0, (n_bins+1)) * binsize
+        binedges[-1] = clen
+        return pandas.DataFrame({
+                'chrom': [chrom]*n_bins,
+                'start': binedges[:-1],
+                'end': binedges[1:],
+            }, columns=['chrom', 'start', 'end'])
+    bintable =  pandas.concat(map(_each, chromsizes.index),
+                              axis=0, ignore_index=True)
+    return bintable
+
+
+def lexbisect(arrays, values, side='left', lo=0, hi=None):
+    """
+    Bisection search on lexically sorted arrays.
+    
+    Parameters
+    ----------
+    arrays : sequence of k 1-D array-like
+        Each "array" can be any sequence that supports scalar integer indexing,
+        as long as the arrays have the same length and their values are
+        lexsorted from left to right.
+    values : sequence of k values
+        Values that would be inserted into the arrays.
+    side : {'left', 'right'}, optional
+        If ‘left’, the index of the first suitable location found is given. 
+        If ‘right’, return the last such index. If there is no suitable index,
+        return either 0 or N (where N is the length of each array).
+    lo, hi : int, optional
+        Bound the slice to be searched (default 'lo' is 0 and 'hi' is N).
+    
+    Returns
+    -------
+    i : int
+        Insertion index.
+    
+    Examples
+    --------
+    >>> h5 = h5py.File('mytable.h5', 'r')  # doctest: +SKIP
+    >>> lexbisect([h5['chrom'], h5['start']], [1, 100000], side='right')  # doctest: +SKIP
+    2151688
+    
+    """
+    if lo < 0:
+        raise ValueError('lo must be non-negative')
+    if hi is None:
+        hi = len(arrays[0])
+    
+    values = tuple(values)
+    
+    if side == 'left':
+        while lo < hi:
+            mid = (lo + hi) // 2
+            if tuple(arr[mid] for arr in arrays) < values:
+                lo = mid + 1
+            else: 
+                hi = mid
+    elif side == 'right':
+        while lo < hi:
+            mid = (lo + hi) // 2
+            if values < tuple(arr[mid] for arr in arrays):
+                hi = mid
+            else:
+                lo = mid + 1
+    else:
+        raise ValueError("side must be 'left' or 'right'")
+
+    return lo

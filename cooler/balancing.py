@@ -204,8 +204,8 @@ def iterative_correction(coo, chunksize=None, map=map, tol=1e-5,
     bias[marg < min_count] = 0
         
     # Do balancing
-    worker = Worker(coo.filename, filters)
     while True:
+        worker = Worker(coo.filename, filters)
         filters = base_filters + [TimesOuterProductFilter(bias)]
         marg_partials = map(worker, spans)
         marg = np.sum(list(marg_partials), axis=0)

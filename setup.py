@@ -43,13 +43,15 @@ def get_long_description():
     return _read('README.md')
 
 
-install_requires = ['six', 'numpy', 'scipy', 'pandas', 'h5py', 'numexpr']
+install_requires = ['six', 'numpy', 'scipy', 'pandas', 'h5py']
 
 
 setup(
     name='cooler',
+    author='Nezar Abdennur',
+    author_email='nezar@mit.edu',
     version=get_version(),
-    #license='MIT',
+    license='BSD3',
     description='Sparse binary format for Hi-C genomic contact heatmaps',
     long_description=get_long_description(),
     keywords=['genomics'],

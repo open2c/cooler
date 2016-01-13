@@ -1,10 +1,37 @@
 # -*- coding: utf-8 -*-
-from __future__ import division, print_function, unicode_literals
-from .format import (from_dense, get_slice, get_matrix, 
-                     get_scaffolds, get_bins, get_metadata)
-from .util import open_hdf5
-from . import genome
+"""
+Cooler
+~~~~~~
 
-__version__ = '0.1dev'
-__all__ = ['from_dense', 'get_slice', 'get_matrix', 'get_scaffolds', 
-           'get_bins', 'get_metadata', 'open_hdf5', 'genome']
+A cool place to store your Hi-C.
+
+:copyright: (c) 2016 Massachusetts Institute of Technology
+:author: Nezar Abdennur
+:license: MIT
+
+"""
+__version__ = '0.2dev'
+
+from .api import Cooler, get, info, chromtable, bintable, pixeltable, matrix
+from .util import read_chrominfo, make_bintable
+from .io import open_hdf5
+#from . import balancing
+from . import util
+from . import io
+
+
+__all__ = [
+    'Cooler',
+    'get',
+    'info',
+    'chromtable',
+    'bintable',
+    'pixeltable',
+    'matrix',
+    'read_chrominfo',
+    'make_bintable',
+    'open_hdf5',
+    'format',
+    'balancing',
+    'util',
+]
