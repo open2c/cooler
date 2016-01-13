@@ -26,7 +26,6 @@ install:
   - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION setuptools pip six numpy scipy pandas h5py nose
   - source activate test-environment
   - python setup.py install
-  - pip install -r requirements.txt
 
 script:
   nosetests
