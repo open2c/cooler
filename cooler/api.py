@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import division, print_function, unicode_literals
+import json
+
 from scipy.sparse import coo_matrix
 import numpy as np
 import pandas
@@ -21,7 +23,9 @@ def get(h5, table_name, fields=None, lo=None, hi=None):
 
 
 def info(h5):
-    return dict(h5.attrs.items())
+    d = dict(h5.attrs.items())
+    d['metadata'] = json.loads(d.get('metadata', '{}'))
+    return d
 
 
 def chromtable(h5, lo=None, hi=None):

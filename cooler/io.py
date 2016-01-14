@@ -91,7 +91,7 @@ def write_bintable(grp, chromtable, bintable, h5opts):
                         **h5opts)
 
 
-def write_indexes(grp, chrom_offset, bin1_offset):
+def write_indexes(grp, chrom_offset, bin1_offset, h5opts):
     n_chroms = len(chrom_offset)
     n_bins  = len(bin1_offset)
     grp.create_dataset("chrom_offset",
@@ -206,7 +206,7 @@ def from_fraghdf5(h5, chromtable, bintable, h5frag, binsize=None, info=None, h5o
     
     print('indexes')
     grp = h5.create_group('indexes') 
-    write_indexes(chrom_offset, bin1_offset)
+    write_indexes(grp, chrom_offset, bin1_offset, h5opts)
     
     print('info')
     h5.attrs['id'] = info.get('id', "No ID")
@@ -268,7 +268,7 @@ def from_dense(h5, chromtable, bintable, heatmap, binsize=None, h5opts=None, inf
     grp = h5.create_group('indexes') 
     chrom_offset = np.r_[0, np.cumsum(np.ceil(chromtable['length']/binsize))]
     bin1_offset = np.r_[np.searchsorted(triu_i, np.arange(n_bins), side='left'), nnz]
-    write_indexes(chrom_offset, bin1_offset)
+    write_indexes(grp, chrom_offset, bin1_offset, h5opts)
 
     print('info')
     h5.attrs['id'] = info.get('id', "No ID")

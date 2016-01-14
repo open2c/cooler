@@ -224,12 +224,13 @@ def lexbisect(arrays, values, side='left', lo=0, hi=None):
     2151688
     
     """
+    arrays = tuple(arrays)
+    values = tuple(values)
+    
     if lo < 0:
         raise ValueError('lo must be non-negative')
     if hi is None:
         hi = len(arrays[0])
-    
-    values = tuple(values)
     
     if side == 'left':
         while lo < hi:
