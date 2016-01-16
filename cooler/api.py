@@ -13,6 +13,27 @@ from .io import open_hdf5
 
 
 def get(h5, table_name, lo=0, hi=None, fields=None, **kwargs):
+    """
+    Fetch the raw columns of a table.
+
+    Parameters
+    ----------
+    h5 : ``h5py.File`` or ``h5py.Group``
+        Open handle to cooler file.
+    table_name : str
+        Name of HDF5 Group.
+    lo, hi : int, optional
+        Range of rows to select from the table.
+    fields : sequence of str, optional
+        Selection of columns to query. Defaults to all available columns.
+    kwargs : optional
+        Options to pass to ``pandas.DataFrame``.
+
+    Returns
+    -------
+    DataFrame
+
+    """
     if fields is None:
         fields = list(h5[table_name].keys())
     data = {field: h5[table_name][field][lo:hi] for field in fields}
@@ -28,12 +49,41 @@ def get(h5, table_name, lo=0, hi=None, fields=None, **kwargs):
 
 
 def info(h5):
+    """
+    File and user metadata dict.
+
+    Parameters
+    ----------
+    h5 : ``h5py.File`` or ``h5py.Group``
+        Open handle to cooler file.
+
+    Returns
+    -------
+    dict
+
+    """
     d = dict(h5.attrs.items())
     d['metadata'] = json.loads(d.get('metadata', '{}'))
     return d
 
 
 def chromtable(h5, lo=0, hi=None):
+    """
+    Table describing the chromosomes/scaffolds/contigs used.
+    They appear in the same order they occur in the heatmap.
+
+    Parameters
+    ----------
+    h5 : ``h5py.File`` or ``h5py.Group``
+        Open handle to cooler file.
+    lo, hi : int, optional
+        Range of rows to select from the table.
+
+    Returns
+    -------
+    DataFrame
+
+    """
     names = h5['scaffolds']['name'][lo:hi].astype('U')
     lengths = h5['scaffolds']['length'][lo:hi]
     if lo is not None:
@@ -48,6 +98,21 @@ def chromtable(h5, lo=0, hi=None):
 
 
 def bintable(h5, lo=0, hi=None):
+    """
+    Table describing the genomic bins that make up the axes of the heatmap.
+
+    Parameters
+    ----------
+    h5 : ``h5py.File`` or ``h5py.Group``
+        Open handle to cooler file.
+    lo, hi : int, optional
+        Range of rows to select from the table.
+
+    Returns
+    -------
+    DataFrame
+
+    """
     chrom_ids = h5['bins']['chrom_id'][lo:hi]
     names = h5['scaffolds']['name'][:].astype('U')
     chroms = names[chrom_ids]
@@ -66,6 +131,27 @@ def bintable(h5, lo=0, hi=None):
 
 
 def pixeltable(h5, lo=0, hi=None, fields=None, join=True):
+    """
+    Table describing the nonzero upper triangular pixels of the Hi-C contact
+    heatmap.
+
+    Parameters
+    ----------
+    h5 : ``h5py.File`` or ``h5py.Group``
+        Open handle to cooler file.
+    lo, hi : int, optional
+        Range of rows to select from the table.
+    fields : sequence of str, optional
+        Subset of columns to select from table.
+    join : bool, optional
+        Whether or not to expand bin ID columns to their full bin description 
+        (chrom, start, end). Default is True.
+
+    Returns
+    -------
+    DataFrame
+
+    """
     if fields is None:
         fields = set(h5['matrix'].keys())
         fields.remove('bin1_id')
@@ -107,6 +193,26 @@ def pixeltable(h5, lo=0, hi=None, fields=None, join=True):
 
 
 def matrix(h5, i0, i1, j0, j1, field=None):
+    """
+    Range query on the Hi-C contact heatmap.
+
+    Parameters
+    ----------
+    h5 : ``h5py.File`` or ``h5py.Group``
+        Open handle to cooler file.
+    i0, i1 : int, optional
+        Bin range along the 0th (row) axis of the heatap.
+    j0, j1 : int, optional
+        Bin range along the 1st (col) axis of the heatap.
+    field : str, optional
+        Which column of the pixel table to fill the matrix with. By default,
+        the 'count' column is used.
+
+    Returns
+    -------
+    coo_matrix (use the ``toarray()`` method to convert to a numpy ``ndarray``.)
+
+    """
     if field is None: field = 'count'
     i, j, v = slice_matrix(h5, field, i0, i1, j0, j1)
     return coo_matrix((v, (i-i0, j-j0)), (i1-i0, j1-j0))

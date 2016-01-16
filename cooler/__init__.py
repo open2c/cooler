@@ -16,7 +16,6 @@ __format_version__ = 0
 from .api import Cooler, get, info, chromtable, bintable, pixeltable, matrix
 from .util import read_chrominfo, make_bintable
 from .io import open_hdf5
-#from . import balancing
 from . import util
 from . import io
 
@@ -32,7 +31,6 @@ __all__ = [
     'read_chrominfo',
     'make_bintable',
     'open_hdf5',
-    'format',
-    'balancing',
     'util',
+    'io'
 ]
