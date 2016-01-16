@@ -11,6 +11,7 @@ A cool place to store your Hi-C.
 
 """
 __version__ = '0.2dev'
+__format_version__ = 0
 
 from .api import Cooler, get, info, chromtable, bintable, pixeltable, matrix
 from .util import read_chrominfo, make_bintable

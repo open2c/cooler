@@ -3,13 +3,14 @@ from __future__ import division, print_function, unicode_literals
 from contextlib import contextmanager
 from collections import OrderedDict
 from datetime import datetime
+import json
 import six
 
 import numpy as np
 import pandas
 import h5py
 
-from . import __version__
+from . import __version__, __format_version__
 from .util import lexbisect
 
 
@@ -97,9 +98,20 @@ def write_indexes(grp, chrom_offset, bin1_offset, h5opts):
     grp.create_dataset("chrom_offset",
                         shape=(len(chrom_offset),), dtype=np.int32, 
                         data=chrom_offset, **h5opts)
-    grp.create_dataset("bin_offset",
+    grp.create_dataset("bin1_offset",
                         shape=(len(bin1_offset),), dtype=np.int32,
                         data=bin1_offset, **h5opts)
+
+
+def write_info(h5, info):
+    info.setdefault('id', "null")
+    info.setdefault('genome-assembly', 'unknown')
+    info['metadata'] = json.dumps(info.get('metadata', {}))
+    info['creation-date'] = datetime.now().isoformat()
+    info['library-version'] = __version__
+    info['format-version'] = __format_version__
+    info['format-url'] = "https://github.com/mirnylab/cooler"
+    h5.attrs.update(info)
 
 
 def _from_fraghdf5(grp, chromtable, bintable, h5frag, binsize, h5opts, chunksize):
@@ -116,72 +128,88 @@ def _from_fraghdf5(grp, chromtable, bintable, h5frag, binsize, h5opts, chunksize
             ('cut2', h5frag['cuts2'][lo:hi]),
             ('strand2', h5frag['strands2'][lo:hi]),
         ]))
-    
+        
+    # chrom offset index: chrom_id -> offset in bins
+    chrom_bin_lengths = np.ceil(chromtable['length'].values/binsize).astype(np.int32)
+    chrom_offset = np.r_[0, np.cumsum(chrom_bin_lengths)]
+
+    # initialize the bin1 offset index
+    bin1_offset = np.zeros(n_bins + 1, dtype=np.int64)
+
+    # fill the pixel table
     init_size = 5 * n_bins
     max_size  = min(n_records, n_bins * (n_bins - 1) // 2) + 10000
-    Bin1  = grp.create_dataset('bin1_id', 
-                                dtype=np.int64, 
-                                shape=(init_size,), 
-                                maxshape=(max_size,), 
-                                **h5opts)
-    Bin2  = grp.create_dataset('bin2_id',
-                                dtype=np.int64, 
+    Bin1  = grp.create_dataset('bin1_id',
+                                dtype=np.int64,
                                 shape=(init_size,),
                                 maxshape=(max_size,),
                                 **h5opts)
-    Count = grp.create_dataset('count', 
-                                dtype=np.int64, 
-                                shape=(init_size,), 
+    Bin2  = grp.create_dataset('bin2_id',
+                                dtype=np.int64,
+                                shape=(init_size,),
                                 maxshape=(max_size,),
                                 **h5opts)
-    
-    chrom_lengths_bin = np.ceil(chromtable['length'].values/binsize).astype(int)
-    chrom_offset = np.r_[0, np.cumsum(chrom_lengths_bin)]
-    binedges = np.arange(0, int(chromtable['length'].max()) + binsize, binsize)
-    bin_offset = np.zeros(n_bins+1, dtype=np.int64)
-    bin_hi = 0
+    Count = grp.create_dataset('count',
+                                dtype=np.int64,
+                                shape=(init_size,),
+                                maxshape=(max_size,),
+                                **h5opts)
+
+    maxbin1 = 0
     hi = 0
     i = 0
     while True:
-        lo, hi = hi, min(hi + chunksize, n_records)
-        chrom = h5frag["chrms1"][hi - 1]
-        pos = h5frag["cuts1"][hi - 1]
-        pos_floor = int(np.ceil(pos/binsize)) * binsize
-        hi = lexbisect((h5frag["chrms1"], h5frag["cuts1"]), (chrom, pos_floor), 'right')
-        
-        table = load_chunk(h5frag, lo, hi)
-        coord_bin1 = np.floor(table['cut1']/binsize).astype(int)
-        coord_bin2 = np.floor(table['cut2']/binsize).astype(int)
-        table['bin1'] = chrom_offset[table['chrom1']] + coord_bin1
-        table['bin2'] = chrom_offset[table['chrom2']] + coord_bin2
+        # fetch chunk, making sure our selection doesn't split a bin1
+        lo, hi = hi, min(hi + chunksize, n_records-1)
+        chrom = h5frag["chrms1"][hi]
+        coord_binend = int(np.ceil(h5frag["cuts1"][hi]/binsize)) * binsize
+        hi = lexbisect(
+            (h5frag["chrms1"], h5frag["cuts1"]),
+            (chrom, coord_binend),
+            'left')
+        if hi == n_records - 1:
+            hi = n_records
         print(lo, hi)
-        
-        gby = table.groupby(['bin1', 'bin2'])
-        agg = gby['chrom1'].count().reset_index().rename(columns={'chrom1':'count'})
-        n_unique = len(agg)
+        table = load_chunk(h5frag, lo, hi)
 
-        # insert new matrix elements
+        # assign bins to each record
+        rel_bin1 = np.floor(table['cut1']/binsize).astype(int)
+        rel_bin2 = np.floor(table['cut2']/binsize).astype(int)
+        table['bin1'] = chrom_offset[table['chrom1']] + rel_bin1
+        table['bin2'] = chrom_offset[table['chrom2']] + rel_bin2
+
+        # reduce
+        gby = table.groupby(['bin1', 'bin2'])
+        agg = (gby['chrom1'].count()
+                            .reset_index()
+                            .rename(columns={'chrom1':'count'}))
+        npix = len(agg)
+
+        # insert new pixels
         for dset in [Bin1, Bin2, Count]:
-            dset.resize((i + n_unique,))
-        Bin1[i:i+n_unique] = agg['bin1']
-        Bin2[i:i+n_unique] = agg['bin2']
-        Count[i:i+n_unique] = agg['count']
+            dset.resize((i + npix,))
+        Bin1[i:i+npix] = agg['bin1']
+        Bin2[i:i+npix] = agg['bin2']
+        Count[i:i+npix] = agg['count']
         
-        # add new matrix rows to the offset index
-        bin_lo, bin_hi = bin_hi, agg['bin1'].max()
-        bin_offset[bin_lo:bin_hi] = i + np.searchsorted(agg['bin1'], np.arange(bin_lo, bin_hi), side='left')
+        # add new pixel table rows to the bin1 offset index
+        minbin1, maxbin1 = maxbin1, agg['bin1'].max()
+        values = np.arange(minbin1, maxbin1 + 1)
+        bin1_offset[minbin1:maxbin1+1] = i + np.searchsorted(
+            agg['bin1'], values, side='left')
     
-        i += n_unique
+        i += npix
         if hi == n_records:
             break
 
     nnz = len(Count)
-    bin_offset[n_bins] = nnz
+    bin1_offset[maxbin1+1:] = nnz
 
-    return chrom_offset, bin_offset, nnz
+    return chrom_offset, bin1_offset, nnz
 
 
-def from_fraghdf5(h5, chromtable, bintable, h5frag, binsize=None, info=None, h5opts=None, chunksize=40000000):
+def from_fraghdf5(h5, chromtable, bintable, h5frag, 
+                  binsize=None, info=None, h5opts=None, chunksize=40000000):
     h5opts = {'compression': 'lzf'} if h5opts is None else h5opts
     info = {} if info is None else info
 
@@ -189,7 +217,7 @@ def from_fraghdf5(h5, chromtable, bintable, h5frag, binsize=None, info=None, h5o
     n_chroms = len(chromtable)
     n_bins  = len(bintable)
     
-    print('sequence assemblies')
+    print('scaffolds')
     grp = h5.create_group('scaffolds')
     write_chromtable(grp, chromtable, h5opts)
     
@@ -202,27 +230,24 @@ def from_fraghdf5(h5, chromtable, bintable, h5frag, binsize=None, info=None, h5o
     
     print('matrix')
     grp = h5.create_group('matrix')
-    chrom_offset, bin1_offset, nnz = _from_fraghdf5(grp, chromtable, bintable, h5frag, binsize, h5opts, chunksize)
+    chrom_offset, bin1_offset, nnz = _from_fraghdf5(
+        grp, chromtable, bintable, h5frag, binsize, h5opts, chunksize)
     
     print('indexes')
     grp = h5.create_group('indexes') 
     write_indexes(grp, chrom_offset, bin1_offset, h5opts)
     
     print('info')
-    h5.attrs['id'] = info.get('id', "No ID")
-    h5.attrs['generated-by'] = info.get('generated-by', "cooler")
-    h5.attrs['creation-date'] = datetime.now().isoformat()
-    h5.attrs['format-version'] = __version__
-    h5.attrs['format-url'] = "https://github.com/mirnylab/cooler"
-    h5.attrs['genome-assembly'] = info.get('genome-assembly', 'unknown')
-    h5.attrs['bin-type'] = bintype
-    h5.attrs['bin-size'] = binsize
-    h5.attrs['nchroms'] = n_chroms
-    h5.attrs['nbins'] = n_bins
-    h5.attrs['nnz'] = nnz
+    info['bin-type'] = bintype
+    info['bin-size'] = binsize
+    info['nchroms'] = n_chroms
+    info['nbins'] = n_bins
+    info['nnz'] = nnz
+    write_info(h5, info)
 
 
-def from_dense(h5, chromtable, bintable, heatmap, binsize=None, h5opts=None, info=None):
+def from_dense(h5, chromtable, bintable, heatmap, 
+               binsize=None, h5opts=None, info=None):
     h5opts = {'compression': 'lzf'} if h5opts is None else h5opts
     info = {} if info is None else info
 
@@ -234,7 +259,7 @@ def from_dense(h5, chromtable, bintable, heatmap, binsize=None, h5opts=None, inf
             " heatmap length is {0}, bin table length is {1}".format(
                 len(heatmap), n_bins))
 
-    print('sequence assemblies')
+    print('scaffolds')
     grp = h5.create_group('scaffolds')
     write_chromtable(grp, chromtable, h5opts)
 
@@ -271,14 +296,10 @@ def from_dense(h5, chromtable, bintable, heatmap, binsize=None, h5opts=None, inf
     write_indexes(grp, chrom_offset, bin1_offset, h5opts)
 
     print('info')
-    h5.attrs['id'] = info.get('id', "No ID")
-    h5.attrs['generated-by'] = info.get('generated-by', "cooler")
-    h5.attrs['creation-date'] = datetime.now().isoformat()
-    h5.attrs['format-version'] = __version__
-    h5.attrs['format-url'] = "https://github.com/mirnylab/cooler"
-    h5.attrs['genome-assembly'] = info.get('genome-assembly', 'unknown')
-    h5.attrs['bin-type'] = bintype
-    h5.attrs['bin-size'] = binsize
-    h5.attrs['nchroms'] = len(chromtable)
-    h5.attrs['nbins'] = heatmap.shape[0]
-    h5.attrs['nnz'] = nnz
+    info['bin-type'] = bintype
+    info['bin-size'] = binsize
+    info['nchroms'] = n_chroms
+    info['nbins'] = n_bins
+    info['nnz'] = nnz
+    write_info(h5, info)
+
