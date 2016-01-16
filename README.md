@@ -21,24 +21,25 @@ Range queries can be supplied as either integer bin indexes or genomic coordinat
 
 Required attributes (metadata):
 ```
-id              : <string or null> Name or id for a file
-format-url      : <url> Static URL to page providing format details
-format-version  : <tuple> The version of the current format
-creation-date   : <datetime> Date the file was built
 genome-assembly : <string> Name of genome assembly
 bin-type        : {"fixed" or "variable"}
 bin-size        : <int or null> Size of bins in bp if bin-type is "fixed"
 nchroms         : <int> Number of rows in scaffolds table
-nbins			: <int> Number of rows in bins table
-nnz				: <int> Number of rows in matrix table
+nbins           : <int> Number of rows in bins table
+nnz             : <int> Number of rows in matrix table
+format-url      : <url> URL to page providing format details
+format-version  : <string> The version of the current format
+generated-by    : <string> Agent that created the file
+creation-date   : <datetime> Date the file was built
+metadata        : <json> custom metadata about the experiment
 ```
 
 The required tables and indexes can be represented in the [Datashape](http://datashape.readthedocs.org/en/latest/) layout language:
 ```
 {
   scaffolds: {
-    length:   typevar['Nchroms'] * int64, 
     name:     typevar['Nchroms'] * string[32, 'A']
+    length:   typevar['Nchroms'] * int64, 
   },
   bins: {
     chrom_id: typevar['Nbins'] * int32,
