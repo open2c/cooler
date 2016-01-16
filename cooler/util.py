@@ -27,41 +27,29 @@ def parse_region_string(s):
             typ = match.lastgroup
             yield typ, match.group(typ)
 
-    def _next(tokens):
+    def _check_next(tokens, expected):
         try:
             token = next(tokens)
         except StopIteration:
             raise ValueError
-        return token
+        else:
+            if token[0] != expected:
+                raise ValueError
+        return token[1]
 
     def _expect(tokens):
-        token = _next(tokens)
-        if token[0] != 'CHROM':
-            raise ValueError
-        chrom = token[1]
+        chrom = _check_next(tokens, 'CHROM')
 
         try:
             token = next(tokens)
         except StopIteration:
             return (chrom, None, None)
-
         if token[0] != 'COLON':
             raise ValueError
         
-        token = _next(tokens)
-        if token[0] != 'COORD':
-            raise ValueError
-        start = atoi(token[1])
-
-        token = _next(tokens)
-        if token[0] != 'HYPHEN':
-            raise ValueError
-
-        token = _next(tokens)
-        if token[0] != 'COORD':
-            raise ValueError
-        end = atoi(token[1])
-
+        start = atoi(_check_next(tokens, 'COORD'))
+        _check_next(tokens, 'HYPHEN')
+        end = atoi(_check_next(tokens, 'COORD'))
         if end < start:
             raise ValueError
 
