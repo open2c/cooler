@@ -12,11 +12,16 @@ from .util import parse_region
 from .io import open_hdf5
 
 
-def get(h5, table_name, fields=None, lo=None, hi=None):
+def get(h5, table_name, lo=0, hi=None, fields=None, **kwargs):
     if fields is None:
-        fields = h5[table_name].keys()
+        fields = list(h5[table_name].keys())
+    data = {field: h5[table_name][field][lo:hi] for field in fields}
+    if lo is not None:
+        index = np.arange(lo, lo + len(next(iter(data.values()))))
+    else:
+        index = None
     return pandas.DataFrame(
-        {field: h5[table_name][field][lo:hi] for field in fields},
+        data,
         columns=fields,
         index=np.arange(lo, hi),
         **kwargs)
@@ -28,7 +33,7 @@ def info(h5):
     return d
 
 
-def chromtable(h5, lo=None, hi=None):
+def chromtable(h5, lo=0, hi=None):
     names = h5['scaffolds']['name'][lo:hi].astype('U')
     lengths = h5['scaffolds']['length'][lo:hi]
     if lo is not None:
@@ -37,13 +42,12 @@ def chromtable(h5, lo=None, hi=None):
         index = None
     return pandas.DataFrame({
             'name': names,
-            'id': np.arange(len(names)),
             'length': lengths,
-        }, columns=['name', 'id', 'length'],
+        }, columns=['name', 'length'],
            index=index)
 
 
-def bintable(h5, lo=None, hi=None):
+def bintable(h5, lo=0, hi=None):
     chrom_ids = h5['bins']['chrom_id'][lo:hi]
     names = h5['scaffolds']['name'][:].astype('U')
     chroms = names[chrom_ids]
@@ -61,30 +65,38 @@ def bintable(h5, lo=None, hi=None):
            index=index)
 
 
-def pixeltable(h5, field, lo=None, hi=None, join=True):
+def pixeltable(h5, lo=0, hi=None, fields=None, join=True):
+    if fields is None:
+        fields = set(h5['matrix'].keys())
+        fields.remove('bin1_id')
+        fields.remove('bin2_id')
+
     bin1 = h5['matrix']['bin1_id'][lo:hi]
     bin2 = h5['matrix']['bin2_id'][lo:hi]
-    values = h5['matrix'][field][lo:hi]
     if lo is not None:
         index = np.arange(lo, lo+len(bin1))
     else:
         index = None
-    df = pandas.DataFrame({
-            'bin1_id': bin1,
-            'bin2_id': bin2,
-            field: values,
-        },
-        columns=['bin1_id', 'bin2_id', field],
+    data = {
+        'bin1_id': bin1,
+        'bin2_id': bin2,
+    }
+    data.update({field: h5['matrix'][field][lo:hi] for field in fields})
+
+    df = pandas.DataFrame(
+        data,
+        columns=['bin1_id', 'bin2_id'] + list(fields),
         index=index)
 
     if join:
-        bins = bintable(h5, lo, hi)
+        bins = bintable(h5, bin2.min(), bin2.max()+1)
         df = (pandas.merge(bins, 
                            df, 
                            left_index=True,
                            right_on='bin2_id')
                     .drop('bin2_id', axis=1))
-        df = (pandas.merge(bins, 
+        bins = bintable(h5, bin1.min(), bin1.max()+1)
+        df = (pandas.merge(bins,
                            df, 
                            left_index=True, 
                            right_on='bin1_id', 
@@ -94,7 +106,8 @@ def pixeltable(h5, field, lo=None, hi=None, join=True):
     return df
 
 
-def matrix(h5, field, i0, i1, j0, j1):
+def matrix(h5, i0, i1, j0, j1, field=None):
+    if field is None: field = 'count'
     i, j, v = slice_matrix(h5, field, i0, i1, j0, j1)
     return coo_matrix((v, (i-i0, j-j0)), (i1-i0, j1-j0))
 
@@ -104,16 +117,19 @@ class Cooler(object):
         self.fp = fp
         with open_hdf5(self.fp) as h5:
             self._chromtable = chromtable(h5)
+            self._chromtable['id'] = self._chromtable.index
             self._chromtable.index = self._chromtable['name']
             self._info = info(h5)
 
     def offset(self, region):
         with open_hdf5(self.fp) as h5:
-            return region_to_offset(h5, self._chromtable, parse_region(region))
+            return region_to_offset(h5, self._chromtable,
+                parse_region(region, self._chromtable['length']))
 
     def extent(self, region):
         with open_hdf5(self.fp) as h5:
-            return region_to_offset(h5, self._chromtable, parse_region(region))
+            return region_to_offset(h5, self._chromtable,
+                parse_region(region, self._chromtable['length']))
 
     @property
     def info(self):
@@ -121,13 +137,12 @@ class Cooler(object):
             return info(h5)
 
     def get(self, table_name, fields=None):
-        if fields is None:
-            with open_hdf5(self.fp) as h5:
-                return h5[table_name].keys()
+        with open_hdf5(self.fp) as h5:
+            nmax = h5[table_name][next(iter(h5[table_name].keys()))]
         def _slice(lo, hi):
             with open_hdf5(self.fp) as h5:
-                return get(h5, table_name, fields, lo, hi)
-        return Sliceable1D(_slice, None)
+                return get(h5, table_name, lo, hi, fields)
+        return Sliceable1D(_slice, None, nmax)
 
     def chromtable(self):
         def _slice(lo, hi):
@@ -145,28 +160,29 @@ class Cooler(object):
                                         parse_region(region))
         return Sliceable1D(_slice, _fetch, self._info['nbins'])
 
-    def pixeltable(self, join=True):
+    def pixeltable(self, fields=None, join=True):
         def _slice(lo, hi):
             with open_hdf5(self.fp) as h5:
-                return pixeltable(h5, 'count', lo, hi, join)
+                return pixeltable(h5, lo, hi, fields, join)
         def _fetch(region):
             with open_hdf5(self.fp) as h5:
-                lo, hi = tuple(
-                    map(bin_to_pixel, 
-                        region_to_extent(h5, self._chromtable, 
-                                         parse_region(region))))
+                i0, i1 = region_to_extent(h5, self._chromtable,
+                    parse_region(region, self._chromtable['length']))
+                lo = h5['indexes']['bin1_offset'][i0]
+                hi = h5['indexes']['bin1_offset'][i1]
                 return lo, hi
         return Sliceable1D(_slice, _fetch, self._info['nnz'])
 
-    def matrix(self, field):
+    def matrix(self, field=None):
         def _slice(i0, i1, j0, j1):
             with open_hdf5(self.fp) as h5:
-                return matrix(h5, field, i0, i1, j0, j1)
+                return matrix(h5, i0, i1, j0, j1, field)
         def _fetch(region, region2=None):
             with open_hdf5(self.fp) as h5:
                 if region2 is None:
                     region2 = region
-                region1, region2 = parse_region(region), parse_region(region2)
+                region1 = parse_region(region, self._chromtable['length'])
+                region2 = parse_region(region2, self._chromtable['length'])
                 i0, i1 = region_to_extent(h5, self._chromtable, region1)
                 j0, j1 = region_to_extent(h5, self._chromtable, region2)
                 return i0, i1, j0, j1

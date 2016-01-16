@@ -27,41 +27,44 @@ def parse_region_string(s):
             typ = match.lastgroup
             yield typ, match.group(typ)
 
-    def _expect(tokens):
+    def _next(tokens):
         try:
             token = next(tokens)
         except StopIteration:
-            raise RegionParseError
+            raise ValueError
+        return token
 
+    def _expect(tokens):
+        token = _next(tokens)
         if token[0] != 'CHROM':
-            raise RegionParseError
+            raise ValueError
         chrom = token[1]
+
         try:
             token = next(tokens)
         except StopIteration:
             return (chrom, None, None)
 
         if token[0] != 'COLON':
-            raise RegionParseError
-        try:
-            token = next(tokens)
-            if token[0] != 'COORD':
-                raise RegionParseError
-            start = atoi(token[1])
-
-            token = next(tokens)
-            if token[0] != 'HYPHEN':
-                raise RegionParseError
-
-            token = next(tokens)
-            if token[0] != 'COORD':
-                raise RegionParseError
-            end = atoi(token[1])
-        except StopIteration:
-            raise RegionParseError
+            raise ValueError
         
+        token = _next(tokens)
+        if token[0] != 'COORD':
+            raise ValueError
+        start = atoi(token[1])
+
+        token = _next(tokens)
+        if token[0] != 'HYPHEN':
+            raise ValueError
+
+        token = _next(tokens)
+        if token[0] != 'COORD':
+            raise ValueError
+        end = atoi(token[1])
+
         if end < start:
-            raise RegionParseError
+            raise ValueError
+
         return chrom, start, end
 
     return _expect(_tokenize(s))
@@ -200,9 +203,9 @@ def lexbisect(arrays, values, side='left', lo=0, hi=None):
     Parameters
     ----------
     arrays : sequence of k 1-D array-like
-        Each "array" can be any sequence that supports scalar integer indexing,
-        as long as the arrays have the same length and their values are
-        lexsorted from left to right.
+        Each "array" can be any sequence that supports scalar integer indexing.
+        The arrays are assumed to have the same length and values lexsorted 
+        from left to right.
     values : sequence of k values
         Values that would be inserted into the arrays.
     side : {'left', 'right'}, optional
