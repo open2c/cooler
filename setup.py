@@ -11,7 +11,7 @@ except ImportError:
 
 
 classifiers = """\
-    Development Status :: 2 - Pre-Alpha
+    Development Status :: 4 - Beta
     Operating System :: OS Independent
     Programming Language :: Python
     Programming Language :: Python :: 2
@@ -34,7 +34,7 @@ def _read(*parts, **kwargs):
 def get_version():
     version = re.search(
         r'^__version__\s*=\s*[\'"]([^\'"]*)[\'"]',
-        _read('cooler', '__init__.py'), 
+        _read('cooler', '__init__.py'),
         re.MULTILINE).group(1)
     return version
 
@@ -55,7 +55,7 @@ setup(
     description='Sparse binary format for Hi-C genomic contact heatmaps',
     long_description=get_long_description(),
     keywords=['genomics'],
-    url='https://bitbucket.org/nvictus/cooler',
+    url='https://github.com/mirnylab/cooler',
     packages=['cooler'],
     zip_safe=False,
     classifiers=[s.strip() for s in classifiers.split('\n') if s],
