@@ -4,7 +4,7 @@ import numpy as np
 
 
 class IndexMixin(object):
-    
+
     def _unpack_index(self, key):
         if isinstance(key, tuple):
             if len(key) == 2:
@@ -23,7 +23,7 @@ class IndexMixin(object):
         except (TypeError, ValueError):
             return False
         return True
-    
+
     def _process_slice(self, s, nmax):
         if isinstance(s, slice):
             if s.step not in (1, None):
@@ -120,13 +120,13 @@ def bin1_to_pixel(h5, bin_id):
     return h5['indexes']['bin1_offset'][bin_id]
 
 
-def iter_dataspans(h5, i0, i1, j0, j1):    
+def iter_dataspans(h5, i0, i1, j0, j1):
     if (i1 - i0 > 0) or (j1 - j0 > 0):
         edges = h5['indexes']['bin1_offset'][i0:i1+1]
         for lo1, hi1 in zip(edges[:-1], edges[1:]):
             bin2 = h5['matrix']['bin2_id'][lo1:hi1]
-            lo2  = lo1 + np.searchsorted(bin2, j0)
-            hi2  = lo1 + np.searchsorted(bin2, j1)
+            lo2 = lo1 + np.searchsorted(bin2, j0)
+            hi2 = lo1 + np.searchsorted(bin2, j1)
             yield lo2, hi2
 
 
@@ -155,11 +155,6 @@ def _contains(a0, a1, b0, b1, strict=False):
     if a0 > b0 or a1 < b1: return False
     if strict and (a0 == b0 or a1 == b1): return False
     return a0 <= b0 and a1 >= b1
-
-
-def _overlaps(a0, a1, b0, b1):
-    return (not comes_before(a0, a1, b0, b1, strict=True)
-            and not comes_after(a0, a1, b0, b1, strict=True))
 
 
 def slice_triu_coo(h5, column, i0, i1, j0, j1):
@@ -211,7 +206,7 @@ def slice_triu_csr(h5, column, i0, i1, j0, j1):
     return indptr, j, v
 
 
-def slice_matrix(h5, field, i0, i1, j0, j1):  
+def slice_matrix(h5, field, i0, i1, j0, j1):
     # Four query cases:
     # 1. same
     # 2. different and non-overlapping
@@ -220,16 +215,16 @@ def slice_matrix(h5, field, i0, i1, j0, j1):
     n_bins = h5.attrs['nbins']
     _check_bounds(i0, i1, n_bins)
     _check_bounds(j0, j1, n_bins)
-    
+
     if (i0, i1) == (j0, j1):
         i, j, v = slice_triu_coo(h5, field, i0, i1, i0, i1)
         i, j, v = np.r_[i, j], np.r_[j, i], np.r_[v, v]
-    else:   
+    else:
         transpose = False
         if j0 < i0 or (i0 == j0 and i1 < j1):
             i0, i1, j0, j1 = j0, j1, i0, i1
             transpose = True
-        
+
         if _comes_before(i0, i1, j0, j1, strict=True):
             i, j, v = slice_triu_coo(h5, field, i0, i1, j0, j1)
         elif _comes_before(i0, i1, j0, j1):
@@ -251,7 +246,8 @@ def slice_matrix(h5, field, i0, i1, j0, j1):
             i, j = j, i
 
     # Remove duplicates coming from main diagonal entries
-    # http://stackoverflow.com/questions/28677162/ignoring-duplicate-entries-in-sparse-matrix
+    # http://stackoverflow.com/questions/28677162/
+    # ignoring-duplicate-entries-in-sparse-matrix
     ij = np.c_[i, j]
     idx = np.unique(ij.view(ij.dtype.descr * 2), return_index=True)[1]
 

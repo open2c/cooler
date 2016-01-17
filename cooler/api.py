@@ -6,7 +6,7 @@ from scipy.sparse import coo_matrix
 import numpy as np
 import pandas
 
-from .models import (Sliceable1D, Sliceable2D, slice_matrix, 
+from .models import (Sliceable1D, Sliceable2D, slice_matrix,
                      region_to_offset, region_to_extent)
 from .util import parse_region
 from .io import open_hdf5
@@ -125,7 +125,7 @@ def bintable(h5, lo=0, hi=None):
     return pandas.DataFrame({
             'chrom': chroms,
             'start': starts,
-            'end': ends,
+            'end': ends
         }, columns=['chrom', 'start', 'end'],
            index=index)
 
@@ -144,7 +144,7 @@ def pixeltable(h5, lo=0, hi=None, fields=None, join=True):
     fields : sequence of str, optional
         Subset of columns to select from table.
     join : bool, optional
-        Whether or not to expand bin ID columns to their full bin description 
+        Whether or not to expand bin ID columns to their full bin description
         (chrom, start, end). Default is True.
 
     Returns
@@ -176,16 +176,16 @@ def pixeltable(h5, lo=0, hi=None, fields=None, join=True):
 
     if join:
         bins = bintable(h5, bin2.min(), bin2.max()+1)
-        df = (pandas.merge(bins, 
-                           df, 
+        df = (pandas.merge(bins,
+                           df,
                            left_index=True,
                            right_on='bin2_id')
                     .drop('bin2_id', axis=1))
         bins = bintable(h5, bin1.min(), bin1.max()+1)
         df = (pandas.merge(bins,
-                           df, 
-                           left_index=True, 
-                           right_on='bin1_id', 
+                           df,
+                           left_index=True,
+                           right_on='bin1_id',
                            suffixes=('1', '2'))
                     .drop('bin1_id', axis=1))
 
@@ -213,7 +213,8 @@ def matrix(h5, i0, i1, j0, j1, field=None):
     coo_matrix (use the ``toarray()`` method to convert to a numpy ``ndarray``.)
 
     """
-    if field is None: field = 'count'
+    if field is None:
+        field = 'count'
     i, j, v = slice_matrix(h5, field, i0, i1, j0, j1)
     return coo_matrix((v, (i-i0, j-j0)), (i1-i0, j1-j0))
 
@@ -231,12 +232,14 @@ class Cooler(object):
 
     def offset(self, region):
         with open_hdf5(self.fp) as h5:
-            return region_to_offset(h5, self._chromids,
+            return region_to_offset(
+                h5, self._chromids,
                 parse_region(region, self._chromlens))
 
     def extent(self, region):
         with open_hdf5(self.fp) as h5:
-            return region_to_offset(h5, self._chromids,
+            return region_to_offset(
+                h5, self._chromids,
                 parse_region(region, self._chromlens))
 
     @property
@@ -257,7 +260,7 @@ class Cooler(object):
             with open_hdf5(self.fp) as h5:
                 return chromtable(h5, lo, hi)
         return Sliceable1D(_slice, None, self._info['nchroms'])
-        
+
     def bintable(self):
         def _slice(lo, hi):
             with open_hdf5(self.fp) as h5:
@@ -274,7 +277,8 @@ class Cooler(object):
                 return pixeltable(h5, lo, hi, fields, join)
         def _fetch(region):
             with open_hdf5(self.fp) as h5:
-                i0, i1 = region_to_extent(h5, self._chromids,
+                i0, i1 = region_to_extent(
+                    h5, self._chromids,
                     parse_region(region, self._chromlens))
                 lo = h5['indexes']['bin1_offset'][i0]
                 hi = h5['indexes']['bin1_offset'][i1]
