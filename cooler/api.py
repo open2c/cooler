@@ -44,7 +44,7 @@ def get(h5, table_name, lo=0, hi=None, fields=None, **kwargs):
     return pandas.DataFrame(
         data,
         columns=fields,
-        index=np.arange(lo, hi),
+        index=index,
         **kwargs)
 
 
@@ -222,20 +222,22 @@ class Cooler(object):
     def __init__(self, fp):
         self.fp = fp
         with open_hdf5(self.fp) as h5:
-            self._chromtable = chromtable(h5)
-            self._chromtable['id'] = self._chromtable.index
-            self._chromtable.index = self._chromtable['name']
+            _chromtable = chromtable(h5)
+            _chromtable['id'] = _chromtable.index
+            _chromtable.index = _chromtable['name']
+            self._chromlens = _chromtable['length']
+            self._chromids = _chromtable['id']
             self._info = info(h5)
 
     def offset(self, region):
         with open_hdf5(self.fp) as h5:
-            return region_to_offset(h5, self._chromtable,
-                parse_region(region, self._chromtable['length']))
+            return region_to_offset(h5, self._chromids,
+                parse_region(region, self._chromlens))
 
     def extent(self, region):
         with open_hdf5(self.fp) as h5:
-            return region_to_offset(h5, self._chromtable,
-                parse_region(region, self._chromtable['length']))
+            return region_to_offset(h5, self._chromids,
+                parse_region(region, self._chromlens))
 
     @property
     def info(self):
@@ -262,7 +264,7 @@ class Cooler(object):
                 return bintable(h5, lo, hi)
         def _fetch(region):
             with open_hdf5(self.fp) as h5:
-                return region_to_extent(h5, self._chromtable,
+                return region_to_extent(h5, self._chromids,
                                         parse_region(region))
         return Sliceable1D(_slice, _fetch, self._info['nbins'])
 
@@ -272,8 +274,8 @@ class Cooler(object):
                 return pixeltable(h5, lo, hi, fields, join)
         def _fetch(region):
             with open_hdf5(self.fp) as h5:
-                i0, i1 = region_to_extent(h5, self._chromtable,
-                    parse_region(region, self._chromtable['length']))
+                i0, i1 = region_to_extent(h5, self._chromids,
+                    parse_region(region, self._chromlens))
                 lo = h5['indexes']['bin1_offset'][i0]
                 hi = h5['indexes']['bin1_offset'][i1]
                 return lo, hi
@@ -287,9 +289,9 @@ class Cooler(object):
             with open_hdf5(self.fp) as h5:
                 if region2 is None:
                     region2 = region
-                region1 = parse_region(region, self._chromtable['length'])
-                region2 = parse_region(region2, self._chromtable['length'])
-                i0, i1 = region_to_extent(h5, self._chromtable, region1)
-                j0, j1 = region_to_extent(h5, self._chromtable, region2)
+                region1 = parse_region(region, self._chromlens)
+                region2 = parse_region(region2, self._chromlens)
+                i0, i1 = region_to_extent(h5, self._chromids, region1)
+                j0, j1 = region_to_extent(h5, self._chromids, region2)
                 return i0, i1, j0, j1
         return Sliceable2D(_slice, _fetch, (self._info['nbins'],) * 2)

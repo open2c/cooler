@@ -20,7 +20,7 @@ class IndexMixin(object):
     def _isintlike(self, num):
         try:
             int(num)
-        except TypeError:
+        except (TypeError, ValueError):
             return False
         return True
     
@@ -41,7 +41,9 @@ class IndexMixin(object):
         elif self._isintlike(s):
             if s < 0:
                 s += nmax
-            return s, s + 1
+            if s >= nmax:
+                raise IndexError('index is out of bounds')
+            return int(s), int(s + 1)
         else:
             raise TypeError('expected slice or scalar')
 
@@ -51,6 +53,9 @@ class Sliceable1D(IndexMixin):
         self._slice = slicer
         self._fetch = fetcher
         self._shape = (nmax,)
+    @property
+    def shape(self):
+        return self._shape
     def __getitem__(self, key):
         if isinstance(key, tuple):
             if len(key) == 1:
@@ -72,6 +77,9 @@ class Sliceable2D(IndexMixin):
         self._slice = slicer
         self._fetch = fetcher
         self._shape = shape
+    @property
+    def shape(self):
+        return self._shape
     def __getitem__(self, key):
         s1, s2 = self._unpack_index(key)
         i0, i1 = self._process_slice(s1, self._shape[0])
@@ -85,33 +93,27 @@ class Sliceable2D(IndexMixin):
             raise NotImplementedError
 
 
-def region_to_offset(h5, chromtable, region, binsize=None):
+def _region_to_extent(h5, chrom_ids, region, binsize):
     chrom, start, end = region
-    chrom_id = chromtable['id'].at[chrom]
+    chrom_id = chrom_ids.at[chrom]
     if binsize is not None:
         chrom_offset = h5['indexes']['chrom_offset'][chrom_id]
-        return chrom_offset + int(np.floor(pos))
+        yield chrom_offset + int(np.floor(start/binsize))
+        yield chrom_offset + int(np.ceil(end/binsize))
     else:
         chrom_lo = h5['indexes']['chrom_offset'][chrom_id]
         chrom_hi = h5['indexes']['chrom_offset'][chrom_id + 1]
         chrom_bins = h5['bins']['start'][chrom_lo:chrom_hi]
-        return chrom_lo + np.searchsorted(chrom_bins, start, 'left')
+        yield chrom_lo + np.searchsorted(chrom_bins, start, 'right') - 1
+        yield chrom_lo + np.searchsorted(chrom_bins, end, 'left')
 
 
-def region_to_extent(h5, chromtable, region, binsize=None):
-    chrom, start, end = region
-    chrom_id = chromtable['id'].at[chrom]
-    if binsize is not None:
-        chrom_offset = h5['indexes']['chrom_offset'][chrom_id]
-        lo = chrom_offset + int(np.floor(start/binsize))
-        hi = chrom_offset + int(np.ceil(end/binsize))
-    else:
-        chrom_lo = h5['indexes']['chrom_offset'][chrom_id]
-        chrom_hi = h5['indexes']['chrom_offset'][chrom_id + 1]
-        chrom_bins = h5['bins']['start'][chrom_lo:chrom_hi]
-        lo = chrom_lo + np.searchsorted(chrom_bins, start, 'left')
-        hi = chrom_lo + np.searchsorted(chrom_bins, end, 'right')
-    return lo, hi
+def region_to_offset(h5, chrom_ids, region, binsize=None):
+    return next(_region_to_extent(h5, chrom_ids, region, binsize))
+
+
+def region_to_extent(h5, chrom_ids, region, binsize=None):
+    return tuple(_region_to_extent(h5, chrom_ids, region, binsize))
 
 
 def bin1_to_pixel(h5, bin_id):

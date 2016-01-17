@@ -6,6 +6,7 @@ import os
 import numpy as np
 import h5py
 
+from nose.tools import assert_raises
 import cooler
 
 testdir = os.path.dirname(os.path.realpath(__file__))
@@ -54,4 +55,3 @@ def test_roundtrip():
     assert np.allclose(heatmap[:100,:100], mat.toarray())
 
 test_roundtrip.teardown = teardown_func
-
