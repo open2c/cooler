@@ -20,6 +20,25 @@ The library API provides a thin Python wrapper over [h5py](http://docs.h5py.org/
 
 Range queries can be supplied as either integer bin indexes or genomic coordinate intervals.
 
+### Installation
+
+Requirements:
+
+- Python 2.7/3.3+
+- libhdf5 and Python packages `numpy`, `scipy`, `pandas`, `h5py`. If you don't have them installed already, we recommend you use the [conda](http://conda.pydata.org/miniconda.html) package manager to manage these dependencies instead of pip.
+
+Clone or download the source archive and install using pip, or pass the repo url directly to pip.
+```sh
+$ pip install git+https://github.com/mirnylab/cooler.git@v0.2
+```
+
+To install in "editable" (i.e. development) mode use the `-e` option.
+```sh
+$ git clone https://github.com/mirnylab/cooler.git
+$ cd cooler
+$ pip install -e .
+```
+
 
 ### Schema
 
