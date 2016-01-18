@@ -6,16 +6,19 @@
 
 Cooler is a **sparse, compressed, binary** persistent storage format for Hi-C contact maps based on HDF5.
 
+See [example Jupyter notebook](https://gist.github.com/nvictus/904160bca9d0e8d5aeeb).
+
 The `cooler` library implements a simple **schema** to store a high resolution contact matrix along with important auxiliary data such as scaffold information, genomic bin annotations, and basic metadata.
 
 Data tables are stored in a **columnar** representation as groups of 1D HDF5 array datasets of the same length. The contact matrix itself is stored as a table containing only the **nonzero upper triangle** pixels.
 
-The library API provides a thin Python wrapper over [h5py](http://docs.h5py.org/en/latest/) for **range queries** on the data: 
+The library API provides a thin Python wrapper over [h5py](http://docs.h5py.org/en/latest/) for **range queries** on the data:
 - Table selections are retrieved as Pandas `DataFrame`s
 - Matrix slice selections are retrieved as SciPy sparse matrices or NumPy `ndarray`s
 - The metadata is retrieved as a json-serializable dictionary.
 
 Range queries can be supplied as either integer bin indexes or genomic coordinate intervals.
+
 
 ### Schema
 
@@ -39,7 +42,7 @@ The required tables and indexes can be represented in the [Datashape](http://dat
 {
   scaffolds: {
     name:     typevar['Nchroms'] * string[32, 'A']
-    length:   typevar['Nchroms'] * int64, 
+    length:   typevar['Nchroms'] * int64,
   },
   bins: {
     chrom_id: typevar['Nbins'] * int32,
