@@ -302,7 +302,7 @@ class Cooler(object):
         def _fetch(region):
             with open_hdf5(self.fp) as h5:
                 return region_to_extent(h5, self._chromids,
-                                        parse_region(region))
+                                        parse_region(region, self._chromlens))
         return Sliceable1D(_slice, _fetch, self._info['nbins'])
 
     def pixeltable(self, fields=None, join=True):

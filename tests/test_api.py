@@ -59,6 +59,8 @@ mock_cooler.attrs = {
     'metadata': '{}',
 }
 
+mock_cooler.mode = 'r'
+
 chromID_lookup = pandas.Series({'chr1': 0, 'chr2': 1})
 
 
@@ -92,4 +94,9 @@ def test_info():
 
 
 def test_cooler():
-    pass
+    c = cooler.Cooler(mock_cooler)
+
+    # bin table
+    table = c.bintable().fetch('chr1')
+    assert np.all(table['start'] == mock_cooler['bins']['start'][0:10])
+    assert np.all(table['end'] == mock_cooler['bins']['end'][0:10])
