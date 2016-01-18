@@ -7,7 +7,7 @@ A cool place to store your Hi-C.
 
 :copyright: (c) 2016 Massachusetts Institute of Technology
 :author: Nezar Abdennur
-:license: MIT
+:license: BSD
 
 """
 __version__ = '0.2dev'
