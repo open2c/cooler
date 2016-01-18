@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import division, print_function, unicode_literals
 import json
+import six
 
 from scipy.sparse import coo_matrix
 import numpy as np
@@ -62,8 +63,14 @@ def info(h5):
     dict
 
     """
-    d = dict(h5.attrs.items())
-    d['metadata'] = json.loads(d.get('metadata', '{}'))
+    d = {}
+    for k, v in h5.attrs.items():
+        if isinstance(v, six.binary_type):
+            try:
+                v = json.loads(v)
+            except ValueError:
+                pass
+        d[k] = v
     return d
 
 
@@ -220,6 +227,10 @@ def matrix(h5, i0, i1, j0, j1, field=None):
 
 
 class Cooler(object):
+    """
+    A cooler object.
+
+    """
     def __init__(self, fp):
         self.fp = fp
         with open_hdf5(self.fp) as h5:
