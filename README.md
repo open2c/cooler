@@ -73,3 +73,7 @@ Matrix storage format:
 
 Rather than build on top of a more full-featured, opinionated library like PyTables (or `pandas.HDFStore` built on top of that), we provide a simple and transparent data layout on top of HDF5 that supports random access range queries and can be easily [migrated](https://github.com/blaze/odo).
 
+See also:
+- [hdf2tab](https://github.com/blajoie/hdf2tab) converts dense Hi-C matrices stored in HDF5 files to tabular text files.
+- The [biom](https://github.com/biocore/biom-format) format is an HDF5-based format for metagenomic observation matrices.
+
