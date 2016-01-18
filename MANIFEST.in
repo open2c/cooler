@@ -1,6 +1,6 @@
-include COPYING
 include CHANGES.md
 include README.md
+include LICENSE
 
 graft tests
 graft docs

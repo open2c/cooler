@@ -44,6 +44,8 @@ def get_long_description():
 
 
 install_requires = ['six', 'numpy', 'scipy', 'pandas', 'h5py']
+tests_require = ['nose']
+extras_require = {'docs': ['Sphinx>=1.1', 'numpydoc>=0.5']}
 
 
 setup(
@@ -54,12 +56,12 @@ setup(
     license='BSD3',
     description='Sparse binary format for Hi-C genomic contact heatmaps',
     long_description=get_long_description(),
-    keywords=['genomics'],
+    keywords=['genomics', 'bioinformatics', 'Hi-C'],
     url='https://github.com/mirnylab/cooler',
     packages=['cooler'],
     zip_safe=False,
     classifiers=[s.strip() for s in classifiers.split('\n') if s],
     install_requires=install_requires,
-    tests_require=['nose'],
-    extras_require={'docs': ['Sphinx>=1.1', 'numpydoc']},
+    tests_require=tests_require,
+    extras_require=extras_require,
 )
