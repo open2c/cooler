@@ -13,4 +13,4 @@ API Reference
 .. autofunction:: cooler.get
 .. autofunction:: cooler.read_chrominfo
 .. autofunction:: cooler.make_bintable
-.. autofunction:: open_hdf5
+.. autofunction:: cooler.open_hdf5
