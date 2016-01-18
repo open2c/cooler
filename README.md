@@ -27,12 +27,12 @@ Requirements:
 - Python 2.7/3.3+
 - libhdf5 and Python packages `numpy`, `scipy`, `pandas`, `h5py`. If you don't have them installed already, we recommend you use the [conda](http://conda.pydata.org/miniconda.html) package manager to manage these dependencies instead of pip.
 
-Clone or download the source archive and install using pip, or pass the repo url directly to pip.
+Install from PyPI using pip.
 ```sh
-$ pip install git+https://github.com/mirnylab/cooler.git@v0.2
+$ pip install cooler
 ```
 
-To install in "editable" (i.e. development) mode use the `-e` option.
+For development, clone and install in "editable" (i.e. development) mode with the `-e` option.
 ```sh
 $ git clone https://github.com/mirnylab/cooler.git
 $ cd cooler
