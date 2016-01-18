@@ -211,7 +211,7 @@ def pixeltable(h5, lo=0, hi=None, fields=None, join=True):
                            left_index=True,
                            right_on='bin2_id')
                     .drop('bin2_id', axis=1))
-        bins = bintable(h5, bin1.min(), bin1.max()+1)
+        bins = bintable(h5, bin1.min(), bin1.max()+1, [])
         df = (pandas.merge(bins,
                            df,
                            left_index=True,
