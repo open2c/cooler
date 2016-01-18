@@ -123,8 +123,9 @@ def read_chrominfo(filepath_or,
     """
     Parse a ``<db>.chrom.sizes`` or ``<db>.chromInfo.txt`` file from the UCSC
     database, where ``db`` is a genome assembly name.
-    Input
-    -----
+
+    Parameters
+    ----------
     filepath_or : str or file-like
         Path or url to text file, or buffer.
     name_patterns : sequence, optional
@@ -139,6 +140,7 @@ def read_chrominfo(filepath_or,
     Returns
     -------
     Data frame indexed by sequence name, with columns 'name' and 'length'.
+
     """
     if isinstance(filepath_or, six.string_types) and filepath_or.endswith('.gz'):
         kwargs.setdefault('compression', 'gzip')
@@ -161,15 +163,18 @@ def read_chrominfo(filepath_or,
 def make_bintable(chromsizes, binsize):
     """
     Divide a genome into evenly sized bins.
+
     Parameters
     ----------
     chromsizes : Series
         pandas Series indexed by chromosome name with chromosome lengths in bp.
     binsize : int
         size of bins in bp
+
     Returns
     -------
     Data frame with columns: 'chrom', 'start', 'end'.
+
     """
     def _each(chrom):
         clen = chromsizes[chrom]
