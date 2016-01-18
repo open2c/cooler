@@ -65,7 +65,7 @@ def info(h5):
     """
     d = {}
     for k, v in h5.attrs.items():
-        if isinstance(v, six.binary_type):
+        if isinstance(v, six.string_types):
             try:
                 v = json.loads(v)
             except ValueError:
@@ -74,7 +74,7 @@ def info(h5):
     return d
 
 
-def chromtable(h5, lo=0, hi=None):
+def chromtable(h5, lo=0, hi=None, fields=None):
     """
     Table describing the chromosomes/scaffolds/contigs used.
     They appear in the same order they occur in the heatmap.
@@ -85,26 +85,32 @@ def chromtable(h5, lo=0, hi=None):
         Open handle to cooler file.
     lo, hi : int, optional
         Range of rows to select from the table.
+    fields : sequence of str, optional
+        Subset of columns to select from table.
 
     Returns
     -------
     DataFrame
 
     """
+    if fields is None:
+        fields = set(h5['scaffolds'].keys())
+        fields.remove('name')
+
     names = h5['scaffolds']['name'][lo:hi].astype('U')
-    lengths = h5['scaffolds']['length'][lo:hi]
     if lo is not None:
         index = np.arange(lo, lo+len(names))
     else:
         index = None
-    return pandas.DataFrame({
-            'name': names,
-            'length': lengths,
-        }, columns=['name', 'length'],
-           index=index)
+
+    data = {'name': names}
+    data.update({field: h5['scaffolds'][field][lo:hi] for field in fields})
+    return pandas.DataFrame(data,
+                          columns=['name'] + list(fields),
+                          index=index)
 
 
-def bintable(h5, lo=0, hi=None):
+def bintable(h5, lo=0, hi=None, fields=None):
     """
     Table describing the genomic bins that make up the axes of the heatmap.
 
@@ -114,27 +120,42 @@ def bintable(h5, lo=0, hi=None):
         Open handle to cooler file.
     lo, hi : int, optional
         Range of rows to select from the table.
+    fields : sequence of str, optional
+        Subset of columns to select from table.
 
     Returns
     -------
     DataFrame
 
     """
+    if fields is None:
+        fields = set(h5['bins'].keys())
+        fields.remove('chrom_id')
+        fields.remove('start')
+        fields.remove('end')
+
     chrom_ids = h5['bins']['chrom_id'][lo:hi]
     names = h5['scaffolds']['name'][:].astype('U')
     chroms = names[chrom_ids]
     starts = h5['bins']['start'][lo:hi]
     ends = h5['bins']['end'][lo:hi]
+
     if lo is not None:
         index = np.arange(lo, lo+len(chroms))
     else:
         index = None
-    return pandas.DataFrame({
-            'chrom': chroms,
-            'start': starts,
-            'end': ends
-        }, columns=['chrom', 'start', 'end'],
-           index=index)
+
+    data = {
+        'chrom': chroms,
+        'start': starts,
+        'end': ends,
+    }
+    data.update({field: h5['bins'][field][lo:hi] for field in fields})
+    df = pandas.DataFrame(
+        data,
+        columns=['chrom', 'start', 'end'] + list(fields),
+        index=index)
+    return df
 
 
 def pixeltable(h5, lo=0, hi=None, fields=None, join=True):
@@ -166,10 +187,12 @@ def pixeltable(h5, lo=0, hi=None, fields=None, join=True):
 
     bin1 = h5['matrix']['bin1_id'][lo:hi]
     bin2 = h5['matrix']['bin2_id'][lo:hi]
+
     if lo is not None:
         index = np.arange(lo, lo+len(bin1))
     else:
         index = None
+
     data = {
         'bin1_id': bin1,
         'bin2_id': bin2,
@@ -182,7 +205,7 @@ def pixeltable(h5, lo=0, hi=None, fields=None, join=True):
         index=index)
 
     if join:
-        bins = bintable(h5, bin2.min(), bin2.max()+1)
+        bins = bintable(h5, bin2.min(), bin2.max()+1, [])
         df = (pandas.merge(bins,
                            df,
                            left_index=True,
@@ -266,16 +289,16 @@ class Cooler(object):
                 return get(h5, table_name, lo, hi, fields)
         return Sliceable1D(_slice, None, nmax)
 
-    def chromtable(self):
+    def chromtable(self, fields=None):
         def _slice(lo, hi):
             with open_hdf5(self.fp) as h5:
-                return chromtable(h5, lo, hi)
+                return chromtable(h5, lo, hi, fields)
         return Sliceable1D(_slice, None, self._info['nchroms'])
 
-    def bintable(self):
+    def bintable(self, fields=None):
         def _slice(lo, hi):
             with open_hdf5(self.fp) as h5:
-                return bintable(h5, lo, hi)
+                return bintable(h5, lo, hi, fields)
         def _fetch(region):
             with open_hdf5(self.fp) as h5:
                 return region_to_extent(h5, self._chromids,
