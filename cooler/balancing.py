@@ -58,7 +58,8 @@ class Worker(object):
         self.filepath = cooler_path
         self.filters = filters if filters is not None else []
 
-    def __call__(self, (lo, hi)):
+    def __call__(self, span):
+        lo, hi = span
         import numpy as np
         import h5py
 
