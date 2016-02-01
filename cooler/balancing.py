@@ -175,11 +175,8 @@ def iterative_correction(coo, chunksize=None, map=map, tol=1e-5,
     if chunksize is None:
         spans = [(0, nnz)]
     else:
-        edges = range(0, nnz, chunksize) + [nnz]
-        if len(edges) > 2:
-            if edges[-1] - edges[-2] < 0.3 * chunksize:
-                edges.pop(-2)
-        spans = zip(edges[:-1], edges[1:])
+        edges = np.arange(0, nnz+chunksize, chunksize)
+        spans = list(zip(edges[:-1], edges[1:]))
 
     # List of pre-marginalization data transformations
     base_filters = []
@@ -189,7 +186,7 @@ def iterative_correction(coo, chunksize=None, map=map, tol=1e-5,
         base_filters.append(DropDiagFilter(ignore_diags))
 
     # Initialize the bias weights
-    n_bins = coo.attrs['shape'][0]
+    n_bins = coo.attrs['nbins']
     bias = np.ones(n_bins, dtype=float)
 
     # Drop bins with too few nonzeros from bias
@@ -206,8 +203,8 @@ def iterative_correction(coo, chunksize=None, map=map, tol=1e-5,
 
     # Do balancing
     while True:
-        worker = Worker(coo.filename, filters)
         filters = base_filters + [TimesOuterProductFilter(bias)]
+        worker = Worker(coo.filename, filters)
         marg_partials = map(worker, spans)
         marg = np.sum(list(marg_partials), axis=0)
 
