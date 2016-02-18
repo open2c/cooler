@@ -112,31 +112,36 @@ def write_info(h5, info):
     h5.attrs.update(info)
 
 
-def _from_fraghdf5(grp, chromtable, bintable, h5frag, binsize, h5opts, chunksize):
-    n_records = len(h5frag["chrms1"])
-    n_bins = len(bintable)
+def _aggregate(grp, chromtable, bintable, h5read, binsize, h5opts, chunksize):
 
-    def load_chunk(h5frag, lo, hi):
+    def _load_chunk(h5read, lo, hi):
         return pandas.DataFrame(OrderedDict([
-            ('chrom1', h5frag['chrms1'][lo:hi]),
-            ('cut1', h5frag['cuts1'][lo:hi]),
-            ('strand1', h5frag['strands1'][lo:hi]),
-            ('chrom2', h5frag['chrms2'][lo:hi]),
-            ('cut2', h5frag['cuts2'][lo:hi]),
-            ('strand2', h5frag['strands2'][lo:hi]),
+            ('chrom_id1', h5read['chrms1'][lo:hi]),
+            ('cut1', h5read['cuts1'][lo:hi]),
+            ('chrom_id2', h5read['chrms2'][lo:hi]),
+            ('cut2', h5read['cuts2'][lo:hi]),
         ]))
 
+    n_reads = len(h5read['chrms1'])
+    n_bins = len(bintable)
+    chromtable = chromtable.set_index('name', drop=False)
+
+    # convert genomic coords of bin starts to absolute
+    accum_length = np.r_[0, np.cumsum(chromtable['length'])]
+    bin_chrom_ids = chromtable['id'][bintable['chrom']].values
+    abs_start_coords = accum_length[bin_chrom_ids] + bintable['start']
+
     # chrom offset index: chrom_id -> offset in bins
-    chrom_bin_lengths = np.ceil(
-        chromtable['length'].values/binsize).astype(np.int32)
-    chrom_offset = np.r_[0, np.cumsum(chrom_bin_lengths)]
+    chrom_nbins =  bintable.groupby(bin_chrom_ids, sort=False).size()
+    chrom_offset = np.r_[0, np.cumsum(chrom_nbins)]
 
     # initialize the bin1 offset index
     bin1_offset = np.zeros(n_bins + 1, dtype=np.int64)
 
     # fill the pixel table
     init_size = 5 * n_bins
-    max_size = min(n_records, n_bins * (n_bins - 1) // 2) + 10000
+    max_size = min(n_reads, n_bins * (n_bins - 1) // 2 + n_bins)
+
     Bin1  = grp.create_dataset('bin1_id',
                                dtype=np.int64,
                                shape=(init_size,),
@@ -153,60 +158,63 @@ def _from_fraghdf5(grp, chromtable, bintable, h5frag, binsize, h5opts, chunksize
                                maxshape=(max_size,),
                                **h5opts)
 
-    maxbin1 = 0
-    hi = 0
-    i = 0
-    while True:
-        # fetch chunk, making sure our selection doesn't split a bin1
-        lo, hi = hi, min(hi + chunksize, n_records-1)
-        chrom = h5frag["chrms1"][hi]
-        coord_binend = int(np.ceil(h5frag["cuts1"][hi]/binsize)) * binsize
-        hi = lexbisect(
-            (h5frag["chrms1"], h5frag["cuts1"]),
-            (chrom, coord_binend),
-            'left')
-        if hi == n_records - 1:
-            hi = n_records
-        print(lo, hi)
-        table = load_chunk(h5frag, lo, hi)
+    hi = np.searchsorted(h5read['chrms1'], -1, 'right')
+    bin1hi = 0
+    nnz = 0 
 
-        # assign bins to each record
-        rel_bin1 = np.floor(table['cut1']/binsize).astype(int)
-        rel_bin2 = np.floor(table['cut2']/binsize).astype(int)
-        table['bin1'] = chrom_offset[table['chrom1']] + rel_bin1
-        table['bin2'] = chrom_offset[table['chrom2']] + rel_bin2
+    while hi < n_reads:
+        # fetch next chunk, making sure our selection doesn't split a bin1
+        lo, hi = hi, min(hi + chunksize, n_reads)
+        cid, cut = h5read['chrms1'][hi-1], h5read['cuts1'][hi-1]
+        abs_pos = accum_length[cid] + cut
+        i = int(np.searchsorted(abs_start_coords, abs_pos, side='right')) - 1
+        end_pos = bintable['end'][i]
+        hi = lexbisect(
+            (h5read["chrms1"], h5read["cuts1"]),
+            (cid, end_pos),
+            'left')
+        print(lo, hi)
+        
+        # assign bins to reads
+        table = _load_chunk(h5read, lo, hi)
+        if binsize is None:
+            abs_pos1 = accum_length[h5read['chrms1'][lo:hi]] + h5read['cuts1'][lo:hi]
+            abs_pos2 = accum_length[h5read['chrms2'][lo:hi]] + h5read['cuts2'][lo:hi]
+            table['bin1'] = np.searchsorted(abs_start_coords, abs_pos1, side='right') - 1
+            table['bin2'] = np.searchsorted(abs_start_coords, abs_pos2, side='right') - 1
+        else:
+            rel_bin1 = np.floor(table['cut1']/binsize).astype(int)
+            rel_bin2 = np.floor(table['cut2']/binsize).astype(int)
+            table['bin1'] = chrom_offset[table['chrom_id1']] + rel_bin1
+            table['bin2'] = chrom_offset[table['chrom_id2']] + rel_bin2
 
         # reduce
         gby = table.groupby(['bin1', 'bin2'])
-        agg = (gby['chrom1'].count()
-                            .reset_index()
-                            .rename(columns={'chrom1': 'count'}))
-        npix = len(agg)
+        agg = (gby['chrom_id1'].count()
+                               .reset_index()
+                               .rename(columns={'chrom_id1': 'count'}))
+        n = len(agg)
 
         # insert new pixels
         for dset in [Bin1, Bin2, Count]:
-            dset.resize((i + npix,))
-        Bin1[i:i+npix] = agg['bin1']
-        Bin2[i:i+npix] = agg['bin2']
-        Count[i:i+npix] = agg['count']
+            dset.resize((nnz + n,))
+        Bin1[nnz:nnz+n] = agg['bin1']
+        Bin2[nnz:nnz+n] = agg['bin2']
+        Count[nnz:nnz+n] = agg['count']
 
-        # add new pixel table rows to the bin1 offset index
-        minbin1, maxbin1 = maxbin1, agg['bin1'].max()
-        values = np.arange(minbin1, maxbin1 + 1)
-        bin1_offset[minbin1:maxbin1+1] = i + np.searchsorted(
-            agg['bin1'], values, side='left')
+        # add new pixeltable rows to the bin1 offset index
+        bin1lo, bin1hi = bin1hi, i + 1
+        bin1_range = np.arange(bin1lo, bin1hi)
+        bin1_offset[bin1lo:bin1hi] = nnz + np.searchsorted(agg['bin1'], bin1_range, side='left')
+ 
+        nnz += n
 
-        i += npix
-        if hi == n_records:
-            break
-
-    nnz = len(Count)
-    bin1_offset[maxbin1+1:] = nnz
+    bin1_offset[bin1hi:] = nnz
 
     return chrom_offset, bin1_offset, nnz
 
 
-def from_fraghdf5(h5, chromtable, bintable, h5frag,
+def from_readhdf5(h5, chromtable, bintable, h5read,
                   binsize=None, info=None, h5opts=None, chunksize=40000000):
     h5opts = {'compression': 'lzf'} if h5opts is None else h5opts
     info = {} if info is None else info
@@ -219,24 +227,21 @@ def from_fraghdf5(h5, chromtable, bintable, h5frag,
     write_chromtable(grp, chromtable, h5opts)
 
     print('bins')
-    bintype = 'fixed'
-    if binsize is None:
-        raise ValueError("variable bin size not yet supported")
     grp = h5.create_group('bins')
     write_bintable(grp, chromtable, bintable, h5opts)
 
     print('matrix')
     grp = h5.create_group('matrix')
-    chrom_offset, bin1_offset, nnz = _from_fraghdf5(
-        grp, chromtable, bintable, h5frag, binsize, h5opts, chunksize)
+    chrom_offset, bin1_offset, nnz = _aggregate(
+        grp, chromtable, bintable, h5read, binsize, h5opts, chunksize)
 
     print('indexes')
     grp = h5.create_group('indexes')
     write_indexes(grp, chrom_offset, bin1_offset, h5opts)
 
     print('info')
-    info['bin-type'] = bintype
-    info['bin-size'] = binsize
+    info['bin-type'] = 'fixed' if binsize is not None else 'variable'
+    info['bin-size'] = binsize if binsize is not None else 'null'
     info['nchroms'] = n_chroms
     info['nbins'] = n_bins
     info['nnz'] = nnz
