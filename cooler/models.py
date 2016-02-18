@@ -230,11 +230,17 @@ def slice_triu_csr(h5, field, i0, i1, j0, j1):
 
 
 def slice_matrix(h5, field, i0, i1, j0, j1):
-    # Four query cases:
-    # 1. same
+    # Query cases to consider wrt the axes ranges (i0, i1) and (j0 j1):
+    # 1. they are identical
     # 2. different and non-overlapping
     # 3. different but partially overlapping
-    # 4. different but one inside other
+    # 4. different but one inside another other
+    #
+    # (1) requires filling in the lower triangle.
+    # (3) and (4) require splitting the selection into instances of (1) and (2).
+    #
+    # In some cases, the input axes ranges are swapped to retrieve the data,
+    # then the final result is transposed.
     n_bins = h5.attrs['nbins']
     _check_bounds(i0, i1, n_bins)
     _check_bounds(j0, j1, n_bins)
