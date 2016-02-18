@@ -8,7 +8,8 @@ import numpy as np
 import pandas
 
 from .models import (Sliceable1D, Sliceable2D, slice_matrix,
-                     region_to_offset, region_to_extent)
+                     slice_triu_as_table, region_to_offset, 
+                     region_to_extent)
 from .util import parse_region
 from .io import open_hdf5
 
@@ -222,9 +223,11 @@ def pixeltable(h5, lo=0, hi=None, fields=None, join=True):
     return df
 
 
-def matrix(h5, i0, i1, j0, j1, field=None):
+def matrix(h5, i0, i1, j0, j1, field=None, as_pixels=False, join=True):
     """
-    Range query on the Hi-C contact heatmap.
+    Two-dimensional range query on the Hi-C contact heatmap.
+    Returns either a rectangular sparse ``coo_matrix`` or a dataframe of upper
+    triangle pixels.
 
     Parameters
     ----------
@@ -237,6 +240,12 @@ def matrix(h5, i0, i1, j0, j1, field=None):
     field : str, optional
         Which column of the pixel table to fill the matrix with. By default,
         the 'count' column is used.
+    as_pixels: bool, optional
+        Return a dataframe of the corresponding rows from the pixel table
+        instead of a rectangular sparse matrix. False by default.
+    join : bool, optional
+        If returning pixels, specifies whether to expand the bin ID columns.
+        Has no effect when requesting a rectangular matrix. Default is True.
 
     Returns
     -------
@@ -245,8 +254,29 @@ def matrix(h5, i0, i1, j0, j1, field=None):
     """
     if field is None:
         field = 'count'
-    i, j, v = slice_matrix(h5, field, i0, i1, j0, j1)
-    return coo_matrix((v, (i-i0, j-j0)), (i1-i0, j1-j0))
+    if as_pixels:
+        ind, i, j, v = slice_triu_as_table(h5, field, i0, i1, j0, j1)
+        cols = ['bin1_id', 'bin2_id', field]
+        df = pandas.DataFrame(dict(zip(cols, [i, j, v])),
+                              columns=cols, index=ind)
+        if join:
+            bins = bintable(h5, j.min(), j.max()+1, [])
+            df = (pandas.merge(bins,
+                               df,
+                               left_index=True,
+                               right_on='bin2_id')
+                        .drop('bin2_id', axis=1))
+            bins = bintable(h5, i.min(), i.max()+1, [])
+            df = (pandas.merge(bins,
+                               df,
+                               left_index=True,
+                               right_on='bin1_id',
+                               suffixes=('1', '2'))
+                        .drop('bin1_id', axis=1))
+        return df
+    else:
+        i, j, v = slice_matrix(h5, field, i0, i1, j0, j1)
+        return coo_matrix((v, (i-i0, j-j0)), (i1-i0, j1-j0))
 
 
 class Cooler(object):
@@ -319,10 +349,10 @@ class Cooler(object):
                 return lo, hi
         return Sliceable1D(_slice, _fetch, self._info['nnz'])
 
-    def matrix(self, field=None):
+    def matrix(self, field=None, as_pixels=False, join=False):
         def _slice(i0, i1, j0, j1):
             with open_hdf5(self.fp) as h5:
-                return matrix(h5, i0, i1, j0, j1, field)
+                return matrix(h5, i0, i1, j0, j1, field, as_pixels, join)
         def _fetch(region, region2=None):
             with open_hdf5(self.fp) as h5:
                 if region2 is None:

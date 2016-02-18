@@ -157,12 +157,35 @@ def _contains(a0, a1, b0, b1, strict=False):
     return a0 <= b0 and a1 >= b1
 
 
-def slice_triu_coo(h5, column, i0, i1, j0, j1):
+def slice_triu_as_table(h5, field, i0, i1, j0, j1):
+    bin1 = h5['matrix']['bin1_id']
+    bin2 = h5['matrix']['bin2_id']
+    data = h5['matrix'][field]
+    ind, i, j, v = [], [], [], []
+    for lo, hi in iter_dataspans(h5, i0, i1, j0, j1):
+        ind.append(np.arange(lo, hi))
+        i.append(bin1[lo:hi])
+        j.append(bin2[lo:hi])
+        v.append(data[lo:hi])
+    if not i:
+        ind = np.array([], dtype=np.int32)
+        i = np.array([], dtype=np.int32)
+        j = np.array([], dtype=np.int32)
+        v = np.array([])
+    else:
+        ind = np.concatenate(ind, axis=0)
+        i = np.concatenate(i, axis=0)
+        j = np.concatenate(j, axis=0)
+        v = np.concatenate(v, axis=0)
+    return ind, i, j, v
+
+
+def slice_triu_coo(h5, field, i0, i1, j0, j1):
     edges = h5['indexes']['bin1_offset'][i0:i1+1]
     i, j, v = [], [], []
     if (i1 - i0 > 0) or (j1 - j0 > 0):
         edges = h5['indexes']['bin1_offset'][i0:i1+1]
-        data = h5['matrix'][column]
+        data = h5['matrix'][field]
         for row_id, lo, hi in zip(range(i0, i1), edges[:-1], edges[1:]):
             bin2 = h5['matrix']['bin2_id'][lo:hi]
             mask = (bin2 >= j0) & (bin2 < j1)
@@ -181,12 +204,12 @@ def slice_triu_coo(h5, column, i0, i1, j0, j1):
     return i, j, v
 
 
-def slice_triu_csr(h5, column, i0, i1, j0, j1):
+def slice_triu_csr(h5, field, i0, i1, j0, j1):
     edges = h5['indexes']['bin1_offset'][i0:i1+1]
     j, v = [], []
     if (i1 - i0 > 0) or (j1 - j0 > 0):
         edges = h5['indexes']['bin1_offset'][i0:i1+1]
-        data = h5['matrix'][column]
+        data = h5['matrix'][field]
         ptr = 0
         indptr = [ptr]
         for row_id, lo, hi in zip(range(i0, i1), edges[:-1], edges[1:]):
