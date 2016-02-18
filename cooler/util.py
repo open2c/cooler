@@ -154,7 +154,7 @@ def read_chrominfo(filepath_or,
             part = part.iloc[argnatsort(part['name'])]
             parts.append(part)
         chromtable = pandas.concat(parts, axis=0)
-    chromtable.insert(0, 'id', np.arange(len(chromtable)))
+    #chromtable.insert(0, 'id', np.arange(len(chromtable)))
     if name_index:
         chromtable.index = chromtable['name'].values
     return chromtable

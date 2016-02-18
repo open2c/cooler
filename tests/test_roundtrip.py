@@ -7,6 +7,7 @@ import numpy as np
 import h5py
 
 from nose.tools import assert_raises
+from nose import with_setup
 import cooler
 
 testdir = os.path.dirname(os.path.realpath(__file__))
@@ -20,6 +21,7 @@ def teardown_func():
         pass
 
 
+@with_setup(teardown=teardown_func)
 def test_roundtrip():
     chromtable = cooler.read_chrominfo(
         'https://genome.ucsc.edu/goldenpath/help/hg19.chrom.sizes',
@@ -53,5 +55,3 @@ def test_roundtrip():
     mat = cooler.Cooler(h5).matrix('count')[:100, :100]
     assert mat.shape == (100, 100)
     assert np.allclose(heatmap[:100,:100], mat.toarray())
-
-test_roundtrip.teardown = teardown_func
