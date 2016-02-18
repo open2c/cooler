@@ -272,7 +272,7 @@ class Cooler(object):
 
     def extent(self, region):
         with open_hdf5(self.fp) as h5:
-            return region_to_offset(
+            return region_to_extent(
                 h5, self._chromids,
                 parse_region(region, self._chromlens))
 

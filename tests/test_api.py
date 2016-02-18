@@ -100,3 +100,6 @@ def test_cooler():
     table = c.bintable().fetch('chr1')
     assert np.all(table['start'] == mock_cooler['bins']['start'][0:10])
     assert np.all(table['end'] == mock_cooler['bins']['end'][0:10])
+
+    assert c.offset('chr1') == 0
+    assert c.extent('chr1') == (0, 10)
