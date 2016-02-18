@@ -108,8 +108,8 @@ def test_cooler():
     # 2D range queries as rectangular or triangular
     A1 = np.triu(c.matrix().fetch('chr2').toarray())
     df = c.matrix(as_pixels=True, join=False).fetch('chr2')
-    i, j, v = df['bin1_id'], df['bin2_id'], df['count']
     i0 = c.offset('chr2')
+    i, j, v = df['bin1_id'], df['bin2_id'], df['count']
     mat = sparse.coo_matrix((v, (i-i0, j-i0)), (A1.shape))
     A2 = np.triu(mat.toarray())
-    assert np.allclose(A1, A2)
+    assert np.all(A1 == A2)
