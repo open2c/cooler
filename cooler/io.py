@@ -114,8 +114,9 @@ def write_info(h5, info):
 
 
 def _aggregate(grp, chromtable, bintable, h5read, binsize, h5opts, chunksize,
-               check_sorted=True):
-
+               check_sorted):
+    # TODO: do a first sweep to do the lexsort check, or else chunk selection
+    # can potentially hang on unsorted data
     def _load_chunk(h5read, lo, hi):
         data = OrderedDict([
             ('chrom_id1', h5read['chrms1'][lo:hi]),
@@ -223,7 +224,8 @@ def _aggregate(grp, chromtable, bintable, h5read, binsize, h5opts, chunksize,
 
 
 def from_readhdf5(h5, chromtable, bintable, h5read,
-                  binsize=None, info=None, h5opts=None, chunksize=40000000):
+                  binsize=None, info=None, h5opts=None, chunksize=40000000,
+                  check_sorted=True):
     h5opts = {'compression': 'lzf'} if h5opts is None else h5opts
     info = {} if info is None else info
 
@@ -241,7 +243,8 @@ def from_readhdf5(h5, chromtable, bintable, h5read,
     print('matrix')
     grp = h5.create_group('matrix')
     chrom_offset, bin1_offset, nnz = _aggregate(
-        grp, chromtable, bintable, h5read, binsize, h5opts, chunksize)
+        grp, chromtable, bintable, h5read, binsize, h5opts, chunksize,
+        check_sorted)
 
     print('indexes')
     grp = h5.create_group('indexes')

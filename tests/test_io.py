@@ -28,6 +28,7 @@ class MockReads(dict):
     pass
 
 n_records = 3000
+np.random.seed(1)
 chrms = np.random.randint(0, n_chroms, n_records * 2)
 cuts = np.random.randint(0, clen, n_records * 2)
 abs_cuts = np.array([clen * chrm + cut for chrm, cut in zip(chrms, cuts)])
@@ -55,7 +56,7 @@ def teardown_func():
         pass
 
 
-def do_from_readhdf5(bintable, binsize):
+def should_not_depend_on_chunksize(bintable, binsize):
     # try different chunk sizes
     with h5py.File(testfile_path, 'w') as h5:
         cooler.io.from_readhdf5(
@@ -78,11 +79,41 @@ def do_from_readhdf5(bintable, binsize):
     assert np.all(p1.values == p2.values)
 
 
+def should_raise_if_input_not_sorted(bintable, binsize):
+    with h5py.File(testfile_path, 'w') as h5:
+        bad_reads = MockReads({
+            'chrms1': mock_reads['chrms2'],
+            'cuts1':  mock_reads['cuts2'],
+            'chrms2': mock_reads['chrms1'],
+            'cuts2':  mock_reads['cuts1'],
+        })
+        assert_raises(ValueError, cooler.io.from_readhdf5,
+            h5, chromtable, bintable, bad_reads,
+            binsize, chunksize=66)
+
+    with h5py.File(testfile_path, 'w') as h5:
+        bad_reads = MockReads({
+            'chrms1': mock_reads['chrms1'].copy(),
+            'cuts1':  mock_reads['cuts1'].copy(),
+            'chrms2': mock_reads['chrms2'].copy(),
+            'cuts2':  mock_reads['cuts2'].copy(),
+        })
+        bad_reads['chrms1'][0] = 0
+        bad_reads['chrms2'][0] = 0
+        bad_reads['cuts1'][0] = 10
+        bad_reads['cuts2'][0] = 9
+        assert_raises(ValueError, cooler.io.from_readhdf5,
+            h5, chromtable, bintable, bad_reads,
+            binsize, chunksize=66)
+
+
 @with_setup(teardown=teardown_func)
 def test_from_readhdf5():
     binsize = 100
     bintable = cooler.make_bintable(chromtable['length'], binsize)
     # assuming uniform bins
-    yield do_from_readhdf5, bintable, binsize
+    yield should_not_depend_on_chunksize, bintable, binsize
+    yield should_raise_if_input_not_sorted, bintable, binsize
     # not assuming uniform bins
-    yield do_from_readhdf5, bintable, None
+    yield should_not_depend_on_chunksize, bintable, None
+    yield should_raise_if_input_not_sorted, bintable, None
