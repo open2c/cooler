@@ -6,6 +6,7 @@ from datetime import datetime
 import json
 import six
 
+from pandas.algos import is_lexsorted
 import numpy as np
 import pandas
 import h5py
@@ -112,15 +113,19 @@ def write_info(h5, info):
     h5.attrs.update(info)
 
 
-def _aggregate(grp, chromtable, bintable, h5read, binsize, h5opts, chunksize):
+def _aggregate(grp, chromtable, bintable, h5read, binsize, h5opts, chunksize,
+               check_sorted=True):
 
     def _load_chunk(h5read, lo, hi):
-        return pandas.DataFrame(OrderedDict([
+        data = OrderedDict([
             ('chrom_id1', h5read['chrms1'][lo:hi]),
             ('cut1', h5read['cuts1'][lo:hi]),
             ('chrom_id2', h5read['chrms2'][lo:hi]),
             ('cut2', h5read['cuts2'][lo:hi]),
-        ]))
+        ])
+        if check_sorted and not is_lexsorted(list(data.values())):
+            raise ValueError("Paired read coordinates are not lexically sorted.")
+        return pandas.DataFrame(data)
 
     n_reads = len(h5read['chrms1'])
     n_bins = len(bintable)
@@ -177,9 +182,12 @@ def _aggregate(grp, chromtable, bintable, h5read, binsize, h5opts, chunksize):
         
         # assign bins to reads
         table = _load_chunk(h5read, lo, hi)
+        abs_pos1 = accum_length[h5read['chrms1'][lo:hi]] + h5read['cuts1'][lo:hi]
+        abs_pos2 = accum_length[h5read['chrms2'][lo:hi]] + h5read['cuts2'][lo:hi]
+        if check_sorted and np.any(abs_pos1 > abs_pos2):
+            raise ValueError("Found a read pair in descending order.")
+
         if binsize is None:
-            abs_pos1 = accum_length[h5read['chrms1'][lo:hi]] + h5read['cuts1'][lo:hi]
-            abs_pos2 = accum_length[h5read['chrms2'][lo:hi]] + h5read['cuts2'][lo:hi]
             table['bin1'] = np.searchsorted(abs_start_coords, abs_pos1, side='right') - 1
             table['bin2'] = np.searchsorted(abs_start_coords, abs_pos2, side='right') - 1
         else:
