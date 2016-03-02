@@ -15,10 +15,10 @@ def parse_region_string(s):
 
     def _tokenize(s):
         token_spec = [
-            ('COORD',   r'[0-9,]+'),
-            ('CHROM',   r'\w+'),
-            ('COLON',   r':'),
-            ('HYPHEN',  r'-'),
+            ('INT',    r'[0-9,]+'),
+            ('ALNUM',  r'[a-zA-z0-9_|]+'),
+            ('COLON',  r':'),
+            ('HYPHEN', r'-'),
         ]
         tok_regex = r'\s*' + r'|\s*'.join(
             r'(?P<%s>%s)' % pair for pair in token_spec)
@@ -31,27 +31,26 @@ def parse_region_string(s):
         try:
             token = next(tokens)
         except StopIteration:
-            raise ValueError
+            raise ValueError('Expected {} token missing'.format(expected))
         else:
-            if token[0] != expected:
-                raise ValueError
+            if token[0] not in expected:
+                raise ValueError('Unexpected token "{}"'.format(token[1]))
         return token[1]
 
     def _expect(tokens):
-        chrom = _check_next(tokens, 'CHROM')
-
+        chrom = _check_next(tokens, ['ALNUM', 'INT'])
         try:
             token = next(tokens)
         except StopIteration:
             return (chrom, None, None)
         if token[0] != 'COLON':
-            raise ValueError
+            raise ValueError('Got "{}" after chromosome label'.format(token[1]))
 
-        start = atoi(_check_next(tokens, 'COORD'))
-        _check_next(tokens, 'HYPHEN')
-        end = atoi(_check_next(tokens, 'COORD'))
+        start = atoi(_check_next(tokens, ['INT']))
+        _check_next(tokens, ['HYPHEN'])
+        end = atoi(_check_next(tokens, ['INT']))
         if end < start:
-            raise ValueError
+            raise ValueError('End coordinate less than start')
 
         return chrom, start, end
 
