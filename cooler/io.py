@@ -124,8 +124,9 @@ def _aggregate(grp, chromtable, bintable, h5read, binsize, h5opts, chunksize,
             ('chrom_id2', h5read['chrms2'][lo:hi]),
             ('cut2', h5read['cuts2'][lo:hi]),
         ])
-        if check_sorted and not is_lexsorted(list(data.values())):
-            raise ValueError("Paired read coordinates are not lexically sorted.")
+        if check_sorted and not is_lexsorted(
+              [arr.astype(np.int64) for arr in data.values()]):
+              raise ValueError("Paired read coordinates are not lexically sorted.")
         return pandas.DataFrame(data)
 
     n_reads = len(h5read['chrms1'])

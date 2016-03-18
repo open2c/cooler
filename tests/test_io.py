@@ -107,6 +107,34 @@ def should_raise_if_input_not_sorted(bintable, binsize):
             binsize, chunksize=66)
 
 
+def should_work_with_int32_cols(bintable, binsize):
+    with h5py.File(testfile_path, 'w') as h5:
+        cooler.io.from_readhdf5(
+            h5, chromtable, bintable, mock_reads,
+            binsize, chunksize=66)
+        oc1 = h5['indexes']['chrom_offset'][:]
+        ob1 = h5['indexes']['bin1_offset'][:]
+        p1 = cooler.pixeltable(h5, join=False)
+
+    with h5py.File(testfile_path, 'w') as h5:
+        mock_reads32 = MockReads({
+            'chrms1': mock_reads['chrms1'].astype(np.int32),
+            'cuts1':  mock_reads['cuts1'].astype(np.int32),
+            'chrms2': mock_reads['chrms2'].astype(np.int32),
+            'cuts2':  mock_reads['cuts2'].astype(np.int32),
+        })
+        cooler.io.from_readhdf5(
+            h5, chromtable, bintable, mock_reads32,
+            binsize, chunksize=66)
+        oc2 = h5['indexes']['chrom_offset'][:]
+        ob2 = h5['indexes']['bin1_offset'][:]
+        p2 = cooler.pixeltable(h5, join=False)
+
+    assert np.all(oc1 == oc2)
+    assert np.all(ob1 == ob2)
+    assert np.all(p1.values == p2.values)
+ 
+
 @with_setup(teardown=teardown_func)
 def test_from_readhdf5():
     binsize = 100
@@ -114,6 +142,8 @@ def test_from_readhdf5():
     # assuming uniform bins
     yield should_not_depend_on_chunksize, bintable, binsize
     yield should_raise_if_input_not_sorted, bintable, binsize
+    yield should_work_with_int32_cols, bintable, binsize
     # not assuming uniform bins
     yield should_not_depend_on_chunksize, bintable, None
     yield should_raise_if_input_not_sorted, bintable, None
+    yield should_work_with_int32_cols, bintable, None
