@@ -43,7 +43,7 @@ def get_long_description():
     return _read('README.md')
 
 
-install_requires = ['six', 'numpy', 'scipy', 'pandas', 'h5py']
+install_requires = ['six', 'numpy', 'scipy', 'pandas>=0.15', 'h5py']
 tests_require = ['nose']
 extras_require = {'docs': ['Sphinx>=1.1', 'numpydoc>=0.5']}
 
