@@ -134,7 +134,7 @@ def iterative_correction(coo, chunksize=None, map=map, tol=1e-5,
 
     Parameters
     ----------
-    coo : filepath or file-like
+    coo : h5py.File object
         Cooler file
     chunksize : int, optional
         Split the contact matrix pixel records into equally sized chunks to
