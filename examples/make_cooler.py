@@ -91,7 +91,7 @@ if __name__ == '__main__':
         # Bin the data
         h5opts = {'compression': 'gzip', 'compression_opts': 6}
         chunksize = int(100e6)
-        with h5py.File(HIC_PATH, 'r') as h5frag:
+        with h5py.File(HIC_PATH, 'r') as h5read:
             with h5py.File(COOLER_PATH, 'w') as h5binned:
                 cooler.io.from_readhdf5(
                     h5binned, 
