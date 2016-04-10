@@ -125,8 +125,12 @@ class TimesOuterProductFilter(object):
         return data_weights
 
 
+def mad(data, axis=None):
+    return np.median(np.abs(data - np.median(data, axis)), axis)
+
+
 def iterative_correction(coo, chunksize=None, map=map, tol=1e-5,
-                         min_nnz=0, min_count=0,
+                         min_nnz=0, min_count=0, mad_max=0,
                          cis_only=False, ignore_diags=False):
     """
     Iterative correction or matrix balancing of a sparse Hi-C contact map in
@@ -153,6 +157,10 @@ def iterative_correction(coo, chunksize=None, map=map, tol=1e-5,
     min_count : int, optional
         Pre-processing bin-level filter. Drop bins with lower marginal sum than
         this value.
+    mad_max : int, optional
+        Pre-processing bin-level filter. Drop bins whose log marginal sum is 
+        less than ``mad_max`` mean absolute deviations below the median log 
+        marginal sum.
     cis_only: bool, optional
         Do iterative correction on intra-chromosomal data only.
         Inter-chromosomal data is ignored.
@@ -190,16 +198,27 @@ def iterative_correction(coo, chunksize=None, map=map, tol=1e-5,
     bias = np.ones(n_bins, dtype=float)
 
     # Drop bins with too few nonzeros from bias
-    filters = [BinarizeFilter()] + base_filters
-    marg_partials = map(Worker(coo.filename, filters), spans)
-    marg_nnz = np.sum(list(marg_partials), axis=0)
-    bias[marg_nnz < min_nnz] = 0
+    if min_nnz > 0:
+        filters = [BinarizeFilter()] + base_filters
+        marg_partials = map(Worker(coo.filename, filters), spans)
+        marg_nnz = np.sum(list(marg_partials), axis=0)
+        bias[marg_nnz < min_nnz] = 0
 
-    # Drop bins with too few total counts from bias
     filters = base_filters
     marg_partials = map(Worker(coo.filename, filters), spans)
     marg = np.sum(list(marg_partials), axis=0)
-    bias[marg < min_count] = 0
+
+    # Drop bins with too few total counts from bias
+    if min_count:
+        bias[marg < min_count] = 0
+
+    # MAD-max filter on the marginals
+    if mad_max > 0:
+        logNzMarg = np.log(marg[marg>0])
+        madSigma = mad(logNzMarg) / 0.6745
+        logMedMarg = np.median(logNzMarg)
+        cutoff = np.exp(logMedMarg - mad_max * madSigma)
+        bias[marg < cutoff] = 0
 
     # Do balancing
     while True:
