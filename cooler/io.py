@@ -195,8 +195,8 @@ def _aggregate(grp, chromtable, bintable, h5read, binsize, h5opts, chunksize,
         else:
             rel_bin1 = np.floor(table['cut1']/binsize).astype(int)
             rel_bin2 = np.floor(table['cut2']/binsize).astype(int)
-            table['bin1'] = chrom_offset[table['chrom_id1']] + rel_bin1
-            table['bin2'] = chrom_offset[table['chrom_id2']] + rel_bin2
+            table['bin1'] = chrom_offset[table['chrom_id1'].values] + rel_bin1
+            table['bin2'] = chrom_offset[table['chrom_id2'].values] + rel_bin2
 
         # reduce
         gby = table.groupby(['bin1', 'bin2'])
@@ -208,14 +208,15 @@ def _aggregate(grp, chromtable, bintable, h5read, binsize, h5opts, chunksize,
         # insert new pixels
         for dset in [Bin1, Bin2, Count]:
             dset.resize((nnz + n,))
-        Bin1[nnz:nnz+n] = agg['bin1']
-        Bin2[nnz:nnz+n] = agg['bin2']
-        Count[nnz:nnz+n] = agg['count']
+        Bin1[nnz:nnz+n] = agg['bin1'].values
+        Bin2[nnz:nnz+n] = agg['bin2'].values
+        Count[nnz:nnz+n] = agg['count'].values
 
         # add new pixeltable rows to the bin1 offset index
         bin1lo, bin1hi = bin1hi, i + 1
         bin1_range = np.arange(bin1lo, bin1hi)
-        bin1_offset[bin1lo:bin1hi] = nnz + np.searchsorted(agg['bin1'], bin1_range, side='left')
+        bin1_offset[bin1lo:bin1hi] = nnz + np.searchsorted(
+            agg['bin1'].values, bin1_range, side='left')
  
         nnz += n
 
