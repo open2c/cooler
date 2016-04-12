@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import division, print_function, unicode_literals
 from multiprocessing import Pool, Lock
+import warnings
 import six
 
 import numpy as np
@@ -131,7 +132,8 @@ def mad(data, axis=None):
 
 def iterative_correction(coo, chunksize=None, map=map, tol=1e-5,
                          min_nnz=0, min_count=0, mad_max=0,
-                         cis_only=False, ignore_diags=False):
+                         cis_only=False, ignore_diags=False,
+                         max_iters=200):
     """
     Iterative correction or matrix balancing of a sparse Hi-C contact map in
     Cooler HDF5 format.
@@ -167,7 +169,8 @@ def iterative_correction(coo, chunksize=None, map=map, tol=1e-5,
     ignore_diags : int or False, optional
         Drop elements occurring on the first ``ignore_diags`` diagonals of the
         matrix.
-
+    max_iters : int, optional
+        Iteration limit.
 
     Returns
     -------
@@ -221,7 +224,7 @@ def iterative_correction(coo, chunksize=None, map=map, tol=1e-5,
         bias[marg < cutoff] = 0
 
     # Do balancing
-    while True:
+    for _ in range(max_iters):
         filters = base_filters + [TimesOuterProductFilter(bias)]
         worker = Worker(coo.filename, filters)
         marg_partials = map(worker, spans)
@@ -237,5 +240,7 @@ def iterative_correction(coo, chunksize=None, map=map, tol=1e-5,
         if var < tol:
             bias[bias==0] = np.nan
             break
+    else:
+        warnings.warn('Iteration limit reached without convergence.')
 
     return bias
