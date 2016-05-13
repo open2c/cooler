@@ -167,7 +167,7 @@ def _aggregate(grp, chromtable, bintable, h5read, binsize, h5opts, chunksize,
 
     hi = np.searchsorted(h5read['chrms1'], -1, 'right')
     bin1hi = 0
-    nnz = 0 
+    nnz = 0
 
     while hi < n_reads:
         # fetch next chunk, making sure our selection doesn't split a bin1
@@ -181,7 +181,7 @@ def _aggregate(grp, chromtable, bintable, h5read, binsize, h5opts, chunksize,
             (cid, end_pos),
             'left')
         print(lo, hi)
-        
+
         # assign bins to reads
         table = _load_chunk(h5read, lo, hi)
         abs_pos1 = accum_length[h5read['chrms1'][lo:hi]] + h5read['cuts1'][lo:hi]
@@ -217,7 +217,7 @@ def _aggregate(grp, chromtable, bintable, h5read, binsize, h5opts, chunksize,
         bin1_range = np.arange(bin1lo, bin1hi)
         bin1_offset[bin1lo:bin1hi] = nnz + np.searchsorted(
             agg['bin1'].values, bin1_range, side='left')
- 
+
         nnz += n
 
     bin1_offset[bin1hi:] = nnz
@@ -234,16 +234,16 @@ def from_readhdf5(h5, chromtable, bintable, h5read,
     n_chroms = len(chromtable)
     n_bins = len(bintable)
 
-    print('scaffolds')
-    grp = h5.create_group('scaffolds')
+    print('chroms')
+    grp = h5.create_group('chroms')
     write_chromtable(grp, chromtable, h5opts)
 
     print('bins')
     grp = h5.create_group('bins')
     write_bintable(grp, chromtable, bintable, h5opts)
 
-    print('matrix')
-    grp = h5.create_group('matrix')
+    print('pixels')
+    grp = h5.create_group('pixels')
     chrom_offset, bin1_offset, nnz = _aggregate(
         grp, chromtable, bintable, h5read, binsize, h5opts, chunksize,
         check_sorted)
@@ -274,8 +274,8 @@ def from_dense(h5, chromtable, bintable, heatmap,
             " heatmap length is {0}, bin table length is {1}".format(
                 len(heatmap), n_bins))
 
-    print('scaffolds')
-    grp = h5.create_group('scaffolds')
+    print('chroms')
+    grp = h5.create_group('chroms')
     write_chromtable(grp, chromtable, h5opts)
 
     print('bins')
@@ -283,14 +283,14 @@ def from_dense(h5, chromtable, bintable, heatmap,
     grp = h5.create_group('bins')
     write_bintable(grp, chromtable, bintable, h5opts)
 
-    print('matrix')
+    print('pixels')
     # TRIU sparsify the matrix
     i, j = np.nonzero(heatmap)
     mask = i <= j
     triu_i, triu_j = i[mask], j[mask]
     values = heatmap[triu_i, triu_j]
     nnz = len(values)
-    grp = h5.create_group('matrix')
+    grp = h5.create_group('pixels')
     grp.create_dataset('bin1_id',
                        shape=(len(values),),
                        dtype=np.int32,

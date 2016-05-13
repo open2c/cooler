@@ -8,7 +8,7 @@ import numpy as np
 import pandas
 
 from .models import (Sliceable1D, Sliceable2D, slice_matrix,
-                     slice_triu_as_table, region_to_offset, 
+                     slice_triu_as_table, region_to_offset,
                      region_to_extent)
 from .util import parse_region
 from .io import open_hdf5
@@ -95,17 +95,17 @@ def chromtable(h5, lo=0, hi=None, fields=None):
 
     """
     if fields is None:
-        fields = set(h5['scaffolds'].keys())
+        fields = set(h5['chroms'].keys())
         fields.remove('name')
 
-    names = h5['scaffolds']['name'][lo:hi].astype('U')
+    names = h5['chroms']['name'][lo:hi].astype('U')
     if lo is not None:
         index = np.arange(lo, lo+len(names))
     else:
         index = None
 
     data = {'name': names}
-    data.update({field: h5['scaffolds'][field][lo:hi] for field in fields})
+    data.update({field: h5['chroms'][field][lo:hi] for field in fields})
     return pandas.DataFrame(data,
                           columns=['name'] + list(fields),
                           index=index)
@@ -136,7 +136,7 @@ def bintable(h5, lo=0, hi=None, fields=None):
         fields.remove('end')
 
     chrom_ids = h5['bins']['chrom_id'][lo:hi]
-    names = h5['scaffolds']['name'][:].astype('U')
+    names = h5['chroms']['name'][:].astype('U')
     chroms = names[chrom_ids]
     starts = h5['bins']['start'][lo:hi]
     ends = h5['bins']['end'][lo:hi]
@@ -182,12 +182,12 @@ def pixeltable(h5, lo=0, hi=None, fields=None, join=True):
 
     """
     if fields is None:
-        fields = set(h5['matrix'].keys())
+        fields = set(h5['pixels'].keys())
         fields.remove('bin1_id')
         fields.remove('bin2_id')
 
-    bin1 = h5['matrix']['bin1_id'][lo:hi]
-    bin2 = h5['matrix']['bin2_id'][lo:hi]
+    bin1 = h5['pixels']['bin1_id'][lo:hi]
+    bin2 = h5['pixels']['bin2_id'][lo:hi]
 
     if lo is not None:
         index = np.arange(lo, lo+len(bin1))
@@ -198,7 +198,7 @@ def pixeltable(h5, lo=0, hi=None, fields=None, join=True):
         'bin1_id': bin1,
         'bin2_id': bin2,
     }
-    data.update({field: h5['matrix'][field][lo:hi] for field in fields})
+    data.update({field: h5['pixels'][field][lo:hi] for field in fields})
 
     df = pandas.DataFrame(
         data,

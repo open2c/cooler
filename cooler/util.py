@@ -133,7 +133,7 @@ def read_chrominfo(filepath_or,
     name_index : bool, optional
         Index table by chromosome name.
     all_names : bool, optional
-        Whether to return all scaffolds listed in the file. Default is
+        Whether to return all contigs listed in the file. Default is
         ``False``.
 
     Returns

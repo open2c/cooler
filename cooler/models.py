@@ -124,7 +124,7 @@ def iter_dataspans(h5, i0, i1, j0, j1):
     if (i1 - i0 > 0) or (j1 - j0 > 0):
         edges = h5['indexes']['bin1_offset'][i0:i1+1]
         for lo1, hi1 in zip(edges[:-1], edges[1:]):
-            bin2 = h5['matrix']['bin2_id'][lo1:hi1]
+            bin2 = h5['pixels']['bin2_id'][lo1:hi1]
             lo2 = lo1 + np.searchsorted(bin2, j0)
             hi2 = lo1 + np.searchsorted(bin2, j1)
             yield lo2, hi2
@@ -134,7 +134,7 @@ def iter_rowspans_with_colmask(h5, i0, i1, j0, j1):
     if (i1 - i0 > 0) or (j1 - j0 > 0):
         edges = h5['indexes']['bin1_offset'][i0:i1+1]
         for lo, hi in zip(edges[:-1], edges[1:]):
-            bin2 = h5['matrix']['bin2_id'][lo:hi]
+            bin2 = h5['pixels']['bin2_id'][lo:hi]
             mask = (bin2 >= j0) & (bin2 < j1)
             yield lo, hi, mask
 
@@ -158,9 +158,9 @@ def _contains(a0, a1, b0, b1, strict=False):
 
 
 def slice_triu_as_table(h5, field, i0, i1, j0, j1):
-    bin1 = h5['matrix']['bin1_id']
-    bin2 = h5['matrix']['bin2_id']
-    data = h5['matrix'][field]
+    bin1 = h5['pixels']['bin1_id']
+    bin2 = h5['pixels']['bin2_id']
+    data = h5['pixels'][field]
     ind, i, j, v = [], [], [], []
     for lo, hi in iter_dataspans(h5, i0, i1, j0, j1):
         ind.append(np.arange(lo, hi))
@@ -185,9 +185,9 @@ def slice_triu_coo(h5, field, i0, i1, j0, j1):
     i, j, v = [], [], []
     if (i1 - i0 > 0) or (j1 - j0 > 0):
         edges = h5['indexes']['bin1_offset'][i0:i1+1]
-        data = h5['matrix'][field]
+        data = h5['pixels'][field]
         for row_id, lo, hi in zip(range(i0, i1), edges[:-1], edges[1:]):
-            bin2 = h5['matrix']['bin2_id'][lo:hi]
+            bin2 = h5['pixels']['bin2_id'][lo:hi]
             mask = (bin2 >= j0) & (bin2 < j1)
             cols = bin2[mask]
             i.append(np.full(len(cols), row_id, dtype=np.int32))
@@ -209,11 +209,11 @@ def slice_triu_csr(h5, field, i0, i1, j0, j1):
     j, v = [], []
     if (i1 - i0 > 0) or (j1 - j0 > 0):
         edges = h5['indexes']['bin1_offset'][i0:i1+1]
-        data = h5['matrix'][field]
+        data = h5['pixels'][field]
         ptr = 0
         indptr = [ptr]
         for row_id, lo, hi in zip(range(i0, i1), edges[:-1], edges[1:]):
-            bin2 = h5['matrix']['bin2_id'][lo:hi]
+            bin2 = h5['pixels']['bin2_id'][lo:hi]
             mask = (bin2 >= j0) & (bin2 < j1)
             j.append(bin2[mask])
             v.append(data[lo:hi][mask])

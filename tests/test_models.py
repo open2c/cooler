@@ -19,7 +19,7 @@ r = sparse.triu(r, k=1).tocsr()
 r_full = r.toarray() + r.toarray().T
 
 mock_cooler = MockCooler({
-    'scaffolds': {
+    'chroms': {
         'name':   np.array(['chr1', 'chr2'], dtype='S'),
         'length': np.array([1000, 1000], dtype=np.int32),
     },
@@ -38,7 +38,7 @@ mock_cooler = MockCooler({
                               1,1,1,1,1,1,1,1,1,1], dtype=float),
         'E1':       np.zeros(20, dtype=float),
     },
-    'matrix': {
+    'pixels': {
         'bin1_id':  r.tocoo().row,
         'bin2_id':  r.indices,
         'count':    r.data,
@@ -87,7 +87,7 @@ def test_sliceable1d():
     assert s[10.0] == (10, 11)  # accepting floats
     #assert s[10.1] == (10.1, 11.1)  # not casting
     #assert s[nmax+10] == (nmax+10, nmax+11)
-    
+
 
 def test_sliceable2d():
     slicer = lambda i0, i1, j0, j1: (i0, i1, j0, j1)
