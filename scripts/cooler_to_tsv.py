@@ -26,7 +26,10 @@ def main():
     import cooler
     import numpy as np
 
+    cooler_file = args.cooler_file[0]
+    print >>sys.stderr, "Loading cooler file... " + cooler_file
     c = cooler.Cooler(args.cooler_file[0])
+    print >>sys.stderr, "done"
 
     chunksize = 1000000
     spans = np.arange(0, c.info['nnz']+chunksize, chunksize)
