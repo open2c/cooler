@@ -38,7 +38,7 @@ def main():
     spans = np.arange(0, c.info['nnz']+chunksize, chunksize)
     table = c.pixeltable(join=True)
 
-    if args.output_file == '-':
+    if args.output_file[0] == '-':
         f = sys.stdout
     elif args.output_file[0].endswith('.gz'):
         f = gzip.open(args.output_file[0], 'wt')
