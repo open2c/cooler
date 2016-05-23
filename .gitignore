@@ -1,3 +1,6 @@
+*.swp
+*~
+
 *.py[cod]
 __pycache__
 .cache

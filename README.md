@@ -91,10 +91,9 @@ Notes:
 Matrix storage format:
 
 - The `bins` table is lexicographically sorted by `chrom_id`, `start`, `end`.
-- The `matrix` table is lexicographically sorted by `bin1_id`, then `bin2_id`.
+- The `pixels` table is lexicographically sorted by `bin1_id`, then `bin2_id`.
 - Offset pointers are used to facilitate matrix queries. This is effectively a [compressed sparse row](https://en.wikipedia.org/wiki/Sparse_matrix#Compressed_sparse_row_.28CSR.2C_CRS_or_Yale_format.29) storage scheme for a symmetric matrix.
 
-Rather than build on top of a more full-featured, opinionated library like PyTables (or `pandas.HDFStore` built on top of that), we provide a simple and transparent data layout on top of HDF5 that supports random access range queries and can be easily [migrated](https://github.com/blaze/odo).
 
 See also:
 
