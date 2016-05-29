@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import division, print_function, unicode_literals
 from multiprocessing import Pool, Lock
+import warnings
 import six
 
 import numpy as np
@@ -68,9 +69,9 @@ class Worker(object):
         lock.acquire()
         with h5py.File(self.filepath, 'r') as h5:
             n_bins_total = h5['bins/chrom_id'].shape[0]
-            chunk['bin1_id'] = h5['matrix/bin1_id'][lo:hi]
-            chunk['bin2_id'] = h5['matrix/bin2_id'][lo:hi]
-            chunk['count'] = h5['matrix/count'][lo:hi]
+            chunk['bin1_id'] = h5['pixels/bin1_id'][lo:hi]
+            chunk['bin2_id'] = h5['pixels/bin2_id'][lo:hi]
+            chunk['count'] = h5['pixels/count'][lo:hi]
             chunk['bintable'] = {
                 'chrom_id': h5['bins/chrom_id'][:],
                 'start':    h5['bins/start'][:],
@@ -125,9 +126,14 @@ class TimesOuterProductFilter(object):
         return data_weights
 
 
+def mad(data, axis=None):
+    return np.median(np.abs(data - np.median(data, axis)), axis)
+
+
 def iterative_correction(coo, chunksize=None, map=map, tol=1e-5,
-                         min_nnz=0, min_count=0,
-                         cis_only=False, ignore_diags=False):
+                         min_nnz=0, min_count=0, mad_max=0,
+                         cis_only=False, ignore_diags=False,
+                         max_iters=200):
     """
     Iterative correction or matrix balancing of a sparse Hi-C contact map in
     Cooler HDF5 format.
@@ -153,13 +159,18 @@ def iterative_correction(coo, chunksize=None, map=map, tol=1e-5,
     min_count : int, optional
         Pre-processing bin-level filter. Drop bins with lower marginal sum than
         this value.
+    mad_max : int, optional
+        Pre-processing bin-level filter. Drop bins whose log marginal sum is 
+        less than ``mad_max`` mean absolute deviations below the median log 
+        marginal sum.
     cis_only: bool, optional
         Do iterative correction on intra-chromosomal data only.
         Inter-chromosomal data is ignored.
     ignore_diags : int or False, optional
         Drop elements occurring on the first ``ignore_diags`` diagonals of the
         matrix.
-
+    max_iters : int, optional
+        Iteration limit.
 
     Returns
     -------
@@ -190,19 +201,30 @@ def iterative_correction(coo, chunksize=None, map=map, tol=1e-5,
     bias = np.ones(n_bins, dtype=float)
 
     # Drop bins with too few nonzeros from bias
-    filters = [BinarizeFilter()] + base_filters
-    marg_partials = map(Worker(coo.filename, filters), spans)
-    marg_nnz = np.sum(list(marg_partials), axis=0)
-    bias[marg_nnz < min_nnz] = 0
+    if min_nnz > 0:
+        filters = [BinarizeFilter()] + base_filters
+        marg_partials = map(Worker(coo.filename, filters), spans)
+        marg_nnz = np.sum(list(marg_partials), axis=0)
+        bias[marg_nnz < min_nnz] = 0
 
-    # Drop bins with too few total counts from bias
     filters = base_filters
     marg_partials = map(Worker(coo.filename, filters), spans)
     marg = np.sum(list(marg_partials), axis=0)
-    bias[marg < min_count] = 0
+
+    # Drop bins with too few total counts from bias
+    if min_count:
+        bias[marg < min_count] = 0
+
+    # MAD-max filter on the marginals
+    if mad_max > 0:
+        logNzMarg = np.log(marg[marg>0])
+        madSigma = mad(logNzMarg) / 0.6745
+        logMedMarg = np.median(logNzMarg)
+        cutoff = np.exp(logMedMarg - mad_max * madSigma)
+        bias[marg < cutoff] = 0
 
     # Do balancing
-    while True:
+    for _ in range(max_iters):
         filters = base_filters + [TimesOuterProductFilter(bias)]
         worker = Worker(coo.filename, filters)
         marg_partials = map(worker, spans)
@@ -218,5 +240,7 @@ def iterative_correction(coo, chunksize=None, map=map, tol=1e-5,
         if var < tol:
             bias[bias==0] = np.nan
             break
+    else:
+        warnings.warn('Iteration limit reached without convergence.')
 
     return bias
