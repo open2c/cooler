@@ -69,9 +69,9 @@ class Worker(object):
         lock.acquire()
         with h5py.File(self.filepath, 'r') as h5:
             n_bins_total = h5['bins/chrom_id'].shape[0]
-            chunk['bin1_id'] = h5['matrix/bin1_id'][lo:hi]
-            chunk['bin2_id'] = h5['matrix/bin2_id'][lo:hi]
-            chunk['count'] = h5['matrix/count'][lo:hi]
+            chunk['bin1_id'] = h5['pixels/bin1_id'][lo:hi]
+            chunk['bin2_id'] = h5['pixels/bin2_id'][lo:hi]
+            chunk['count'] = h5['pixels/count'][lo:hi]
             chunk['bintable'] = {
                 'chrom_id': h5['bins/chrom_id'][:],
                 'start':    h5['bins/start'][:],
