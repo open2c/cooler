@@ -125,7 +125,7 @@ def _aggregate(grp, chromtable, bintable, h5read, binsize, h5opts, chunksize,
             ('cut2', h5read['cuts2'][lo:hi]),
         ])
         if check_sorted and not is_lexsorted(
-              [arr.astype(np.int64) for arr in data.values()]):
+              [arr.astype(np.int64) for arr in list(data.values())[:2]]):
               raise ValueError("Paired read coordinates are not lexically sorted.")
         return pandas.DataFrame(data)
 
