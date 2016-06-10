@@ -217,9 +217,13 @@ def iterative_correction(coo, chunksize=None, map=map, tol=1e-5,
 
     # MAD-max filter on the marginals
     if mad_max > 0:
-        logNzMarg = np.log(marg[marg>0])
-        madSigma = mad(logNzMarg) / 0.6745
+        offsets = coo['indexes']['chrom_offset'][:]
+        for lo, hi in zip(offsets[:-1], offsets[1:]):
+            c_marg = marg[lo:hi]
+            marg[lo:hi] /= np.median(c_marg[c_marg > 0]) 
+        logNzMarg = np.log(marg[marg>0]) 
         logMedMarg = np.median(logNzMarg)
+        madSigma = mad(logNzMarg) / 0.6745
         cutoff = np.exp(logMedMarg - mad_max * madSigma)
         bias[marg < cutoff] = 0
 
