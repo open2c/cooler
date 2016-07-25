@@ -247,3 +247,46 @@ def lexbisect(arrays, values, side='left', lo=0, hi=None):
         raise ValueError("side must be 'left' or 'right'")
 
     return lo
+
+
+def rlencode(x, dropna=False):
+    """
+    Run length encoding.
+    Based on http://stackoverflow.com/a/32681075, which is based on the rle
+    function from R.
+
+    Parameters
+    ----------
+    x : 1D array_like
+        Input array to encode
+    dropna: bool, optional
+        Drop all runs of NaNs.
+
+    Returns
+    -------
+    start positions, run lengths, run values
+
+    """
+    where = np.flatnonzero
+    x = np.asarray(x)
+    n = len(x)
+    if n == 0:
+        return (np.array([], dtype=int),
+                np.array([], dtype=int),
+                np.array([], dtype=x.dtype))
+
+    isnumeric = np.issubdtype(x.dtype, np.number)
+
+    if isnumeric:
+        starts = np.r_[0, where(~np.isclose(x[1:], x[:-1], equal_nan=True)) + 1]
+    else:
+        starts = np.r_[0, where(x[1:] != x[:-1]) + 1]
+    lengths = np.diff(np.r_[starts, n])
+    values = x[starts]
+
+    if isnumeric and dropna:
+        mask = ~np.isnan(values)
+        starts, lengths, values = starts[mask], lengths[mask], values[mask]
+
+    return starts, lengths, values
+

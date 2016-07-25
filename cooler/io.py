@@ -12,7 +12,7 @@ import pandas
 import h5py
 
 from . import __version__, __format_version__
-from .util import lexbisect
+from .util import lexbisect, rlencode
 
 
 @contextmanager
@@ -313,6 +313,57 @@ def from_dense(h5, chromtable, bintable, heatmap,
     print('info')
     info['bin-type'] = bintype
     info['bin-size'] = binsize
+    info['nchroms'] = n_chroms
+    info['nbins'] = n_bins
+    info['nnz'] = nnz
+    write_info(h5, info)
+
+
+def from_sparse(h5, chroms, bins, pixels, binsize=None,
+                info=None, h5opts=None, chunksize=40000000):
+    h5opts = {'compression': 'lzf'} if h5opts is None else h5opts
+    info = {} if info is None else info
+
+    n_chroms = len(chroms)
+    n_bins = len(bins)
+    nnz = len(pixels)
+
+    print('chroms')
+    grp = h5.create_group('chroms')
+    write_chromtable(grp, chroms, h5opts)
+
+    print('bins')
+    grp = h5.create_group('bins')
+    write_bintable(grp, chroms, bins, h5opts)
+
+    print('pixels')
+    grp = h5.create_group('pixels')
+    grp.create_dataset('bin1_id', data=pixels['bin1_id'].values, dtype=int, **h5opts)
+    grp.create_dataset('bin2_id', data=pixels['bin2_id'].values, dtype=int, **h5opts)
+    grp.create_dataset('count', data=pixels['count'].values, dtype=int, **h5opts)
+
+    print('indexes')
+
+    chrom_offset = np.zeros(len(chroms) + 1, dtype=int)
+    curr_val = 0
+    for start, length, value in zip(*rlencode(h5['bins']['chrom_id'][:])):
+        chrom_offset[curr_val:value + 1] = start
+        curr_val = value + 1
+    chrom_offset[curr_val:] = n_bins
+
+    bin1_offset = np.zeros(len(bins) + 1, dtype=int)
+    curr_val = 0
+    for start, length, value in zip(*rlencode(pixels['bin1_id'])):
+        bin1_offset[curr_val:value + 1] = start
+        curr_val = value + 1
+    bin1_offset[curr_val:] = nnz
+
+    grp = h5.create_group('indexes')
+    write_indexes(grp, chrom_offset, bin1_offset, h5opts)
+
+    print('info')
+    info['bin-type'] = 'fixed' if binsize is not None else 'variable'
+    info['bin-size'] = binsize if binsize is not None else 'null'
     info['nchroms'] = n_chroms
     info['nbins'] = n_bins
     info['nnz'] = nnz
