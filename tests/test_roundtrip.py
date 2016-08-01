@@ -26,15 +26,16 @@ def test_roundtrip():
     chromtable = cooler.read_chrominfo(
         'https://genome.ucsc.edu/goldenpath/help/hg19.chrom.sizes',
         name_patterns=(r'^chr[0-9]+$', r'chrX$'))
+    chromsizes = chromtable.set_index('name')['length']
 
     binsize = 2000000
-    bintable = cooler.make_bintable(chromtable['length'], binsize)
+    bintable = cooler.make_bintable(chromsizes, binsize)
 
     heatmap = np.load(os.path.join(testdir, 'IMR90_inSitu-all-MboI-2000k.npy'))
     with h5py.File(testfile_path, 'w') as h5:
-        cooler.io.from_dense(h5, chromtable, bintable, heatmap,
-                             binsize=binsize,
-                             info={'genome-assembly': 'hg19'})
+        reader = cooler.io.DenseLoader(heatmap)
+        cooler.io.create(h5, chromsizes, bintable, reader, binsize,
+            info={'genome-assembly': 'hg19'})
 
     h5 = h5py.File(testfile_path, 'r')
     new_chromtable = cooler.chromtable(h5)

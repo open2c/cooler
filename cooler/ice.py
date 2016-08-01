@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from __future__ import division, print_function, unicode_literals
+from __future__ import division, print_function
 from multiprocessing import Pool, Lock
 import warnings
 import six
@@ -160,8 +160,8 @@ def iterative_correction(coo, chunksize=None, map=map, tol=1e-5,
         Pre-processing bin-level filter. Drop bins with lower marginal sum than
         this value.
     mad_max : int, optional
-        Pre-processing bin-level filter. Drop bins whose log marginal sum is 
-        less than ``mad_max`` mean absolute deviations below the median log 
+        Pre-processing bin-level filter. Drop bins whose log marginal sum is
+        less than ``mad_max`` mean absolute deviations below the median log
         marginal sum.
     cis_only: bool, optional
         Do iterative correction on intra-chromosomal data only.
@@ -220,8 +220,8 @@ def iterative_correction(coo, chunksize=None, map=map, tol=1e-5,
         offsets = coo['indexes']['chrom_offset'][:]
         for lo, hi in zip(offsets[:-1], offsets[1:]):
             c_marg = marg[lo:hi]
-            marg[lo:hi] /= np.median(c_marg[c_marg > 0]) 
-        logNzMarg = np.log(marg[marg>0]) 
+            marg[lo:hi] /= np.median(c_marg[c_marg > 0])
+        logNzMarg = np.log(marg[marg>0])
         logMedMarg = np.median(logNzMarg)
         madSigma = mad(logNzMarg) / 0.6745
         cutoff = np.exp(logMedMarg - mad_max * madSigma)

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from __future__ import division, print_function, unicode_literals
+from __future__ import division, print_function
 import json
 import six
 
@@ -7,9 +7,9 @@ from scipy.sparse import coo_matrix
 import numpy as np
 import pandas
 
-from .models import (Sliceable1D, Sliceable2D, slice_matrix,
-                     slice_triu_as_table, region_to_offset,
-                     region_to_extent)
+from .core import (Sliceable1D, Sliceable2D, slice_matrix,
+                   slice_triu_as_table, region_to_offset,
+                   region_to_extent)
 from .util import parse_region
 from .io import open_hdf5
 
@@ -310,6 +310,10 @@ class Cooler(object):
     def info(self):
         with open_hdf5(self.fp) as h5:
             return info(h5)
+
+    @property
+    def shape(self):
+        return (self.info['nbins'],) * 2
 
     def get(self, table_name, fields=None):
         with open_hdf5(self.fp) as h5:

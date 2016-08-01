@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from __future__ import division, print_function, unicode_literals
+from __future__ import division, print_function
 import six
 import re
 
@@ -159,7 +159,21 @@ def read_chrominfo(filepath_or,
     return chromtable
 
 
-def make_bintable(chromsizes, binsize):
+def load_fasta(chromosomes, *filepaths):
+    import pyfaidx
+    if len(filepaths) == 1:
+        fa = pyfaidx.Fasta(filepaths[0], as_raw=True)
+
+    else:
+        fa = {}
+        for filepath in filepaths:
+            fa.update(pyfaidx.Fasta(filepath, as_raw=True).records)
+
+    records = OrderedDict((chrom, fa[chrom]) for chrom in chromosomes)
+    return records
+
+
+def binnify(chromsizes, binsize):
     """
     Divide a genome into evenly sized bins.
 
@@ -172,7 +186,7 @@ def make_bintable(chromsizes, binsize):
 
     Returns
     -------
-    Data frame with columns: 'chrom', 'start', 'end'.
+    Dataframe with columns: 'chrom', 'start', 'end'.
 
     """
     def _each(chrom):
@@ -185,9 +199,60 @@ def make_bintable(chromsizes, binsize):
                 'start': binedges[:-1],
                 'end': binedges[1:],
             }, columns=['chrom', 'start', 'end'])
-    bintable = pandas.concat(map(_each, chromsizes.index),
+    bintable = pandas.concat(map(_each, chromsizes.keys()),
                              axis=0, ignore_index=True)
     return bintable
+
+make_bintable = binnify
+
+
+def digest(fasta_records, enzyme):
+    """
+    Divide a genome into restriction fragments.
+
+    Parameters
+    ----------
+    fasta_records : OrderedDict
+        Dictionary of chromosome names to sequence records.
+    enzyme: str
+        Name of restriction enzyme.
+
+    Returns
+    -------
+    Dataframe with columns: 'chrom', 'start', 'end'.
+
+    """
+    import Bio.Restriction as biorst
+    import Bio.Seq as bioseq
+    # http://biopython.org/DIST/docs/cookbook/Restriction.html#mozTocId447698
+    chroms = fasta_records.keys()
+    try:
+        cut_finder = getattr(biorst, enzyme).search
+    except AttributeError:
+        raise ValueError('Unknown enzyme name: {}'.format(enzyme))
+
+    def _each(chrom):
+        seq = bioseq.Seq(str(fasta_records[chrom]))
+        cuts = np.r_[0, np.array(cut_finder(seq)) + 1, len(seq)].astype(int)
+        n_frags = len(cuts) - 1
+
+        frags = pd.DataFrame({
+            'chrom': [chrom] * n_frags,
+            'start': cuts[:-1],
+            'end': cuts[1:]},
+            columns=['chrom', 'start', 'end'])
+        return frags
+
+    return pandas.concat(map(_each, chroms), axis=0, ignore_index=True)
+
+
+def get_binsize(bins):
+    chroms = bins['chrom'].unique()
+    sizes = (bins['end'] - bins['start']).unique()
+    if len(sizes) - len(chroms) <= 1:
+        return sizes.max()
+    else:
+        return None
 
 
 def lexbisect(arrays, values, side='left', lo=0, hi=None):
@@ -249,7 +314,7 @@ def lexbisect(arrays, values, side='left', lo=0, hi=None):
     return lo
 
 
-def rlencode(x, dropna=False):
+def rlencode(array, chunksize=None):
     """
     Run length encoding.
     Based on http://stackoverflow.com/a/32681075, which is based on the rle
@@ -268,25 +333,29 @@ def rlencode(x, dropna=False):
 
     """
     where = np.flatnonzero
-    x = np.asarray(x)
-    n = len(x)
+    array = np.asarray(array)
+    n = len(array)
     if n == 0:
         return (np.array([], dtype=int),
                 np.array([], dtype=int),
-                np.array([], dtype=x.dtype))
+                np.array([], dtype=array.dtype))
 
-    isnumeric = np.issubdtype(x.dtype, np.number)
+    if chunksize is None:
+        chunksize = n
 
-    if isnumeric:
-        starts = np.r_[0, where(~np.isclose(x[1:], x[:-1], equal_nan=True)) + 1]
-    else:
-        starts = np.r_[0, where(x[1:] != x[:-1]) + 1]
+    starts, values = [], []
+    last_val = np.nan
+    for i in range(0, n, chunksize):
+        x = array[i:i+chunksize]
+        locs = where(x[1:] != x[:-1]) + 1
+        if x[0] != last_val:
+            locs = np.r_[0, locs]
+        starts.append(i + locs)
+        values.append(x[locs])
+        last_val = x[-1]
+    starts = np.concatenate(starts)
     lengths = np.diff(np.r_[starts, n])
-    values = x[starts]
-
-    if isnumeric and dropna:
-        mask = ~np.isnan(values)
-        starts, lengths, values = starts[mask], lengths[mask], values[mask]
+    values = np.concatenate(values)
 
     return starts, lengths, values
 
