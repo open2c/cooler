@@ -7,7 +7,7 @@ Reader classes convert input data of various flavors into a chunked stream of
 binned contacts.
 
 """
-from __future__ import division, print_function, unicode_literals
+from __future__ import division, print_function
 from collections import OrderedDict, Counter
 from contextlib import contextmanager
 from bisect import bisect_left
