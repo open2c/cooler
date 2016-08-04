@@ -114,9 +114,8 @@ def argnatsort(array):
     return np.lexsort(cols[::-1])
 
 
-def read_chrominfo(filepath_or,
+def read_chromsizes(filepath_or,
                    name_patterns=(r'^chr[0-9]+$', r'^chr[XY]$', r'^chrM$'),
-                   name_index=True,
                    all_names=False,
                    **kwargs):
     """
@@ -130,15 +129,13 @@ def read_chrominfo(filepath_or,
     name_patterns : sequence, optional
         Sequence of regular expressions to capture desired sequence names.
         Each corresponding set of records will be sorted in natural order.
-    name_index : bool, optional
-        Index table by chromosome name.
     all_names : bool, optional
         Whether to return all contigs listed in the file. Default is
         ``False``.
 
     Returns
     -------
-    Data frame indexed by sequence name, with columns 'name' and 'length'.
+    Series of integer bp lengths indexed by sequence name.
 
     """
     if isinstance(filepath_or, six.string_types) and filepath_or.endswith('.gz'):
@@ -153,14 +150,31 @@ def read_chrominfo(filepath_or,
             part = part.iloc[argnatsort(part['name'])]
             parts.append(part)
         chromtable = pandas.concat(parts, axis=0)
-    #chromtable.insert(0, 'id', np.arange(len(chromtable)))
-    if name_index:
-        chromtable.index = chromtable['name'].values
-    return chromtable
+    chromtable.index = chromtable['name'].values
+    return chromtable['length']
 
 
-def load_fasta(chromosomes, *filepaths):
+def load_fasta(names, *filepaths):
+    """
+    Load lazy FASTA records from one or multiple files without reading them into
+    memory.
+
+    Parameters
+    ----------
+    names : sequence of str
+        Names of sequence records in FASTA file or files.
+    filepaths : str
+        Paths to one or more FASTA files to gather records from.
+
+    Returns
+    -------
+    OrderedDict of sequence name -> sequence record
+
+    """
     import pyfaidx
+    if len(filepaths) == 0:
+        raise ValueError("Need at least one file")
+
     if len(filepaths) == 1:
         fa = pyfaidx.Fasta(filepaths[0], as_raw=True)
 
@@ -169,7 +183,7 @@ def load_fasta(chromosomes, *filepaths):
         for filepath in filepaths:
             fa.update(pyfaidx.Fasta(filepath, as_raw=True).records)
 
-    records = OrderedDict((chrom, fa[chrom]) for chrom in chromosomes)
+    records = OrderedDict((chrom, fa[chrom]) for chrom in names)
     return records
 
 
@@ -247,10 +261,22 @@ def digest(fasta_records, enzyme):
 
 
 def get_binsize(bins):
-    chroms = bins['chrom'].unique()
-    sizes = (bins['end'] - bins['start']).unique()
-    if len(sizes) - len(chroms) <= 1:
-        return sizes.max()
+    """
+    Infer bin size from a bin DataFrame. Assumes that the last bin of each
+    contig is allowed to differ in size from the rest.
+
+    Returns
+    -------
+    int or None if bins are non-uniform
+
+    """
+    sizes = set()
+    for chrom, group in bins.groupby('chrom'):
+        sizes.update((group['end'] - group['start']).iloc[:-1].unique())
+        if len(sizes) > 1:
+            return None
+    if len(sizes) == 1:
+        return next(iter(sizes))
     else:
         return None
 

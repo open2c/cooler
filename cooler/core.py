@@ -49,75 +49,121 @@ class IndexMixin(object):
 
 
 class Sliceable1D(IndexMixin):
-    def __init__(self, slicer, fetcher, nmax):
+    """
+    Selector for out-of-core tabular data. Provides DataFrame-like selection of
+    columns and list-like access to rows.
+
+    Examples
+    --------
+
+    Passing a column name or list of column names as subscript returns a new
+    selector.
+
+    >>> sel[ ['A', 'B'] ]  # doctest: +SKIP
+    >>> sel['C']
+
+    Passing a scalar or slice as subscript invokes the slicer.
+
+    >>> sel[0]  # doctest: +SKIP
+    >>> sel['A'][50:100]
+
+    Calling the fetch method invokes the fetcher.
+
+    >>> sel.fetch('chr3:10,000,000-12,000,000') # doctest: +SKIP
+    >>> sel.fetch(('chr3', 10000000, 12000000))
+
+    Iterate over the table in chunks of a given size using the slicer.
+
+    >>> for chunk in sel.iterchunks(1000):  # doctest: +SKIP
+    >>>     ...
+
+    """
+    def __init__(self, fields, slicer, fetcher, nmax):
+        self.fields = fields
         self._slice = slicer
         self._fetch = fetcher
         self._shape = (nmax,)
+
     @property
     def shape(self):
         return self._shape
+
+    def __len__(self):
+        return self._shape[0]
+
     def __getitem__(self, key):
         if isinstance(key, tuple):
             if len(key) == 1:
                 key = key[0]
             else:
                 raise IndexError('too many indices for table')
+        elif isinstance(key, (list, str)):
+            return self.__class__(key, self._slice, self._fetch, self._shape[0])
+
         lo, hi = self._process_slice(key, self._shape[0])
-        return self._slice(lo, hi)
+        return self._slice(self.fields, lo, hi)
+
     def fetch(self, *args, **kwargs):
         if self._fetch is not None:
             lo, hi = self._fetch(*args, **kwargs)
-            return self._slice(lo, hi)
+            return self._slice(self.fields, lo, hi)
         else:
             raise NotImplementedError
 
+    def iterchunks(self, chunksize):
+        for i in range(0, self.shape[0], chunksize):
+            yield self._slice(self.fields, i, i+chunksize)
+
 
 class Sliceable2D(IndexMixin):
-    def __init__(self, slicer, fetcher, shape):
+    """
+    Selector for out-of-core sparse matrix data. Supports 2D scalar and slice
+    subscript indexing.
+
+    """
+    def __init__(self, field, slicer, fetcher, shape):
+        self.field = field
         self._slice = slicer
         self._fetch = fetcher
         self._shape = shape
+
     @property
     def shape(self):
         return self._shape
+
+    def __len__(self):
+        return self._shape[0]
+
     def __getitem__(self, key):
         s1, s2 = self._unpack_index(key)
         i0, i1 = self._process_slice(s1, self._shape[0])
         j0, j1 = self._process_slice(s2, self._shape[1])
-        return self._slice(i0, i1, j0, j1)
+        return self._slice(self.field, i0, i1, j0, j1)
+
     def fetch(self, *args, **kwargs):
         if self._fetch is not None:
             i0, i1, j0, j1 = self._fetch(*args, **kwargs)
-            return self._slice(i0, i1, j0, j1)
+            return self._slice(self.field, i0, i1, j0, j1)
         else:
             raise NotImplementedError
 
 
-def _region_to_extent(h5, chrom_ids, region, binsize):
-    chrom, start, end = region
-    chrom_id = chrom_ids.at[chrom]
-    if binsize is not None:
-        chrom_offset = h5['indexes']['chrom_offset'][chrom_id]
-        yield chrom_offset + int(np.floor(start/binsize))
-        yield chrom_offset + int(np.ceil(end/binsize))
-    else:
-        chrom_lo = h5['indexes']['chrom_offset'][chrom_id]
-        chrom_hi = h5['indexes']['chrom_offset'][chrom_id + 1]
-        chrom_bins = h5['bins']['start'][chrom_lo:chrom_hi]
-        yield chrom_lo + np.searchsorted(chrom_bins, start, 'right') - 1
-        yield chrom_lo + np.searchsorted(chrom_bins, end, 'left')
+def _check_bounds(lo, hi, N):
+    if hi > N:
+        raise IndexError('slice index ({}) out of range'.format(hi))
+    if lo < 0:
+        raise IndexError('slice index ({}) out of range'.format(lo))
 
 
-def region_to_offset(h5, chrom_ids, region, binsize=None):
-    return next(_region_to_extent(h5, chrom_ids, region, binsize))
+def _comes_before(a0, a1, b0, b1, strict=False):
+    if a0 < b0: return a1 <= b0 if strict else a1 <= b1
+    return False
 
 
-def region_to_extent(h5, chrom_ids, region, binsize=None):
-    return tuple(_region_to_extent(h5, chrom_ids, region, binsize))
-
-
-def bin1_to_pixel(h5, bin_id):
-    return h5['indexes']['bin1_offset'][bin_id]
+def _contains(a0, a1, b0, b1, strict=False):
+    if a0 > b0 or a1 < b1: return False
+    if strict and (a0 == b0 or a1 == b1): return False
+    return a0 <= b0 and a1 >= b1
 
 
 def iter_dataspans(h5, i0, i1, j0, j1):
@@ -139,34 +185,97 @@ def iter_rowspans_with_colmask(h5, i0, i1, j0, j1):
             yield lo, hi, mask
 
 
-def _check_bounds(lo, hi, N):
-    if hi > N:
-        raise IndexError('slice index ({}) out of range'.format(hi))
-    if lo < 0:
-        raise IndexError('slice index ({}) out of range'.format(lo))
+def slice_triu_csr(h5, field, i0, i1, j0, j1, max_query):
+    i, j, v = [], [], []
+    if (i1 - i0 > 0) or (j1 - j0 > 0):
+        edges = h5['indexes']['bin1_offset'][i0:i1 + 1]
+        data = h5['pixels'][field]
+        p0, p1 = edges[0], edges[-1]
+        ptr = 0
+        indptr = [ptr]
+
+        if (p1 - p0) < max_query:
+            all_bin2 = h5['pixels']['bin2_id'][p0:p1]
+            all_data = data[p0:p1]
+            for row_id, lo, hi in zip(range(i0, i1), edges[:-1] - p0, edges[1:] - p0):
+                bin2 = all_bin2[lo:hi]
+                mask = (bin2 >= j0) & (bin2 < j1)
+                cols = bin2[mask]
+                ptr += len(v[-1])
+                indptr.append(ptr)
+                j.append(cols)
+                v.append(all_data[lo:hi][mask])
+        else:
+            for row_id, lo, hi in zip(range(i0, i1), edges[:-1], edges[1:]):
+                bin2 = h5['pixels']['bin2_id'][lo:hi]
+                mask = (bin2 >= j0) & (bin2 < j1)
+                cols = bin2[mask]
+                ptr += len(v[-1])
+                indptr.append(ptr)
+                j.append(cols)
+                v.append(data[lo:hi][mask])
+
+    indptr = np.array(indptr)
+    if not i:
+        j = np.array([], dtype=np.int32)
+        v = np.array([])
+    else:
+        j = np.concatenate(j, axis=0)
+        v = np.concatenate(v, axis=0)
+
+    return indptr, j, v
 
 
-def _comes_before(a0, a1, b0, b1, strict=False):
-    if a0 < b0: return a1 <= b0 if strict else a1 <= b1
-    return False
+def slice_triu_coo(h5, field, i0, i1, j0, j1, max_query):
+    i, j, v = [], [], []
+    if (i1 - i0 > 0) or (j1 - j0 > 0):
+        edges = h5['indexes']['bin1_offset'][i0:i1 + 1]
+        data = h5['pixels'][field]
+        p0, p1 = edges[0], edges[-1]
+
+        if (p1 - p0) < max_query:
+            all_bin2 = h5['pixels']['bin2_id'][p0:p1]
+            all_data = data[p0:p1]
+            for row_id, lo, hi in zip(range(i0, i1), edges[:-1] - p0, edges[1:] - p0):
+                bin2 = all_bin2[lo:hi]
+                mask = (bin2 >= j0) & (bin2 < j1)
+                cols = bin2[mask]
+                i.append(np.full(len(cols), row_id, dtype=np.int32))
+                j.append(cols)
+                v.append(all_data[lo:hi][mask])
+        else:
+            for row_id, lo, hi in zip(range(i0, i1), edges[:-1], edges[1:]):
+                bin2 = h5['pixels']['bin2_id'][lo:hi]
+                mask = (bin2 >= j0) & (bin2 < j1)
+                cols = bin2[mask]
+                i.append(np.full(len(cols), row_id, dtype=np.int32))
+                j.append(cols)
+                v.append(data[lo:hi][mask])
+
+    if not i:
+        i = np.array([], dtype=np.int32)
+        j = np.array([], dtype=np.int32)
+        v = np.array([])
+    else:
+        i = np.concatenate(i, axis=0)
+        j = np.concatenate(j, axis=0)
+        v = np.concatenate(v, axis=0)
+
+    return i, j, v
 
 
-def _contains(a0, a1, b0, b1, strict=False):
-    if a0 > b0 or a1 < b1: return False
-    if strict and (a0 == b0 or a1 == b1): return False
-    return a0 <= b0 and a1 >= b1
-
-
-def slice_triu_as_table(h5, field, i0, i1, j0, j1):
+def query_triu(h5, field, i0, i1, j0, j1):
     bin1 = h5['pixels']['bin1_id']
     bin2 = h5['pixels']['bin2_id']
     data = h5['pixels'][field]
+
     ind, i, j, v = [], [], [], []
     for lo, hi in iter_dataspans(h5, i0, i1, j0, j1):
         ind.append(np.arange(lo, hi))
         i.append(bin1[lo:hi])
         j.append(bin2[lo:hi])
         v.append(data[lo:hi])
+
     if not i:
         ind = np.array([], dtype=np.int32)
         i = np.array([], dtype=np.int32)
@@ -177,59 +286,11 @@ def slice_triu_as_table(h5, field, i0, i1, j0, j1):
         i = np.concatenate(i, axis=0)
         j = np.concatenate(j, axis=0)
         v = np.concatenate(v, axis=0)
+
     return ind, i, j, v
 
 
-def slice_triu_coo(h5, field, i0, i1, j0, j1):
-    edges = h5['indexes']['bin1_offset'][i0:i1+1]
-    i, j, v = [], [], []
-    if (i1 - i0 > 0) or (j1 - j0 > 0):
-        edges = h5['indexes']['bin1_offset'][i0:i1+1]
-        data = h5['pixels'][field]
-        for row_id, lo, hi in zip(range(i0, i1), edges[:-1], edges[1:]):
-            bin2 = h5['pixels']['bin2_id'][lo:hi]
-            mask = (bin2 >= j0) & (bin2 < j1)
-            cols = bin2[mask]
-            i.append(np.full(len(cols), row_id, dtype=np.int32))
-            j.append(cols)
-            v.append(data[lo:hi][mask])
-    if not i:
-        i = np.array([], dtype=np.int32)
-        j = np.array([], dtype=np.int32)
-        v = np.array([])
-    else:
-        i = np.concatenate(i, axis=0)
-        j = np.concatenate(j, axis=0)
-        v = np.concatenate(v, axis=0)
-    return i, j, v
-
-
-def slice_triu_csr(h5, field, i0, i1, j0, j1):
-    edges = h5['indexes']['bin1_offset'][i0:i1+1]
-    j, v = [], []
-    if (i1 - i0 > 0) or (j1 - j0 > 0):
-        edges = h5['indexes']['bin1_offset'][i0:i1+1]
-        data = h5['pixels'][field]
-        ptr = 0
-        indptr = [ptr]
-        for row_id, lo, hi in zip(range(i0, i1), edges[:-1], edges[1:]):
-            bin2 = h5['pixels']['bin2_id'][lo:hi]
-            mask = (bin2 >= j0) & (bin2 < j1)
-            j.append(bin2[mask])
-            v.append(data[lo:hi][mask])
-            ptr += len(v[-1])
-            indptr.append(ptr)
-    indptr = np.array(indptr)
-    if not indptr:
-        j = np.array([], dtype=np.int32)
-        v = np.array([])
-    else:
-        j = np.concatenate(j, axis=0)
-        v = np.concatenate(v, axis=0)
-    return indptr, j, v
-
-
-def slice_matrix(h5, field, i0, i1, j0, j1):
+def query_symmetric(h5, field, i0, i1, j0, j1, max_query):
     # Query cases to consider wrt the axes ranges (i0, i1) and (j0 j1):
     # 1. they are identical
     # 2. different and non-overlapping
@@ -245,39 +306,45 @@ def slice_matrix(h5, field, i0, i1, j0, j1):
     _check_bounds(i0, i1, n_bins)
     _check_bounds(j0, j1, n_bins)
 
+    # symmetric query
     if (i0, i1) == (j0, j1):
-        i, j, v = slice_triu_coo(h5, field, i0, i1, i0, i1)
-        i, j, v = np.r_[i, j], np.r_[j, i], np.r_[v, v]
+        i, j, v = slice_triu_coo(h5, field, i0, i1, i0, i1, max_query)
+        nodiag = i != j
+        i, j, v = np.r_[i, j[nodiag]], np.r_[j, i[nodiag]], np.r_[v, v[nodiag]]
+
+    # asymmetric query
     else:
         transpose = False
         if j0 < i0 or (i0 == j0 and i1 < j1):
             i0, i1, j0, j1 = j0, j1, i0, i1
             transpose = True
 
+        # non-overlapping
         if _comes_before(i0, i1, j0, j1, strict=True):
-            i, j, v = slice_triu_coo(h5, field, i0, i1, j0, j1)
+            i, j, v = slice_triu_coo(h5, field, i0, i1, j0, j1, max_query)
+
+        # partially overlapping
         elif _comes_before(i0, i1, j0, j1):
-            ix, jx, vx = slice_triu_coo(h5, field, i0, j0, j0, i1)
-            iy, jy, vy = slice_triu_coo(h5, field, j0, i1, j0, i1)
-            iz, jz, vz = slice_triu_coo(h5, field, i0, i1, i1, j1)
-            iy, jy, vy = np.r_[iy, jy], np.r_[jy, iy], np.r_[vy, vy]
+            ix, jx, vx = slice_triu_coo(h5, field, i0, j0, j0, i1, max_query)
+            iy, jy, vy = slice_triu_coo(h5, field, j0, i1, j0, i1, max_query)
+            iz, jz, vz = slice_triu_coo(h5, field, i0, i1, i1, j1, max_query)
+            nodiag = iy != jy
+            iy, jy, vy = np.r_[iy, jy[nodiag]], np.r_[jy, iy[nodiag]], np.r_[vy, vy[nodiag]]
             i, j, v = np.r_[ix, iy, iz], np.r_[jx, jy, jz], np.r_[vx, vy, vz]
+
+        # nested
         elif _contains(i0, i1, j0, j1):
-            ix, jx, vx = slice_triu_coo(h5, field, i0, j0, j0, j1)
-            iy, jy, vy = slice_triu_coo(h5, field, j0, j1, j0, j1)
-            jz, iz, vz = slice_triu_coo(h5, field, j0, j1, j1, i1)
-            iy, jy, vy = np.r_[iy, jy], np.r_[jy, iy], np.r_[vy, vy]
+            ix, jx, vx = slice_triu_coo(h5, field, i0, j0, j0, j1, max_query)
+            iy, jy, vy = slice_triu_coo(h5, field, j0, j1, j0, j1, max_query)
+            jz, iz, vz = slice_triu_coo(h5, field, j0, j1, j1, i1, max_query)
+            nodiag = iy != jy
+            iy, jy, vy = np.r_[iy, jy[nodiag]], np.r_[jy, iy[nodiag]], np.r_[vy, vy[nodiag]]
             i, j, v = np.r_[ix, iy, iz], np.r_[jx, jy, jz], np.r_[vx, vy, vz]
+
         else:
             raise IndexError("This shouldn't happen")
 
         if transpose:
             i, j = j, i
 
-    # Remove duplicates coming from main diagonal entries
-    # http://stackoverflow.com/questions/28677162/
-    # ignoring-duplicate-entries-in-sparse-matrix
-    ij = np.c_[i, j]
-    idx = np.unique(ij.view(ij.dtype.descr * 2), return_index=True)[1]
-
-    return i[idx], j[idx], v[idx]
+    return i, j, v

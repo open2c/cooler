@@ -11,26 +11,10 @@ A cool place to store your Hi-C.
 
 """
 __version__ = '0.3.0'
-__format_version__ = 0
+__format_version__ = 2
 
-from .api import Cooler, get, info, chromtable, bintable, pixeltable, matrix
-from .util import read_chrominfo, make_bintable
+from .api import Cooler, get, info, chroms, bins, pixels, matrix
+from .util import read_chromsizes, binnify, make_bintable
 from .io import open_hdf5
 from . import util
 from . import io
-
-
-__all__ = [
-    'Cooler',
-    'get',
-    'info',
-    'chromtable',
-    'bintable',
-    'pixeltable',
-    'matrix',
-    'read_chrominfo',
-    'make_bintable',
-    'open_hdf5',
-    'util',
-    'io'
-]

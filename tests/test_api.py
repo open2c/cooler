@@ -24,7 +24,7 @@ mock_cooler = MockCooler({
         'length': np.array([1000, 1000], dtype=np.int32),
     },
     'bins': {
-        'chrom_id': np.array([0,0,0,0,0,0,0,0,0,0,
+        'chrom':    np.array([0,0,0,0,0,0,0,0,0,0,
                               1,1,1,1,1,1,1,1,1,1], dtype=int),
         'start':    np.array([0,100,200,300,400,500,600,700,800,900,
                               0,100,200,300,400,500,600,700,800,900],
@@ -70,21 +70,21 @@ def test_get():
 
 
 def test_chromtable():
-    table = cooler.api.chromtable(mock_cooler)
+    table = cooler.api.chroms(mock_cooler)
     assert np.all(table['length'] == mock_cooler['chroms']['length'])
 
 
 def test_bintable():
     lo, hi = 2, 10
-    table = cooler.api.bintable(mock_cooler, lo, hi)
-    assert np.all(chromID_lookup[table['chrom']] == mock_cooler['bins']['chrom_id'][lo:hi])
+    table = cooler.api.bins(mock_cooler, lo, hi)
+    assert np.all(chromID_lookup[table['chrom']] == mock_cooler['bins']['chrom'][lo:hi])
     assert np.all(table['start'] == mock_cooler['bins']['start'][lo:hi])
     assert np.all(table['end'] == mock_cooler['bins']['end'][lo:hi])
 
 
 def test_pixeltable():
     lo, hi = 2, 10
-    table = cooler.api.pixeltable(mock_cooler, lo, hi, join=False)
+    table = cooler.api.pixels(mock_cooler, lo, hi, join=False)
     assert np.all(table['bin1_id'] == mock_cooler['pixels']['bin1_id'][lo:hi])
     assert np.all(table['bin2_id'] == mock_cooler['pixels']['bin2_id'][lo:hi])
 
@@ -97,7 +97,7 @@ def test_cooler():
     c = cooler.Cooler(mock_cooler)
 
     # bin table
-    table = c.bintable().fetch('chr1')
+    table = c.bins().fetch('chr1')
     assert np.all(table['start'] == mock_cooler['bins']['start'][0:10])
     assert np.all(table['end'] == mock_cooler['bins']['end'][0:10])
 

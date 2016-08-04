@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import division, print_function, unicode_literals
+from collections import OrderedDict
 import os
 
 import numpy as np
@@ -16,17 +17,12 @@ testfile_path = os.path.join(testdir, 'test.cool')
 
 
 # Generate mock data
-n_chroms = 2
-clen = 2000
-chromtable = pandas.DataFrame({
-    'name': ['chr1', 'chr2'],
-    'length': [clen, clen],
-}, columns=['name', 'length'])
-chromsizes = chromtable.set_index('name')['length']
-
 class MockReads(dict):
     pass
 
+n_chroms = 2
+clen = 2000
+chromsizes = pandas.Series(index=['chr1', 'chr2'], data=[clen, clen])
 n_records = 3000
 np.random.seed(1)
 chrms = np.random.randint(0, n_chroms, n_records * 2)
@@ -39,6 +35,7 @@ mock_reads = MockReads({
     'chrms2': chrms[n_records:],
     'cuts2':  cuts[n_records:],
 })
+
 # Triu-sort
 mask = abs_cuts1 > abs_cuts2
 mock_reads['chrms1'][mask], mock_reads['chrms2'][mask] = mock_reads['chrms2'][mask], mock_reads['chrms1'][mask]
@@ -49,6 +46,25 @@ for key in mock_reads:
     mock_reads[key] = mock_reads[key][idx]
 
 
+def _alternating_bins(chromsizes, steps):
+    def _each(chrom):
+        clen = chromsizes[chrom]
+        edges = [0]
+        total = 0
+        i = 0
+        while edges[i] < clen:
+            step = steps[i % len(steps)]
+            total += step
+            i += 1
+            edges.append(total)
+            print(edges)
+        edges[-1] = clen
+        return pandas.DataFrame(
+            {'chrom': chrom, 'start': edges[:-1], 'end': edges[1:]},
+            columns=['chrom', 'start', 'end'])
+    return pandas.concat(map(_each, chromsizes.keys()), axis=0, ignore_index=True)
+
+
 def teardown_func():
     try:
         os.remove(testfile_path)
@@ -56,32 +72,32 @@ def teardown_func():
         pass
 
 
-def should_not_depend_on_chunksize(bintable, binsize):
+def should_not_depend_on_chunksize(bintable):
+    chroms, lengths = zip(*chromsizes.items())
     # try different chunk sizes
     with h5py.File(testfile_path, 'w') as h5:
         reader = cooler.io.HDF5Aggregator(
-            mock_reads, chromsizes, bintable,
-            binsize, chunksize=66)
-        cooler.io.create(h5, chromsizes, bintable, reader, binsize)
+            mock_reads, chromsizes, bintable, chunksize=66)
+        cooler.io.create(h5, chroms, lengths, bintable, reader)
         oc1 = h5['indexes']['chrom_offset'][:]
         ob1 = h5['indexes']['bin1_offset'][:]
-        p1 = cooler.pixeltable(h5, join=False)
+        p1 = cooler.pixels(h5, join=False)
 
     with h5py.File(testfile_path, 'w') as h5:
         reader = cooler.io.HDF5Aggregator(
-            mock_reads, chromsizes, bintable,
-            binsize, chunksize=666)
-        cooler.io.create(h5, chromsizes, bintable, reader, binsize)
+            mock_reads, chromsizes, bintable, chunksize=666)
+        cooler.io.create(h5, chroms, lengths, bintable, reader)
         oc2 = h5['indexes']['chrom_offset'][:]
         ob2 = h5['indexes']['bin1_offset'][:]
-        p2 = cooler.pixeltable(h5, join=False)
+        p2 = cooler.pixels(h5, join=False)
 
     assert np.all(oc1 == oc2)
     assert np.all(ob1 == ob2)
     assert np.all(p1.values == p2.values)
 
 
-def should_raise_if_input_not_sorted(bintable, binsize):
+def should_raise_if_input_not_sorted(bintable):
+    chroms, lengths = zip(*chromsizes.items())
     # not sorted by chrm1
     with h5py.File(testfile_path, 'w') as h5:
         bad_reads = MockReads({
@@ -91,8 +107,8 @@ def should_raise_if_input_not_sorted(bintable, binsize):
             'cuts2':  mock_reads['cuts1'],
         })
         assert_raises(ValueError, cooler.io.HDF5Aggregator,
-            bad_reads, chromsizes, bintable,
-            binsize, chunksize=66)
+            bad_reads, chromsizes, bintable, chunksize=66)
+
     # not triu
     with h5py.File(testfile_path, 'w') as h5:
         bad_reads = MockReads({
@@ -106,22 +122,23 @@ def should_raise_if_input_not_sorted(bintable, binsize):
         bad_reads['cuts1'][0] = 10
         bad_reads['cuts2'][0] = 9
         reader = cooler.io.HDF5Aggregator(
-            bad_reads, chromsizes, bintable,
-            binsize, chunksize=66)
+            bad_reads, chromsizes, bintable, chunksize=66)
         assert_raises(ValueError, cooler.io.create,
-            h5, chromsizes, bintable, reader, binsize)
+            h5, chroms, lengths, bintable, reader)
 
 
-def should_work_with_int32_cols(bintable, binsize):
+def should_work_with_int32_cols(bintable):
+    chroms, lengths = zip(*chromsizes.items())
+    # int64
     with h5py.File(testfile_path, 'w') as h5:
         reader = cooler.io.HDF5Aggregator(
-            mock_reads, chromsizes, bintable,
-            binsize, chunksize=66)
-        cooler.io.create(h5, chromsizes, bintable, reader, binsize)
+            mock_reads, chromsizes, bintable, chunksize=66)
+        cooler.io.create(h5, chroms, lengths, bintable, reader)
         oc1 = h5['indexes']['chrom_offset'][:]
         ob1 = h5['indexes']['bin1_offset'][:]
-        p1 = cooler.pixeltable(h5, join=False)
+        p1 = cooler.pixels(h5, join=False)
 
+    # int32
     with h5py.File(testfile_path, 'w') as h5:
         mock_reads32 = MockReads({
             'chrms1': mock_reads['chrms1'].astype(np.int32),
@@ -130,12 +147,11 @@ def should_work_with_int32_cols(bintable, binsize):
             'cuts2':  mock_reads['cuts2'].astype(np.int32),
         })
         reader = cooler.io.HDF5Aggregator(
-            mock_reads32, chromsizes, bintable,
-            binsize, chunksize=66)
-        cooler.io.create(h5, chromsizes, bintable, reader, binsize)
+            mock_reads32, chromsizes, bintable, chunksize=66)
+        cooler.io.create(h5, chroms, lengths, bintable, reader)
         oc2 = h5['indexes']['chrom_offset'][:]
         ob2 = h5['indexes']['bin1_offset'][:]
-        p2 = cooler.pixeltable(h5, join=False)
+        p2 = cooler.pixels(h5, join=False)
 
     assert np.all(oc1 == oc2)
     assert np.all(ob1 == ob2)
@@ -144,13 +160,16 @@ def should_work_with_int32_cols(bintable, binsize):
 
 @with_setup(teardown=teardown_func)
 def test_from_readhdf5():
+    # uniform bins
     binsize = 100
-    bintable = cooler.make_bintable(chromsizes, binsize)
-    # assuming uniform bins
-    yield should_not_depend_on_chunksize, bintable, binsize
-    yield should_raise_if_input_not_sorted, bintable, binsize
-    yield should_work_with_int32_cols, bintable, binsize
-    # not assuming uniform bins
-    yield should_not_depend_on_chunksize, bintable, None
-    yield should_raise_if_input_not_sorted, bintable, None
-    yield should_work_with_int32_cols, bintable, None
+    bintable = cooler.binnify(chromsizes, binsize)
+    yield should_not_depend_on_chunksize, bintable
+    yield should_raise_if_input_not_sorted, bintable
+    yield should_work_with_int32_cols, bintable
+
+    # non-uniform bins
+    steps = [10, 100]
+    bintable = _alternating_bins(chromsizes, steps)
+    yield should_not_depend_on_chunksize, bintable
+    yield should_raise_if_input_not_sorted, bintable
+    yield should_work_with_int32_cols, bintable
