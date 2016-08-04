@@ -103,7 +103,7 @@ class HDF5Aggregator(ContactReader):
             i = int(np.searchsorted(abs_start_coords, abs_pos, side='right')) - 1
             bin_end = bins['end'][i]
             hi = bisect_left(h5pairs['cuts1'], bin_end, lo, chrom_hi)
-            print(lo, hi, flush=True)
+            print(lo, hi)  # flush=True
 
             # assign bins to reads
             table = self._load_chunk(lo, hi)
@@ -130,7 +130,7 @@ class HDF5Aggregator(ContactReader):
             agg = (gby['chrom_id1'].count()
                                    .reset_index()
                                    .rename(columns={'chrom_id1': 'count'}))
-            yield {k:v.values for k,v in agg.items()}
+            yield {k:v.values for k,v in six.iteritems(agg)}
 
     def size(self):
         return len(self.h5['chrms1'])
@@ -179,7 +179,7 @@ class TabixAggregator(ContactReader):
         binsize = self.binsize
         bins = self.bins[self.bins.chrom==chrom]
 
-        print(chrom, flush=True)
+        print(chrom)  # flush=True
 
         for bin1_id, bin in bins.iterrows():
             accumulator = Counter()
@@ -198,7 +198,7 @@ class TabixAggregator(ContactReader):
             }, columns=['bin1_id', 'bin2_id', 'count'])
             agg = agg.sort_values('bin2_id')
 
-            yield {k: v.values for k,v in agg.items()}
+            yield {k: v.values for k,v in six.iteritems(agg)}
 
     def size(self):
         return self.n_records
@@ -255,7 +255,7 @@ class CoolerAggregator(ContactReader):
         agg = (gby['chrom_id1'].count()
                                .reset_index()
                                .rename(columns={'chrom_id1': 'count'}))
-        yield {k: v.values for k,v in agg.items()}
+        yield {k: v.values for k,v in six.iteritems(agg)}
 
     def size(self):
         return self.cool.info['nnz']
@@ -288,7 +288,7 @@ class SparseLoader(ContactReader):
         while True:
             try:
                 data = self.reader.read(self.chunksize)
-                yield {k: v.values for k,v in data.items()}
+                yield {k: v.values for k,v in six.iteritems(data)}
             except StopIteration:
                 break
 
