@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import division, print_function, unicode_literals
-from six import BytesIO
+from six import BytesIO, iteritems
 import os
 
 import numpy as np
@@ -26,7 +26,7 @@ def test_roundtrip():
     chromsizes = cooler.read_chromsizes(
         'https://genome.ucsc.edu/goldenpath/help/hg19.chrom.sizes',
         name_patterns=(r'^chr[0-9]+$', r'chrX$'))
-    chroms, lengths = zip(*chromsizes.items())
+    chroms, lengths = zip(*iteritems(chromsizes))
 
     binsize = 2000000
     bintable = cooler.make_bintable(chromsizes, binsize)

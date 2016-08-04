@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import division, print_function, unicode_literals
 from collections import OrderedDict
+from six import iteritems
 import os
 
 import numpy as np
@@ -73,7 +74,7 @@ def teardown_func():
 
 
 def should_not_depend_on_chunksize(bintable):
-    chroms, lengths = zip(*chromsizes.items())
+    chroms, lengths = zip(*iteritems(chromsizes))
     # try different chunk sizes
     with h5py.File(testfile_path, 'w') as h5:
         reader = cooler.io.HDF5Aggregator(
@@ -97,7 +98,7 @@ def should_not_depend_on_chunksize(bintable):
 
 
 def should_raise_if_input_not_sorted(bintable):
-    chroms, lengths = zip(*chromsizes.items())
+    chroms, lengths = zip(*iteritems(chromsizes))
     # not sorted by chrm1
     with h5py.File(testfile_path, 'w') as h5:
         bad_reads = MockReads({
@@ -128,7 +129,7 @@ def should_raise_if_input_not_sorted(bintable):
 
 
 def should_work_with_int32_cols(bintable):
-    chroms, lengths = zip(*chromsizes.items())
+    chroms, lengths = zip(*iteritems(chromsizes))
     # int64
     with h5py.File(testfile_path, 'w') as h5:
         reader = cooler.io.HDF5Aggregator(
