@@ -17,7 +17,6 @@ import six
 
 from pandas.algos import is_lexsorted
 import numpy as np
-import pysam
 import pandas
 import h5py
 
@@ -149,6 +148,10 @@ class TabixAggregator(ContactReader):
 
     """
     def __init__(self, filepath, chromsizes, bins, binsize):
+        try:
+            import pysam
+        except ImportError:
+            raise ImportError("pysam is required to read tabix files")
         n_bins = len(bins)
         self.idmap = pandas.Series(index=chromsizes.keys(), data=range(len(chromsizes)))
         self.bins = bins
