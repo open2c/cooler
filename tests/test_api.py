@@ -88,6 +88,9 @@ def test_pixeltable():
     assert np.all(table['bin1_id'] == mock_cooler['pixels']['bin1_id'][lo:hi])
     assert np.all(table['bin2_id'] == mock_cooler['pixels']['bin2_id'][lo:hi])
 
+    table = cooler.api.pixels(mock_cooler, lo, hi, join=True)
+    assert table.shape == (hi-lo, len(mock_cooler['pixels']) + 4)
+
 
 def test_info():
     pass

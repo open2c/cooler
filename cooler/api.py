@@ -84,7 +84,7 @@ def _join_bins_and_pixels(h5, df):
     if 'bin2_id' in df:
         bin2 = df['bin2_id']
         bins = get(h5, 'bins', bin2.min(), bin2.max()+1,
-                   ['chrom_id', 'start', 'end'])
+                   ['chrom', 'start', 'end'])
         df = (pandas.merge(bins,
                            df,
                            left_index=True,
@@ -93,7 +93,7 @@ def _join_bins_and_pixels(h5, df):
     if 'bin1_id' in df:
         bin1 = df['bin1_id']
         bins = get(h5, 'bins', bin1.min(), bin1.max()+1,
-                   ['chrom_id', 'start', 'end'])
+                   ['chrom', 'start', 'end'])
         df = (pandas.merge(bins,
                            df,
                            left_index=True,
