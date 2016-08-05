@@ -95,7 +95,7 @@ def parse_region(reg, chromsizes=None):
         raise ValueError("End cannot be less than start")
     if start < 0 or (clen is not None and end > clen):
         raise ValueError(
-            "Genomic region out of bounds: [0, {})".format(clen))
+            "Genomic region out of bounds: [{}, {})".format(start, clen))
     return chrom, start, end
 
 
