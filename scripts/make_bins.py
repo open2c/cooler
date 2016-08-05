@@ -3,7 +3,6 @@ from __future__ import division, print_function
 import argparse
 import sys
 
-import pandas as pd
 import cooler
 
 
@@ -15,21 +14,17 @@ if __name__ == '__main__':
         help="UCSC-like chromsizes file, with chromosomes in desired order",
         metavar="CHROMSIZES_PATH")
     parser.add_argument(
-        "--binsize",
-        help="Resolution (bin size) in base pairs <int>")
+        "binsize",
+        help="Resolution (bin size) in base pairs <int>",
+        metavar="BINSIZE")
     parser.add_argument(
         "--out", "-o",
         help="Output file (defaults to stdout)")
     args = vars(parser.parse_args())
 
     binsize = int(args['binsize'])
-
-    chroms = pd.read_csv(
-        args['chromsizes'], sep='\t', usecols=[0, 1], names=['name', 'length'])
-    chroms.index = chroms['name']
-    chromsizes = chroms['length']
-
-    bins = cooler.make_bintable(chromsizes, binsize)
+    chromsizes = cooler.read_chromsizes(args['chromsizes'])
+    bins = cooler.binnify(chromsizes, binsize)
 
     # Write output
     out = args['out']
@@ -38,8 +33,8 @@ if __name__ == '__main__':
             f = sys.stdout
         else:
             f = open(out, 'wt')
-        bins.to_csv(f, sep='\t', index=False)
+        bins.to_csv(f, sep='\t', index=False, header=False)
+    except OSError:
+        pass
     finally:
-        if f is not sys.stdout:
-            f.close()
-
+        f.close()

@@ -4,52 +4,51 @@ import argparse
 import gzip
 import sys
 
+import numpy as np
+import cooler
+
 
 def main():
-    parser = argparse.ArgumentParser(description="""
-    
-    python cooler_to_tsv.py cooler_file output_file
-​
-    Convert a cooler file to a tsv file with chromosome positions and bin counts like this:
-​
-    chr1     5000    10000    chr1    5000    10000    1.0
+    parser = argparse.ArgumentParser(
+        description="Convert a cooler file to a tsv file.")
+    parser.add_argument(
+        "cooler_file",
+        help="Cooler file",
+        metavar="COOLER_PATH")
+    parser.add_argument(
+        "--join",
+        help="Print chromosome bin coordinates instead of bin IDs",
+        action='store_true',
+        default=False)
+    parser.add_argument(
+        "--out", "-o",
+        help="Output text file")
+    args = vars(parser.parse_args())
 
-""")
+    c = cooler.Cooler(args['cooler_file'])
+    table = c.pixels(join=args['join'])
 
-    parser.add_argument('cooler_file', nargs=1)
-    parser.add_argument('output_file', nargs=1)
-    #parser.add_argument('-o', '--options', default='yo',
-    #                    help="Some option", type='str')
-    #parser.add_argument('-u', '--useless', action='store_true', 
-    #                    help='Another useless option')
-
-    args = parser.parse_args()
-
-    import cooler
-    import numpy as np
-
-    cooler_file = args.cooler_file[0]
-    print("Loading cooler file... " + cooler_file, file=sys.stderr)
-
-    c = cooler.Cooler(args.cooler_file[0])
-    print("done", file=sys.stderr)
-
-    chunksize = 10000000
-    spans = np.arange(0, c.info['nnz']+chunksize, chunksize)
-    table = c.pixeltable(join=True)
-
-    if args.output_file[0] == '-':
+    out = args['out']
+    if out is None or out == '-':
         f = sys.stdout
-    elif args.output_file[0].endswith('.gz'):
+    elif out.endswith('.gz'):
         f = gzip.open(args.output_file[0], 'wt')
     else:
         f = open(args.output_file[0], 'w')
 
+    chunksize = int(100e6)
+    spans = np.arange(0, c.info['nnz']+chunksize, chunksize)
+
     for lo, hi in zip(spans[:-1], spans[1:]):
-        print('loading chunk {}..{}'.format(lo, hi), file=sys.stderr)
+
         pix = table[lo:hi]
-        print('writing', file=sys.stderr)
-        pix.to_csv(f, sep='\t', index=False, header=False)    
+
+        try:
+            pix.to_csv(f, sep='\t', index=False, header=False)
+        except OSError:
+            pass
+        finally:
+            f.close()
 
 
 if __name__ == '__main__':

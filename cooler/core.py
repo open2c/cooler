@@ -67,7 +67,8 @@ class Sliceable1D(IndexMixin):
     >>> sel[0]  # doctest: +SKIP
     >>> sel['A'][50:100]
 
-    Calling the fetch method invokes the fetcher.
+    Calling the fetch method invokes the fetcher to parse the input into an
+    integer range and then invokes the slicer.
 
     >>> sel.fetch('chr3:10,000,000-12,000,000') # doctest: +SKIP
     >>> sel.fetch(('chr3', 10000000, 12000000))
@@ -92,14 +93,14 @@ class Sliceable1D(IndexMixin):
         return self._shape[0]
 
     def __getitem__(self, key):
+        if isinstance(key, (list, str)):
+            return self.__class__(key, self._slice, self._fetch, self._shape[0])
+
         if isinstance(key, tuple):
             if len(key) == 1:
                 key = key[0]
             else:
                 raise IndexError('too many indices for table')
-        elif isinstance(key, (list, str)):
-            return self.__class__(key, self._slice, self._fetch, self._shape[0])
-
         lo, hi = self._process_slice(key, self._shape[0])
         return self._slice(self.fields, lo, hi)
 

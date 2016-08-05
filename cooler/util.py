@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import division, print_function
+from collections import OrderedDict
 import six
 import re
 
@@ -250,7 +251,7 @@ def digest(fasta_records, enzyme):
         cuts = np.r_[0, np.array(cut_finder(seq)) + 1, len(seq)].astype(int)
         n_frags = len(cuts) - 1
 
-        frags = pd.DataFrame({
+        frags = pandas.DataFrame({
             'chrom': [chrom] * n_frags,
             'start': cuts[:-1],
             'end': cuts[1:]},

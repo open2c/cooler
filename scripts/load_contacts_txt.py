@@ -23,7 +23,7 @@ if __name__ == '__main__':
         metavar="PIXELS_PATH")
     parser.add_argument(
         "out",
-        help="Output cooler file",
+        help="Output cooler file"
         metavar="COOLER_PATH")
     args = vars(parser.parse_args())
 
@@ -37,9 +37,10 @@ if __name__ == '__main__':
             .rename(columns={'chrom': 'name', 'end': 'length'})
     )
     chroms, lengths = list(chromtable['name']), list(chromtable['length'])
+    chromsizes = pd.Series(index=chroms, data=lengths)
 
     # Load the binned contacts
     chunksize = int(100e6)
-    reader = cooler.io.SparseLoader(args['pixels'], chunksize)
+    reader = cooler.io.TabixAggregator(args['pixels'], chromsizes, bins)
     with h5py.File(args['out'], 'w') as h5:
         cooler.io.create(h5, chroms, lengths, bins, reader) # metadata, assembly)

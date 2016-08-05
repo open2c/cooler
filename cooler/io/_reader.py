@@ -147,7 +147,7 @@ class TabixAggregator(ContactReader):
     tab-delimited text file.
 
     """
-    def __init__(self, filepath, chromsizes, bins, binsize):
+    def __init__(self, filepath, chromsizes, bins):
         try:
             import pysam
         except ImportError:
@@ -155,7 +155,7 @@ class TabixAggregator(ContactReader):
         n_bins = len(bins)
         self.idmap = pandas.Series(index=chromsizes.keys(), data=range(len(chromsizes)))
         self.bins = bins
-        self.binsize = binsize
+        self.binsize = get_binsize(bins)
         self.pairsfile = pysam.TabixFile(filepath, 'r')
         self.parser = pysam.asTuple()
         # number of lines in file
