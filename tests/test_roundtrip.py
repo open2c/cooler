@@ -31,7 +31,7 @@ def test_roundtrip():
     binsize = 2000000
     bintable = cooler.make_bintable(chromsizes, binsize)
 
-    heatmap = np.load(os.path.join(testdir, 'IMR90_inSitu-all-MboI-2000k.npy'))
+    heatmap = np.load(os.path.join(testdir, 'data', 'IMR90-MboI-matrix.2000kb.npy'))
     with h5py.File(testfile_path, 'w') as h5:
         reader = cooler.io.DenseLoader(heatmap)
         cooler.io.create(h5, chroms, lengths, bintable, reader, assembly='hg19')
