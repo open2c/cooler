@@ -3,7 +3,7 @@ from __future__ import division, print_function
 import numpy as np
 
 
-class IndexMixin(object):
+class IndexingMixin(object):
 
     def _unpack_index(self, key):
         if isinstance(key, tuple):
@@ -48,7 +48,7 @@ class IndexMixin(object):
             raise TypeError('expected slice or scalar')
 
 
-class Sliceable1D(IndexMixin):
+class RangeSelector1D(IndexingMixin):
     """
     Selector for out-of-core tabular data. Provides DataFrame-like selection of
     columns and list-like access to rows.
@@ -75,7 +75,7 @@ class Sliceable1D(IndexMixin):
 
     Iterate over the table in chunks of a given size using the slicer.
 
-    >>> for chunk in sel.iterchunks(1000):  # doctest: +SKIP
+    >>> for chunk in sel.iterchunks(size=1000):  # doctest: +SKIP
     >>>     ...
 
     """
@@ -104,6 +104,13 @@ class Sliceable1D(IndexMixin):
         lo, hi = self._process_slice(key, self._shape[0])
         return self._slice(self.fields, lo, hi)
 
+    def iterchunks(self, lo=0, hi=None, size=None):
+        lo, hi = self._process_slice(slice(lo, hi), self._shape[0])
+        if size is None:
+            size = hi - lo
+        for i in range(lo, hi, size):
+            yield self._slice(self.fields, i, i+size)
+
     def fetch(self, *args, **kwargs):
         if self._fetch is not None:
             lo, hi = self._fetch(*args, **kwargs)
@@ -111,12 +118,11 @@ class Sliceable1D(IndexMixin):
         else:
             raise NotImplementedError
 
-    def iterchunks(self, chunksize):
-        for i in range(0, self.shape[0], chunksize):
-            yield self._slice(self.fields, i, i+chunksize)
+    # def to_dask(self):
+    #     pass
 
 
-class Sliceable2D(IndexMixin):
+class RangeSelector2D(IndexingMixin):
     """
     Selector for out-of-core sparse matrix data. Supports 2D scalar and slice
     subscript indexing.
@@ -203,6 +209,7 @@ def slice_triu_csr(h5, field, i0, i1, j0, j1, max_query):
                 mask = (bin2 >= j0) & (bin2 < j1)
                 cols = bin2[mask]
                 ptr += len(v[-1])
+                # ind.append(np.arange(p0+lo, p0+hi))
                 indptr.append(ptr)
                 j.append(cols)
                 v.append(all_data[lo:hi][mask])
@@ -212,6 +219,7 @@ def slice_triu_csr(h5, field, i0, i1, j0, j1, max_query):
                 mask = (bin2 >= j0) & (bin2 < j1)
                 cols = bin2[mask]
                 ptr += len(v[-1])
+                # ind.append(np.arange(lo, hi))
                 indptr.append(ptr)
                 j.append(cols)
                 v.append(data[lo:hi][mask])
@@ -241,6 +249,7 @@ def slice_triu_coo(h5, field, i0, i1, j0, j1, max_query):
                 bin2 = all_bin2[lo:hi]
                 mask = (bin2 >= j0) & (bin2 < j1)
                 cols = bin2[mask]
+                # ind.append(np.arange(p0+lo, p0+hi))
                 i.append(np.full(len(cols), row_id, dtype=np.int32))
                 j.append(cols)
                 v.append(all_data[lo:hi][mask])
@@ -249,6 +258,7 @@ def slice_triu_coo(h5, field, i0, i1, j0, j1, max_query):
                 bin2 = h5['pixels']['bin2_id'][lo:hi]
                 mask = (bin2 >= j0) & (bin2 < j1)
                 cols = bin2[mask]
+                # ind.append(np.arange(lo, hi))
                 i.append(np.full(len(cols), row_id, dtype=np.int32))
                 j.append(cols)
                 v.append(data[lo:hi][mask])
@@ -265,30 +275,12 @@ def slice_triu_coo(h5, field, i0, i1, j0, j1, max_query):
     return i, j, v
 
 
-def query_triu(h5, field, i0, i1, j0, j1):
-    bin1 = h5['pixels']['bin1_id']
-    bin2 = h5['pixels']['bin2_id']
-    data = h5['pixels'][field]
-
-    ind, i, j, v = [], [], [], []
-    for lo, hi in iter_dataspans(h5, i0, i1, j0, j1):
-        ind.append(np.arange(lo, hi))
-        i.append(bin1[lo:hi])
-        j.append(bin2[lo:hi])
-        v.append(data[lo:hi])
-
-    if not i:
-        ind = np.array([], dtype=np.int32)
-        i = np.array([], dtype=np.int32)
-        j = np.array([], dtype=np.int32)
-        v = np.array([])
-    else:
-        ind = np.concatenate(ind, axis=0)
-        i = np.concatenate(i, axis=0)
-        j = np.concatenate(j, axis=0)
-        v = np.concatenate(v, axis=0)
-
-    return ind, i, j, v
+def query_triu(h5, field, i0, i1, j0, j1, max_query):
+    i, j, v = slice_triu_coo(h5, field, i0, i1, j0, j1, max_query)
+    edges = h5['indexes']['bin1_offset'][i0:i1 + 1]
+    index = np.concatenate([np.arange(lo, hi) for lo, hi in
+                            zip(edges[:-1], edges[1:])], axis=0)
+    return index, i, j, v
 
 
 def query_symmetric(h5, field, i0, i1, j0, j1, max_query):

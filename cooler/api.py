@@ -8,7 +8,7 @@ import numpy as np
 import pandas
 import h5py
 
-from .core import (Sliceable1D, Sliceable2D,
+from .core import (RangeSelector1D, RangeSelector2D,
                    query_symmetric, query_triu)
 from .util import parse_region
 from .io import open_hdf5
@@ -39,17 +39,17 @@ def get(h5, table_name, lo=0, hi=None, fields=None, **kwargs):
     DataFrame
 
     """
-    keys = h5[table_name].keys()
+    grp = h5[table_name]
     series = False
     if fields is None:
-        fields = list(keys)
+        fields = list(grp.keys())
     elif isinstance(fields, six.string_types):
         fields = [fields]
         series = True
 
     data = {}
     for field in fields:
-        dset = h5[table_name][field]
+        dset = grp[field]
         dt = h5py.check_dtype(enum=dset.dtype)
         if dt is not None:
             data[field] = pandas.Categorical.from_codes(
@@ -61,14 +61,14 @@ def get(h5, table_name, lo=0, hi=None, fields=None, **kwargs):
         else:
             data[field] = dset[lo:hi]
 
-    if lo is not None:
+    if data and lo is not None:
         index = np.arange(lo, lo + len(next(iter(data.values()))))
     else:
         index = None
 
     if series:
         return pandas.Series(
-            data[field],
+            data[fields[0]],
             index=index,
             name=field,
             **kwargs)
@@ -236,7 +236,7 @@ class Cooler(object):
             with open_hdf5(self.fp) as h5:
                 return chroms(h5, lo, hi, fields)
 
-        return Sliceable1D(None, _slice, None, self._info['nchroms'])
+        return RangeSelector1D(None, _slice, None, self._info['nchroms'])
 
     def bins(self):
         """ Bin table selector
@@ -256,7 +256,7 @@ class Cooler(object):
                 return region_to_extent(h5, self._chromids,
                                         parse_region(region, self._chromlens))
 
-        return Sliceable1D(None, _slice, _fetch, self._info['nbins'])
+        return RangeSelector1D(None, _slice, _fetch, self._info['nbins'])
 
     def pixels(self, join=False):
         """ Pixel table selector
@@ -286,7 +286,7 @@ class Cooler(object):
                 hi = h5['indexes']['bin1_offset'][i1]
                 return lo, hi
 
-        return Sliceable1D(None, _slice, _fetch, self._info['nnz'])
+        return RangeSelector1D(None, _slice, _fetch, self._info['nnz'])
 
     def matrix(self, field=None, as_pixels=False, join=False, max_query=500000000):
         """ Contact matrix selector
@@ -324,7 +324,7 @@ class Cooler(object):
                 j0, j1 = region_to_extent(h5, self._chromids, region2)
                 return i0, i1, j0, j1
 
-        return Sliceable2D(field, _slice, _fetch, (self._info['nbins'],) * 2)
+        return RangeSelector2D(field, _slice, _fetch, (self._info['nbins'],) * 2)
 
 
 def info(h5):
@@ -471,7 +471,7 @@ def matrix(h5, i0, i1, j0, j1, field=None, as_pixels=False, join=True, max_query
         field = 'count'
 
     if as_pixels:
-        ind, i, j, v = query_triu(h5, field, i0, i1, j0, j1)
+        ind, i, j, v = query_triu(h5, field, i0, i1, j0, j1, max_query)
         cols = ['bin1_id', 'bin2_id', field]
         df = pandas.DataFrame(dict(zip(cols, [i, j, v])),
                               columns=cols, index=ind)
@@ -482,4 +482,3 @@ def matrix(h5, i0, i1, j0, j1, field=None, as_pixels=False, join=True, max_query
     else:
         i, j, v = query_symmetric(h5, field, i0, i1, j0, j1, max_query)
         return coo_matrix((v, (i-i0, j-j0)), (i1-i0, j1-j0))
-

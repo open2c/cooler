@@ -62,12 +62,12 @@ mock_cooler.attrs = {
 chromID_lookup = pandas.Series({'chr1': 0, 'chr2': 1})
 
 
-def test_sliceable1d():
+def test_selector1d():
     slicer = lambda fields, lo, hi: (lo, hi)
     fetcher = lambda x: x
     nmax = 50
 
-    s = cooler.core.Sliceable1D(None, slicer, fetcher, nmax)
+    s = cooler.core.RangeSelector1D(None, slicer, fetcher, nmax)
     assert s[30] == (30, 31)
     assert s[10:20] == (10, 20)
     assert s[:20] == (0, 20)
@@ -89,12 +89,12 @@ def test_sliceable1d():
     #assert s[nmax+10] == (nmax+10, nmax+11)
 
 
-def test_sliceable2d():
+def test_selector2d():
     slicer = lambda field, i0, i1, j0, j1: (i0, i1, j0, j1)
     fetcher = lambda x: x
     nmax = 50
 
-    s = cooler.core.Sliceable2D(None, slicer, fetcher, (nmax, nmax))
+    s = cooler.core.RangeSelector2D(None, slicer, fetcher, (nmax, nmax))
     assert s[30] == (30, 31, 0, nmax)
     assert s[10:20, 10:20] == (10, 20, 10, 20)
     assert s[:] == (0, nmax, 0, nmax)
