@@ -32,11 +32,11 @@ def main():
     if out is None or out == '-':
         f = sys.stdout
     elif out.endswith('.gz'):
-        f = gzip.open(args.output_file[0], 'wt')
+        f = gzip.open(out, 'wt')
     else:
-        f = open(args.output_file[0], 'w')
+        f = open(out, 'wt')
 
-    chunksize = int(100e6)
+    chunksize = int(10e6)
     spans = np.arange(0, c.info['nnz']+chunksize, chunksize)
 
     for lo, hi in zip(spans[:-1], spans[1:]):
