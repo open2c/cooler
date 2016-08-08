@@ -4,6 +4,7 @@ import os.path as op
 import subprocess
 import argparse
 import sys
+import os
 
 
 AWK_TEMPLATE = """\
@@ -62,6 +63,11 @@ if __name__ == '__main__':
         help="strand2 field number",
         default=6)
     parser.add_argument(
+        "--nproc", "-p",
+        help="number of processors",
+        type=int,
+        default=8)
+    parser.add_argument(
         "--out", "-o",
         help="Output gzip file")
 
@@ -85,12 +91,23 @@ if __name__ == '__main__':
     }
     triu_reorder = AWK_TEMPLATE.format(**params)
 
+    nproc = args['nproc']
+    os.environ['LC_ALL'] = 'C'
+
     # Re-order reads, sort, then bgzip
     with open(outfile, 'wb') as f:
-        p1 = subprocess.Popen(['zcat',  infile], stdout=subprocess.PIPE)
-        p2 = subprocess.Popen(['awk', triu_reorder], stdin=p1.stdout, stdout=subprocess.PIPE)
-        p3 = subprocess.Popen(['sort', '-k1,1', '-k2,2n', '-k4,4', '-k5,5n'], stdin=p2.stdout, stdout=subprocess.PIPE)
-        p4 = subprocess.Popen(['bgzip', '-c'], stdin=p3.stdout, stdout=f)
+        p1 = subprocess.Popen(
+            ['pigz', '-p', nproc//2, '-dc',  infile],
+            stdout=subprocess.PIPE)
+        p2 = subprocess.Popen(
+            ['awk', triu_reorder],
+            stdin=p1.stdout, stdout=subprocess.PIPE)
+        p3 = subprocess.Popen(
+            ['sort', '-S1G', '--parallel={}'.format(nproc//2), '-k1,1', '-k2,2n', '-k4,4', '-k5,5n'],
+            stdin=p2.stdout, stdout=subprocess.PIPE)
+        p4 = subprocess.Popen(
+            ['bgzip', '-c'],
+            stdin=p3.stdout, stdout=f)
         p4.communicate()
 
     # Create tabix index file
