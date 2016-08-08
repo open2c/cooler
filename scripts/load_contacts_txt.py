@@ -18,17 +18,21 @@ if __name__ == '__main__':
         help="BED-like file containing genomic bin segmentation",
         metavar="BINS_PATH")
     parser.add_argument(
-        "pixels",
-        help="Non-zero aggregated contact counts",
-        metavar="PIXELS_PATH")
+        "pairs",
+        help="Contacts file",
+        metavar="PAIRS_PATH")
     parser.add_argument(
         "out",
-        help="Output cooler file"
+        help="Output cooler file",
         metavar="COOLER_PATH")
     args = vars(parser.parse_args())
 
     # Bin table
-    bins = pd.read_csv(args['bins'], sep='\t')
+    bins = pd.read_csv(
+        args['bins'],
+        sep='\t',
+        names=['chrom', 'start', 'end'],
+        dtype={'chrom': str})
 
     # Chrom table
     chromtable = (
@@ -39,8 +43,8 @@ if __name__ == '__main__':
     chroms, lengths = list(chromtable['name']), list(chromtable['length'])
     chromsizes = pd.Series(index=chroms, data=lengths)
 
-    # Load the binned contacts
+    # Aggregate contacts
     chunksize = int(100e6)
-    reader = cooler.io.TabixAggregator(args['pixels'], chromsizes, bins)
+    reader = cooler.io.TabixAggregator(args['pairs'], chromsizes, bins)
     with h5py.File(args['out'], 'w') as h5:
         cooler.io.create(h5, chroms, lengths, bins, reader) # metadata, assembly)

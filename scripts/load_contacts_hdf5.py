@@ -29,7 +29,11 @@ if __name__ == '__main__':
     args = vars(parser.parse_args())
 
     # Bin table
-    bins = pd.read_csv(args['bins'], sep='\t')
+    bins = pd.read_csv(
+        args['bins'],
+        sep='\t',
+        names=['chrom', 'start', 'end'],
+        dtype={'chrom': str})
 
     # Chrom sizes from bin table
     chromtable = (
