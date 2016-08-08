@@ -5,7 +5,6 @@ import warnings
 import six
 
 import numpy as np
-import numexpr
 import pandas
 import h5py
 

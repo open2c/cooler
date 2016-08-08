@@ -204,7 +204,7 @@ class TabixAggregator(ContactReader):
         return self.n_records
 
     def __iter__(self):
-        for chrom in self.chromsizes.keys():
+        for chrom in self.idmap.keys():
             for chunk in self._iterchunks(chrom):
                 yield chunk
 
