@@ -58,7 +58,7 @@ setup(
     long_description=get_long_description(),
     keywords=['genomics', 'bioinformatics', 'Hi-C'],
     url='https://github.com/mirnylab/cooler',
-    packages=['cooler'],
+    packages=['cooler', 'cooler.io'],
     zip_safe=False,
     classifiers=[s.strip() for s in classifiers.split('\n') if s],
     install_requires=install_requires,
