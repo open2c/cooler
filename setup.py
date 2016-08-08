@@ -4,10 +4,7 @@ import io
 import os
 import re
 
-try:
-    from setuptools import setup
-except ImportError:
-    from distutils.core import setup
+from setuptools import setup, find_packages
 
 
 classifiers = """\
@@ -58,7 +55,7 @@ setup(
     long_description=get_long_description(),
     keywords=['genomics', 'bioinformatics', 'Hi-C'],
     url='https://github.com/mirnylab/cooler',
-    packages=['cooler'],
+    packages=find_packages(),
     zip_safe=False,
     classifiers=[s.strip() for s in classifiers.split('\n') if s],
     install_requires=install_requires,
