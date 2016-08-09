@@ -46,8 +46,6 @@ def main():
         try:
             pix.to_csv(f, sep='\t', index=False, header=False)
         except OSError:
-            pass
-        finally:
             f.close()
 
 
