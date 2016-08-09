@@ -36,9 +36,9 @@ def main():
     if out is None or out == '-':
         f = sys.stdout
     elif out.endswith('.gz'):
-        f = gzip.open(args.output_file[0], 'wt')
+        f = gzip.open(out, 'wt')
     else:
-        f = open(args.output_file[0], 'w')
+        f = open(out, 'wt')
 
     chunksize = int(args['chunk_size'])
     print("chunksize:", chunksize, file=sys.stderr)
@@ -52,8 +52,6 @@ def main():
         try:
             pix.to_csv(f, sep='\t', index=False, header=False)
         except OSError:
-            pass
-        finally:
             f.close()
 
 
