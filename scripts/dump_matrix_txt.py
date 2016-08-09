@@ -20,6 +20,10 @@ def main():
         help="Print chromosome bin coordinates instead of bin IDs",
         action='store_true',
         default=False)
+    parser.add_argument('--chunk-size',
+            help="Reduce the amount of data loaded by cooler at one time",
+            type=int,
+            default=100e6)
     parser.add_argument(
         "--out", "-o",
         help="Output text file")
@@ -36,10 +40,12 @@ def main():
     else:
         f = open(args.output_file[0], 'w')
 
-    chunksize = int(100e6)
+    chunksize = int(args['chunk_size'])
+    print("chunksize:", chunksize, file=sys.stderr)
     spans = np.arange(0, c.info['nnz']+chunksize, chunksize)
 
     for lo, hi in zip(spans[:-1], spans[1:]):
+        print(lo, hi, file=sys.stderr)
 
         pix = table[lo:hi]
 
