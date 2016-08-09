@@ -52,7 +52,9 @@ def main():
         try:
             pix.to_csv(f, sep='\t', index=False, header=False)
         except OSError:
+            print("File probably closed:", lo, hi, file=sys.stderr)
             f.close()
+            break;
 
 
 if __name__ == '__main__':
