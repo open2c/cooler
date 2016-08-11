@@ -214,55 +214,56 @@ class CoolerAggregator(ContactReader):
     Aggregate contacts from an existing Cooler file.
 
     """
-    def __init__(self, cool, chromsizes, bins, binsize, chunksize):
+    def __init__(self, cool, bins, chunksize):
         self.cool = cool
         self.bins = bins
-        self.binsize = binsize
+        self.binsize = get_binsize(bins)
         self.chunksize = chunksize
+        
         # convert genomic coords of bin starts to absolute
-        self.idmap = pandas.Series(index=chromsizes.keys(), data=range(len(chromsizes)))
+        chroms = c.chroms()['name'][:].values
+        lengths = c.chroms()['length'][:].values
+        self.idmap = pandas.Series(index=chroms, data=range(len(chroms)))
         bin_chrom_ids = self.idmap[bins['chrom']].values
-        self.cumul_length = np.r_[0, np.cumsum(chromsizes)]
+        self.cumul_length = np.r_[0, np.cumsum(lengths)]
         self.abs_start_coords = self.cumul_length[bin_chrom_ids] + bins['start']
+        
         # chrom offset index: chrom_id -> offset in bins
-        chrom_nbins =  bins.groupby(bin_chrom_ids, sort=False).size()
-        self.chrom_offset = np.r_[0, np.cumsum(chrom_nbins)]
+        self.chrom_offset = np.r_[0, np.cumsum(bins.groupby('chrom', sort=False).size())]
 
-    def aggregate(self, chrom):
-        h5pairs = self.h5
+    def _aggregate(self, chunk):
+        # use the "start" point as anchor for re-binning
+        # XXX - alternatives: midpoint anchor, proportional re-binning
         bins = self.bins
         binsize = self.binsize
-        chunksize = self.chunksize
         chrom_offset = self.chrom_offset
         cumul_length = self.cumul_length
         abs_start_coords = self.abs_start_coords
-
-        cid = self.idmap[chrom]
-        table = c.pixeltable(join=True).fetch(chrom)
-        abs_start1 = cumul_length[cid] + table['start1']
-        abs_start2 = cumul_length[cid] + table['start2']
+        
+        chrom_id1 = self.idmap.loc[chunk['chrom1']]
+        chrom_id2 = self.idmap.loc[chunk['chrom2']]
         if binsize is None:
-            table['bin1_id'] = np.searchsorted(abs_start_coords, abs_start1, side='right') - 1
-            table['bin2_id'] = np.searchsorted(abs_start_coords, abs_start2, side='right') - 1
+            abs_start1 = cumul_length[chrom_id1] + chunk['start1'].values
+            abs_start2 = cumul_length[chrom_id2] + chunk['start2'].values
+            chunk['bin1_id'] = np.searchsorted(abs_start_coords, abs_start1, side='right') - 1
+            chunk['bin2_id'] = np.searchsorted(abs_start_coords, abs_start2, side='right') - 1
         else:
-            rel_bin1 = np.floor(table['start1']/binsize).astype(int)
-            rel_bin2 = np.floor(table['start2']/binsize).astype(int)
-            table['bin1_id'] = chrom_offset[cid] + rel_bin1
-            table['bin2_id'] = chrom_offset[cid] + rel_bin2
-
-        # reduce
-        gby = table.groupby(['bin1_id', 'bin2_id'])
-        agg = (gby['chrom_id1'].count()
-                               .reset_index()
-                               .rename(columns={'chrom_id1': 'count'}))
-        yield {k: v.values for k,v in six.iteritems(agg)}
+            rel_bin1 = np.floor(chunk['start1']/binsize).astype(int)
+            rel_bin2 = np.floor(chunk['start2']/binsize).astype(int)
+            chunk['bin1_id'] = chrom_offset[chrom_id1] + rel_bin1
+            chunk['bin2_id'] = chrom_offset[chrom_id2] + rel_bin2
+        
+        gby = chunk.groupby(['bin1_id', 'bin2_id'])
+        agg = gby['count'].sum().reset_index()
+        return {k: v.values for k,v in six.iteritems(agg)}
 
     def size(self):
         return self.cool.info['nnz']
 
     def __iter__(self):
-        for chrom in self.chromsizes.keys():
-            yield self.aggregate(chrom)
+        table = self.cool.pixels(join=True)
+        for chunk in table.iterchunks(size=self.chunksize):
+            yield self._aggregate(chunk)
 
 
 class SparseLoader(ContactReader):
