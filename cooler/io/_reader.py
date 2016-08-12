@@ -239,7 +239,7 @@ class CoolerAggregator(ContactReader):
         chrom_offset = self.chrom_offset
         cumul_length = self.cumul_length
         abs_start_coords = self.abs_start_coords
-        
+
         chrom_id1 = self.idmap.loc[chunk['chrom1'].values]
         chrom_id2 = self.idmap.loc[chunk['chrom2'].values]
         if binsize is None:

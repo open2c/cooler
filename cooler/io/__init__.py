@@ -1,12 +1,14 @@
 # -*- coding: utf-8 -*-
 from __future__ import division, print_function
 from contextlib import contextmanager
+import warnings
 import six
 
 import numpy as np
 import h5py
 
-from ._reader import ContactReader, HDF5Aggregator, TabixAggregator, SparseLoader, DenseLoader
+from ._reader import (ContactReader, HDF5Aggregator, TabixAggregator, CoolerAggregator,
+                      SparseLoader, DenseLoader)
 from ._writer import write_chroms, write_bins, write_pixels, write_indexes, write_info
 from ..util import get_binsize
 
@@ -107,11 +109,14 @@ def open_hdf5(fp, mode='r', *args, **kwargs):
         fh = h5py.File(fp, mode, *args, **kwargs)
     else:
         own_fh = False
-        if mode == 'r' and fp.mode == 'r+':
-            raise ValueError("File object provided is not in readonly mode")
-        elif mode in ('r+', 'a', 'w') and fp.mode == 'r':
+        if mode == 'r' and fp.file.mode == 'r+':
+            #warnings.warn("File object provided is writeable but intent is read-only")
+            pass
+        elif mode in ('r+', 'a') and fp.file.mode == 'r':
             raise ValueError("File object provided is not writeable")
-        elif mode != 'r':
+        elif mode == 'w':
+            raise ValueError("Cannot truncate open file")
+        elif mode in ('w-', 'x'):
             raise ValueError("File exists")
         fh = fp
     try:
