@@ -221,8 +221,8 @@ class CoolerAggregator(ContactReader):
         self.chunksize = chunksize
         
         # convert genomic coords of bin starts to absolute
-        chroms = c.chroms()['name'][:].values
-        lengths = c.chroms()['length'][:].values
+        chroms = self.cool.chroms()['name'][:].values
+        lengths = self.cool.chroms()['length'][:].values
         self.idmap = pandas.Series(index=chroms, data=range(len(chroms)))
         bin_chrom_ids = self.idmap[bins['chrom']].values
         self.cumul_length = np.r_[0, np.cumsum(lengths)]
@@ -240,8 +240,8 @@ class CoolerAggregator(ContactReader):
         cumul_length = self.cumul_length
         abs_start_coords = self.abs_start_coords
         
-        chrom_id1 = self.idmap.loc[chunk['chrom1']]
-        chrom_id2 = self.idmap.loc[chunk['chrom2']]
+        chrom_id1 = self.idmap.loc[chunk['chrom1'].values]
+        chrom_id2 = self.idmap.loc[chunk['chrom2'].values]
         if binsize is None:
             abs_start1 = cumul_length[chrom_id1] + chunk['start1'].values
             abs_start2 = cumul_length[chrom_id2] + chunk['start2'].values
@@ -253,7 +253,7 @@ class CoolerAggregator(ContactReader):
             chunk['bin1_id'] = chrom_offset[chrom_id1] + rel_bin1
             chunk['bin2_id'] = chrom_offset[chrom_id2] + rel_bin2
         
-        gby = chunk.groupby(['bin1_id', 'bin2_id'])
+        gby = chunk.groupby(['bin1_id', 'bin2_id'], sort=False)
         agg = gby['count'].sum().reset_index()
         return {k: v.values for k,v in six.iteritems(agg)}
 
@@ -262,7 +262,11 @@ class CoolerAggregator(ContactReader):
 
     def __iter__(self):
         table = self.cool.pixels(join=True)
-        for chunk in table.iterchunks(size=self.chunksize):
+        chunksize = self.chunksize
+        edges = np.arange(0, self.size() + chunksize, chunksize)
+        for lo, hi in zip(edges[:-1], edges[1:]):
+            chunk = table[lo:hi]
+            print(lo, hi, flush=True)
             yield self._aggregate(chunk)
 
 
