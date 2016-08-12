@@ -14,7 +14,7 @@ from .util import parse_region
 from .io import open_hdf5
 
 
-def get(h5, table_name, lo=0, hi=None, fields=None, **kwargs):
+def get(h5, table_name, lo=0, hi=None, fields=None, convert_enum=True, **kwargs):
     """
     Query a range of rows from a table as a dataframe.
 
@@ -26,17 +26,25 @@ def get(h5, table_name, lo=0, hi=None, fields=None, **kwargs):
     h5 : ``h5py.File`` or ``h5py.Group``
         Open handle to cooler file.
     table_name : str
-        Name of HDF5 Group.
+        Name or path of HDF5 Group.
     lo, hi : int, optional
         Range of rows to select from the table.
-    fields : sequence of str, optional
-        Selection of columns to query. Defaults to all available columns.
+    fields : str or sequence of str, optional
+        Column or list of columns to query. Defaults to all available columns.
+        A single string returns a Series instead of a DataFrame.
+    convert_enum : bool, optional
+        Whether to convert HDF5 enum datasets into ``pandas.Categorical``
+        columns instead of plain integer columns. Default is True.
     kwargs : optional
-        Options to pass to ``pandas.DataFrame``.
+        Options to pass to ``pandas.DataFrame`` or ``pandas.Series``.
 
     Returns
     -------
-    DataFrame
+    DataFrame or Series
+
+    Notes
+    -----
+    HDF5 ASCII datasets are converted to Unicode.
 
     """
     grp = h5[table_name]
@@ -50,7 +58,12 @@ def get(h5, table_name, lo=0, hi=None, fields=None, **kwargs):
     data = {}
     for field in fields:
         dset = grp[field]
-        dt = h5py.check_dtype(enum=dset.dtype)
+
+        if convert_enum:
+            dt = h5py.check_dtype(enum=dset.dtype)
+        else:
+            dt = None
+
         if dt is not None:
             data[field] = pandas.Categorical.from_codes(
                 dset[lo:hi],
@@ -138,20 +151,23 @@ class Cooler(object):
 
     * Metadata is accessible as a dictionary through the ``info`` property.
 
-    * Data table range queries are provided through table selectors,
-      ``chroms``, ``bins``, and ``pixels``, and are returned as DataFrames
+    * Data table range queries are provided through table selectors:
+      ``chroms``, ``bins``, and ``pixels``, which return DataFrames
       or Series.
 
     * Matrix range queries are provided via a matrix selector, ``matrix``,
-      and are returned as ``scipy.sparse.coo_matrix`` arrays.
+      which return ``scipy.sparse.coo_matrix`` arrays.
 
     Parameters
     ----------
     fp : str, h5py.File or h5py.Group
-        File path or open handle to the root HDF5 group of a cooler. If ``fp``
-        is a file path, the file will be opened temporarily in read-only mode
-        when performing operations: such ``Cooler`` objects can be serialized
-        and used with multiprocessing, for example.
+        File path or open handle to the root HDF5 group of a cooler.
+
+    Notes
+    -----
+    If ``fp`` is a file path, the file will be opened temporarily in read-only
+    mode when performing operations. Such ``Cooler`` objects can be serialized
+    and used safely with multiprocessing, for example.
 
     """
     def __init__(self, fp):
@@ -447,7 +463,7 @@ def pixels(h5, lo=0, hi=None, fields=None, join=True):
 def matrix(h5, i0, i1, j0, j1, field=None, as_pixels=False, join=True, max_query=500000000):
     """
     Two-dimensional range query on the Hi-C contact heatmap.
-    Returns either a rectangular sparse ``coo_matrix`` or a dataframe of upper
+    Returns either a rectangular sparse ``coo_matrix`` or a data frame of upper
     triangle pixels.
 
     Parameters
@@ -462,15 +478,21 @@ def matrix(h5, i0, i1, j0, j1, field=None, as_pixels=False, join=True, max_query
         Which column of the pixel table to fill the matrix with. By default,
         the 'count' column is used.
     as_pixels: bool, optional
-        Return a dataframe of the corresponding rows from the pixel table
+        Return a DataFrame of the corresponding rows from the pixel table
         instead of a rectangular sparse matrix. False by default.
     join : bool, optional
-        If returning pixels, specifies whether to expand the bin ID columns.
-        Has no effect when requesting a rectangular matrix. Default is True.
+        If requesting pixels, specifies whether to expand the bin ID columns
+        into (chrom, start, end). Has no effect when requesting a rectangular
+        matrix. Default is True.
 
     Returns
     -------
-    coo_matrix (use the ``toarray()`` method to convert to a numpy ``ndarray``.)
+    coo_matrix
+
+    Notes
+    -----
+    Use the ``toarray()`` method to convert to a sparse matrix to a dense
+    NumPy array.
 
     """
     if field is None:
