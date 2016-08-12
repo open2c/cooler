@@ -7,10 +7,11 @@ import h5py
 
 from nose.tools import assert_raises
 import cooler.api
+import mock
 
 
 class MockCooler(dict):
-    pass
+    file = mock.Mock(['mode'])
 
 binsize = 100
 n_bins = 20
@@ -59,7 +60,7 @@ mock_cooler.attrs = {
     'metadata': '{}',
 }
 
-mock_cooler.mode = 'r'
+mock_cooler.file.mode = 'r'
 
 chromID_lookup = pandas.Series({'chr1': 0, 'chr2': 1})
 
