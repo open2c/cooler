@@ -5,21 +5,21 @@
 
 ## A cool place to store your Hi-C
 
-Cooler is a **sparse, compressed, binary** persistent storage format for Hi-C contact maps based on HDF5.
+Cooler is a **sparse, compressed, binary** persistent storage format for Hi-C contact maps based on [HDF5](https://www.hdfgroup.org/HDF5/).
 
 See [example Jupyter notebook](https://gist.github.com/nvictus/904160bca9d0e8d5aeeb).
 
-The `cooler` library implements a simple **schema** to store a high resolution contact matrix along with important auxiliary data such as scaffold information, genomic bin annotations, and basic metadata.
+The cooler [format](#schema) implements a simple data model that stores a high resolution contact matrix along with important auxiliary data such as scaffold information, genomic bin annotations, and basic metadata. Data tables are stored in a **columnar** representation as HDF5 Groups of 1D array datasets of equal length. The contact matrix itself is stored as a single table containing only the **nonzero upper triangle** pixels.
 
-Data tables are stored in a **columnar** representation as groups of 1D HDF5 array datasets of the same length. The contact matrix itself is stored as a table containing only the **nonzero upper triangle** pixels.
+The `cooler` _library_ provides a thin wrapper over the excellent [h5py](http://docs.h5py.org/en/latest/) Python interface to HDF5. It supports creation of cooler files and the following types of **range queries** on the data:
 
-The library API provides a thin Python wrapper over [h5py](http://docs.h5py.org/en/latest/) for **range queries** on the data:
+- Tablular selections are retrieved as Pandas DataFrames and Series.
+- Matrix slice selections are retrieved as SciPy sparse matrices.
+- Metadata is retrieved as a json-serializable Python dictionary.
+- Range queries can be supplied using either integer bin indexes or genomic coordinate intervals.
 
-- Tablular selections are retrieved as Pandas `DataFrame`s
-- Matrix slice selections are retrieved as SciPy sparse matrices or NumPy `ndarray`s
-- The metadata is retrieved as a json-serializable dictionary.
+The `cooler` library also includes utilities for performing contact **matrix balancing** on a cooler file of any resolution.
 
-Range queries can be supplied as either integer bin indexes or genomic coordinate intervals.
 
 ### Installation
 
@@ -41,62 +41,56 @@ $ pip install -e .
 ```
 
 
-### Schema
+### <a id="schema"></a>Schema
 
 The tables and indexes can be represented in the [Datashape](http://datashape.readthedocs.org/en/latest/) layout language:
 ```
 {
   chroms: {
-    name:     typevar['Nchroms'] * string[32, 'A']
-    length:   typevar['Nchroms'] * int64,
+    name:     typevar['Nchroms'] * string['ascii'],
+    length:   typevar['Nchroms'] * int32,
   },
   bins: {
-    chrom_id: typevar['Nbins'] * int32,
-    start:    typevar['Nbins'] * int64,
-    end:      typevar['Nbins'] * int64
+    chrom:    typevar['Nbins'] * categorical[typevar['name'], type=string, ordered=True],
+    start:    typevar['Nbins'] * int32,
+    end:      typevar['Nbins'] * int32,
+    weight:   typevar['Nbins'] * float64
   },
   pixels: {
-    bin1_id:  typevar['Nnz'] * int32,
-    bin2_id:  typevar['Nnz'] * int32,
+    bin1_id:  typevar['Nnz'] * int64,
+    bin2_id:  typevar['Nnz'] * int64,
     count:    typevar['Nnz'] * int32
   },
   indexes: {
-    chrom_offset: typevar['Nchroms'] * int32,
-  	bin1_offset:   typevar['Nbins'] * int32
+    chrom_offset:  typevar['Nchroms'] * int64,
+  	bin1_offset:   typevar['Nbins'] * int64
   }
 }
 ```
 
 Attributes (metadata):
 ```
-genome-assembly : <string> Name of genome assembly
-bin-type        : {"fixed" or "variable"}
-bin-size        : <int or null> Size of bins in bp if bin-type is "fixed"
 nchroms         : <int> Number of rows in scaffolds table
 nbins           : <int> Number of rows in bins table
 nnz             : <int> Number of rows in matrix table
-format-url      : <url> URL to page providing format details
+bin-type        : {"fixed" or "variable"}
+bin-size        : <int or null> Size of bins in base pairs if bin-type is "fixed"
+genome-assembly : <string> Name of genome assembly
+library-version : <string> Version of cooler library that created the file
 format-version  : <string> The version of the current format
-generated-by    : <string> Agent that created the file
+format-url      : <url> URL to page providing format details
 creation-date   : <datetime> Date the file was built
 metadata        : <json> custom metadata about the experiment
 ```
 
-
-Notes:
-
-- Any number of additional optional columns can be added to each table. (e.g. quality masks, normalization vectors).
-- Genomic coordinates are assumed to be 0-based and intervals half-open (1-based ends).
-
 Matrix storage format:
 
-- The `bins` table is lexicographically sorted by `chrom_id`, `start`, `end`.
+- The `bins` table is lexicographically sorted by `chrom`, then `start`, respecting the order of the contigs in the `chroms` table.
 - The `pixels` table is lexicographically sorted by `bin1_id`, then `bin2_id`.
 - Offset pointers are used to facilitate matrix queries. This is effectively a [compressed sparse row](https://en.wikipedia.org/wiki/Sparse_matrix#Compressed_sparse_row_.28CSR.2C_CRS_or_Yale_format.29) storage scheme for a symmetric matrix.
 
 
-See also:
+Notes:
 
-- [hdf2tab](https://github.com/blajoie/hdf2tab) converts dense Hi-C matrices stored in HDF5 files to tabular text files.
-- The [biom](https://github.com/biocore/biom-format) format is an HDF5-based format for metagenomic observation matrices.
-
+- Any number of additional optional columns can be added to each table. (e.g. normalization vectors, quality masks).
+- Genomic coordinates are assumed to be 0-based and intervals half-open (1-based ends).

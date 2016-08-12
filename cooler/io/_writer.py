@@ -18,9 +18,9 @@ from .. import __version__, __format_version__
 from ..util import rlencode
 
 
-CHROM_DTYPE = 'S32'
+CHROM_DTYPE = np.dtype('S32')
 CHROMID_DTYPE = np.int32
-CHROMSIZE_DTYPE = np.int64
+CHROMSIZE_DTYPE = np.int32
 COORD_DTYPE = np.int32
 BIN_DTYPE = np.int64
 COUNT_DTYPE = np.int32
