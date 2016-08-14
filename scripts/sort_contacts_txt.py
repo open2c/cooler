@@ -18,7 +18,7 @@ BEGIN {{
     close("{CHROMSIZES_FILE}");
 }}
 {{
-    if ( (chrID[${C1}] > chrID[${C2}]) || ((chrID[${C1}]==chrID[${C2}]) && (${P1} > ${P2})) )
+    if ( (chrID[${C1}] < chrID[${C2}]) || ((chrID[${C1}]==chrID[${C2}]) && (${P1} > ${P2})) )
         print ${C2},${P2},${S2},${C1},${P1},${S1};
     else
         print ${C1},${P1},${S1},${C2},${P2},${S2};
