@@ -9,9 +9,9 @@ Cooler is a **sparse, compressed, binary** persistent storage format for Hi-C co
 
 See [example Jupyter notebook](https://gist.github.com/nvictus/904160bca9d0e8d5aeeb).
 
-The cooler [format](#schema) implements a simple data model that stores a high resolution contact matrix along with important auxiliary data such as scaffold information, genomic bin annotations, and basic metadata. Data tables are stored in a **columnar** representation as HDF5 Groups of 1D array datasets of equal length. The contact matrix itself is stored as a single table containing only the **nonzero upper triangle** pixels.
+The cooler [format](#schema) implements a simple schema and data model that stores a high resolution contact matrix along with important auxiliary data such as scaffold information, genomic bin annotations, and basic metadata. Data tables are stored in a **columnar** representation as HDF5 Groups of 1D array datasets of equal length. The contact matrix itself is stored as a single table containing only the **nonzero upper triangle** pixels.
 
-The `cooler` _library_ provides a thin wrapper over the excellent [h5py](http://docs.h5py.org/en/latest/) Python interface to HDF5. It supports creation of cooler files and the following types of **range queries** on the data:
+The `cooler` [library](https://github.com/mirnylab/cooler) provides a thin wrapper over the excellent [h5py](http://docs.h5py.org/en/latest/) Python interface to HDF5. It supports creation of cooler files and the following types of **range queries** on the data:
 
 - Tablular selections are retrieved as Pandas DataFrames and Series.
 - Matrix slice selections are retrieved as SciPy sparse matrices.
