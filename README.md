@@ -7,7 +7,9 @@
 
 Cooler is a **sparse, compressed, binary** persistent storage format for Hi-C contact maps based on [HDF5](https://www.hdfgroup.org/HDF5/).
 
-See [example Jupyter notebook](https://gist.github.com/nvictus/904160bca9d0e8d5aeeb).
+See [example Jupyter notebook](https://github.com/mirnylab/cooler-binder/blob/master/cooler_quickstart.ipynb).
+
+Some published data sets available at `ftp://cooler.csail.mit.edu/coolers`.
 
 The cooler [format](#schema) implements a simple schema and data model that stores a high resolution contact matrix along with important auxiliary data such as scaffold information, genomic bin annotations, and basic metadata. Data tables are stored in a **columnar** representation as HDF5 Groups of 1D array datasets of equal length. The contact matrix itself is stored as a single table containing only the **nonzero upper triangle** pixels.
 
