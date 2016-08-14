@@ -82,7 +82,7 @@ author = 'Nezar Abdennur'
 
 def _get_version():
     init = os.path.join('..', 'cooler', '__init__.py')
-    with open(init, encoding='utf-8') as fh:
+    with open(init) as fh:
         text = fh.read()
     version = re.search(
         r'^__version__\s*=\s*[\'"]([^\'"]*)[\'"]',
