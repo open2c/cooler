@@ -11,10 +11,13 @@ Contents:
 .. toctree::
    :maxdepth: 2
 
-   cooler
+   intro
+   schema_v2
+   api
+
+Previous schemas:
+
+* :ref:`v1 <version-1>`
 
 
-
-* :ref:`genindex`
-
-
+:ref:`genindex`

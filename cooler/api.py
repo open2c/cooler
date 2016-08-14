@@ -167,7 +167,9 @@ class Cooler(object):
     -----
     If ``fp`` is a file path, the file will be opened temporarily in read-only
     mode when performing operations. Such ``Cooler`` objects can be serialized
-    and used safely with multiprocessing, for example.
+    and used multiprocessing, for example. See the following 
+    `discussion <https://groups.google.com/forum/#!topic/h5py/bJVtWdFtZQM>`_
+    on using h5py with multiprocessing safely.
 
     """
     def __init__(self, fp):

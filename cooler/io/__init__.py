@@ -97,11 +97,11 @@ def open_hdf5(fp, mode='r', *args, **kwargs):
         tear down.
 
     mode : str
-        r        Readonly, file must exist
-        r+       Read/write, file must exist
-        a        Read/write if exists, create otherwise
-        w        Truncate if exists, create otherwise
-        w- or x  Fail if exists, create otherwise
+        * r        Readonly, file must exist
+        * r+       Read/write, file must exist
+        * a        Read/write if exists, create otherwise
+        * w        Truncate if exists, create otherwise
+        * w- or x  Fail if exists, create otherwise
 
     """
     if isinstance(fp, six.string_types):
