@@ -2,6 +2,7 @@
 from __future__ import division, print_function
 from multiprocessing import Pool
 import argparse
+import sys
 
 import numpy as np
 import h5py
@@ -50,14 +51,29 @@ if __name__ == '__main__':
         "--cis-only",
         action='store_true',
         default=False)
+    parser.add_argument(
+        "--force", "-f",
+        help="Overwrite the target dataset 'weight' if it already exists"
+        action='store_true',
+        default=False)
+
 
     args = vars(parser.parse_args())
     chunksize = args['chunksize']
     N_CPUS = args['nproc']
 
+    with h5py.File(args['cooler_file'], 'r') as h5:
+        if 'weight' in h5['bins']:
+            if not args['force']:
+                print("'weight' column already exists. Use --force option to overwrite.", file=sys.stderr)
+                sys.exit(1)
+            else:
+                del h5['bins']['weight']     
+
     try:
         pool = Pool(N_CPUS)
         with h5py.File(args['cooler_file'], 'a') as h5:
+
             bias = cooler.ice.iterative_correction(
                 h5,
                 chunksize=chunksize,
@@ -70,8 +86,6 @@ if __name__ == '__main__':
                 map=pool.map)
 
             # add the bias column to the file
-            if 'weight' in h5['bins']:
-                del h5['bins']['weight']
             h5opts = dict(compression='gzip', compression_opts=6)
             h5['bins'].create_dataset('weight', data=bias, **h5opts)
 
