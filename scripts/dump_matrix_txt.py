@@ -58,9 +58,9 @@ def main():
         selector = c.bins()
         n = c.info['nbins']
     else:
-        bins = c.bins()[:]
         selector = c.pixels()
         n = c.info['nnz']
+        bins = c.bins()[:]  # load all the bins
         if args['balanced'] and 'weight' not in bins.columns:
             print('Balancing weights not found', file=sys.stderr)
             sys.exit(1)
