@@ -2,10 +2,11 @@
 
 [![Build Status](https://travis-ci.org/mirnylab/cooler.svg?branch=master)](https://travis-ci.org/mirnylab/cooler)
 [![Documentation Status](https://readthedocs.org/projects/cooler/badge/?version=latest)](http://cooler.readthedocs.org/en/latest/)
+[![Binder](http://mybinder.org/badge.svg)](http://mybinder.org:/repo/mirnylab/cooler-binder)
 
 ## A cool place to store your Hi-C
 
-Cooler is a **sparse, compressed, binary** persistent storage format for Hi-C contact maps based on [HDF5](https://en.wikipedia.org/wiki/Hierarchical_Data_Format).
+Cooler is a **sparse, compressed, binary** persistent storage format for Hi-C contact matrices based on [HDF5](https://en.wikipedia.org/wiki/Hierarchical_Data_Format).
 
 - Documentation is available [here](http://cooler.readthedocs.org/en/latest/).
 - See example [Jupyter notebook](https://github.com/mirnylab/cooler-binder/blob/master/cooler_quickstart.ipynb) or [try it live](http://mybinder.org/repo/mirnylab/cooler-binder).
