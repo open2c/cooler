@@ -15,8 +15,8 @@ As published Hi-C datasets increase in sequencing depth and resolution, a simple
 
 The `cooler` [library](https://github.com/mirnylab/cooler) provides a thin wrapper over the excellent [h5py](http://docs.h5py.org/en/latest/) Python interface to HDF5. It supports creation of cooler files and the following types of **range queries** on the data:
 
-- Tablular selections are retrieved as Pandas DataFrames and Series.
-- Matrix slice selections are retrieved as SciPy sparse matrices.
+- Tabular selections are retrieved as Pandas DataFrames and Series.
+- Matrix  selections are retrieved as SciPy sparse matrices.
 - Metadata is retrieved as a json-serializable Python dictionary.
 - Range queries can be supplied using either integer bin indexes or genomic coordinate intervals.
 
