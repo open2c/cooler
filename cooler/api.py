@@ -8,13 +8,12 @@ import numpy as np
 import pandas
 import h5py
 
-from .core import (RangeSelector1D, RangeSelector2D,
-                   query_symmetric, query_triu)
+from .core import RangeSelector1D, RangeSelector2D, TriuReader, query_rect
 from .util import parse_region
 from .io import open_hdf5
 
 
-def get(h5, table_name, lo=0, hi=None, fields=None, convert_enum=True, **kwargs):
+def get(h5, lo=0, hi=None, fields=None, convert_enum=True, **kwargs):
     """
     Query a range of rows from a table as a dataframe.
 
@@ -23,10 +22,9 @@ def get(h5, table_name, lo=0, hi=None, fields=None, convert_enum=True, **kwargs)
 
     Parameters
     ----------
-    h5 : ``h5py.File`` or ``h5py.Group``
-        Open handle to cooler file.
-    table_name : str
-        Name or path of HDF5 Group.
+    h5 : ``h5py.Group`` or any dict-like of array-likes
+        Handle to an HDF5 group containing only 1D datasets or any similar
+        collection of 1D datasets or arrays
     lo, hi : int, optional
         Range of rows to select from the table.
     fields : str or sequence of str, optional
@@ -47,7 +45,7 @@ def get(h5, table_name, lo=0, hi=None, fields=None, convert_enum=True, **kwargs)
     HDF5 ASCII datasets are converted to Unicode.
 
     """
-    grp = h5[table_name]
+    grp = h5
     series = False
     if fields is None:
         fields = list(grp.keys())
@@ -93,45 +91,16 @@ def get(h5, table_name, lo=0, hi=None, fields=None, convert_enum=True, **kwargs)
             **kwargs)
 
 
-def _join_bins_and_pixels(h5, df):
-    if 'bin2_id' in df:
-        bin2 = df['bin2_id']
-        if len(df):
-            bins = get(h5, 'bins', bin2.min(), bin2.max()+1,
-                       ['chrom', 'start', 'end'])
-        else:
-            bins = pandas.DataFrame(columns=['chrom', 'start', 'end'])
-        df = (pandas.merge(bins,
-                           df,
-                           left_index=True,
-                           right_on='bin2_id')
-                    .drop('bin2_id', axis=1))
-    if 'bin1_id' in df:
-        bin1 = df['bin1_id']
-        if len(df):
-            bins = get(h5, 'bins', bin1.min(), bin1.max()+1,
-                       ['chrom', 'start', 'end'])
-        else:
-            bins = pandas.DataFrame(columns=['chrom', 'start', 'end'])
-        df = (pandas.merge(bins,
-                           df,
-                           left_index=True,
-                           right_on='bin1_id',
-                           suffixes=('1', '2'))
-                    .drop('bin1_id', axis=1))
-    return df
-
-
 def _region_to_extent(h5, chrom_ids, region, binsize):
     chrom, start, end = region
-    chrom_id = chrom_ids.at[chrom]
+    cid = chrom_ids[chrom]
     if binsize is not None:
-        chrom_offset = h5['indexes']['chrom_offset'][chrom_id]
+        chrom_offset = h5['indexes']['chrom_offset'][cid]
         yield chrom_offset + int(np.floor(start/binsize))
         yield chrom_offset + int(np.ceil(end/binsize))
     else:
-        chrom_lo = h5['indexes']['chrom_offset'][chrom_id]
-        chrom_hi = h5['indexes']['chrom_offset'][chrom_id + 1]
+        chrom_lo = h5['indexes']['chrom_offset'][cid]
+        chrom_hi = h5['indexes']['chrom_offset'][cid + 1]
         chrom_bins = h5['bins']['start'][chrom_lo:chrom_hi]
         yield chrom_lo + np.searchsorted(chrom_bins, start, 'right') - 1
         yield chrom_lo + np.searchsorted(chrom_bins, end, 'left')
@@ -175,11 +144,9 @@ class Cooler(object):
     def __init__(self, fp):
         self.fp = fp
         with open_hdf5(self.fp) as h5:
-            _chromtable = chroms(h5)
-            _chromtable['id'] = _chromtable.index
-            _chromtable.index = _chromtable['name']
-            self._chromlens = _chromtable['length']
-            self._chromids = _chromtable['id']
+            _ct = chroms(h5)
+            self._chromsizes = _ct.set_index('name')['length']
+            self._chromids = dict(zip(_ct['name'], range(len(_ct))))
             self._info = info(h5)
 
     def _get_index(self, name):
@@ -207,7 +174,7 @@ class Cooler(object):
         with open_hdf5(self.fp) as h5:
             return region_to_offset(
                 h5, self._chromids,
-                parse_region(region, self._chromlens))
+                parse_region(region, self._chromsizes))
 
     def extent(self, region):
         """ Bin IDs containing the left and right ends of a genomic region
@@ -230,7 +197,7 @@ class Cooler(object):
         with open_hdf5(self.fp) as h5:
             return region_to_extent(
                 h5, self._chromids,
-                parse_region(region, self._chromlens))
+                parse_region(region, self._chromsizes))
 
     @property
     def info(self):
@@ -246,7 +213,7 @@ class Cooler(object):
 
     @property
     def shape(self):
-        return (self.info['nbins'],) * 2
+        return (self._info['nbins'],) * 2
 
     def chroms(self):
         """ Chromosome table selector
@@ -278,11 +245,11 @@ class Cooler(object):
         def _fetch(region):
             with open_hdf5(self.fp) as h5:
                 return region_to_extent(h5, self._chromids,
-                                        parse_region(region, self._chromlens))
+                                        parse_region(region, self._chromsizes))
 
         return RangeSelector1D(None, _slice, _fetch, self._info['nbins'])
 
-    def pixels(self, join=False):
+    def pixels(self, join=False, balance=False):
         """ Pixel table selector
 
         Parameters
@@ -290,6 +257,9 @@ class Cooler(object):
         join : bool, optional
             Whether to expand bin ID columns into chrom, start, and end columns.
             Default is ``False``.
+        balance : bool, optional
+            Whether to apply pre-calculated matrix balancing weights to
+            selections. Default is False.
 
         Returns
         -------
@@ -299,26 +269,27 @@ class Cooler(object):
 
         def _slice(fields, lo, hi):
             with open_hdf5(self.fp) as h5:
-                return pixels(h5, lo, hi, fields, join)
+                return pixels(h5, lo, hi, fields, join, balance)
 
         def _fetch(region):
             with open_hdf5(self.fp) as h5:
                 i0, i1 = region_to_extent(
                     h5, self._chromids,
-                    parse_region(region, self._chromlens))
+                    parse_region(region, self._chromsizes))
                 lo = h5['indexes']['bin1_offset'][i0]
                 hi = h5['indexes']['bin1_offset'][i1]
                 return lo, hi
 
         return RangeSelector1D(None, _slice, _fetch, self._info['nnz'])
 
-    def matrix(self, field=None, as_pixels=False, join=False, max_query=500000000):
+    def matrix(self, field=None, as_pixels=False, join=False, balance=False,
+               max_chunk=500000000):
         """ Contact matrix selector
 
         Parameters
         ----------
         field : str, optional
-            Which column of the pixel table to fill the matrix selection with.
+            Which column of the pixel table to fill matrix selections with.
             By default, the 'count' column is used.
         as_pixels : bool, optional
             Instead of a complete rectangular sparse matrix, return a DataFrame
@@ -327,6 +298,9 @@ class Cooler(object):
         join : bool, optional
             Whether to expand bin ID columns. False by default. Only applies if
             ``as_pixels`` is True.
+        balance : bool, optional
+            Whether to apply pre-calculated matrix balancing weights to
+            selections. Default is False.
 
         Returns
         -------
@@ -336,14 +310,15 @@ class Cooler(object):
 
         def _slice(field, i0, i1, j0, j1):
             with open_hdf5(self.fp) as h5:
-                return matrix(h5, i0, i1, j0, j1, field, as_pixels, join, max_query)
+                return matrix(h5, i0, i1, j0, j1, field, as_pixels, join, 
+                    balance, max_chunk)
 
         def _fetch(region, region2=None):
             with open_hdf5(self.fp) as h5:
                 if region2 is None:
                     region2 = region
-                region1 = parse_region(region, self._chromlens)
-                region2 = parse_region(region2, self._chromlens)
+                region1 = parse_region(region, self._chromsizes)
+                region2 = parse_region(region2, self._chromsizes)
                 i0, i1 = region_to_extent(h5, self._chromids, region1)
                 j0, j1 = region_to_extent(h5, self._chromids, region2)
                 return i0, i1, j0, j1
@@ -399,7 +374,7 @@ def chroms(h5, lo=0, hi=None, fields=None):
         fields = (pandas.Index(['name', 'length'])
                         .append(pandas.Index(h5['chroms'].keys()))
                         .drop_duplicates())
-    return get(h5, 'chroms', lo, hi, fields)
+    return get(h5['chroms'], lo, hi, fields)
 
 
 def bins(h5, lo=0, hi=None, fields=None):
@@ -424,10 +399,87 @@ def bins(h5, lo=0, hi=None, fields=None):
         fields = (pandas.Index(['chrom', 'start', 'end'])
                         .append(pandas.Index(h5['bins'].keys()))
                         .drop_duplicates())
-    return get(h5, 'bins', lo, hi, fields)
+    return get(h5['bins'], lo, hi, fields)
 
 
-def pixels(h5, lo=0, hi=None, fields=None, join=True):
+def annotate(pixels, bins, fields=None, replace=True):
+    """
+    Add bin annotations to a selection of pixels by performing a "left join"
+    from the bin IDs onto a table that describes properties of the genomic
+    bins. New columns will be appended on the left of the output data frame.
+
+    Parameters
+    ----------
+    pixels : DataFrame
+        A data frame containing columns named ``bin1_id`` and/or ``bin2_id``.
+        If columns ``bin1_id`` and ``bin2_id`` are both present in ``pixels``,
+        the adjoined columns will be suffixed with '1' and '2' accordingly.
+    bins : DataFrame or h5py.Group or dict of array-like
+        Data structure that contains a full description of the genomic bins of
+        the contact matrix, where the index corresponds to bin IDs. 
+        (e.g., the '/bin' group of a cooler tree).
+    fields : str or list of str, optional
+        Subset of columns of ``bins`` to use for annotation. Default is to use
+        all columns.
+    replace : bool, optional
+        Whether to remove the original ``bin1_id`` and ``bin2_id`` columns from
+        the output. Default is True.
+
+    Returns
+    -------
+    DataFrame
+
+    """
+    if fields is None:
+        fields = bins.keys()
+    elif isinstance(fields, six.string_types):
+        fields = [fields]
+    
+    do_load = True
+    if isinstance(bins, pandas.DataFrame):
+        do_load = False
+
+    ncols = len(pixels.columns)
+
+    if 'bin1_id' in pixels:
+        if do_load:
+            bin1 = pixels['bin1_id']
+            right = get(bins, bin1.min(), bin1.max() + 1, fields)
+        else:
+            right = bins[fields]
+
+        pixels = pixels.merge(
+            right,
+            how='left',
+            left_on='bin1_id',
+            right_index=True)
+    
+    if 'bin2_id' in pixels:
+        if do_load:
+            bin2 = pixels['bin2_id']
+            right = get(bins, bin2.min(), bin2.max() + 1, fields)
+        else:
+            right = bins[fields]
+
+        pixels = pixels.merge(
+            right,
+            how='left',
+            left_on='bin2_id',
+            right_index=True,
+            suffixes=('1', '2'))
+
+    # rearrange columns
+    pixels = pixels[list(pixels.columns[ncols:]) + list(pixels.columns[:ncols])]
+
+    # drop bin IDs
+    if replace:
+        cols_to_drop = [col for col in ('bin1_id', 'bin2_id') if col in pixels]
+        pixels = pixels.drop(cols_to_drop, axis=1)
+
+    return pixels
+
+
+def pixels(h5, lo=0, hi=None, fields=None, join=True, balance=False):
     """
     Table describing the nonzero upper triangular pixels of the Hi-C contact
     heatmap.
@@ -443,6 +495,9 @@ def pixels(h5, lo=0, hi=None, fields=None, join=True):
     join : bool, optional
         Whether or not to expand bin ID columns to their full bin description
         (chrom, start, end). Default is True.
+    balance : bool, optional
+        Whether to apply pre-calculated matrix balancing weights to the
+        selection. Default is False.
 
     Returns
     -------
@@ -454,15 +509,24 @@ def pixels(h5, lo=0, hi=None, fields=None, join=True):
                         .append(pandas.Index(h5['pixels'].keys()))
                         .drop_duplicates())
 
-    df = get(h5, 'pixels', lo, hi, fields)
+    df = get(h5['pixels'], lo, hi, fields)
+
+    if balance:
+        if 'weight' not in h5['bins']:
+            raise ValueError(
+                "No column 'bins/weight' found. Use ``cooler.ice`` to "
+                "calculate balancing weights.")
+        df2 = annotate(df, h5['bins'], 'weight')
+        df['balanced'] = df2['weight1'] * df2['weight2'] * df2['count']
 
     if join:
-        df = _join_bins_and_pixels(h5, df)
+        df = annotate(df, h5['bins'], ['chrom', 'start', 'end'])
 
     return df
 
 
-def matrix(h5, i0, i1, j0, j1, field=None, as_pixels=False, join=True, max_query=500000000):
+def matrix(h5, i0, i1, j0, j1, field=None, as_pixels=False, join=True,
+           balance=False, max_chunk=500000000):
     """
     Two-dimensional range query on the Hi-C contact heatmap.
     Returns either a rectangular sparse ``coo_matrix`` or a data frame of upper
@@ -486,6 +550,9 @@ def matrix(h5, i0, i1, j0, j1, field=None, as_pixels=False, join=True, max_query
         If requesting pixels, specifies whether to expand the bin ID columns
         into (chrom, start, end). Has no effect when requesting a rectangular
         matrix. Default is True.
+    balance : bool, optional
+        Whether to apply pre-calculated matrix balancing weights to the
+        selection. Default is False.
 
     Returns
     -------
@@ -500,15 +567,36 @@ def matrix(h5, i0, i1, j0, j1, field=None, as_pixels=False, join=True, max_query
     if field is None:
         field = 'count'
 
+    triu_reader = TriuReader(h5, field, max_chunk)
+
     if as_pixels:
-        ind, i, j, v = query_triu(h5, field, i0, i1, j0, j1, max_query)
+        index = triu_reader.index_col(i0, i1, j0, j1)
+        i, j, v = triu_reader.query(i0, i1, j0, j1)
         cols = ['bin1_id', 'bin2_id', field]
         df = pandas.DataFrame(dict(zip(cols, [i, j, v])),
-                              columns=cols, index=ind)
+                              columns=cols, index=index)
+        
+        if balance:
+            if 'weight' not in h5['bins']:
+                raise ValueError(
+                    "No column 'bins/weight' found. Use ``cooler.ice`` to "
+                    "calculate balancing weights.")
+            df2 = annotate(df, h5['bins'], 'weight')
+            df['balanced'] = df2['weight1'] * df2['weight2'] * df2['count']
+
         if join:
-            df = _join_bins_and_pixels(h5, df)
+            df = annotate(df, h5['bins'], ['chrom', 'start', 'end'])
 
         return df
+
     else:
-        i, j, v = query_symmetric(h5, field, i0, i1, j0, j1, max_query)
-        return coo_matrix((v, (i-i0, j-j0)), (i1-i0, j1-j0))
+        i, j, v = query_rect(triu_reader.query, i0, i1, j0, j1)
+        mat = coo_matrix((v, (i-i0, j-j0)), (i1-i0, j1-j0))
+
+        if balance:
+            weights = h5['bins']['weight']
+            bias1 = weights[i0:i1]
+            bias2 = bias1 if (i0, i1) == (j0, j1) else weights[j0:j1]
+            mat.data = bias1[mat.row] * bias2[mat.col] * mat.data
+
+        return mat

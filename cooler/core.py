@@ -3,7 +3,192 @@ from __future__ import division, print_function
 import numpy as np
 
 
-class IndexingMixin(object):
+class TriuReader(object):
+    """
+    Retrieves data from a 2D range query on the pixel table of a cooler tree.
+
+    Parameters
+    ----------
+    h5 : ``h5py.File`` or ``h5py.Group``
+        Root node of a cooler tree.
+    field : str
+        Column of the pixel table to query.
+    max_chunk : int
+        Size of largest chunk to read into memory in a single disk fetch.
+        Increase this to increase performance for large queries at the cost of
+        memory usage.
+
+    """
+    def __init__(self, h5, field, max_chunk):
+        self.h5 = h5
+        self.field = field
+        self.max_chunk = max_chunk
+
+    def index_col(self, i0, i1, j0, j1):
+        """Retrieve pixel table row IDs corresponding to query rectangle."""
+        edges = self.h5['indexes']['bin1_offset'][i0:i1 + 1]
+        return np.concatenate([np.arange(lo, hi) for lo, hi in
+                              zip(edges[:-1], edges[1:])], axis=0)
+
+    def query(self, i0, i1, j0, j1):
+        """Retrieve sparse matrix data inside a query rectangle."""
+        h5 = self.h5
+        field = self.field
+
+        i, j, v = [], [], []
+        if (i1 - i0 > 0) or (j1 - j0 > 0):
+            edges = h5['indexes']['bin1_offset'][i0:i1 + 1]
+            data = h5['pixels'][field]
+            p0, p1 = edges[0], edges[-1]
+
+            if (p1 - p0) < self.max_chunk:
+                all_bin2 = h5['pixels']['bin2_id'][p0:p1]
+                all_data = data[p0:p1]
+                dtype = all_bin2.dtype
+                for row_id, lo, hi in zip(range(i0, i1), 
+                                          edges[:-1] - p0,
+                                          edges[1:]  - p0):
+                    bin2 = all_bin2[lo:hi]
+                    mask = (bin2 >= j0) & (bin2 < j1)
+                    cols = bin2[mask]
+
+                    i.append(np.full(len(cols), row_id, dtype=dtype))
+                    j.append(cols)
+                    v.append(all_data[lo:hi][mask])
+            else:
+                for row_id, lo, hi in zip(range(i0, i1), edges[:-1], edges[1:]):
+                    bin2 = h5['pixels']['bin2_id'][lo:hi]
+                    mask = (bin2 >= j0) & (bin2 < j1)
+                    cols = bin2[mask]
+                    dtype = bin2.dtype
+
+                    i.append(np.full(len(cols), row_id, dtype=dtype))
+                    j.append(cols)
+                    v.append(data[lo:hi][mask])
+
+        if not i:
+            i = np.array([], dtype=int)
+            j = np.array([], dtype=int)
+            v = np.array([])
+        else:
+            i = np.concatenate(i, axis=0)
+            j = np.concatenate(j, axis=0)
+            v = np.concatenate(v, axis=0)
+
+        return i, j, v
+
+
+def _check_bounds(lo, hi, N):
+    if hi > N:
+        raise IndexError('slice index ({}) out of range'.format(hi))
+    if lo < 0:
+        raise IndexError('slice index ({}) out of range'.format(lo))
+
+
+def _comes_before(a0, a1, b0, b1, strict=False):
+    if a0 < b0: return a1 <= b0 if strict else a1 <= b1
+    return False
+
+
+def _contains(a0, a1, b0, b1, strict=False):
+    if a0 > b0 or a1 < b1: return False
+    if strict and (a0 == b0 or a1 == b1): return False
+    return a0 <= b0 and a1 >= b1
+
+
+def query_rect(triu_reader, i0, i1, j0, j1):
+    """
+    Process a 2D range query on a symmetric matrix using a reader that 
+    retrieves only upper triangle pixels from the matrix.
+
+    This function is responsible for filling in the missing data in the query
+    rectangle and for ensuring that diagonal elements are not duplicated.
+    Removing duplicates is important because various sparse matrix constructors
+    sum duplicates instead of ignoring them.
+
+
+    Parameters
+    ----------
+
+    triu_reader : callable
+        Callable that takes a query rectangle but only returns elements from the
+        upper triangle of the parent matrix.
+
+    i0, i1, j0, j1 : int
+        Bounding matrix coordinates of the query rectangle. Assumed to be within
+        the bounds of the parent matrix.
+
+
+    Returns
+    -------
+    
+    i, j, v : 1D arrays
+
+
+    Details
+    -------
+
+    Query cases to consider based on the axes ranges (i0, i1) and (j0, j1):
+
+    1. they are identical
+    2. different and non-overlapping
+    3. different but partially overlapping
+    4. different but one is nested inside the other
+    
+    - (1) requires filling in the lower triangle.
+    - (3) and (4) require splitting the selection into instances of (1) and (2).
+    
+    In some cases, the input axes ranges are swapped to retrieve the data,
+    then the final result is transposed.
+
+    """
+
+    # symmetric query
+    if (i0, i1) == (j0, j1):
+        i, j, v = triu_reader(i0, i1, i0, i1)
+        nodiag = i != j
+        i, j, v = np.r_[i, j[nodiag]], np.r_[j, i[nodiag]], np.r_[v, v[nodiag]]
+
+    # asymmetric query
+    else:
+        transpose = False
+        if j0 < i0 or (i0 == j0 and i1 < j1):
+            i0, i1, j0, j1 = j0, j1, i0, i1
+            transpose = True
+
+        # non-overlapping
+        if _comes_before(i0, i1, j0, j1, strict=True):
+            i, j, v = triu_reader(i0, i1, j0, j1)
+
+        # partially overlapping
+        elif _comes_before(i0, i1, j0, j1):
+            ix, jx, vx = triu_reader(i0, j0, j0, i1)
+            iy, jy, vy = triu_reader(j0, i1, j0, i1)
+            iz, jz, vz = triu_reader(i0, i1, i1, j1)
+            nodiag = iy != jy
+            iy, jy, vy = np.r_[iy, jy[nodiag]], np.r_[jy, iy[nodiag]], np.r_[vy, vy[nodiag]]
+            i, j, v = np.r_[ix, iy, iz], np.r_[jx, jy, jz], np.r_[vx, vy, vz]
+
+        # nested
+        elif _contains(i0, i1, j0, j1):
+            ix, jx, vx = triu_reader(i0, j0, j0, j1)
+            iy, jy, vy = triu_reader(j0, j1, j0, j1)
+            jz, iz, vz = triu_reader(j0, j1, j1, i1)
+            nodiag = iy != jy
+            iy, jy, vy = np.r_[iy, jy[nodiag]], np.r_[jy, iy[nodiag]], np.r_[vy, vy[nodiag]]
+            i, j, v = np.r_[ix, iy, iz], np.r_[jx, jy, jz], np.r_[vx, vy, vz]
+
+        else:
+            raise IndexError("This shouldn't happen")
+
+        if transpose:
+            i, j = j, i
+
+    return i, j, v
+
+
+
+class _IndexingMixin(object):
 
     def _unpack_index(self, key):
         if isinstance(key, tuple):
@@ -48,7 +233,7 @@ class IndexingMixin(object):
             raise TypeError('expected slice or scalar')
 
 
-class RangeSelector1D(IndexingMixin):
+class RangeSelector1D(_IndexingMixin):
     """
     Selector for out-of-core tabular data. Provides DataFrame-like selection of
     columns and list-like access to rows.
@@ -89,13 +274,26 @@ class RangeSelector1D(IndexingMixin):
     def shape(self):
         return self._shape
 
+    @property
+    def columns(self):
+        return self._slice(self.fields, 0, 0).columns
+
+    def keys(self):
+        return list(self.columns)
+
     def __len__(self):
         return self._shape[0]
 
-    def __getitem__(self, key):
-        if isinstance(key, (list, str)):
-            return self.__class__(key, self._slice, self._fetch, self._shape[0])
+    def __contains__(self, key):
+        return key in self.columns
 
+    def __getitem__(self, key):
+        # requesting a subset of columns
+        if isinstance(key, (list, str)):
+            return self.__class__(
+                key, self._slice, self._fetch, self._shape[0])
+
+        # requesting an interval of rows
         if isinstance(key, tuple):
             if len(key) == 1:
                 key = key[0]
@@ -122,7 +320,7 @@ class RangeSelector1D(IndexingMixin):
     #     pass
 
 
-class RangeSelector2D(IndexingMixin):
+class RangeSelector2D(_IndexingMixin):
     """
     Selector for out-of-core sparse matrix data. Supports 2D scalar and slice
     subscript indexing.
@@ -153,191 +351,3 @@ class RangeSelector2D(IndexingMixin):
             return self._slice(self.field, i0, i1, j0, j1)
         else:
             raise NotImplementedError
-
-
-def _check_bounds(lo, hi, N):
-    if hi > N:
-        raise IndexError('slice index ({}) out of range'.format(hi))
-    if lo < 0:
-        raise IndexError('slice index ({}) out of range'.format(lo))
-
-
-def _comes_before(a0, a1, b0, b1, strict=False):
-    if a0 < b0: return a1 <= b0 if strict else a1 <= b1
-    return False
-
-
-def _contains(a0, a1, b0, b1, strict=False):
-    if a0 > b0 or a1 < b1: return False
-    if strict and (a0 == b0 or a1 == b1): return False
-    return a0 <= b0 and a1 >= b1
-
-
-def iter_dataspans(h5, i0, i1, j0, j1):
-    if (i1 - i0 > 0) or (j1 - j0 > 0):
-        edges = h5['indexes']['bin1_offset'][i0:i1+1]
-        for lo1, hi1 in zip(edges[:-1], edges[1:]):
-            bin2 = h5['pixels']['bin2_id'][lo1:hi1]
-            lo2 = lo1 + np.searchsorted(bin2, j0)
-            hi2 = lo1 + np.searchsorted(bin2, j1)
-            yield lo2, hi2
-
-
-def iter_rowspans_with_colmask(h5, i0, i1, j0, j1):
-    if (i1 - i0 > 0) or (j1 - j0 > 0):
-        edges = h5['indexes']['bin1_offset'][i0:i1+1]
-        for lo, hi in zip(edges[:-1], edges[1:]):
-            bin2 = h5['pixels']['bin2_id'][lo:hi]
-            mask = (bin2 >= j0) & (bin2 < j1)
-            yield lo, hi, mask
-
-
-def slice_triu_csr(h5, field, i0, i1, j0, j1, max_query):
-    i, j, v = [], [], []
-    if (i1 - i0 > 0) or (j1 - j0 > 0):
-        edges = h5['indexes']['bin1_offset'][i0:i1 + 1]
-        data = h5['pixels'][field]
-        p0, p1 = edges[0], edges[-1]
-        ptr = 0
-        indptr = [ptr]
-
-        if (p1 - p0) < max_query:
-            all_bin2 = h5['pixels']['bin2_id'][p0:p1]
-            all_data = data[p0:p1]
-            for row_id, lo, hi in zip(range(i0, i1), edges[:-1] - p0, edges[1:] - p0):
-                bin2 = all_bin2[lo:hi]
-                mask = (bin2 >= j0) & (bin2 < j1)
-                cols = bin2[mask]
-                ptr += len(v[-1])
-                # ind.append(np.arange(p0+lo, p0+hi))
-                indptr.append(ptr)
-                j.append(cols)
-                v.append(all_data[lo:hi][mask])
-        else:
-            for row_id, lo, hi in zip(range(i0, i1), edges[:-1], edges[1:]):
-                bin2 = h5['pixels']['bin2_id'][lo:hi]
-                mask = (bin2 >= j0) & (bin2 < j1)
-                cols = bin2[mask]
-                ptr += len(v[-1])
-                # ind.append(np.arange(lo, hi))
-                indptr.append(ptr)
-                j.append(cols)
-                v.append(data[lo:hi][mask])
-
-    indptr = np.array(indptr)
-    if not i:
-        j = np.array([], dtype=np.int32)
-        v = np.array([])
-    else:
-        j = np.concatenate(j, axis=0)
-        v = np.concatenate(v, axis=0)
-
-    return indptr, j, v
-
-
-def slice_triu_coo(h5, field, i0, i1, j0, j1, max_query):
-    i, j, v = [], [], []
-    if (i1 - i0 > 0) or (j1 - j0 > 0):
-        edges = h5['indexes']['bin1_offset'][i0:i1 + 1]
-        data = h5['pixels'][field]
-        p0, p1 = edges[0], edges[-1]
-
-        if (p1 - p0) < max_query:
-            all_bin2 = h5['pixels']['bin2_id'][p0:p1]
-            all_data = data[p0:p1]
-            for row_id, lo, hi in zip(range(i0, i1), edges[:-1] - p0, edges[1:] - p0):
-                bin2 = all_bin2[lo:hi]
-                mask = (bin2 >= j0) & (bin2 < j1)
-                cols = bin2[mask]
-                # ind.append(np.arange(p0+lo, p0+hi))
-                i.append(np.full(len(cols), row_id, dtype=np.int32))
-                j.append(cols)
-                v.append(all_data[lo:hi][mask])
-        else:
-            for row_id, lo, hi in zip(range(i0, i1), edges[:-1], edges[1:]):
-                bin2 = h5['pixels']['bin2_id'][lo:hi]
-                mask = (bin2 >= j0) & (bin2 < j1)
-                cols = bin2[mask]
-                # ind.append(np.arange(lo, hi))
-                i.append(np.full(len(cols), row_id, dtype=np.int32))
-                j.append(cols)
-                v.append(data[lo:hi][mask])
-
-    if not i:
-        i = np.array([], dtype=np.int32)
-        j = np.array([], dtype=np.int32)
-        v = np.array([])
-    else:
-        i = np.concatenate(i, axis=0)
-        j = np.concatenate(j, axis=0)
-        v = np.concatenate(v, axis=0)
-
-    return i, j, v
-
-
-def query_triu(h5, field, i0, i1, j0, j1, max_query):
-    i, j, v = slice_triu_coo(h5, field, i0, i1, j0, j1, max_query)
-    edges = h5['indexes']['bin1_offset'][i0:i1 + 1]
-    index = np.concatenate([np.arange(lo, hi) for lo, hi in
-                            zip(edges[:-1], edges[1:])], axis=0)
-    return index, i, j, v
-
-
-def query_symmetric(h5, field, i0, i1, j0, j1, max_query):
-    # Query cases to consider wrt the axes ranges (i0, i1) and (j0 j1):
-    # 1. they are identical
-    # 2. different and non-overlapping
-    # 3. different but partially overlapping
-    # 4. different but one inside another other
-    #
-    # (1) requires filling in the lower triangle.
-    # (3) and (4) require splitting the selection into instances of (1) and (2).
-    #
-    # In some cases, the input axes ranges are swapped to retrieve the data,
-    # then the final result is transposed.
-    n_bins = h5.attrs['nbins']
-    _check_bounds(i0, i1, n_bins)
-    _check_bounds(j0, j1, n_bins)
-
-    # symmetric query
-    if (i0, i1) == (j0, j1):
-        i, j, v = slice_triu_coo(h5, field, i0, i1, i0, i1, max_query)
-        nodiag = i != j
-        i, j, v = np.r_[i, j[nodiag]], np.r_[j, i[nodiag]], np.r_[v, v[nodiag]]
-
-    # asymmetric query
-    else:
-        transpose = False
-        if j0 < i0 or (i0 == j0 and i1 < j1):
-            i0, i1, j0, j1 = j0, j1, i0, i1
-            transpose = True
-
-        # non-overlapping
-        if _comes_before(i0, i1, j0, j1, strict=True):
-            i, j, v = slice_triu_coo(h5, field, i0, i1, j0, j1, max_query)
-
-        # partially overlapping
-        elif _comes_before(i0, i1, j0, j1):
-            ix, jx, vx = slice_triu_coo(h5, field, i0, j0, j0, i1, max_query)
-            iy, jy, vy = slice_triu_coo(h5, field, j0, i1, j0, i1, max_query)
-            iz, jz, vz = slice_triu_coo(h5, field, i0, i1, i1, j1, max_query)
-            nodiag = iy != jy
-            iy, jy, vy = np.r_[iy, jy[nodiag]], np.r_[jy, iy[nodiag]], np.r_[vy, vy[nodiag]]
-            i, j, v = np.r_[ix, iy, iz], np.r_[jx, jy, jz], np.r_[vx, vy, vz]
-
-        # nested
-        elif _contains(i0, i1, j0, j1):
-            ix, jx, vx = slice_triu_coo(h5, field, i0, j0, j0, j1, max_query)
-            iy, jy, vy = slice_triu_coo(h5, field, j0, j1, j0, j1, max_query)
-            jz, iz, vz = slice_triu_coo(h5, field, j0, j1, j1, i1, max_query)
-            nodiag = iy != jy
-            iy, jy, vy = np.r_[iy, jy[nodiag]], np.r_[jy, iy[nodiag]], np.r_[vy, vy[nodiag]]
-            i, j, v = np.r_[ix, iy, iz], np.r_[jx, jy, jz], np.r_[vx, vy, vz]
-
-        else:
-            raise IndexError("This shouldn't happen")
-
-        if transpose:
-            i, j = j, i
-
-    return i, j, v

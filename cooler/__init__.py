@@ -13,8 +13,9 @@ A cool place to store your Hi-C.
 __version__ = '0.4.0-dev'
 __format_version__ = 2
 
-from .api import Cooler, get, info, chroms, bins, pixels, matrix
-from .util import read_chromsizes, binnify, make_bintable
+from .api import Cooler, get, info, chroms, bins, pixels, matrix, annotate
+from .util import read_chromsizes, binnify
 from .io import open_hdf5
 from . import util
+from . import ice
 from . import io
