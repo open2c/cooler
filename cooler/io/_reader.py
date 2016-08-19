@@ -13,6 +13,7 @@ from contextlib import contextmanager
 from bisect import bisect_left
 import subprocess
 import json
+import sys
 import six
 
 from pandas.algos import is_lexsorted
@@ -266,7 +267,7 @@ class CoolerAggregator(ContactReader):
         edges = np.arange(0, self.size() + chunksize, chunksize)
         for lo, hi in zip(edges[:-1], edges[1:]):
             chunk = table[lo:hi]
-            print(lo, hi, flush=True)
+            print(lo, hi)
             yield self._aggregate(chunk)
 
 
