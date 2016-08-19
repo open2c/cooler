@@ -10,7 +10,7 @@ A cool place to store your Hi-C.
 :license: BSD
 
 """
-__version__ = '0.4.0-dev'
+__version__ = '0.4.0'
 __format_version__ = 2
 
 from .api import Cooler, get, info, chroms, bins, pixels, matrix, annotate
