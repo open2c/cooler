@@ -46,7 +46,12 @@ Install from PyPI using pip.
 $ pip install cooler
 ```
 
-For development, clone and install in "editable" (i.e. development) mode with the `-e` option.
+For the latest, unstable version, clone and install from master or install directly from the repo.
+```sh
+$ pip install git+git://github.com/mirnylab/cooler.git
+```
+
+For development, clone and install in "editable" (i.e. development) mode with the `-e` option. This way you can also pull changes on the fly.
 ```sh
 $ git clone https://github.com/mirnylab/cooler.git
 $ cd cooler
