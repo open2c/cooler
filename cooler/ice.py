@@ -9,7 +9,8 @@ import pandas
 import h5py
 
 
-# global lock because libhdf5 builds are not thread-safe by default :(
+# Lock prevents race condition if HDF5 file is already open before forking.
+# See discussion: <https://groups.google.com/forum/#!topic/h5py/bJVtWdFtZQM>
 lock = Lock()
 
 
@@ -31,6 +32,9 @@ class Worker(object):
     cooler_path : str
         Path to Cooler HDF5 file. Must be a string and not a file-like object
         when running in parallel because the latter cannot be pickled.
+
+    cooler_root : str
+        HDF5 path to root group of a Cooler tree.
 
     filters : sequence of callables
         Transformations that the worker will apply on the pixel weights prior
@@ -54,8 +58,9 @@ class Worker(object):
     >>> marg = np.sum([marg1, marg2, marg3], axis=0)
 
     """
-    def __init__(self, cooler_path, filters=None):
+    def __init__(self, cooler_path, cooler_root, filters=None):
         self.filepath = cooler_path
+        self.root = cooler_root
         self.filters = filters if filters is not None else []
 
     def __call__(self, span):
@@ -67,14 +72,15 @@ class Worker(object):
         chunk = {}
         lock.acquire()
         with h5py.File(self.filepath, 'r') as h5:
-            n_bins_total = h5['bins/chrom'].shape[0]
-            chunk['bin1_id'] = h5['pixels/bin1_id'][lo:hi]
-            chunk['bin2_id'] = h5['pixels/bin2_id'][lo:hi]
-            chunk['count'] = h5['pixels/count'][lo:hi]
+            coo = h5[self.root]
+            n_bins_total = coo['bins/chrom'].shape[0]
+            chunk['bin1_id'] = coo['pixels/bin1_id'][lo:hi]
+            chunk['bin2_id'] = coo['pixels/bin2_id'][lo:hi]
+            chunk['count']   = coo['pixels/count'][lo:hi]
             chunk['bintable'] = {
-                'chrom_id':  h5['bins/chrom'][:],
-                'start':  h5['bins/start'][:],
-                'end':   h5['bins/end'][:],
+                'chrom_id':  coo['bins/chrom'][:],
+                'start':     coo['bins/start'][:],
+                'end':       coo['bins/end'][:],
             }
         lock.release()
 
@@ -129,7 +135,7 @@ def mad(data, axis=None):
     return np.median(np.abs(data - np.median(data, axis)), axis)
 
 
-def iterative_correction(coo, chunksize=None, map=map, tol=1e-5,
+def iterative_correction(h5, cooler_root='/', chunksize=None, map=map, tol=1e-5,
                          min_nnz=0, min_count=0, mad_max=0,
                          cis_only=False, ignore_diags=False,
                          max_iters=200):
@@ -139,8 +145,10 @@ def iterative_correction(coo, chunksize=None, map=map, tol=1e-5,
 
     Parameters
     ----------
-    coo : h5py.File object
+    h5 : h5py.File object
         Cooler file
+    cooler_root : str, optional
+        Path of the root node of a cooler tree. Default is the file root, '/'.
     chunksize : int, optional
         Split the contact matrix pixel records into equally sized chunks to
         save memory and/or parallelize. Default is to use all the pixels at
@@ -167,21 +175,22 @@ def iterative_correction(coo, chunksize=None, map=map, tol=1e-5,
         Inter-chromosomal data is ignored.
     ignore_diags : int or False, optional
         Drop elements occurring on the first ``ignore_diags`` diagonals of the
-        matrix.
+        matrix (including the main diagonal).
     max_iters : int, optional
         Iteration limit.
 
     Returns
     -------
-    bias : 1D array, whose shape is the number of bins in ``coo``.
+    bias : 1D array, whose shape is the number of bins in ``h5``.
         Vector of bin bias weights to normalize the observed contact map.
         Dropped bins will be assigned the value NaN.
         N[i, j] = O[i, j] * bias[i] * bias[j]
 
     """
+    filepath = h5.file.filename
 
     # Divide the number of elements into non-overlapping chunks
-    nnz = coo.attrs['nnz']
+    nnz = h5[cooler_root].attrs['nnz']
     if chunksize is None:
         spans = [(0, nnz)]
     else:
@@ -196,18 +205,18 @@ def iterative_correction(coo, chunksize=None, map=map, tol=1e-5,
         base_filters.append(DropDiagFilter(ignore_diags))
 
     # Initialize the bias weights
-    n_bins = coo.attrs['nbins']
+    n_bins = h5[cooler_root].attrs['nbins']
     bias = np.ones(n_bins, dtype=float)
 
     # Drop bins with too few nonzeros from bias
     if min_nnz > 0:
         filters = [BinarizeFilter()] + base_filters
-        marg_partials = map(Worker(coo.filename, filters), spans)
+        marg_partials = map(Worker(filepath, cooler_root, filters), spans)
         marg_nnz = np.sum(list(marg_partials), axis=0)
         bias[marg_nnz < min_nnz] = 0
 
     filters = base_filters
-    marg_partials = map(Worker(coo.filename, filters), spans)
+    marg_partials = map(Worker(filepath, cooler_root, filters), spans)
     marg = np.sum(list(marg_partials), axis=0)
 
     # Drop bins with too few total counts from bias
@@ -216,7 +225,7 @@ def iterative_correction(coo, chunksize=None, map=map, tol=1e-5,
 
     # MAD-max filter on the marginals
     if mad_max > 0:
-        offsets = coo['indexes']['chrom_offset'][:]
+        offsets = h5[cooler_root]['indexes']['chrom_offset'][:]
         for lo, hi in zip(offsets[:-1], offsets[1:]):
             c_marg = marg[lo:hi]
             marg[lo:hi] /= np.median(c_marg[c_marg > 0])
@@ -229,7 +238,7 @@ def iterative_correction(coo, chunksize=None, map=map, tol=1e-5,
     # Do balancing
     for _ in range(max_iters):
         filters = base_filters + [TimesOuterProductFilter(bias)]
-        worker = Worker(coo.filename, filters)
+        worker = Worker(filepath, cooler_root, filters)
         marg_partials = map(worker, spans)
         marg = np.sum(list(marg_partials), axis=0)
 
