@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from __future__ import division, print_function, unicode_literals
+from __future__ import division, print_function
 from scipy import sparse
 import numpy as np
 import pandas
@@ -129,8 +129,8 @@ def test_slice_matrix():
         (1, 1, 1, 1),
     ]
     for i0, i1, j0, j1 in slices:
-        i, j, v = cooler.core.query_symmetric(
-            mock_cooler, 'count', i0, i1, j0, j1, max_query=10)
+        triu_reader = cooler.core.TriuReader(mock_cooler, 'count', max_chunk=10)
+        i, j, v = cooler.core.query_rect(triu_reader.query, i0, i1, j0, j1)
         mat = sparse.coo_matrix((v, (i-i0, j-j0)), (i1-i0, j1-j0)).toarray()
         assert np.allclose(r_full[i0:i1, j0:j1], mat)
 

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from __future__ import division, print_function, unicode_literals
+from __future__ import division, print_function
 
 from nose.tools import assert_raises
 from cooler.util import parse_region_string
@@ -21,5 +21,5 @@ def test_region_string_parser():
     assert parse_region_string('gb|accession|locus:1000-2000') == ('gb|accession|locus', 1000, 2000)
     assert parse_region_string('gb|accession|locus:1,000-2,000') == ('gb|accession|locus', 1000, 2000)
 
-    assert_raises(ValueError, parse_region_string, 'chr1:2,000-1,000')
+    assert_raises(ValueError, parse_region_string, 'chr1:2,000-1,000')  # reverse selection
     assert_raises(ValueError, parse_region_string, 'name-with-hyphen')

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from __future__ import division, print_function, unicode_literals
+from __future__ import division, print_function
 from six import BytesIO, iteritems
 import os
 
@@ -29,7 +29,7 @@ def test_roundtrip():
     chroms, lengths = zip(*iteritems(chromsizes))
 
     binsize = 2000000
-    bintable = cooler.make_bintable(chromsizes, binsize)
+    bintable = cooler.binnify(chromsizes, binsize)
 
     heatmap = np.load(os.path.join(testdir, 'data', 'IMR90-MboI-matrix.2000kb.npy'))
     with h5py.File(testfile_path, 'w') as h5:
@@ -55,3 +55,11 @@ def test_roundtrip():
     mat = cooler.Cooler(h5).matrix('count')[:100, :100]
     assert mat.shape == (100, 100)
     assert np.allclose(heatmap[:100,:100], mat.toarray())
+
+    mat = cooler.matrix(h5, 100, 200, 100, 200, 'count')
+    assert mat.shape == (100, 100)
+    assert np.allclose(heatmap[100:200,100:200], mat.toarray())
+
+    mat = cooler.Cooler(h5).matrix('count')[100:200, 100:200]
+    assert mat.shape == (100, 100)
+    assert np.allclose(heatmap[100:200,100:200], mat.toarray())

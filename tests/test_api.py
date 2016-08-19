@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from __future__ import division, print_function, unicode_literals
+from __future__ import division, print_function
 from scipy import sparse
 import numpy as np
 import pandas
@@ -66,7 +66,7 @@ chromID_lookup = pandas.Series({'chr1': 0, 'chr2': 1})
 
 
 def test_get():
-    table = cooler.api.get(mock_cooler, 'chroms')
+    table = cooler.api.get(mock_cooler['chroms'])
     assert np.all(table['length'] == mock_cooler['chroms']['length'])
 
 
