@@ -13,7 +13,21 @@ def atoi(s):
 
 
 def parse_region_string(s):
+    """
+    Parse a UCSC-style genomic region string into a triple.
 
+    Parameters
+    ----------
+    s : str
+        UCSC-style string, e.g. "chr5:10,100,000-30,000,000".
+        Ensembl and FASTA style template names are allowed.
+        End coordinate must be greater than or equal to start.
+    
+    Returns
+    -------
+    (str, int or None, int or None)
+
+    """
     def _tokenize(s):
         token_spec = [
             ('INT',    r'[0-9,]+'),
@@ -81,21 +95,27 @@ def parse_region(reg, chromsizes=None):
         chrom, start, end = parse_region_string(reg)
     else:
         chrom, start, end = reg
-        start, end = map(int, (start, end))
+        start = int(start) if start is not None else start
+        end = int(end) if end is not None else end
+
     try:
         clen = chromsizes[chrom] if chromsizes is not None else None
     except KeyError:
-        raise ValueError("Unknown scaffold {}".format(chrom))
+        raise ValueError("Unknown sequence label: {}".format(chrom))
+    
     start = 0 if start is None else start
     if end is None:
         if clen is None:  # TODO --- remove?
             raise ValueError("Cannot determine end coordinate.")
         end = clen
+
     if end < start:
         raise ValueError("End cannot be less than start")
+    
     if start < 0 or (clen is not None and end > clen):
         raise ValueError(
-            "Genomic region out of bounds: [{}, {})".format(start, clen))
+            "Genomic region out of bounds: [{}, {})".format(start, end))
+    
     return chrom, start, end
 
 
