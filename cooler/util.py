@@ -19,9 +19,9 @@ def parse_region_string(s):
     Parameters
     ----------
     s : str
-        UCSC-style string, e.g. "chr5:10,100,000-30,000,000".
-        Ensembl and FASTA style template names are allowed.
-        End coordinate must be greater than or equal to start.
+        UCSC-style string, e.g. "chr5:10,100,000-30,000,000". Ensembl and FASTA
+        style sequence names are allowed. End coordinate must be greater than or
+        equal to start.
     
     Returns
     -------

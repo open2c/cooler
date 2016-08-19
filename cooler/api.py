@@ -249,7 +249,7 @@ class Cooler(object):
 
         return RangeSelector1D(None, _slice, _fetch, self._info['nbins'])
 
-    def pixels(self, join=False, balance=False):
+    def pixels(self, join=False):
         """ Pixel table selector
 
         Parameters
@@ -257,9 +257,6 @@ class Cooler(object):
         join : bool, optional
             Whether to expand bin ID columns into chrom, start, and end columns.
             Default is ``False``.
-        balance : bool, optional
-            Whether to apply pre-calculated matrix balancing weights to
-            selections. Default is False.
 
         Returns
         -------
@@ -269,7 +266,7 @@ class Cooler(object):
 
         def _slice(fields, lo, hi):
             with open_hdf5(self.fp) as h5:
-                return pixels(h5, lo, hi, fields, join, balance)
+                return pixels(h5, lo, hi, fields, join)
 
         def _fetch(region):
             with open_hdf5(self.fp) as h5:
@@ -479,7 +476,7 @@ def annotate(pixels, bins, fields=None, replace=True):
     return pixels
 
 
-def pixels(h5, lo=0, hi=None, fields=None, join=True, balance=False):
+def pixels(h5, lo=0, hi=None, fields=None, join=True):
     """
     Table describing the nonzero upper triangular pixels of the Hi-C contact
     heatmap.
@@ -495,9 +492,6 @@ def pixels(h5, lo=0, hi=None, fields=None, join=True, balance=False):
     join : bool, optional
         Whether or not to expand bin ID columns to their full bin description
         (chrom, start, end). Default is True.
-    balance : bool, optional
-        Whether to apply pre-calculated matrix balancing weights to the
-        selection. Default is False.
 
     Returns
     -------
@@ -510,14 +504,6 @@ def pixels(h5, lo=0, hi=None, fields=None, join=True, balance=False):
                         .drop_duplicates())
 
     df = get(h5['pixels'], lo, hi, fields)
-
-    if balance:
-        if 'weight' not in h5['bins']:
-            raise ValueError(
-                "No column 'bins/weight' found. Use ``cooler.ice`` to "
-                "calculate balancing weights.")
-        df2 = annotate(df, h5['bins'], 'weight')
-        df['balanced'] = df2['weight1'] * df2['weight2'] * df2['count']
 
     if join:
         df = annotate(df, h5['bins'], ['chrom', 'start', 'end'])
@@ -582,7 +568,7 @@ def matrix(h5, i0, i1, j0, j1, field=None, as_pixels=False, join=True,
                     "No column 'bins/weight' found. Use ``cooler.ice`` to "
                     "calculate balancing weights.")
             df2 = annotate(df, h5['bins'], 'weight')
-            df['balanced'] = df2['weight1'] * df2['weight2'] * df2['count']
+            df['balanced'] = df2['weight1'] * df2['weight2'] * df2[field]
 
         if join:
             df = annotate(df, h5['bins'], ['chrom', 'start', 'end'])
