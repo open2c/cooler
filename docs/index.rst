@@ -12,7 +12,7 @@ Contents:
    :maxdepth: 2
 
    intro
-   schema_v2
+   schema_current
    api
 
 Previous schemas:

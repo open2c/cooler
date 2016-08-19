@@ -15,6 +15,7 @@ cooler
 .. autofunction:: cooler.bins
 .. autofunction:: cooler.pixels
 .. autofunction:: cooler.matrix
+.. autofunction:: cooler.annotate
 
 
 cooler.io
