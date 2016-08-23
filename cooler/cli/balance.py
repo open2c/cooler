@@ -44,12 +44,12 @@ from .. import ice
     default=1e-5)
 @click.option(
     "--cis-only",
-    action='store_true',
+    is_flag=True,
     default=False)
 @click.option(
     "--force", "-f",
-    help="Overwrite the target dataset 'weight' if it already exists"
-    action='store_true',
+    help="Overwrite the target dataset 'weight' if it already exists",
+    is_flag=True,
     default=False)
 def balance(cooler_path, ncpu, chunksize, mad_max, min_nnz, min_count, ignore_diags, tol, cis_only, force):
     """

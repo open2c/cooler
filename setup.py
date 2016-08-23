@@ -63,7 +63,7 @@ setup(
     extras_require=extras_require,
     entry_points={
         'console_scripts': [
-            'cooler = cooler.cli:main',
+            'cooler = cooler.cli:cli',
         ]
     }
 )

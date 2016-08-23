@@ -17,17 +17,17 @@ from ..api import Cooler, annotate
 @click.option(
     "--bins", "-b",
     help="Dump the bin table.",
-    action='store_true',
+    is_flag=True,
     default=False)
 @click.option(
     "--join",
     help="Print chromosome bin coordinates instead of bin IDs",
-    action='store_true',
+    is_flag=True,
     default=False)
 @click.option(
     "--balanced",
     help="Apply balancing weights to data",
-    action='store_true',
+    is_flag=True,
     default=False)
 @click.option(
     '--chunksize',
