@@ -12,12 +12,11 @@ Contents:
    :maxdepth: 2
 
    intro
-   schema_current
+   datamodel
+   schema
+   container
+   library
    api
-
-Previous schemas:
-
-* :ref:`v1 <version-1>`
 
 
 :ref:`genindex`

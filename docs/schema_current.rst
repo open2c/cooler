@@ -1,8 +1,5 @@
 .. _current-version:
 
-Schema
-=============
-
 **Version: 2**
 
 This schema describes a `compressed sparse row <https://en.wikipedia.org/wiki/Sparse_matrix#Compressed_sparse_row_.28CSR.2C_CRS_or_Yale_format.29>`_ storage scheme (CSR) for a *symmetric* matrix with genomic dimension/axis annotations.
