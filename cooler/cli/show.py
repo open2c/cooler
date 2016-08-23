@@ -84,7 +84,7 @@ def show(cooler_file, range, range2, out, dpi, raw, scale, force, zmin, zmax, cm
     """
     try:
         import matplotlib.pyplot as plt
-    except ImportError
+    except ImportError:
         print("Install matplotlib to use cooler show", file=sys.stderr)
         sys.exit(1)
 
@@ -114,7 +114,7 @@ def show(cooler_file, range, range2, out, dpi, raw, scale, force, zmin, zmax, cm
     chrm_row, lo_row, hi_row = util.parse_region_string(range_rows)
     chrm_col, lo_col, hi_col = util.parse_region_string(range_cols)
     vmin = _str_to_num(zmin)
-     vmax = _str_to_num(zmax)
+    vmax = _str_to_num(zmax)
 
     plt.figure(figsize=(11,10))
     plt.gcf().canvas.set_window_title('Contact matrix'.format())
