@@ -61,4 +61,9 @@ setup(
     install_requires=install_requires,
     tests_require=tests_require,
     extras_require=extras_require,
+    entry_points={
+        'console_scripts': [
+            'cooler = cooler.cli:main',
+        ]
+    }
 )
