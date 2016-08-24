@@ -3,7 +3,7 @@ from __future__ import division, print_function
 import click
 
 CONTEXT_SETTINGS = {
-    'help_option_names': ['-h', '--help']
+    'help_option_names': ['-h', '--help'],
 }
 
 @click.group(context_settings=CONTEXT_SETTINGS)
@@ -19,5 +19,6 @@ from . import (
     load,
     balance,
     dump,
-    show
+    show,
+    info
 )

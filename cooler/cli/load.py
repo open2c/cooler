@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import division, print_function
-import argparse
+import json
 import sys
 
 import numpy as np
@@ -23,13 +23,22 @@ from ..io import create, SparseLoader
 @click.argument(
     "out",
     metavar="COOL_PATH")
-def load(bins_path, pixels_path, out):
+@click.option(
+    "--metadata",
+    help="Path to JSON file containing user metadata.")
+@click.option(
+    "--assembly",
+    help="Name of genome assembly (e.g. hg19, mm10)")
+def load(bins_path, pixels_path, out, metadata, assembly):
     """
+    Load a contact matrix.
     Load a text dump of a contact matrix into a COOL file.
 
     BINS_PATH : BED-like file containing genomic bin segmentation
 
-    PIXELS_PATH : Sorted sparse triple file (non-zero aggregated contact frequencies)
+    PIXELS_PATH : Three-column sorted sparse matrix text file in ijv-triple,
+    a.k.a. COO format. May be gzipped. Must be lexically sorted by bin1_id and
+    bin2_id.
 
     COOL_PATH : Output COOL file path
 
@@ -45,8 +54,13 @@ def load(bins_path, pixels_path, out):
     )
     chroms, lengths = list(chromtable['name']), list(chromtable['length'])
 
+    # User-supplied JSON file
+    if metadata is not None:
+        with open(metadata, 'r') as f:
+            metadata = json.load(f)
+
     # Load the binned contacts
     chunksize = int(100e6)
     reader = SparseLoader(pixels_path, chunksize)
     with h5py.File(out, 'w') as h5:
-        create(h5, chroms, lengths, bins, reader) # metadata, assembly)
+        create(h5, chroms, lengths, bins, reader, metadata, assembly)

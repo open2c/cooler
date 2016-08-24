@@ -24,12 +24,13 @@ from .. import util
     help="Output file (defaults to stdout)")
 def digest(chromsizes, fasta, enzyme, out):
     """
+    Make fragment-delimited genomic bins.
     Output a genome segmentation of restriction fragments as a BED file.
 
-    CHROMSIZES_PATH : UCSC-like chromsizes file, with chromosomes in desired 
+    CHROMSIZES_PATH : UCSC-like chromsizes file, with chromosomes in desired
     order.
 
-    FASTA_PATH : Genome assembly FASTA file or folder containing FASTA files 
+    FASTA_PATH : Genome assembly FASTA file or folder containing FASTA files
     (uncompressed).
 
     ENZYME : Name of restriction enzyme

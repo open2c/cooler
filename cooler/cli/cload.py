@@ -21,7 +21,7 @@ from ..io import create, TabixAggregator
     metavar="PAIRS_PATH")
 @click.argument(
     "out",
-    metavar="COOLER_PATH")
+    metavar="COOL_PATH")
 @click.option(
     "--metadata",
     help="Path to JSON file containing user metadata.")
@@ -30,11 +30,30 @@ from ..io import create, TabixAggregator
     help="Name of genome assembly (e.g. hg19, mm10)")
 def cload(bins_path, pairs_path, out, metadata, assembly):
     """
-    Create a COOL file from a list of read pairs (i.e. contacts) and a list of bins.
+    Aggregate contacts.
+    Create a COOL file from a list of contacts and a list of bins.
 
-    BINS_PATH : Path to BED file describing the genomic bin segmentation.
-    PAIRS_PATH : Path to Tabix-indexed text file containing columns `chrom1`, `pos1`, `chrom2`, `pos2`.
-    COOLER_PATH : Output COOL file path.
+    BINS_PATH : Path to BED file defining the genomic bin segmentation.
+
+    PAIRS_PATH : Path to contacts (i.e. read pairs) file whose first six
+    columns are `chrom1`, `pos1`, `strand1`, `chrom2`, `pos2`, `strand2`. The
+    contacts file must be:
+
+    \b
+    - Tab-delimited
+    - Upper triangular: reads on each row are oriented such that
+      (chrom1, pos1) is "less than" (chrom2, pos2) according to the
+      desired chromosome ordering
+    - Lexically sorted by chrom1, pos1, chrom2, pos2. Here, the way
+      chromosomes are ordered is not crucial because of indexing (below).
+    - Compressed with bgzip [*]
+    - Indexed using Tabix [*] on chrom1 and pos1: `tabix -0 -s1 -b2 -e2`
+
+    COOL_PATH : Output COOL file path.
+
+    See also: 'cooler csort' to sort and index a contact list file
+
+    [*] Tabix manpage: <http://www.htslib.org/doc/tabix.html>.
 
     """
     # Bin table

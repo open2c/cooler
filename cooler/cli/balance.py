@@ -13,7 +13,7 @@ from .. import ice
 
 @cli.command()
 @click.argument(
-    "cooler_path")
+    "cool_path")
 @click.option(
     "--nproc", "-p",
     help="Number of processes to split the work between.",
@@ -59,7 +59,8 @@ from .. import ice
     show_default=True)
 @click.option(
     "--tol",
-    help="Threshold value of marginal variance for the algorithm to converge.",
+    help="Threshold value of variance of the marginals for the algorithm to "
+         "converge.",
     type=float,
     default=1e-5,
     show_default=True)
@@ -80,29 +81,29 @@ from .. import ice
     help="Overwrite the target dataset, 'weight', if it already exists.",
     is_flag=True,
     default=False)
-def balance(cooler_path, nproc, chunksize, mad_max, min_nnz, min_count,
+def balance(cool_path, nproc, chunksize, mad_max, min_nnz, min_count,
             ignore_diags, tol, cis_only, max_iters, force):
     """
-    Compute a genome-wide balancing/bias/normalization vector.
+    Out-of-core contact matrix balancing.
 
-    Assumes uniform binning. See the help for various filtering options to 
+    Assumes uniform binning. See the help for various filtering options to
     ignore poorly mapped bins.
 
-    COOLER_PATH : Path to a COOL file.
+    COOL_PATH : Path to a COOL file.
 
     """
-    with h5py.File(cooler_path, 'r') as h5:
+    with h5py.File(cool_path, 'r') as h5:
         if 'weight' in h5['bins']:
             if not force:
                 print("'weight' column already exists. "
                       "Use --force option to overwrite.", file=sys.stderr)
                 sys.exit(1)
             else:
-                del h5['bins']['weight']     
+                del h5['bins']['weight']
 
     try:
         pool = Pool(nproc)
-        with h5py.File(cooler_path, 'a') as h5:
+        with h5py.File(cool_path, 'a') as h5:
 
             bias = ice.iterative_correction(
                 h5,

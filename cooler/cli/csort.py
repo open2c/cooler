@@ -36,7 +36,7 @@ BEGIN {{
     metavar="PAIRS_PATH")
 @click.option(
     "--chrom1", "-c1",
-    help="chrom1 field number",
+    help="chrom1 field number in the input file (starting from 1)",
     default=1)
 @click.option(
     "--pos1", "-p1",
@@ -59,22 +59,41 @@ BEGIN {{
     help="strand2 field number",
     default=6)
 @click.option(
-    "--ncpu", "-p",
+    "--nproc", "-p",
     help="number of processors",
     type=int,
     default=8)
 @click.option(
     "--out", "-o",
     help="Output gzip file")
-def csort(chromsizes_path, pairs_path, chrom1, pos1, strand1, chrom2, pos2, strand2, out):
+def csort(chromsizes_path, pairs_path, chrom1, pos1, strand1, chrom2, pos2,
+          strand2, nproc, out):
     """
-    Sort contacts by position and order the reads of each pair so that all 
-    contacts are upper triangular with respect to the chromosome ordering 
-    given by the chromsizes file.
+    Sort and index contacts.
+    Arrange the reads of each pair so that all contacts are upper triangular
+    with respect to the chromosome ordering given by the chromsizes file, and
+    sort contacts by position.
 
-    CHROMSIZES_PATH : UCSC-like chromsizes file, with chromosomes in desired order.
+    Requires Unix tools: pigz, sort, bgzip, tabix
 
-    PAIRS_PATH : Read pairs (i.e. contacts) text file.
+    CHROMSIZES_PATH : UCSC-like chromsizes file, with chromosomes in desired
+    order.
+
+    PAIRS_PATH : Contacts (i.e. read pairs) text file.
+
+    The output file will have the following properties:
+
+    \b
+    - Upper triangular: the read pairs on each row are assigned to side 1 or 2
+      in such a way that (chrom1, pos1) is always "less than" (chrom2, pos2),
+      according to the desired chromosome order as given by the chromsizes
+      file.
+    - Rows are lexically sorted by chrom1, pos1, chrom2, pos2. Here, the way
+      chromosomes are sorted does not need to respect the desired order.
+    - Compressed with bgzip [*]
+    - Indexed using Tabix [*] on chrom1 and pos1: `tabix -0 -s1 -b2 -e2`
+
+    [*] Tabix manpage: <http://www.htslib.org/doc/tabix.html>.
 
     """
     chromsizes_path = op.realpath(chromsizes_path)
@@ -100,13 +119,13 @@ def csort(chromsizes_path, pairs_path, chrom1, pos1, strand1, chrom2, pos2, stra
     # Re-order reads, sort, then bgzip
     with open(outfile, 'wb') as f:
         p1 = subprocess.Popen(
-            ['pigz', '-p', ncpu//2, '-dc',  infile],
+            ['pigz', '-p', nproc//2, '-dc',  infile],
             stdout=subprocess.PIPE)
         p2 = subprocess.Popen(
             ['awk', triu_reorder],
             stdin=p1.stdout, stdout=subprocess.PIPE)
         p3 = subprocess.Popen(
-            ['sort', '-S1G', '--parallel={}'.format(ncpu//2), '-k1,1', '-k2,2n', '-k4,4', '-k5,5n'],
+            ['sort', '-S1G', '--parallel={}'.format(nproc//2), '-k1,1', '-k2,2n', '-k4,4', '-k5,5n'],
             stdin=p2.stdout, stdout=subprocess.PIPE)
         p4 = subprocess.Popen(
             ['bgzip', '-c'],

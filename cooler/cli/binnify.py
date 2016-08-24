@@ -12,7 +12,7 @@ from .. import util
     "--out", "-o",
     help="Output file (defaults to stdout)")
 @click.argument(
-    "chromsizes", 
+    "chromsizes",
     type=str,
     metavar="CHROMSIZES_PATH")
 @click.argument(
@@ -21,9 +21,10 @@ from .. import util
     metavar="BINSIZE")
 def binnify(chromsizes, binsize, out):
     """
+    Make fixed-width genomic bins.
     Output a genome segmentation at a fixed resolution as a BED file.
 
-    CHROMSIZES_PATH : UCSC-like chromsizes file, with chromosomes in desired 
+    CHROMSIZES_PATH : UCSC-like chromsizes file, with chromosomes in desired
     order.
 
     BINSIZE : Resolution (bin size) in base pairs <int>.

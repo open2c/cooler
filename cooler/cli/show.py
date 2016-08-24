@@ -74,6 +74,7 @@ def _str_to_num(string):
          "See the full list at http://matplotlib.org/examples/color/colormaps_reference.html")
 def show(cooler_file, range, range2, out, dpi, raw, scale, force, zmin, zmax, cmap):
     """
+    Display a contact matrix.
     Display a region of a contact matrix stored in a COOL file.
 
     COOLER_PATH : Path to a COOL file
@@ -89,7 +90,7 @@ def show(cooler_file, range, range2, out, dpi, raw, scale, force, zmin, zmax, cm
         sys.exit(1)
 
     c = Cooler(cooler_file)
-    
+
     range_rows = range
     range_cols = range_rows if range2 is None else range2
     nrows = c.extent(range_rows)[1] - c.extent(range_rows)[0]
