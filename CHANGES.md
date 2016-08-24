@@ -1,3 +1,10 @@
+### 0.5.1 (2016-08-24) ###
+
+* Bug fix in input parser to `cooler csort`
+* Update triu reording awk template in `cooler csort`
+* Rename `cooler binnify` to `cooler makebins`. Binnify sounds like "aggregate" which is what `cload` does.
+
+
 ### 0.5.0 (2016-08-24) ###
 
 * Most scripts ported over to a new command line interface using the Click framework with many updates.
