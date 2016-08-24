@@ -11,7 +11,7 @@ Cooler is a support library for a **sparse, compressed, binary** persistent stor
 Cooler aims to provide the following functionality:
 
 - Generate contact matrices from contact lists at arbitrary resolutions.
-- Store contact matrices efficiently in COOL format based on widely used HDF5 container.
+- Store contact matrices efficiently in `cool` format based on the widely used HDF5 container format.
 - Perform out-of-core genome wide contact matrix normalization (a.k.a. balancing)
 - Perform fast range queries on a contact matrix.
 - Convert contact matrices between formats.
@@ -30,7 +30,7 @@ To get started:
 Requirements:
 
 - Python 2.7/3.3+
-- libhdf5 and Python packages `numpy`, `scipy`, `pandas`, `h5py`, `click`. If you don't have them installed already, we recommend you use the [conda](http://conda.pydata.org/miniconda.html) package manager to manage these dependencies instead of pip.
+- libhdf5 and Python packages `numpy`, `scipy`, `pandas`, `h5py`. These packages have heavy binary dependencies, so if you don't have them installed already, we recommend you use the [conda](http://conda.pydata.org/miniconda.html) package manager to manage them instead of pip. All other Python package dependencies are easily handled by pip.
 - See the [docs](http://cooler.readthedocs.org/en/latest/) for more information.
 
 Install from PyPI using pip.
@@ -44,10 +44,23 @@ $ pip install cooler
 The `cooler` library includes utilities for performing out-of-core contact **matrix balancing** on a cooler file of any resolution. See the [docs](http://cooler.readthedocs.org/en/latest/) for more information.
 
 ```bash
-$ cooler binnifiy $chromSizesFile $binsizes
-$ cooler cload $bedfile $contactlist $outputcooler
-$ cooler balance $coolerfile
-$ cooler dump $outfilename
+$ cooler binnify $CHROMSIZES_FILE $BINSIZE > bins.10kb.bed
+$ cooler cload bins.10kb.bed $CONTACTS_FILE out.cool
+$ cooler balance -p 10 out.cool
+$ cooler dump -b -t pixels --header --join -r chr3:10,000,000-12,000,000 -r2 chr17 out.cool | head
+```
+
+```
+chrom1  start1  end1    chrom2  start2  end2    count   balanced
+chr3    10000000        10010000        chr17   0       10000   1       0.810766
+chr3    10000000        10010000        chr17   520000  530000  1       1.2055
+chr3    10000000        10010000        chr17   640000  650000  1       0.587372
+chr3    10000000        10010000        chr17   900000  910000  1       1.02558
+chr3    10000000        10010000        chr17   1030000 1040000 1       0.718195
+chr3    10000000        10010000        chr17   1320000 1330000 1       0.803212
+chr3    10000000        10010000        chr17   1500000 1510000 1       0.925146
+chr3    10000000        10010000        chr17   1750000 1760000 1       0.950326
+chr3    10000000        10010000        chr17   1800000 1810000 1       0.745982
 ```
 
 ### Python API
@@ -84,7 +97,7 @@ Also see the [Jupyter notebook](https://github.com/mirnylab/cooler-binder) walkt
 
 The `cool` [format](http://cooler.readthedocs.io/en/latest/intro.html#data-model) implements a simple schema that stores a contact matrix in a sparse representation, crucial for developing robust tools for use on increasingly high resolution Hi-C data sets, including streaming and [out-of-core](https://en.wikipedia.org/wiki/Out-of-core_algorithm) algorithms.
 
-The data tables in a `cool` file are stored in a **columnar** representation as HDF5 Groups of 1D array datasets of equal length. The contact matrix itself is stored as a single table containing only the **nonzero upper triangle** pixels.
+The data tables in a `cool` file are stored in a **columnar** representation as HDF5 groups of 1D array datasets of equal length. The contact matrix itself is stored as a single table containing only the **nonzero upper triangle** pixels.
 
 
 ### Contributing
@@ -97,7 +110,4 @@ $ git clone https://github.com/mirnylab/cooler.git
 $ cd cooler
 $ pip install -e .
 ```
-
-
-
 
