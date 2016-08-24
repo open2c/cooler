@@ -23,12 +23,13 @@ def binnify(chromsizes, binsize, out):
     """
     Output a genome segmentation at a fixed resolution as a BED file.
 
-    CHROMSIZES_PATH : UCSC-like chromsizes file, with chromosomes in desired order.
+    CHROMSIZES_PATH : UCSC-like chromsizes file, with chromosomes in desired 
+    order.
 
     BINSIZE : Resolution (bin size) in base pairs <int>.
 
     """
-    chromsizes = util.read_chromsizes(chromsizes)
+    chromsizes = util.read_chromsizes(chromsizes, all_names=True)
     bins = util.binnify(chromsizes, binsize)
 
     # Write output

@@ -26,14 +26,16 @@ def digest(chromsizes, fasta, enzyme, out):
     """
     Output a genome segmentation of restriction fragments as a BED file.
 
-    CHROMSIZES_PATH : UCSC-like chromsizes file, with chromosomes in desired order
+    CHROMSIZES_PATH : UCSC-like chromsizes file, with chromosomes in desired 
+    order.
 
-    FASTA_PATH : Genome assembly FASTA file or folder containing FASTA files (uncompressed)
+    FASTA_PATH : Genome assembly FASTA file or folder containing FASTA files 
+    (uncompressed).
 
     ENZYME : Name of restriction enzyme
 
     """
-    chromsizes = util.read_chromsizes(chromsizes)
+    chromsizes = util.read_chromsizes(chromsizes, all_names=True)
     chroms = list(chromsizes.keys())
 
     # Load sequences

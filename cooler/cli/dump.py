@@ -4,47 +4,89 @@ import gzip
 import sys
 
 import numpy as np
+import pandas as pd
 
 import click
 from . import cli
-from ..api import Cooler, annotate
+from .. import api
 
 
 @cli.command()
 @click.argument(
-    "cooler_file",
-    metavar="COOLER_PATH")
+    "cool_path",
+    metavar="COOL_PATH")
 @click.option(
-    "--bins", "-b",
-    help="Dump the bin table.",
+    "--print-chroms", "-c",
+    help="Dump the chrom table instead of pixels. "
+         "All pixel-related options will be ignored",
     is_flag=True,
-    default=False)
+    default=False,
+    show_default=True)
+@click.option(
+    "--print-bins", "-b",
+    help="Dump the bin table instead of pixels. "
+         "All pixel-related options will be ignored",
+    is_flag=True,
+    default=False,
+    show_default=True)
+@click.option(
+    '--chunksize', "-k",
+    help="Sets the amount of data loaded from disk at one time. "
+         "Can affect the performance of joins on high resolution datasets.",
+    type=int,
+    default=int(1e6),
+    show_default=True)
+@click.option(
+    "--range", "-r",
+    help="The coordinates of a genomic region shown along the row dimension, "
+         "in UCSC notation. (Example: chr1:10,000,000-11,000,000). "
+         "If omitted, the entire contact matrix is printed.",
+    type=str)
+@click.option(
+    "--range2", "-r2",
+    type=str,
+    help="The coordinates of a genomic region shown along the column dimension. "
+         "If omitted, the column range is the same as the row range.")
 @click.option(
     "--join",
-    help="Print chromosome bin coordinates instead of bin IDs",
+    help="Print the full chromosome bin coordinates instead of bin IDs. "
+         "This will replace the `bin1_id` column with `chrom1`, `start1`, and "
+         "`end1`, and the `bin2_id` column with `chrom2`, `start2` and `end2`.",
     is_flag=True,
-    default=False)
+    default=False,
+    show_default=True)
+@click.option(
+    "--annotate",
+    help="Join additional columns from the bin table against the pixels. "
+         "Provide a comma separated list of column names (no spaces). "
+         "The merged columns will be suffixed by '1' and '2' accordingly.",
+    default='')
 @click.option(
     "--balanced",
-    help="Apply balancing weights to data",
+    help="Apply balancing weights to data. This will print an extra column "
+         "called `balanced`",
     is_flag=True,
-    default=False)
+    default=False,
+    show_default=True)
 @click.option(
-    '--chunksize',
-    help="Sets the amount of data loaded from disk at one time",
-    type=int,
-    default=int(1e6))
+    "--header",
+    help="Print the header of column names as the first row.",
+    is_flag=True,
+    default=False,
+    show_default=True)
 @click.option(
     "--out", "-o",
-    help="Output text file")
-def dump(cooler_file, output_bins, join, balanced, chunksize, out):
+    help="Output text file If.gz extension is detected, file is written using "
+         "zlib. Default behavior is to stream to stdout.")
+def dump(cool_path, print_chroms, print_bins, chunksize, range, range2, join,
+         annotate, balanced, header, out):
     """
-    Dump a cooler file to a tsv file.
+    Dump a contents of a COOL file to tab-delimited text.
 
-    COOLER_PATH : Cooler file.
+    COOL_PATH : Path to COOL file containing a contact matrix.
 
     """
-    c = Cooler(cooler_file)
+    c = api.Cooler(cool_path)
     
     # output stream
     if out is None or out == '-':
@@ -55,13 +97,22 @@ def dump(cooler_file, output_bins, join, balanced, chunksize, out):
         f = open(out, 'wt')
 
     # choose the source
-    if output_bins:
+    if print_chroms:
+        selector = c.chroms()
+        n = c.info['nchroms']
+    elif print_bins:
         selector = c.bins()
         n = c.info['nbins']
-    else:
-        selector = c.pixels()
-        n = c.info['nnz']
-        bins = c.bins()[:]  # load all the bins
+    else :
+        if range:
+            selector = c.matrix(as_pixels=True).fetch(range, range2)
+            n = len(selector)
+        else:
+            selector = c.pixels()
+            n = c.info['nnz']
+
+        # load all the bins
+        bins = c.bins()[:]
         if balanced and 'weight' not in bins.columns:
             print('Balancing weights not found', file=sys.stderr)
             sys.exit(1)
@@ -70,20 +121,43 @@ def dump(cooler_file, output_bins, join, balanced, chunksize, out):
     edges = np.arange(0, n+chunksize, chunksize)
     edges[-1] = n
 
+    first = True
+
     for lo, hi in zip(edges[:-1], edges[1:]):
+
         sel = selector[lo:hi]
 
-        if not output_bins:
+        if range:
+            sel = sel.copy()  # suppress pandas warning
 
-            if join:
-                sel = annotate(sel, bins[['chrom', 'start', 'end']])
+        if not print_bins:
+
+            if annotate:
+                extra_fields = annotate.split(',')
+                try:
+                    extra_cols = bins[extra_fields]
+                except KeyError as e:
+                    print('Column not found:\n {}'.format(e))
+                    sys.exit(1)
+                extra = api.annotate(sel[['bin1_id', 'bin2_id']], extra_cols)
 
             if balanced:
-                df = annotate(sel, bins[['weight']])
+                df = api.annotate(sel, bins[['weight']])
                 sel['balanced'] = df['weight1'] * df['weight2'] * sel['count']
 
+            if join:
+                sel = api.annotate(sel, bins[['chrom', 'start', 'end']])
+
+            if annotate:
+                sel = pd.concat([sel, extra], axis=1)
+
+        if first:
+            if header:
+                sel[0:0].to_csv(f, sep='\t', index=False, header=True, float_format='%g')
+            first = False
+
         try:
-            sel.to_csv(f, sep='\t', index=False, header=True)
+            sel.to_csv(f, sep='\t', index=False, header=False, float_format='%g')
 
         except OSError as e:
             if e.errno == 32:  # broken pipe
