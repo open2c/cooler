@@ -12,15 +12,19 @@ from . import cli
 AWK_TEMPLATE = """\
 BEGIN {{
     OFS="\\t";
-    i = 0;
+    print "Enumerating chroms..." > "/dev/stderr";
+    i = 1;
     while (getline < "{CHROMSIZES_FILE}") {{
         chrID[${C1}] = i;
+        print ${C1}, i > "/dev/stderr";
         i = i + 1;
     }}
     close("{CHROMSIZES_FILE}");
 }}
 {{
-    if ( (chrID[${C1}] < chrID[${C2}]) || ((chrID[${C1}]==chrID[${C2}]) && (${P1} > ${P2})) )
+    if ( !(chrID[${C1}]) || !(chrID[${C2}]) )
+        next;
+    else if ( (chrID[${C1}] < chrID[${C2}]) || ((chrID[${C1}]==chrID[${C2}]) && (${P1} > ${P2})) )
         print ${C2},${P2},${S2},${C1},${P1},${S1};
     else
         print ${C1},${P1},${S1},${C2},${P2},${S2};
@@ -119,7 +123,7 @@ def csort(chromsizes_path, pairs_path, chrom1, pos1, strand1, chrom2, pos2,
     # Re-order reads, sort, then bgzip
     with open(outfile, 'wb') as f:
         p1 = subprocess.Popen(
-            ['pigz', '-p', nproc//2, '-dc',  infile],
+            ['pigz', '-p', str(nproc//2), '-dc',  infile],
             stdout=subprocess.PIPE)
         p2 = subprocess.Popen(
             ['awk', triu_reorder],
