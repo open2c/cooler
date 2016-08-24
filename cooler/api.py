@@ -555,6 +555,11 @@ def matrix(h5, i0, i1, j0, j1, field=None, as_pixels=False, join=True,
 
     triu_reader = TriuReader(h5, field, max_chunk)
 
+    if balance and 'weight' not in h5['bins']:
+        raise ValueError(
+            "No column 'bins/weight' found. Use ``cooler.ice`` to "
+            "calculate balancing weights.")
+
     if as_pixels:
         index = triu_reader.index_col(i0, i1, j0, j1)
         i, j, v = triu_reader.query(i0, i1, j0, j1)
@@ -563,10 +568,6 @@ def matrix(h5, i0, i1, j0, j1, field=None, as_pixels=False, join=True,
                               columns=cols, index=index)
         
         if balance:
-            if 'weight' not in h5['bins']:
-                raise ValueError(
-                    "No column 'bins/weight' found. Use ``cooler.ice`` to "
-                    "calculate balancing weights.")
             df2 = annotate(df, h5['bins'], 'weight')
             df['balanced'] = df2['weight1'] * df2['weight2'] * df2[field]
 
