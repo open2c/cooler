@@ -1,3 +1,11 @@
+### 0.5.0 (2016-08-24) ###
+
+* Most scripts ported over to a new command line interface using the Click framework with many updates.
+* New `show` and `info` scripts.
+* Updated Readme.
+* Minor bug fixes.
+
+
 ### 0.4.0 (2016-08-18) ###
 
 Schema
