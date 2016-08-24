@@ -130,7 +130,15 @@ def test_slice_matrix():
     ]
     for i0, i1, j0, j1 in slices:
         triu_reader = cooler.core.TriuReader(mock_cooler, 'count', max_chunk=10)
+
+        # triangular query
+        index = triu_reader.index_col(i0, i1, j0, j1)
+        i, j, v = triu_reader.query(i0, i1, j0, j1)
+        assert len(index) == len(i)
+
+        # rectangular query
         i, j, v = cooler.core.query_rect(triu_reader.query, i0, i1, j0, j1)
         mat = sparse.coo_matrix((v, (i-i0, j-j0)), (i1-i0, j1-j0)).toarray()
         assert np.allclose(r_full[i0:i1, j0:j1], mat)
+
 
