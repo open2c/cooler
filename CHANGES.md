@@ -1,3 +1,22 @@
+### 0.4.0 (2016-08-18) ###
+
+Schema
+
+* Updated file schema: v2
+* `/bins/chroms` is now an enum instead of string column
+
+API changes
+
+* Table views are a bit more intuitive: selecting field names on table view objects returns a new view on the subset of columns.
+* New API function: `cooler.annotate` for doing joins
+
+Features
+
+* Support for nested Cooler "trees" at any depth in an HDF5 hierarchy
+* Refactored `cooler.io` to provide "contact readers" that process different kinds of input (aggregate from a contact list, load from an existing matrix, etc.)
+* Added new scripts for contact aggregation, loading, dumping and balancing
+
+
 ### 0.3.0 (2016-02-18) ###
 
 * 2D range selector `matrix()` now provides either rectangular data as coo_matrix or triangular data as a pixel table dataframe.

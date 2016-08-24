@@ -71,6 +71,14 @@ The `cooler` [library](https://github.com/mirnylab/cooler) provides a thin wrapp
 
 Also see the [Jupyter notebook](https://github.com/mirnylab/cooler-binder) walkthrough.
 
+```python
+>>>  import multiprocessing as mp
+>>>  import h5py
+>>>  pool = mp.Pool(8)
+>>>  f = h5py.File('bigDataset.cool', 'r')
+>>>  weights = cooler.ice.iterative_correction(f, map=pool.map, ignore_diags=3, min_nnz=10)
+```
+
 
 ### Cooler Schema
 
