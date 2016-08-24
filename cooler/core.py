@@ -27,8 +27,17 @@ class TriuReader(object):
     def index_col(self, i0, i1, j0, j1):
         """Retrieve pixel table row IDs corresponding to query rectangle."""
         edges = self.h5['indexes']['bin1_offset'][i0:i1 + 1]
-        return np.concatenate([np.arange(lo, hi) for lo, hi in
-                              zip(edges[:-1], edges[1:])], axis=0)
+        index = []
+        for lo1, hi1 in zip(edges[:-1], edges[1:]):
+            bin2 = self.h5['pixels']['bin2_id'][lo1:hi1]
+            lo2 = lo1 + np.searchsorted(bin2, j0)
+            hi2 = lo1 + np.searchsorted(bin2, j1)
+            index.append(np.arange(lo2, hi2))
+        if not index:
+            return np.array([], dtype=int)
+        else:
+            return np.concatenate(index, axis=0)
+
 
     def query(self, i0, i1, j0, j1):
         """Retrieve sparse matrix data inside a query rectangle."""
