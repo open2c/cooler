@@ -40,7 +40,13 @@ def binnify(chromsizes, binsize, out):
         else:
             f = open(out, 'wt')
         bins.to_csv(f, sep='\t', index=False, header=False)
-    except OSError:
-        pass
-    finally:
+    except OSError as e:
+        if e.errno == 32:  # broken pipe
+            try:
+                f.close()
+            except OSError:
+                pass
+        else:
+            raise
+    else:
         f.close()
