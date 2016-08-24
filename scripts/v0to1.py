@@ -12,10 +12,12 @@ for infile in infiles:
             if 'matrix' in h5 and not 'pixels' in h5:
                 print('renaming matrix --> pixels')
                 h5['pixels'] = h5['matrix']
+                del h5['matrix']
 
             if 'scaffolds' in h5 and not 'chroms' in h5:
                 print('renaming scaffolds --> chroms')
                 h5['chroms'] = h5['scaffolds']
+                del h5['scaffolds']
 
             h5.attrs['format-version'] = 1
 
