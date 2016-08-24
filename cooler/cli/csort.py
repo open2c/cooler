@@ -73,7 +73,7 @@ BEGIN {{
 def csort(chromsizes_path, pairs_path, chrom1, pos1, strand1, chrom2, pos2,
           strand2, nproc, out):
     """
-    Sort and index contacts.
+    Sort and index a contact list.
     Arrange the reads of each pair so that all contacts are upper triangular
     with respect to the chromosome ordering given by the chromsizes file, and
     sort contacts by position.

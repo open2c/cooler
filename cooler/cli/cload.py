@@ -30,7 +30,7 @@ from ..io import create, TabixAggregator
     help="Name of genome assembly (e.g. hg19, mm10)")
 def cload(bins_path, pairs_path, out, metadata, assembly):
     """
-    Aggregate contacts.
+    Aggregate and load a sorted contact list.
     Create a COOL file from a list of contacts and a list of bins.
 
     BINS_PATH : Path to BED file defining the genomic bin segmentation.

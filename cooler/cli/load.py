@@ -32,13 +32,13 @@ from ..io import create, SparseLoader
 def load(bins_path, pixels_path, out, metadata, assembly):
     """
     Load a contact matrix.
-    Load a text dump of a contact matrix into a COOL file.
+    Load a sparse-formatted text dump of a contact matrix into a COOL file.
 
     BINS_PATH : BED-like file containing genomic bin segmentation
 
-    PIXELS_PATH : Three-column sorted sparse matrix text file in ijv-triple,
-    a.k.a. COO format. May be gzipped. Must be lexically sorted by bin1_id and
-    bin2_id.
+    PIXELS_PATH : Three-column, sorted sparse matrix text file in ijv-triple
+    format, a.k.a. COO format. May be gzipped. Must be lexically sorted by 
+    bin1_id and bin2_id.
 
     COOL_PATH : Output COOL file path
 
