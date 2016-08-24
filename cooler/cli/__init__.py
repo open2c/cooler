@@ -12,7 +12,7 @@ def cli():
 
 
 from . import (
-    binnify,
+    makebins,
     digest,
     csort,
     cload,

@@ -19,7 +19,7 @@ from .. import util
     "binsize",
     type=int,
     metavar="BINSIZE")
-def binnify(chromsizes, binsize, out):
+def makebins(chromsizes, binsize, out):
     """
     Make fixed-width genomic bins.
     Output a genome segmentation at a fixed resolution as a BED file.

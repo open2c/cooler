@@ -41,10 +41,10 @@ $ pip install cooler
 
 ### Command line interface
 
-The `cooler` library includes utilities for performing out-of-core contact **matrix balancing** on a cooler file of any resolution. See the [docs](http://cooler.readthedocs.org/en/latest/) for more information.
+The `cooler` library includes utilities for creating and querying `cool` files and for performing out-of-core contact **matrix balancing** on a cooler file of any resolution. See the [docs](http://cooler.readthedocs.org/en/latest/) for more information.
 
 ```bash
-$ cooler binnify $CHROMSIZES_FILE $BINSIZE > bins.10kb.bed
+$ cooler makebins $CHROMSIZES_FILE $BINSIZE > bins.10kb.bed
 $ cooler cload bins.10kb.bed $CONTACTS_FILE out.cool
 $ cooler balance -p 10 out.cool
 $ cooler dump -b -t pixels --header --join -r chr3:10,000,000-12,000,000 -r2 chr17 out.cool | head
