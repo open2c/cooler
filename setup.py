@@ -40,9 +40,30 @@ def get_long_description():
     return _read('README.md')
 
 
-install_requires = ['six', 'numpy>=1.9', 'scipy>=0.16', 'pandas>=0.16', 'h5py>=2.5', 'click>=6.6']
-tests_require = ['nose', 'mock']
-extras_require = {'docs': ['Sphinx>=1.1', 'numpydoc>=0.5']}
+install_requires = [
+    'six', 
+    'numpy>=1.9', 
+    'scipy>=0.16', 
+    'pandas>=0.16', 
+    'h5py>=2.5', 
+    'click>=6.6'
+    'biopython',
+    'pyfaidx'
+]
+
+
+tests_require = [
+    'nose',
+    'mock'
+]
+
+
+extras_require = {
+    'docs': [
+        'Sphinx>=1.1', 
+        'numpydoc>=0.5'
+    ]
+}
 
 
 setup(
@@ -51,9 +72,9 @@ setup(
     author_email='nezar@mit.edu',
     version=get_version(),
     license='BSD3',
-    description='Sparse binary format for Hi-C genomic contact matrices',
+    description='Sparse binary format for genomic interaction matrices',
     long_description=get_long_description(),
-    keywords=['genomics', 'bioinformatics', 'Hi-C', 'matrix', 'format', 'hdf5'],
+    keywords=['genomics', 'bioinformatics', 'Hi-C', 'contact', 'matrix', 'format', 'hdf5'],
     url='https://github.com/mirnylab/cooler',
     packages=find_packages(),
     zip_safe=False,
