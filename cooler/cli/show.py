@@ -31,6 +31,12 @@ def _str_to_num(string):
          "If omitted, the column range is the same as the row range. "
          "Use to display asymmetric matrices or trans interactions.")
 @click.option(
+    "--balanced", "-b",
+    is_flag=True,
+    default=False,
+    help="Show the balanced contact matrix. "
+         "If not provided, display the unbalanced counts.")
+@click.option(
     "--out", "-o",
     help="Save the image of the contact matrix to a file. "
          "If not specified, the matrix is displayed in an interactive window. "
@@ -40,12 +46,6 @@ def _str_to_num(string):
     "--dpi",
     type=int,
     help="The DPI of the figure, if saving to a file")
-@click.option(
-    "--raw",
-    is_flag=True,
-    default=False,
-    help="Show the raw (i.e. unbalanced) contact matrix. "
-         "If not provided, display the balanced contact matrix.")
 @click.option('--scale', '-s',
     type=click.Choice(['linear', 'log2', 'log10']),
     help="Scale transformation of the colormap: linear, log2 or log10. "
@@ -72,7 +72,7 @@ def _str_to_num(string):
     default="YlOrRd",
     help="The colormap used to display the contact matrix. "
          "See the full list at http://matplotlib.org/examples/color/colormaps_reference.html")
-def show(cooler_file, range, range2, out, dpi, raw, scale, force, zmin, zmax, cmap):
+def show(cooler_file, range, range2, balanced, out, dpi, scale, force, zmin, zmax, cmap):
     """
     Display a contact matrix.
     Display a region of a contact matrix stored in a COOL file.
@@ -103,7 +103,7 @@ def show(cooler_file, range, range2, out, dpi, raw, scale, force, zmin, zmax, cm
             file=sys.stderr)
         sys.exit(1)
 
-    mat = (c.matrix(balance=(not raw))
+    mat = (c.matrix(balance=balanced)
             .fetch(range_rows, range_cols)
             .toarray())
 
