@@ -15,8 +15,8 @@ BEGIN {{
     print "Enumerating chroms..." > "/dev/stderr";
     i = 1;
     while (getline < "{CHROMSIZES_FILE}") {{
-        chrID[${C1}] = i;
-        print ${C1}, i > "/dev/stderr";
+        chrID[$1] = i;
+        print $1, i > "/dev/stderr";
         i = i + 1;
     }}
     close("{CHROMSIZES_FILE}");
