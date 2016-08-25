@@ -84,6 +84,9 @@ def show(cooler_file, range, range2, balanced, out, dpi, scale, force, zmin, zma
 
     """
     try:
+        import matplotlib as mpl
+        if out is not None:
+            mpl.use('Agg')
         import matplotlib.pyplot as plt
         import matplotlib.ticker
     except ImportError:
