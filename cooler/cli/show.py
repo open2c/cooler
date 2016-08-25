@@ -117,16 +117,10 @@ def show(cooler_file, range, range2, balanced, out, dpi, scale, force, zmin, zma
             file=sys.stderr)
         sys.exit(1)
 
-<<<<<<< Updated upstream
-    mat = (c.matrix(balance=balanced)
-            .fetch(range_rows, range_cols)
-            .toarray())
-=======
-    def load_matrix(c, raw, range_rows, range_cols, scale):
-        mat = (c.matrix(balance=(not raw))
+    def load_matrix(c, balanced, range_rows, range_cols, scale):
+        mat = (c.matrix(balance=balanced)
                 .fetch(range_rows, range_cols)
                 .toarray())
->>>>>>> Stashed changes
 
         if scale == 'log2':
             mat = np.log2(mat)
@@ -135,7 +129,7 @@ def show(cooler_file, range, range2, balanced, out, dpi, scale, force, zmin, zma
 
         return mat
 
-    mat = load_matrix(c, raw, range_rows, range_cols, scale)
+    mat = load_matrix(c, balanced, range_rows, range_cols, scale)
 
     vmin = _str_to_num(zmin)
     vmax = _str_to_num(zmax)
@@ -238,7 +232,7 @@ def show(cooler_file, range, range2, balanced, out, dpi, scale, force, zmin, zma
                     plotstate['placeholders'].pop().remove()
                 del(plotstate['placeholders'])
 
-            mat = load_matrix(c, raw, new_range_rows, new_range_cols, scale)
+            mat = load_matrix(c, balanced, new_range_rows, new_range_cols, scale)
             im.set_data(mat)
 
         im.set_extent(extent)
