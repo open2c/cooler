@@ -48,7 +48,7 @@ install_requires = [
     'h5py>=2.5', 
     'click>=6.6'
     'biopython',
-    'pyfaidx'
+    'pyfaidx<0.4.7.1'
 ]
 
 
