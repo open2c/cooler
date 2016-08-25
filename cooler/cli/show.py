@@ -84,6 +84,9 @@ def show(cooler_file, range, range2, out, dpi, raw, scale, force, zmin, zmax, cm
 
     """
     try:
+        import matplotlib as mpl
+        if out is not None:
+            mpl.use('Agg')
         import matplotlib.pyplot as plt
     except ImportError:
         print("Install matplotlib to use cooler show", file=sys.stderr)
