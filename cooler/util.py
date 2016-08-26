@@ -3,6 +3,7 @@ from __future__ import division, print_function
 from collections import OrderedDict
 import six
 import re
+import os
 
 import numpy as np
 import pandas
@@ -405,4 +406,9 @@ def rlencode(array, chunksize=None):
     values = np.concatenate(values)
 
     return starts, lengths, values
+
+
+def cmd_exists(cmd):
+    return any(os.access(os.path.join(path, cmd), os.X_OK)
+                for path in os.environ['PATH'].split(os.pathsep))
 

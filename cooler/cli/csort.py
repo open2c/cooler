@@ -7,6 +7,7 @@ import os
 
 import click
 from . import cli
+from ..util import cmd_exists
 
 
 AWK_TEMPLATE = """\
@@ -100,8 +101,20 @@ def csort(chromsizes_path, pairs_path, chrom1, pos1, strand1, chrom2, pos2,
     [*] Tabix manpage: <http://www.htslib.org/doc/tabix.html>.
 
     """
-    chromsizes_path = op.realpath(chromsizes_path)
-    infile = op.realpath(pairs_path)
+    if not os.path.exists(chromsizes_path):
+        print('Path "{}" not found', file=sys.stderr)
+        sys.exit(1)
+
+    if not os.path.exists(pairs_path):
+        print('Path "{}" not found', file=sys.stderr)
+        sys.exit(1)
+
+    for tool in ['awk', 'sort', 'pigz', 'tabix', 'bgzip']:
+        if not cmd_exists(tool):
+            print('Command {} not found'.format(tool), file=sys.stderr)
+            sys.exit(1)
+
+    infile = pairs_path
     if out is None:
         outfile = infile.replace('.txt.gz', 'sorted.txt.gz')
     else:
