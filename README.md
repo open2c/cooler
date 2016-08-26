@@ -6,12 +6,12 @@
 
 ## A cool place to store your Hi-C
 
-Cooler is a support library for a **sparse, compressed, binary** persistent storage format for Hi-C contact matrices, called `cool`, which is based on [HDF5](https://en.wikipedia.org/wiki/Hierarchical_Data_Format).
+Cooler is a support library for a **sparse, compressed, binary** persistent storage format for Hi-C contact matrices, called `cool`, which is based on HDF5.
 
 Cooler aims to provide the following functionality:
 
 - Generate contact matrices from contact lists at arbitrary resolutions.
-- Store contact matrices efficiently in `cool` format based on the widely used HDF5 container format.
+- Store contact matrices efficiently in `cool` format based on the widely used [HDF5](https://en.wikipedia.org/wiki/Hierarchical_Data_Format) container format.
 - Perform out-of-core genome wide contact matrix normalization (a.k.a. balancing)
 - Perform fast range queries on a contact matrix.
 - Convert contact matrices between formats.
@@ -30,18 +30,19 @@ To get started:
 Requirements:
 
 - Python 2.7/3.3+
-- libhdf5 and Python packages `numpy`, `scipy`, `pandas`, `h5py`. These packages have heavy binary dependencies, so if you don't have them installed already, we recommend you use the [conda](http://conda.pydata.org/miniconda.html) package manager to manage them instead of pip. All other Python package dependencies are easily handled by pip.
-- See the [docs](http://cooler.readthedocs.org/en/latest/) for more information.
+- libhdf5 and Python packages `numpy`, `scipy`, `pandas`, `h5py`. We highly recommend using the `conda` package manager to install scientific packages like these. To get it, you can either install the full [Anaconda](https://www.continuum.io/downloads) Python distribution or just the standalone [conda](http://conda.pydata.org/miniconda.html) package manager.
 
 Install from PyPI using pip.
 ```sh
 $ pip install cooler
 ```
 
+See the [docs](http://cooler.readthedocs.org/en/latest/) for more information.
+
 
 ### Command line interface
 
-The `cooler` library includes utilities for creating and querying `cool` files and for performing out-of-core contact **matrix balancing** on a cooler file of any resolution. See the [docs](http://cooler.readthedocs.org/en/latest/) for more information.
+The `cooler` library includes utilities for creating and querying `cool` files and for performing contact matrix balancing on a `cool` file of any resolution.
 
 ```bash
 $ cooler makebins $CHROMSIZES_FILE $BINSIZE > bins.10kb.bed
@@ -63,9 +64,14 @@ chr3    10000000        10010000        chr17   1750000 1760000 1       0.950326
 chr3    10000000        10010000        chr17   1800000 1810000 1       0.745982
 ```
 
+See also:
+
+- [CLI Reference](http://cooler.readthedocs.io/en/latest/cli.html).
+- Jupyter Notebook [walkthrough](https://github.com/mirnylab/cooler-binder).
+
 ### Python API
 
-The `cooler` [library](https://github.com/mirnylab/cooler) provides a thin wrapper over the excellent [h5py](http://docs.h5py.org/en/latest/) Python interface to HDF5. It supports creation of cooler files and the following types of **range queries** on the data:
+The `cooler` library provides a thin wrapper over the excellent [h5py](http://docs.h5py.org/en/latest/) Python interface to HDF5. It supports creation of cooler files and the following types of **range queries** on the data:
 
 - Tabular selections are retrieved as Pandas DataFrames and Series.
 - Matrix  selections are retrieved as SciPy sparse matrices.
@@ -82,20 +88,22 @@ The `cooler` [library](https://github.com/mirnylab/cooler) provides a thin wrapp
 >>> plt.matshow(np.log10(mat.toarray()), cmap='YlOrRd')
 ```
 
-Also see the [Jupyter notebook](https://github.com/mirnylab/cooler-binder) walkthrough.
-
 ```python
->>>  import multiprocessing as mp
->>>  import h5py
->>>  pool = mp.Pool(8)
->>>  f = h5py.File('bigDataset.cool', 'r')
->>>  weights = cooler.ice.iterative_correction(f, map=pool.map, ignore_diags=3, min_nnz=10)
+>>> import multiprocessing as mp
+>>> import h5py
+>>> pool = mp.Pool(8)
+>>> f = h5py.File('bigDataset.cool', 'r')
+>>> weights = cooler.ice.iterative_correction(f, map=pool.map, ignore_diags=3, min_nnz=10)
 ```
 
+See also:
 
-### Cooler Schema
+- [API Reference](http://cooler.readthedocs.io/en/latest/api.html).
+- Jupyter Notebook [walkthrough](https://github.com/mirnylab/cooler-binder).
 
-The `cool` [format](http://cooler.readthedocs.io/en/latest/intro.html#data-model) implements a simple schema that stores a contact matrix in a sparse representation, crucial for developing robust tools for use on increasingly high resolution Hi-C data sets, including streaming and [out-of-core](https://en.wikipedia.org/wiki/Out-of-core_algorithm) algorithms.
+### Schema
+
+The `cool` [format](http://cooler.readthedocs.io/en/latest/datamodel.html) implements a simple schema that stores a contact matrix in a sparse representation, crucial for developing robust tools for use on increasingly high resolution Hi-C data sets, including streaming and [out-of-core](https://en.wikipedia.org/wiki/Out-of-core_algorithm) algorithms.
 
 The data tables in a `cool` file are stored in a **columnar** representation as HDF5 groups of 1D array datasets of equal length. The contact matrix itself is stored as a single table containing only the **nonzero upper triangle** pixels.
 
@@ -111,3 +119,6 @@ $ cd cooler
 $ pip install -e .
 ```
 
+### License
+
+BSD (New)

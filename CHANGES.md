@@ -1,3 +1,10 @@
+### 0.5.2 (2016-08-26) ###
+
+* Fix bug in `cooler csort` parsing of chromsizes file.
+* Workaround for two locale-related issues on Python 3. Only affects cases where a machine's locale is set to ASCII or Unices which use the ambiguous C or POSIX locales.
+* Fix typo in setup.py and add pysam to dependencies.
+
+
 ### 0.5.1 (2016-08-24) ###
 
 * Bug fix in input parser to `cooler csort`
