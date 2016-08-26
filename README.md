@@ -1,10 +1,10 @@
 # Cooler
 
-[![Join the chat at https://gitter.im/cooler-hic/Lobby](https://badges.gitter.im/cooler-hic/Lobby.svg)](https://gitter.im/cooler-hic/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
-
 [![Build Status](https://travis-ci.org/mirnylab/cooler.svg?branch=master)](https://travis-ci.org/mirnylab/cooler)
 [![Documentation Status](https://readthedocs.org/projects/cooler/badge/?version=latest)](http://cooler.readthedocs.org/en/latest/)
 [![Binder](http://mybinder.org/badge.svg)](http://mybinder.org:/repo/mirnylab/cooler-binder)
+[![Join the chat at https://gitter.im/cooler-hic/Lobby](https://badges.gitter.im/cooler-hic/Lobby.svg)](https://gitter.im/cooler-hic/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 
 ## A cool place to store your Hi-C
 
