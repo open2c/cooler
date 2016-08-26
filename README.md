@@ -21,8 +21,8 @@ Cooler aims to provide the following functionality:
 To get started:
 
 - Documentation is available [here](http://cooler.readthedocs.org/en/latest/).
-- Walkthrough with a [Jupyter notebook](https://github.com/mirnylab/cooler-binder).
-- Some published data sets are available at `ftp://cooler.csail.mit.edu/coolers`.
+- [Walkthrough](https://github.com/mirnylab/cooler-binder) with a Jupyter notebook.
+- `cool` files from published Hi-C data sets are available at `ftp://cooler.csail.mit.edu/coolers`.
 
 
 ### Installation
