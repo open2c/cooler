@@ -46,7 +46,8 @@ install_requires = [
     'scipy>=0.16', 
     'pandas>=0.16', 
     'h5py>=2.5', 
-    'click>=6.6'
+    'click>=6.6',
+    'pysam>0.8',
     'biopython',
     'pyfaidx<0.4.7.1'
 ]
