@@ -147,19 +147,16 @@ def show(cooler_file, range, range2, balanced, out, dpi, scale, force, zmin, zma
         vmin=vmin,
         vmax=vmax,
         cmap=cmap)
-    plt.ylabel('{} coordinate, Mb'.format(chrm_row))
-    plt.xlabel('{} coordinate, Mb'.format(chrm_col))
-    plt.gca().get_xaxis().set_major_formatter(
-        matplotlib.ticker.FuncFormatter(lambda x, pos: '{:.7}'.format(x/1e6)))
-    plt.gca().get_yaxis().set_major_formatter(
-        matplotlib.ticker.FuncFormatter(lambda x, pos: '{:.7}'.format(x/1e6)))
-
-    plt.colorbar(label=(
-        {'linear' : 'relative contact frequency',
-         'log2' : 'log 2 ( relative contact frequency )',
-         'log10' : 'log 10 ( relative contact frequency '}[scale]))
 
     # If plotting into a file, plot and quit
+    plt.ylabel('{} coordinate'.format(chrm_row))
+    plt.xlabel('{} coordinate'.format(chrm_col))
+    cb = plt.colorbar()
+    cb.set_label(
+        {'linear' : 'relative contact frequency',
+         'log2' : 'log 2 ( relative contact frequency )',
+         'log10' : 'log 10 ( relative contact frequency '}[scale])
+    
     if out:
         plt.savefig(out, dpi=_str_to_num(dpi))
         sys.exit(0)

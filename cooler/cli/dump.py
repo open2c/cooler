@@ -161,7 +161,7 @@ def dump(cool_path, table, chunksize, range, range2, join,
             sel.to_csv(
                 f, sep='\t', index=False, header=False, float_format='%g')
 
-        except OSError as e:
+        except (IOError, OSError) as e:
             if e.errno == 32:  # broken pipe
                 try:
                     f.close()
