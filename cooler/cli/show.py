@@ -129,10 +129,11 @@ def show(cooler_file, range, range2, out, dpi, raw, scale, force, zmin, zmax, cm
         cmap=cmap)
     plt.ylabel('{} coordinate'.format(chrm_row))
     plt.xlabel('{} coordinate'.format(chrm_col))
-    plt.colorbar(label=(
+    cb = plt.colorbar()
+    cb.set_label(
         {'linear' : 'relative contact frequency',
          'log2' : 'log 2 ( relative contact frequency )',
-         'log10' : 'log 10 ( relative contact frequency '}[scale]))
+         'log10' : 'log 10 ( relative contact frequency '}[scale])
     if out:
         plt.savefig(out, dpi=_str_to_num(dpi))
     else:
