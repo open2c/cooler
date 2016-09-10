@@ -217,10 +217,16 @@ class CoolerAggregator(ContactReader):
     """
     def __init__(self, cool, bins, chunksize):
         self.cool = cool
-        self.bins = bins
-        self.binsize = get_binsize(bins)
+        self.new_bins = bins
+        self.new_binsize = get_binsize(bins)
+        self.old_binsize = self.cool.info['bin-size']
+
+        assert self.new_binsize % self.old_binsize == 0
+        self.factor = self.new_binsize // self.old_binsize
+
         self.chunksize = chunksize
-        
+        self.bin1_offset = self.cool._get_index('bin1_offset')
+
         # convert genomic coords of bin starts to absolute
         chroms = self.cool.chroms()['name'][:].values
         lengths = self.cool.chroms()['length'][:].values
@@ -228,15 +234,15 @@ class CoolerAggregator(ContactReader):
         bin_chrom_ids = self.idmap[bins['chrom']].values
         self.cumul_length = np.r_[0, np.cumsum(lengths)]
         self.abs_start_coords = self.cumul_length[bin_chrom_ids] + bins['start']
-        
+
         # chrom offset index: chrom_id -> offset in bins
         self.chrom_offset = np.r_[0, np.cumsum(bins.groupby('chrom', sort=False).size())]
 
     def _aggregate(self, chunk):
         # use the "start" point as anchor for re-binning
         # XXX - alternatives: midpoint anchor, proportional re-binning
-        bins = self.bins
-        binsize = self.binsize
+        bins = self.new_bins
+        binsize = self.new_binsize
         chrom_offset = self.chrom_offset
         cumul_length = self.cumul_length
         abs_start_coords = self.abs_start_coords
@@ -253,7 +259,7 @@ class CoolerAggregator(ContactReader):
             rel_bin2 = np.floor(chunk['start2']/binsize).astype(int)
             chunk['bin1_id'] = chrom_offset[chrom_id1] + rel_bin1
             chunk['bin2_id'] = chrom_offset[chrom_id2] + rel_bin2
-        
+
         gby = chunk.groupby(['bin1_id', 'bin2_id'], sort=False)
         agg = gby['count'].sum().reset_index()
         return {k: v.values for k,v in six.iteritems(agg)}
@@ -261,14 +267,28 @@ class CoolerAggregator(ContactReader):
     def size(self):
         return self.cool.info['nnz']
 
-    def __iter__(self):
-        table = self.cool.pixels(join=True)
+    def _iterchunks(self, chrom):
+        bin1_offset = self.bin1_offset
         chunksize = self.chunksize
-        edges = np.arange(0, self.size() + chunksize, chunksize)
+        factor = self.factor
+
+        # it's important to extract some multiple of `factor` rows at a time
+        c0, c1 = self.cool.extent(chrom)
+        step = (chunksize // factor) * factor
+        edges = np.arange(bin1_offset[c0], bin1_offset[c1]+step, step)
+        edges[-1] = bin1_offset[c1]
+
+        table = self.cool.pixels(join=True)
         for lo, hi in zip(edges[:-1], edges[1:]):
             chunk = table[lo:hi]
             print(lo, hi)
             yield self._aggregate(chunk)
+
+    def __iter__(self):
+        for chrom in self.idmap.keys():
+            print(chrom)
+            for chunk in self._iterchunks(chrom):
+                yield chunk
 
 
 class SparseLoader(ContactReader):
