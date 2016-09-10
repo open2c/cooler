@@ -29,10 +29,10 @@ class TriuReader(object):
         edges = self.h5['indexes']['bin1_offset'][i0:i1 + 1]
         index = []
         for lo1, hi1 in zip(edges[:-1], edges[1:]):
-            bin2 = self.h5['pixels']['bin2_id'][lo1:hi1]
-            lo2 = lo1 + np.searchsorted(bin2, j0)
-            hi2 = lo1 + np.searchsorted(bin2, j1)
-            index.append(np.arange(lo2, hi2))
+            if hi1 - lo1 > 0:
+                bin2 = self.h5['pixels']['bin2_id'][lo1:hi1]
+                mask = (bin2 >= j0) & (bin2 < j1)
+                index.append(lo1 + np.flatnonzero(mask))
         if not index:
             return np.array([], dtype=int)
         else:

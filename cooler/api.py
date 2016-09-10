@@ -136,7 +136,7 @@ class Cooler(object):
     -----
     If ``fp`` is a file path, the file will be opened temporarily in read-only
     mode when performing operations. Such ``Cooler`` objects can be serialized
-    and used multiprocessing, for example. See the following 
+    and used multiprocessing, for example. See the following
     `discussion <https://groups.google.com/forum/#!topic/h5py/bJVtWdFtZQM>`_
     on using h5py with multiprocessing safely.
 
@@ -307,7 +307,7 @@ class Cooler(object):
 
         def _slice(field, i0, i1, j0, j1):
             with open_hdf5(self.fp) as h5:
-                return matrix(h5, i0, i1, j0, j1, field, as_pixels, join, 
+                return matrix(h5, i0, i1, j0, j1, field, as_pixels, join,
                     balance, max_chunk)
 
         def _fetch(region, region2=None):
@@ -413,7 +413,7 @@ def annotate(pixels, bins, fields=None, replace=True):
         the adjoined columns will be suffixed with '1' and '2' accordingly.
     bins : DataFrame or h5py.Group or dict of array-like
         Data structure that contains a full description of the genomic bins of
-        the contact matrix, where the index corresponds to bin IDs. 
+        the contact matrix, where the index corresponds to bin IDs.
         (e.g., the '/bin' group of a cooler tree).
     fields : str or list of str, optional
         Subset of columns of ``bins`` to use for annotation. Default is to use
@@ -431,7 +431,7 @@ def annotate(pixels, bins, fields=None, replace=True):
         fields = bins.keys()
     elif isinstance(fields, six.string_types):
         fields = [fields]
-    
+
     do_load = True
     if isinstance(bins, pandas.DataFrame):
         do_load = False
@@ -441,7 +441,11 @@ def annotate(pixels, bins, fields=None, replace=True):
     if 'bin1_id' in pixels:
         if do_load:
             bin1 = pixels['bin1_id']
-            right = get(bins, bin1.min(), bin1.max() + 1, fields)
+            lo = bin1.min()
+            hi = bin1.max() + 1
+            lo = 0 if np.isnan(lo) else lo
+            hi = None if np.isnan(hi) else hi
+            right = get(bins, lo, hi, fields)
         else:
             right = bins[fields]
 
@@ -450,11 +454,15 @@ def annotate(pixels, bins, fields=None, replace=True):
             how='left',
             left_on='bin1_id',
             right_index=True)
-    
+
     if 'bin2_id' in pixels:
         if do_load:
             bin2 = pixels['bin2_id']
-            right = get(bins, bin2.min(), bin2.max() + 1, fields)
+            lo = bin2.min()
+            hi = bin2.max() + 1
+            lo = 0 if np.isnan(lo) else lo
+            hi = None if np.isnan(hi) else hi
+            right = get(bins, lo, hi, fields)
         else:
             right = bins[fields]
 
@@ -566,7 +574,7 @@ def matrix(h5, i0, i1, j0, j1, field=None, as_pixels=False, join=True,
         cols = ['bin1_id', 'bin2_id', field]
         df = pandas.DataFrame(dict(zip(cols, [i, j, v])),
                               columns=cols, index=index)
-        
+
         if balance:
             df2 = annotate(df, h5['bins'], 'weight')
             df['balanced'] = df2['weight1'] * df2['weight2'] * df2[field]
