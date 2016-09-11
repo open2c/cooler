@@ -1,3 +1,12 @@
+### 0.5.3 (2016-09-10) ###
+
+* Check for existence of required external tools in CLI
+* Fixed `cooler show` incompatibility with older versions of matplotlib
+* Fixed `cooler.annotate` to work on empty dataframe input
+* Fixed broken pipe signals not getting suppressed on Python 2
+* `cooler cload` raises a warning when bin file lists a contig missing from the contact list
+
+
 ### 0.5.2 (2016-08-26) ###
 
 * Fix bug in `cooler csort` parsing of chromsizes file.
