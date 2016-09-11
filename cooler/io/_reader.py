@@ -12,6 +12,7 @@ from collections import OrderedDict, Counter
 from contextlib import contextmanager
 from bisect import bisect_left
 import subprocess
+import warnings
 import json
 import sys
 import six
@@ -205,9 +206,13 @@ class TabixAggregator(ContactReader):
         return self.n_records
 
     def __iter__(self):
+        file_contigs = [c.decode('utf-8') for c in self.pairsfile.contigs]
         for chrom in self.idmap.keys():
-            for chunk in self._iterchunks(chrom):
-                yield chunk
+            if chrom in file_contigs:
+                for chunk in self._iterchunks(chrom):
+                    yield chunk
+            else:
+                warnings.warn("Did not find contig '{}' in contact list file.".format(chrom))
 
 
 class CoolerAggregator(ContactReader):
