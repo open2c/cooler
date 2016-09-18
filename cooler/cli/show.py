@@ -10,11 +10,109 @@ from . import cli
 from ..api import Cooler
 from .. import util
 
-def _str_to_num(string):
-    if string is None:
-        return string
-    else:
-        return float(string)
+
+MAX_MATRIX_SIZE_FILE = int(1e8)
+MAX_MATRIX_SIZE_INTERACTIVE = int(1e7)
+
+
+def get_matrix_size(c, row_region, col_region):
+    nrows = c.extent(row_region)[1] - c.extent(row_region)[0]
+    ncols = c.extent(col_region)[1] - c.extent(col_region)[0]
+    return ncols * nrows
+
+
+def load_matrix(c, row_region, col_region, balanced, scale):
+    mat = (c.matrix(balance=balanced)
+            .fetch(row_region, col_region)
+            .toarray())
+
+    if scale == 'log2':
+        mat = np.log2(mat)
+    elif scale == 'log10':
+        mat = np.log10(mat)
+
+    return mat
+
+
+def interactive(ax, c, row_chrom, col_chrom, balanced, scale):
+    import matplotlib.pyplot as plt
+    # The code is heavily insired by 
+    # https://gist.github.com/mdboom/048aa35df685fe694330764894f0e40a
+    
+    def get_extent(ax):
+        xstart, ystart, xdelta, ydelta = ax.viewLim.bounds
+        xend = xstart + xdelta
+        yend = ystart + ydelta
+        return xstart, xend, ystart, yend
+
+    def round_trim_extent(extent, binsize, row_chrom_len, col_chrom_len):
+        xstart = int(np.floor(extent[0] / binsize) * binsize)
+        xend = int(np.ceil(extent[1] / binsize) * binsize)
+        ystart = int(np.floor(extent[3] / binsize) * binsize)
+        yend = int(np.ceil(extent[2] / binsize) * binsize)
+        xstart = max(0, xstart)
+        ystart = max(0, ystart)
+        # For now, don't let users to request the last bin, b/c its end
+        # lies outside of the genome
+        xend = min(xend, int(np.floor(col_chrom_len / binsize) * binsize))
+        yend = min(yend, int(np.floor(row_chrom_len / binsize) * binsize))
+        return xstart, xend, yend, ystart
+
+    def update_heatmap(event):
+        ax.set_autoscale_on(False)  # Otherwise, infinite loop
+
+        extent = get_extent(ax)
+        extent = round_trim_extent(extent, binsize, row_chrom_len, col_chrom_len)
+        if extent == plotstate['prev_extent']:
+            return
+
+        plotstate['prev_extent'] = extent
+        new_col_region = col_chrom, int(extent[0]), int(extent[1])
+        new_row_region = row_chrom, int(extent[3]), int(extent[2])
+
+        im = ax.images[-1]
+        nelem = get_matrix_size(c, new_row_region, new_col_region)
+        if nelem  >= MAX_MATRIX_SIZE_INTERACTIVE:
+            # requested area too large
+            im.set_data(np.ones(1)[:, None] * np.nan)
+            
+            if not plotstate['placeholders']:
+                box, = plt.plot(
+                    [0, col_chrom_len, col_chrom_len, 0, 0, col_chrom_len],
+                    [0, row_chrom_len, 0, 0, row_chrom_len, row_chrom_len],
+                    c='k',
+                    lw=0.5
+                )
+                txt = plt.text(
+                    0.5, 0.5,
+                    'The requested region is too large\n'
+                    'to display at this resolution.',
+                    horizontalalignment='center',
+                    verticalalignment='center',
+                    transform=ax.transAxes
+                )
+                plotstate['placeholders'] = [box, txt]
+        else:
+            # remove placeholders if any and update
+            while plotstate['placeholders']:
+                plotstate['placeholders'].pop().remove()
+            
+            im.set_data(
+                load_matrix(c, new_row_region, new_col_region, balanced, scale))
+
+        im.set_extent(extent)
+        ax.figure.canvas.draw_idle()
+
+    binsize = c.info['bin-size']
+    chromsizes = c.chroms()[:].set_index('name')['length']
+    row_chrom_len = chromsizes[row_chrom]
+    col_chrom_len = chromsizes[col_chrom]
+    plotstate = {
+        'placeholders': [],
+        'prev_extent': get_extent(plt.gca())
+    }
+    plt.gcf().canvas.mpl_connect('button_release_event', update_heatmap)
+    plt.show()
 
 
 @cli.command()
@@ -88,30 +186,17 @@ def show(cooler_file, range, range2, balanced, out, dpi, scale, force, zmin, zma
         if out is not None:
             mpl.use('Agg')
         import matplotlib.pyplot as plt
-        import matplotlib.ticker
     except ImportError:
         print("Install matplotlib to use cooler show", file=sys.stderr)
         sys.exit(1)
 
-    MAX_MATRIX_SIZE_FILE = int(1e8)
-    MAX_MATRIX_SIZE_INTERACTIVE = int(1e7)
     c = Cooler(cooler_file)
+    row_region = range
+    col_region = row_region if range2 is None else range2
+    row_chrom, row_lo, row_hi = util.parse_region_string(row_region)
+    col_chrom, col_lo, col_hi = util.parse_region_string(col_region)
 
-    range_rows = range
-    range_cols = range_rows if range2 is None else range2
-
-    chrm_row, lo_row, hi_row = util.parse_region_string(range_rows)
-    chrm_col, lo_col, hi_col = util.parse_region_string(range_cols)
-
-    chrm_row_len = c.chroms()[:].set_index('name')['length'][chrm_row]
-    chrm_col_len = c.chroms()[:].set_index('name')['length'][chrm_col]
-
-    def get_matrix_size(range_rows, range_cols):
-        nrows = c.extent(range_rows)[1] - c.extent(range_rows)[0]
-        ncols = c.extent(range_cols)[1] - c.extent(range_cols)[0]
-        return ncols * nrows
-
-    if ((get_matrix_size(range_rows, range_cols) >= MAX_MATRIX_SIZE_FILE) 
+    if ((get_matrix_size(c, row_region, col_region) >= MAX_MATRIX_SIZE_FILE) 
         and not force):
         print(
             "The matrix of the selected region is too large. "
@@ -120,123 +205,27 @@ def show(cooler_file, range, range2, balanced, out, dpi, scale, force, zmin, zma
             file=sys.stderr)
         sys.exit(1)
 
-    def load_matrix(c, balanced, range_rows, range_cols, scale):
-        mat = (c.matrix(balance=balanced)
-                .fetch(range_rows, range_cols)
-                .toarray())
-
-        if scale == 'log2':
-            mat = np.log2(mat)
-        elif scale == 'log10':
-            mat = np.log10(mat)
-
-        return mat
-
-    mat = load_matrix(c, balanced, range_rows, range_cols, scale)
-
-    vmin = _str_to_num(zmin)
-    vmax = _str_to_num(zmax)
-
-    plt.figure(figsize=(11,10))
+    plt.figure(figsize=(11, 10))
     plt.gcf().canvas.set_window_title('Contact matrix'.format())
     plt.title('')
     plt.imshow(
-        mat,
+        load_matrix(c, row_region, col_region, balanced, scale),
         interpolation='none',
-        extent=[lo_col, hi_col, hi_row, lo_row],
-        vmin=vmin,
-        vmax=vmax,
+        extent=[col_lo, col_hi, row_hi, row_lo],
+        vmin=zmin,
+        vmax=zmax,
         cmap=cmap)
 
     # If plotting into a file, plot and quit
-    plt.ylabel('{} coordinate'.format(chrm_row))
-    plt.xlabel('{} coordinate'.format(chrm_col))
+    plt.ylabel('{} coordinate'.format(row_chrom))
+    plt.xlabel('{} coordinate'.format(col_chrom))
     cb = plt.colorbar()
     cb.set_label(
-        {'linear' : 'relative contact frequency',
-         'log2' : 'log 2 ( relative contact frequency )',
-         'log10' : 'log 10 ( relative contact frequency '}[scale])
+        {'linear': 'relative contact frequency',
+         'log2'  : 'log 2 ( relative contact frequency )',
+         'log10' : 'log 10 ( relative contact frequency )'}[scale])
     
     if out:
-        plt.savefig(out, dpi=_str_to_num(dpi))
-        sys.exit(0)
-
-    # Otherwise, enter the interactive mode
-    # The code is heavily insired by 
-    # https://gist.github.com/mdboom/048aa35df685fe694330764894f0e40a
-    
-    def get_extent(ax):
-        xstart, ystart, xdelta, ydelta = ax.viewLim.bounds
-        xend = xstart + xdelta
-        yend = ystart + ydelta
-        return xstart, xend, ystart, yend
-
-    def round_trim_extent(extent, chrm_row_len, chrom_col_len):
-        binsize = c.info['bin-size']
-        xstart = int(np.floor(extent[0] / binsize) * binsize)
-        xend = int(np.ceil(extent[1] / binsize) * binsize)
-        ystart = int(np.floor(extent[3] / binsize) * binsize)
-        yend = int(np.ceil(extent[2] / binsize) * binsize)
-        xstart = max(0, xstart)
-        ystart = max(0, ystart)
-        # For now, don't let users to request the last bin, b/c its end
-        # lies outside of the genome
-        xend = min(xend, int(np.floor(chrm_col_len / binsize) * binsize))
-        yend = min(yend, int(np.floor(chrm_row_len / binsize) * binsize))
-
-        return (xstart, xend, yend, ystart)
-
-    plotstate = {
-        'ax' : plt.gca(),
-        'prev_extent' : get_extent(plt.gca())}
-
-    def update_heatmap(event):
-        ax = plotstate['ax']
-        ax.set_autoscale_on(False)  # Otherwise, infinite loop
-
-        extent = get_extent(ax)
-        extent = round_trim_extent(extent, chrm_row_len, chrm_col_len)
-        if extent == plotstate['prev_extent']:
-            return
-        plotstate['prev_extent'] = extent
-
-        #print('move to ', extent)
-
-        new_range_cols = '{}:{}-{}'.format(
-            chrm_col, int(extent[0]), int(extent[1]))
-        new_range_rows = '{}:{}-{}'.format(
-            chrm_row, int(extent[3]), int(extent[2]))
-
-        im = ax.images[-1]
-
-        if get_matrix_size(new_range_rows, new_range_cols) >= MAX_MATRIX_SIZE_INTERACTIVE:
-            im.set_data(np.ones(1)[:,None] * np.nan)
-            if 'placeholders' not in plotstate:
-                box, = plt.plot(
-                    [0, chrm_col_len, chrm_col_len, 0, 0, chrm_col_len],
-                    [0, chrm_row_len, 0, 0, chrm_row_len, chrm_row_len],
-                    c='k',
-                    lw=0.5)
-                txt = plt.text(0.5, 0.5,
-                    'The requested region is too large\n'
-                    'to display at this resolution.',
-                    horizontalalignment='center',
-                    verticalalignment='center',
-                    transform = ax.transAxes)
-                plotstate['placeholders'] = [box, txt]
-
-
-        else:
-            if 'placeholders' in plotstate:
-                while plotstate['placeholders']:
-                    plotstate['placeholders'].pop().remove()
-                del(plotstate['placeholders'])
-
-            mat = load_matrix(c, balanced, new_range_rows, new_range_cols, scale)
-            im.set_data(mat)
-
-        im.set_extent(extent)
-        ax.figure.canvas.draw_idle()
-
-    plt.gcf().canvas.mpl_connect('button_release_event', update_heatmap)
-    plt.show()
+        plt.savefig(out, dpi=dpi)
+    else:
+        interactive(plt.gca(), c, row_chrom, col_chrom, balanced, scale)
