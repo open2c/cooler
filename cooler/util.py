@@ -164,7 +164,7 @@ def read_chromsizes(filepath_or,
         kwargs.setdefault('compression', 'gzip')
     chromtable = pandas.read_csv(
         filepath_or, sep='\t', usecols=[0, 1],
-        names=['name', 'length'], **kwargs)
+        names=['name', 'length'], dtype={'name':str}, **kwargs)
     if not all_names:
         parts = []
         for pattern in name_patterns:
