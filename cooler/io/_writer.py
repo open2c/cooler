@@ -132,7 +132,7 @@ def write_pixels(grp, n_bins, reader, h5opts):
 
     """
     n_pairs = reader.size()
-    init_size = 5 * n_bins
+    init_size = min(5 * n_bins, n_pairs)
     max_size = min(n_pairs, n_bins * (n_bins - 1) // 2 + n_bins)
 
     # Preallocate
