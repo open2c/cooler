@@ -191,10 +191,11 @@ def show(cooler_file, range, range2, balanced, out, dpi, scale, force, zmin, zma
         sys.exit(1)
 
     c = Cooler(cooler_file)
+    chromsizes = c.chroms()[:].set_index('name')['length']
     row_region = range
     col_region = row_region if range2 is None else range2
-    row_chrom, row_lo, row_hi = util.parse_region_string(row_region)
-    col_chrom, col_lo, col_hi = util.parse_region_string(col_region)
+    row_chrom, row_lo, row_hi = util.parse_region(row_region, chromsizes)
+    col_chrom, col_lo, col_hi = util.parse_region(col_region, chromsizes)
 
     if ((get_matrix_size(c, row_region, col_region) >= MAX_MATRIX_SIZE_FILE) 
         and not force):
