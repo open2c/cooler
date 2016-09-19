@@ -40,7 +40,7 @@ def makebins(chromsizes, binsize, out):
         else:
             f = open(out, 'wt')
         bins.to_csv(f, sep='\t', index=False, header=False)
-    except OSError as e:
+    except (IOError, OSError) as e:
         if e.errno == 32:  # broken pipe
             try:
                 f.close()

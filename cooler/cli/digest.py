@@ -55,9 +55,15 @@ def digest(chromsizes, fasta, enzyme, out):
         if out is None:
             f = sys.stdout
         else:
-            f = open(f, 'wt')
+            f = open(out, 'wt')
         frags.to_csv(f, sep='\t', index=False, header=False)
-    except OSError:
-        pass
-    finally:
+    except (IOError, OSError) as e:
+        if e.errno == 32:  # broken pipe
+            try:
+                f.close()
+            except OSError:
+                pass
+        else:
+            raise
+    else:
         f.close()
