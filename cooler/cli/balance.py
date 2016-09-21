@@ -55,7 +55,7 @@ from .. import ice
          "main diagonal. Examples: 0 ignores nothing, 1 ignores the main "
          "diagonal, 2 ignores diagonals (-1, 0, 1), etc.",
     type=int,
-    default=3,
+    default=2,
     show_default=True)
 @click.option(
     "--tol",
