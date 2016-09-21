@@ -158,7 +158,7 @@ class TabixAggregator(ContactReader):
         self.idmap = pandas.Series(index=chromsizes.keys(), data=range(len(chromsizes)))
         self.bins = bins
         self.binsize = get_binsize(bins)
-        self.pairsfile = pysam.TabixFile(filepath, 'r')
+        self.pairsfile = pysam.TabixFile(filepath, 'r', encoding='utf-8')
         self.parser = pysam.asTuple()
         # number of lines in file
         p1 = subprocess.Popen(['unpigz',  '-p', '8',  '-c', filepath], stdout=subprocess.PIPE)
@@ -206,7 +206,7 @@ class TabixAggregator(ContactReader):
         return self.n_records
 
     def __iter__(self):
-        file_contigs = [c.decode('utf-8') for c in self.pairsfile.contigs]
+        file_contigs = [c for c in self.pairsfile.contigs]
         for chrom in self.idmap.keys():
             if chrom in file_contigs:
                 for chunk in self._iterchunks(chrom):
