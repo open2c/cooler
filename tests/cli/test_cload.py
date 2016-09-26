@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from functools import partial
 import os.path as op
+import tempfile
 import filecmp
 import os
 
@@ -16,9 +17,10 @@ from cooler.cli.csort import csort
 
 
 testdir = op.realpath(op.join(op.dirname(__file__), op.pardir))
-testcool_path = op.join(testdir, 'test.cool')
-testcsort_path = op.join(testdir, 'test.sorted.txt.gz')
-testtbi_path = op.join(testdir, 'test.sorted.txt.gz.tbi')
+tmp = tempfile.gettempdir()
+testcool_path = op.join(tmp, 'test.cool')
+testcsort_path = op.join(tmp, 'test.sorted.txt.gz')
+testtbi_path = op.join(tmp, 'test.sorted.txt.gz.tbi')
 
 
 def teardown_func(*filepaths):
@@ -41,6 +43,8 @@ def test_csort():
         ]
     )
     assert result.exit_code == 0
+
+    assert os.path.exists(testcsort_path)
 
     assert filecmp.cmp(
         testcsort_path,

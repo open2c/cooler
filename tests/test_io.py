@@ -2,6 +2,7 @@
 from __future__ import division, print_function
 from collections import OrderedDict
 from six import iteritems
+import tempfile
 import os
 
 import numpy as np
@@ -14,7 +15,8 @@ import cooler.io
 import cooler
 
 testdir = os.path.dirname(os.path.realpath(__file__))
-testfile_path = os.path.join(testdir, 'test.cool')
+tmp = tempfile.gettempdir()
+testfile_path = os.path.join(tmp, 'test.cool')
 
 
 # Generate mock data
