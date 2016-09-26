@@ -92,7 +92,7 @@ def balance(cool_path, nproc, chunksize, mad_max, min_nnz, min_count,
     COOL_PATH : Path to a COOL file.
 
     """
-    with h5py.File(cool_path, 'r') as h5:
+    with h5py.File(cool_path, 'r+') as h5:
         if 'weight' in h5['bins']:
             if not force:
                 print("'weight' column already exists. "
