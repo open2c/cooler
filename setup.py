@@ -44,7 +44,7 @@ install_requires = [
     'six', 
     'numpy>=1.9', 
     'scipy>=0.16', 
-    'pandas>=0.17', 
+    'pandas>=0.17',
     'h5py>=2.5', 
     'click>=6.6',
     'pysam>0.8',

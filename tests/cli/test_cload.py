@@ -4,6 +4,7 @@ import os.path as op
 import subprocess
 import tempfile
 import filecmp
+import sys
 import os
 
 import numpy as np
@@ -15,6 +16,10 @@ from click.testing import CliRunner
 
 from cooler.cli.cload import cload
 from cooler.cli.csort import csort
+
+
+if sys.version_info[0] == 3 and sys.version_info[1] == 3:
+    raise nose.SkipTest
 
 
 testdir = op.realpath(op.join(op.dirname(__file__), op.pardir))
