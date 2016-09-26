@@ -165,7 +165,7 @@ class TabixAggregator(ContactReader):
         self.pairsfile = pysam.TabixFile(filepath, 'r', encoding='ascii')
         self.parser = pysam.asTuple()
         # number of lines in file
-        p1 = subprocess.Popen(['unpigz',  '-p', '8',  '-c', filepath], stdout=subprocess.PIPE)
+        p1 = subprocess.Popen(['pigz',  '-p', '8',  '-dc', filepath], stdout=subprocess.PIPE)
         p2 = subprocess.Popen(['wc', '-l'], stdin=p1.stdout, stdout=subprocess.PIPE)
         self.n_records = int(p2.communicate()[0])
         # convert genomic coords of bin starts to absolute

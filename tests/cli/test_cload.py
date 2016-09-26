@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from functools import partial
 import os.path as op
+import subprocess
 import tempfile
 import filecmp
 import os
@@ -44,11 +45,9 @@ def test_csort():
     )
     assert result.exit_code == 0
 
-    assert os.path.exists(testcsort_path)
-
-    assert filecmp.cmp(
-        testcsort_path,
-        op.join(testdir, 'data', 'GM12878-MboI-contacts.subsample.sorted.txt.gz'))
+    ref_path = op.join(testdir, 'data', 'GM12878-MboI-contacts.subsample.sorted.txt.gz')
+    retcode = subprocess.call(['zcmp', ref_path, testcsort_path])
+    assert retcode == 0
 
 
 @with_setup(teardown=partial(teardown_func, testcool_path))
