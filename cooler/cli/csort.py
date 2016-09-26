@@ -2,6 +2,7 @@
 from __future__ import division, print_function
 import os.path as op
 import subprocess
+import shlex
 import sys
 import os
 
@@ -25,7 +26,7 @@ BEGIN {{
 {{
     if ( !(chrID[${C1}]) || !(chrID[${C2}]) )
         next;
-    else if ( (chrID[${C1}] < chrID[${C2}]) || ((chrID[${C1}]==chrID[${C2}]) && (${P1} > ${P2})) )
+    else if ( (chrID[${C1}] > chrID[${C2}]) || ((chrID[${C1}]==chrID[${C2}]) && (${P1} > ${P2})) )
         print ${C2},${P2},${S2},${C1},${P1},${S1};
     else
         print ${C1},${P1},${S1},${C2},${P2},${S2};
@@ -69,10 +70,14 @@ BEGIN {{
     type=int,
     default=8)
 @click.option(
+    "--sort-options",
+    help="sort options",
+    type=str)
+@click.option(
     "--out", "-o",
     help="Output gzip file")
 def csort(chromsizes_path, pairs_path, chrom1, pos1, strand1, chrom2, pos2,
-          strand2, nproc, out):
+          strand2, nproc, sort_options, out):
     """
     Sort and index a contact list.
     Arrange the reads of each pair so that all contacts are upper triangular
@@ -102,11 +107,11 @@ def csort(chromsizes_path, pairs_path, chrom1, pos1, strand1, chrom2, pos2,
 
     """
     if not os.path.exists(chromsizes_path):
-        print('Path "{}" not found', file=sys.stderr)
+        print('Path "{}" not found'.format(chromsizes_path), file=sys.stderr)
         sys.exit(1)
 
     if not os.path.exists(pairs_path):
-        print('Path "{}" not found', file=sys.stderr)
+        print('Path "{}" not found'.format(pairs_path), file=sys.stderr)
         sys.exit(1)
 
     for tool in ['awk', 'sort', 'pigz', 'tabix', 'bgzip']:
@@ -116,7 +121,10 @@ def csort(chromsizes_path, pairs_path, chrom1, pos1, strand1, chrom2, pos2,
 
     infile = pairs_path
     if out is None:
-        outfile = infile.replace('.txt.gz', 'sorted.txt.gz')
+        if infile.endswith('.txt.gz'):
+            outfile = infile.replace('.txt.gz', '.sorted.txt.gz')
+        else:
+            outfile = infile + '.sorted.gz'
     else:
         outfile = out
 
@@ -133,6 +141,14 @@ def csort(chromsizes_path, pairs_path, chrom1, pos1, strand1, chrom2, pos2,
 
     os.environ['LC_ALL'] = 'C'
 
+    if sort_options is not None:
+        sort_options = shlex.split(sort_options)
+    else:
+        sort_options = [
+            '--parallel={}'.format(nproc//2), 
+            '--buffer-size=1G'
+        ]
+
     # Re-order reads, sort, then bgzip
     with open(outfile, 'wb') as f:
         p1 = subprocess.Popen(
@@ -142,7 +158,7 @@ def csort(chromsizes_path, pairs_path, chrom1, pos1, strand1, chrom2, pos2,
             ['awk', triu_reorder],
             stdin=p1.stdout, stdout=subprocess.PIPE)
         p3 = subprocess.Popen(
-            ['sort', '-S1G', '--parallel={}'.format(nproc//2), '-k1,1', '-k2,2n', '-k4,4', '-k5,5n'],
+            ['sort', '-k1,1', '-k2,2n', '-k4,4', '-k5,5n'] + sort_options,
             stdin=p2.stdout, stdout=subprocess.PIPE)
         p4 = subprocess.Popen(
             ['bgzip', '-c'],
