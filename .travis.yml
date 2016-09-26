@@ -24,7 +24,7 @@ install:
   - conda info -a
 
   # Create test environment and install deps
-  - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION setuptools pip six numpy scipy pandas h5py nose mock
+  - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION setuptools pip six numpy scipy h5py nose mock pandas>=0.17
   - source activate test-environment
   - python setup.py install
 
