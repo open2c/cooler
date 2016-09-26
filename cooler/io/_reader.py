@@ -74,6 +74,8 @@ class HDF5Aggregator(ContactReader):
         starts, lengths, values = rlencode(self.h5['chrms1'], self.chunksize)
         if len(set(values)) != len(values):
             raise ValueError("Read pair coordinates are not sorted on the first axis")
+        # print(pandas.DataFrame({'start': starts, 'end': starts+lengths, 'length': lengths, 'value': values},
+        #     columns=['value', 'start', 'end', 'length']))
         return dict(zip(values, zip(starts, starts + lengths)))
 
     def _load_chunk(self, lo, hi):
@@ -105,6 +107,8 @@ class HDF5Aggregator(ContactReader):
             i = int(np.searchsorted(abs_start_coords, abs_pos, side='right')) - 1
             bin_end = bins['end'][i]
             hi = bisect_left(h5pairs['cuts1'], bin_end, lo, chrom_hi)
+            if lo == hi:
+                hi = chrom_hi
             print(lo, hi)  # flush=True
 
             # assign bins to reads
@@ -158,7 +162,7 @@ class TabixAggregator(ContactReader):
         self.idmap = pandas.Series(index=chromsizes.keys(), data=range(len(chromsizes)))
         self.bins = bins
         self.binsize = get_binsize(bins)
-        self.pairsfile = pysam.TabixFile(filepath, 'r', encoding='utf-8')
+        self.pairsfile = pysam.TabixFile(filepath, 'r', encoding='ascii')
         self.parser = pysam.asTuple()
         # number of lines in file
         p1 = subprocess.Popen(['unpigz',  '-p', '8',  '-c', filepath], stdout=subprocess.PIPE)
@@ -206,7 +210,12 @@ class TabixAggregator(ContactReader):
         return self.n_records
 
     def __iter__(self):
-        file_contigs = [c for c in self.pairsfile.contigs]
+
+        try:
+            file_contigs = [c.decode('ascii') for c in self.pairsfile.contigs]
+        except AttributeError:
+            file_contigs = self.pairsfile.contigs
+
         for chrom in self.idmap.keys():
             if chrom in file_contigs:
                 for chunk in self._iterchunks(chrom):

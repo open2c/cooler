@@ -20,6 +20,7 @@ from . import (
     makebins,
     digest,
     csort,
+    bload,
     cload,
     load,
     balance,
