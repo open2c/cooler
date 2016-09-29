@@ -279,8 +279,8 @@ class Cooler(object):
 
         return RangeSelector1D(None, _slice, _fetch, self._info['nnz'])
 
-    def matrix(self, field=None, as_pixels=False, join=False, balance=False,
-               max_chunk=500000000):
+    def matrix(self, field=None, balance=False, as_pixels=False, join=False,
+               ignore_index=True, max_chunk=500000000):
         """ Contact matrix selector
 
         Parameters
@@ -288,6 +288,9 @@ class Cooler(object):
         field : str, optional
             Which column of the pixel table to fill matrix selections with.
             By default, the 'count' column is used.
+        balance : bool, optional
+            Whether to apply pre-calculated matrix balancing weights to
+            selections. Default is False.
         as_pixels : bool, optional
             Instead of a complete rectangular sparse matrix, return a DataFrame
             containing the corresponding rows from the pixel table.
@@ -295,9 +298,9 @@ class Cooler(object):
         join : bool, optional
             Whether to expand bin ID columns. False by default. Only applies if
             ``as_pixels`` is True.
-        balance : bool, optional
-            Whether to apply pre-calculated matrix balancing weights to
-            selections. Default is False.
+        ignore_index : bool, optional
+            If requesting pixels, don't populate the index column with the pixel
+            IDs to improve performance. Default is True.
 
         Returns
         -------
@@ -307,8 +310,8 @@ class Cooler(object):
 
         def _slice(field, i0, i1, j0, j1):
             with open_hdf5(self.fp) as h5:
-                return matrix(h5, i0, i1, j0, j1, field, as_pixels, join,
-                    balance, max_chunk)
+                return matrix(h5, i0, i1, j0, j1, field, balance, as_pixels,
+                    join, ignore_index, max_chunk)
 
         def _fetch(region, region2=None):
             with open_hdf5(self.fp) as h5:
@@ -399,7 +402,7 @@ def bins(h5, lo=0, hi=None, fields=None):
     return get(h5['bins'], lo, hi, fields)
 
 
-def annotate(pixels, bins, replace=True, clip=True):
+def annotate(pixels, bins, replace=True):
     """
     Add bin annotations to a selection of pixels by performing a "left join"
     from the bin IDs onto a table that describes properties of the genomic
@@ -417,9 +420,6 @@ def annotate(pixels, bins, replace=True, clip=True):
     replace : bool, optional
         Whether to remove the original ``bin1_id`` and ``bin2_id`` columns from
         the output. Default is True.
-    clip : bool, optional
-        Whether to clip the range of bins to the minimum and maximum bin IDs
-        listed in pixels before performing the merge. Default is True.
 
     Returns
     -------
@@ -429,7 +429,7 @@ def annotate(pixels, bins, replace=True, clip=True):
     ncols = len(pixels.columns)
 
     if 'bin1_id' in pixels:
-        if clip:
+        if len(bins) > len(pixels):
             bin1 = pixels['bin1_id']
             lo = bin1.min()
             hi = bin1.max() + 1
@@ -446,7 +446,7 @@ def annotate(pixels, bins, replace=True, clip=True):
             right_index=True)
 
     if 'bin2_id' in pixels:
-        if clip:
+        if len(bins) > len(pixels):
             bin2 = pixels['bin2_id']
             lo = bin2.min()
             hi = bin2.max() + 1
@@ -505,13 +505,13 @@ def pixels(h5, lo=0, hi=None, fields=None, join=True):
 
     if join:
         bins = get(h5['bins'], lo, hi, ['chrom', 'start', 'end'])
-        df = annotate(df, bins, clip=False)
+        df = annotate(df, bins)
 
     return df
 
 
-def matrix(h5, i0, i1, j0, j1, field=None, as_pixels=False, join=True,
-           balance=False, max_chunk=500000000):
+def matrix(h5, i0, i1, j0, j1, field=None, balance=False, as_pixels=False, 
+           join=True, ignore_index=True, max_chunk=500000000):
     """
     Two-dimensional range query on the Hi-C contact heatmap.
     Returns either a rectangular sparse ``coo_matrix`` or a data frame of upper
@@ -528,6 +528,9 @@ def matrix(h5, i0, i1, j0, j1, field=None, as_pixels=False, join=True,
     field : str, optional
         Which column of the pixel table to fill the matrix with. By default,
         the 'count' column is used.
+    balance : bool, optional
+        Whether to apply pre-calculated matrix balancing weights to the
+        selection. Default is False.
     as_pixels: bool, optional
         Return a DataFrame of the corresponding rows from the pixel table
         instead of a rectangular sparse matrix. False by default.
@@ -535,9 +538,9 @@ def matrix(h5, i0, i1, j0, j1, field=None, as_pixels=False, join=True,
         If requesting pixels, specifies whether to expand the bin ID columns
         into (chrom, start, end). Has no effect when requesting a rectangular
         matrix. Default is True.
-    balance : bool, optional
-        Whether to apply pre-calculated matrix balancing weights to the
-        selection. Default is False.
+    ignore_index : bool, optional
+        If requesting pixels, don't populate the index column with the pixel
+        IDs to improve performance. Default is True.
 
     Returns
     -------
@@ -560,20 +563,21 @@ def matrix(h5, i0, i1, j0, j1, field=None, as_pixels=False, join=True,
             "calculate balancing weights.")
 
     if as_pixels:
-        index = triu_reader.index_col(i0, i1, j0, j1)
+        index = None if ignore_index else triu_reader.index_col(i0, i1, j0, j1)
         i, j, v = triu_reader.query(i0, i1, j0, j1)
+
         cols = ['bin1_id', 'bin2_id', field]
         df = pandas.DataFrame(dict(zip(cols, [i, j, v])),
                               columns=cols, index=index)
 
         if balance:
             weights = get(h5['bins'], min(i0, j0), max(i1, j1), ['weight'])
-            df2 = annotate(df, weights, clip=False)
+            df2 = annotate(df, weights)
             df['balanced'] = df2['weight1'] * df2['weight2'] * df2[field]
 
         if join:
             bins = get(h5['bins'], min(i0, j0), max(i1, j1), ['chrom', 'start', 'end'])
-            df = annotate(df, bins, clip=False)
+            df = annotate(df, bins)
 
         return df
 
