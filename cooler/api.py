@@ -399,7 +399,7 @@ def bins(h5, lo=0, hi=None, fields=None):
     return get(h5['bins'], lo, hi, fields)
 
 
-def annotate(pixels, bins, fields=None, replace=True):
+def annotate(pixels, bins, replace=True, clip=True):
     """
     Add bin annotations to a selection of pixels by performing a "left join"
     from the bin IDs onto a table that describes properties of the genomic
@@ -411,43 +411,33 @@ def annotate(pixels, bins, fields=None, replace=True):
         A data frame containing columns named ``bin1_id`` and/or ``bin2_id``.
         If columns ``bin1_id`` and ``bin2_id`` are both present in ``pixels``,
         the adjoined columns will be suffixed with '1' and '2' accordingly.
-    bins : DataFrame or h5py.Group or dict of array-like
+    bins : DataFrame or DataFrame view
         Data structure that contains a full description of the genomic bins of
         the contact matrix, where the index corresponds to bin IDs.
-        (e.g., the '/bin' group of a cooler tree).
-    fields : str or list of str, optional
-        Subset of columns of ``bins`` to use for annotation. Default is to use
-        all columns.
     replace : bool, optional
         Whether to remove the original ``bin1_id`` and ``bin2_id`` columns from
         the output. Default is True.
+    clip : bool, optional
+        Whether to clip the range of bins to the minimum and maximum bin IDs
+        listed in pixels before performing the merge. Default is True.
 
     Returns
     -------
     DataFrame
 
     """
-    if fields is None:
-        fields = bins.keys()
-    elif isinstance(fields, six.string_types):
-        fields = [fields]
-
-    do_load = True
-    if isinstance(bins, pandas.DataFrame):
-        do_load = False
-
     ncols = len(pixels.columns)
 
     if 'bin1_id' in pixels:
-        if do_load:
+        if clip:
             bin1 = pixels['bin1_id']
             lo = bin1.min()
             hi = bin1.max() + 1
             lo = 0 if np.isnan(lo) else lo
-            hi = None if np.isnan(hi) else hi
-            right = get(bins, lo, hi, fields)
+            hi = 0 if np.isnan(hi) else hi
+            right = bins[lo:hi]
         else:
-            right = bins[fields]
+            right = bins[:]
 
         pixels = pixels.merge(
             right,
@@ -456,15 +446,15 @@ def annotate(pixels, bins, fields=None, replace=True):
             right_index=True)
 
     if 'bin2_id' in pixels:
-        if do_load:
+        if clip:
             bin2 = pixels['bin2_id']
             lo = bin2.min()
             hi = bin2.max() + 1
             lo = 0 if np.isnan(lo) else lo
-            hi = None if np.isnan(hi) else hi
-            right = get(bins, lo, hi, fields)
+            hi = 0 if np.isnan(hi) else hi
+            right = bins[lo:hi]
         else:
-            right = bins[fields]
+            right = bins[:]
 
         pixels = pixels.merge(
             right,
@@ -514,7 +504,8 @@ def pixels(h5, lo=0, hi=None, fields=None, join=True):
     df = get(h5['pixels'], lo, hi, fields)
 
     if join:
-        df = annotate(df, h5['bins'], ['chrom', 'start', 'end'])
+        bins = get(h5['bins'], lo, hi, ['chrom', 'start', 'end'])
+        df = annotate(df, bins, clip=False)
 
     return df
 
@@ -576,11 +567,13 @@ def matrix(h5, i0, i1, j0, j1, field=None, as_pixels=False, join=True,
                               columns=cols, index=index)
 
         if balance:
-            df2 = annotate(df, h5['bins'], 'weight')
+            weights = get(h5['bins'], min(i0, j0), max(i1, j1), ['weight'])
+            df2 = annotate(df, weights, clip=False)
             df['balanced'] = df2['weight1'] * df2['weight2'] * df2[field]
 
         if join:
-            df = annotate(df, h5['bins'], ['chrom', 'start', 'end'])
+            bins = get(h5['bins'], min(i0, j0), max(i1, j1), ['chrom', 'start', 'end'])
+            df = annotate(df, bins, clip=False)
 
         return df
 

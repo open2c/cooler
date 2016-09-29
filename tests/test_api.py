@@ -122,13 +122,15 @@ def test_cooler():
 def test_annotate():
     c = cooler.Cooler(mock_cooler)
 
-    # works with full bin table or only required bins
+    # works with full bin table / view or only required bins
     df = c.matrix(as_pixels=True).fetch('chr1')
     df1 = cooler.annotate(df, c.bins()[:])
-    df2 = cooler.annotate(df, c.bins().fetch('chr1'))
+    df2 = cooler.annotate(df, c.bins())
+    df3 = cooler.annotate(df, c.bins().fetch('chr1'))
     assert np.all(df1 == df2)
+    assert np.all(df1 == df3)
 
     # works on empty dataframe
-    df3 = cooler.annotate(df[0:0], c.bins()[:])
-    assert np.all(df3.columns == df2.columns)
-    assert len(df3) == 0
+    df4 = cooler.annotate(df[0:0], c.bins()[:])
+    assert np.all(df4.columns == df3.columns)
+    assert len(df4) == 0
