@@ -9,7 +9,7 @@ import h5py
 
 import click
 from . import cli
-from ..io import create, TabixAggregator
+from ..io import create, TabixAggregator, HDF5Aggregator
 
 
 @cli.command()
@@ -28,7 +28,12 @@ from ..io import create, TabixAggregator
 @click.option(
     "--assembly",
     help="Name of genome assembly (e.g. hg19, mm10)")
-def cload(bins_path, pairs_path, out, metadata, assembly):
+@click.option(
+    "--hiclib",
+    is_flag=True,
+    default=False,
+    help="Use a hiclib contact list in HDF5 format")
+def cload(bins_path, pairs_path, out, metadata, assembly, hiclib):
     """
     Aggregate and load a sorted contact list.
     Create a COOL file from a list of contacts and a list of bins.
@@ -77,7 +82,13 @@ def cload(bins_path, pairs_path, out, metadata, assembly):
             metadata = json.load(f)
 
     # Aggregate contacts
-    chunksize = int(100e6)
-    reader = TabixAggregator(pairs_path, chromsizes, bins)
-    with h5py.File(out, 'w') as h5:
-        create(h5, chroms, lengths, bins, reader, metadata, assembly)
+    if hiclib:
+        chunksize = int(100e6)
+        with h5py.File(out, 'w') as h5, \
+             h5py.File(pairs_path, 'r') as h5pairs:
+            reader = HDF5Aggregator(h5pairs, chromsizes, bins, chunksize)
+            create(h5, chroms, lengths, bins, reader, metadata, assembly)
+    else:
+        reader = TabixAggregator(pairs_path, chromsizes, bins)
+        with h5py.File(out, 'w') as h5:
+            create(h5, chroms, lengths, bins, reader, metadata, assembly)
