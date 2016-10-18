@@ -91,5 +91,7 @@ def test_balancing():
     var = np.var(marg[marg != 0])
     assert var < tol 
 
-
-
+    # Check that the balanced marginal is unity
+    conv_marg = marg[~np.isnan(marg)].mean()
+    err_marg = marg[~np.isnan(marg)].std()
+    assert np.isclose(conv_marg, 1, atol=err_marg)
