@@ -138,7 +138,7 @@ def mad(data, axis=None):
 def iterative_correction(h5, cooler_root='/', chunksize=None, map=map, tol=1e-5,
                          min_nnz=0, min_count=0, mad_max=0,
                          cis_only=False, ignore_diags=False,
-                         max_iters=200):
+                         max_iters=200, normalize_marginals=True):
     """
     Iterative correction or matrix balancing of a sparse Hi-C contact map in
     Cooler HDF5 format.
@@ -250,7 +250,16 @@ def iterative_correction(h5, cooler_root='/', chunksize=None, map=map, tol=1e-5,
         var = marg_.var()
         print("variance is", var)
         if var < tol:
+
+            if normalize_marginals:
+                filters = base_filters + [TimesOuterProductFilter(bias)]
+                worker = Worker(filepath, cooler_root, filters)
+                marg_partials = map(worker, spans)
+                marg = np.sum(list(marg_partials), axis=0)
+                bias /= np.sqrt(marg[marg != 0].mean())
+
             bias[bias==0] = np.nan
+
             break
     else:
         warnings.warn('Iteration limit reached without convergence.')
