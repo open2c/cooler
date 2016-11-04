@@ -141,16 +141,17 @@ class Cooler(object):
     on using h5py with multiprocessing safely.
 
     """
-    def __init__(self, fp):
+    def __init__(self, fp, **kwargs):
         self.fp = fp
-        with open_hdf5(self.fp) as h5:
+        self.kwargs = kwargs
+        with open_hdf5(self.fp, **self.kwargs) as h5:
             _ct = chroms(h5)
             self._chromsizes = _ct.set_index('name')['length']
             self._chromids = dict(zip(_ct['name'], range(len(_ct))))
             self._info = info(h5)
 
     def _get_index(self, name):
-        with open_hdf5(self.fp) as h5:
+        with open_hdf5(self.fp, **self.kwargs) as h5:
             return h5['indexes'][name][:]
 
     def offset(self, region):
@@ -171,7 +172,7 @@ class Cooler(object):
         1311
 
         """
-        with open_hdf5(self.fp) as h5:
+        with open_hdf5(self.fp, **self.kwargs) as h5:
             return region_to_offset(
                 h5, self._chromids,
                 parse_region(region, self._chromsizes))
@@ -194,7 +195,7 @@ class Cooler(object):
         (1311, 2131)
 
         """
-        with open_hdf5(self.fp) as h5:
+        with open_hdf5(self.fp, **self.kwargs) as h5:
             return region_to_extent(
                 h5, self._chromids,
                 parse_region(region, self._chromsizes))
@@ -208,7 +209,7 @@ class Cooler(object):
         dict
 
         """
-        with open_hdf5(self.fp) as h5:
+        with open_hdf5(self.fp, **self.kwargs) as h5:
             return info(h5)
 
     @property
@@ -224,7 +225,7 @@ class Cooler(object):
 
         """
         def _slice(fields, lo, hi):
-            with open_hdf5(self.fp) as h5:
+            with open_hdf5(self.fp, **self.kwargs) as h5:
                 return chroms(h5, lo, hi, fields)
 
         return RangeSelector1D(None, _slice, None, self._info['nchroms'])
@@ -239,11 +240,11 @@ class Cooler(object):
         """
 
         def _slice(fields, lo, hi):
-            with open_hdf5(self.fp) as h5:
+            with open_hdf5(self.fp, **self.kwargs) as h5:
                 return bins(h5, lo, hi, fields)
 
         def _fetch(region):
-            with open_hdf5(self.fp) as h5:
+            with open_hdf5(self.fp, **self.kwargs) as h5:
                 return region_to_extent(h5, self._chromids,
                                         parse_region(region, self._chromsizes))
 
@@ -265,11 +266,11 @@ class Cooler(object):
         """
 
         def _slice(fields, lo, hi):
-            with open_hdf5(self.fp) as h5:
+            with open_hdf5(self.fp, **self.kwargs) as h5:
                 return pixels(h5, lo, hi, fields, join)
 
         def _fetch(region):
-            with open_hdf5(self.fp) as h5:
+            with open_hdf5(self.fp, **self.kwargs) as h5:
                 i0, i1 = region_to_extent(
                     h5, self._chromids,
                     parse_region(region, self._chromsizes))
@@ -309,12 +310,12 @@ class Cooler(object):
         """
 
         def _slice(field, i0, i1, j0, j1):
-            with open_hdf5(self.fp) as h5:
+            with open_hdf5(self.fp, **self.kwargs) as h5:
                 return matrix(h5, i0, i1, j0, j1, field, balance, as_pixels,
                     join, ignore_index, max_chunk)
 
         def _fetch(region, region2=None):
-            with open_hdf5(self.fp) as h5:
+            with open_hdf5(self.fp, **self.kwargs) as h5:
                 if region2 is None:
                     region2 = region
                 region1 = parse_region(region, self._chromsizes)
