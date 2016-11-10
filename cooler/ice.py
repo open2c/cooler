@@ -58,9 +58,10 @@ class Worker(object):
     >>> marg = np.sum([marg1, marg2, marg3], axis=0)
 
     """
-    def __init__(self, cooler_path, cooler_root, filters=None):
+    def __init__(self, cooler_path, cooler_root, filters=None, use_lock=True):
         self.filepath = cooler_path
         self.root = cooler_root
+        self.use_lock = use_lock
         self.filters = filters if filters is not None else []
 
     def __call__(self, span):
@@ -70,19 +71,25 @@ class Worker(object):
 
         # prepare chunk dict
         chunk = {}
-        lock.acquire()
-        with h5py.File(self.filepath, 'r') as h5:
-            coo = h5[self.root]
-            n_bins_total = coo['bins/chrom'].shape[0]
-            chunk['bin1_id'] = coo['pixels/bin1_id'][lo:hi]
-            chunk['bin2_id'] = coo['pixels/bin2_id'][lo:hi]
-            chunk['count']   = coo['pixels/count'][lo:hi]
-            chunk['bintable'] = {
-                'chrom_id':  coo['bins/chrom'][:],
-                'start':     coo['bins/start'][:],
-                'end':       coo['bins/end'][:],
-            }
-        lock.release()
+
+        try:
+            if self.use_lock:
+                lock.acquire()
+
+            with h5py.File(self.filepath, 'r') as h5:
+                coo = h5[self.root]
+                n_bins_total = coo['bins/chrom'].shape[0]
+                chunk['bin1_id'] = coo['pixels/bin1_id'][lo:hi]
+                chunk['bin2_id'] = coo['pixels/bin2_id'][lo:hi]
+                chunk['count']   = coo['pixels/count'][lo:hi]
+                chunk['bintable'] = {
+                    'chrom_id':  coo['bins/chrom'][:],
+                    'start':     coo['bins/start'][:],
+                    'end':       coo['bins/end'][:],
+                }
+        finally:
+            if self.use_lock:
+                lock.release()
 
         # apply filters to chunk
         data_weights = chunk['count']
@@ -138,7 +145,8 @@ def mad(data, axis=None):
 def iterative_correction(h5, cooler_root='/', chunksize=None, map=map, tol=1e-5,
                          min_nnz=0, min_count=0, mad_max=0,
                          cis_only=False, ignore_diags=False,
-                         max_iters=200, normalize_marginals=True):
+                         max_iters=200, normalize_marginals=True,
+                         use_lock=True):
     """
     Iterative correction or matrix balancing of a sparse Hi-C contact map in
     Cooler HDF5 format.
@@ -211,12 +219,14 @@ def iterative_correction(h5, cooler_root='/', chunksize=None, map=map, tol=1e-5,
     # Drop bins with too few nonzeros from bias
     if min_nnz > 0:
         filters = [BinarizeFilter()] + base_filters
-        marg_partials = map(Worker(filepath, cooler_root, filters), spans)
+        marg_partials = map(
+            Worker(filepath, cooler_root, filters, use_lock), spans)
         marg_nnz = np.sum(list(marg_partials), axis=0)
         bias[marg_nnz < min_nnz] = 0
 
     filters = base_filters
-    marg_partials = map(Worker(filepath, cooler_root, filters), spans)
+    marg_partials = map(
+        Worker(filepath, cooler_root, filters, use_lock), spans)
     marg = np.sum(list(marg_partials), axis=0)
 
     # Drop bins with too few total counts from bias
@@ -238,7 +248,7 @@ def iterative_correction(h5, cooler_root='/', chunksize=None, map=map, tol=1e-5,
     # Do balancing
     for _ in range(max_iters):
         filters = base_filters + [TimesOuterProductFilter(bias)]
-        worker = Worker(filepath, cooler_root, filters)
+        worker = Worker(filepath, cooler_root, filters, use_lock)
         marg_partials = map(worker, spans)
         marg = np.sum(list(marg_partials), axis=0)
 
@@ -253,7 +263,7 @@ def iterative_correction(h5, cooler_root='/', chunksize=None, map=map, tol=1e-5,
 
             if normalize_marginals:
                 filters = base_filters + [TimesOuterProductFilter(bias)]
-                worker = Worker(filepath, cooler_root, filters)
+                worker = Worker(filepath, cooler_root, filters, use_lock)
                 marg_partials = map(worker, spans)
                 marg = np.sum(list(marg_partials), axis=0)
                 bias /= np.sqrt(marg[marg != 0].mean())
