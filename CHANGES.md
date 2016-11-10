@@ -1,3 +1,7 @@
+### Upcoming
+
+* Added `recursive_agg_onefile.py` for creating multi-resolution cooler files
+
 ### 0.5.3 (2016-09-10) ###
 
 * Check for existence of required external tools in CLI
