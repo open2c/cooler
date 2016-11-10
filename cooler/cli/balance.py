@@ -24,7 +24,7 @@ from .. import ice
     "--chunksize", "-c",
     help="Control the number of pixels handled by each worker process at a time.",
     type=int,
-    default=int(100e6),
+    default=int(10e6),
     show_default=True)
 @click.option(
     "--mad-max",
@@ -115,6 +115,7 @@ def balance(cool_path, nproc, chunksize, mad_max, min_nnz, min_count,
                 mad_max=mad_max,
                 max_iters=max_iters,
                 ignore_diags=ignore_diags,
+                use_lock=False,
                 map=pool.map)
 
             # add the bias column to the file
