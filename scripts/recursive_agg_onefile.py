@@ -37,6 +37,9 @@ def main(infile, outfile, chunksize):
     n_tiles = total_length / binsize / TILESIZE
     n_zooms = int(np.ceil(np.log2(n_tiles)))
 
+    print("binsize:", binsize)
+    print("total_length:", total_length)
+
     print(
         "Copying base matrix to level {0} and producing {0} zoom levels starting from 0...".format(n_zooms),
         file=sys.stderr
@@ -55,8 +58,13 @@ def main(infile, outfile, chunksize):
     # produce aggregations
     with h5py.File(outfile, 'r+') as f:
         grp = f[str(n_zooms)]
+
+        f.attrs[str(n_zooms)] = binsize
+        f.attrs['max-zoom'] = n_zooms
+
         c = cooler.Cooler(grp)
         binsize = cooler.info(grp)['bin-size']
+        print("n_zooms:", n_zooms)
 
         for i in range(n_zooms - 1, -1, -1):
             zoomLevel = str(i)
