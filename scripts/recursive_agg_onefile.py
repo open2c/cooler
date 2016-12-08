@@ -109,7 +109,7 @@ if __name__ == '__main__':
         metavar="COOLER_PATH")
     parser.add_argument(
         "--out", "-o",
-        help="Output text file")
+        help="Output file")
     args = vars(parser.parse_args())
 
 
