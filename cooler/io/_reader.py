@@ -10,6 +10,7 @@ binned contacts.
 from __future__ import division, print_function
 from collections import OrderedDict, Counter
 from contextlib import contextmanager
+from multiprocessing import Pool
 from bisect import bisect_left
 import subprocess
 import warnings
@@ -153,75 +154,96 @@ class TabixAggregator(ContactReader):
     tab-delimited text file.
 
     """
-    def __init__(self, filepath, chromsizes, bins):
+    def __init__(self, filepath, chromsizes, bins, ncpus=8):
         try:
             import pysam
         except ImportError:
             raise ImportError("pysam is required to read tabix files")
+        
+        self.ncpus = ncpus
+        # chromosomes
+        self.chromsizes = chromsizes
+        self.idmap = pandas.Series(index=chromsizes.keys(), 
+                                   data=range(len(chromsizes)))
+        
+        # bins
         n_bins = len(bins)
-        self.idmap = pandas.Series(index=chromsizes.keys(), data=range(len(chromsizes)))
         self.bins = bins
         self.binsize = get_binsize(bins)
-        self.pairsfile = pysam.TabixFile(filepath, 'r', encoding='ascii')
-        self.parser = pysam.asTuple()
-        # number of lines in file
-        p1 = subprocess.Popen(['pigz',  '-p', '8',  '-dc', filepath], stdout=subprocess.PIPE)
-        p2 = subprocess.Popen(['wc', '-l'], stdin=p1.stdout, stdout=subprocess.PIPE)
-        self.n_records = int(p2.communicate()[0])
-        # convert genomic coords of bin starts to absolute
-        self.idmap = pandas.Series(index=chromsizes.keys(), data=range(len(chromsizes)))
-        bin_chrom_ids = self.idmap[bins['chrom']].values
-        self.cumul_length = np.r_[0, np.cumsum(chromsizes)]
-        self.abs_start_coords = self.cumul_length[bin_chrom_ids] + bins['start']
+        
+        # read pair records
+        self.contigs = chromsizes.keys()
+        self.n_records = None
+        self.filepath = filepath
+        
+        with pysam.TabixFile(filepath, 'r', encoding='ascii') as f:
+            try:
+                file_contigs = [c.decode('ascii') for c in f.contigs]
+            except AttributeError:
+                file_contigs = f.contigs
+        
+        for chrom in self.contigs:
+            if chrom not in file_contigs:
+                warnings.warn("Did not find contig '{}' in contact list file.".format(chrom))
+        
         # chrom offset index: chrom_id -> offset in bins
-        chrom_nbins =  bins.groupby(bin_chrom_ids, sort=False).size()
-        self.chrom_offset = np.r_[0, np.cumsum(chrom_nbins)]
-
-    def _iterchunks(self, chrom):
-        pairsfile = self.pairsfile
-        chrom_offset = self.chrom_offset
-        idmap = self.idmap
-        parser = self.parser
-        binsize = self.binsize
-        bins = self.bins[self.bins.chrom==chrom]
-
-        print(chrom)  # flush=True
-
-        for bin1_id, bin in bins.iterrows():
-            accumulator = Counter()
-            for record in pairsfile.fetch(chrom, bin.start, bin.end, parser=parser):
-                chrom2 = record[3]
-                pos2 = int(record[4])
-                bin2_id = chrom_offset[idmap[chrom2]] + pos2 // binsize
-                accumulator[bin2_id] += 1
-            if len(accumulator) == 0:
-                continue
-
-            agg = pandas.DataFrame({
-                'bin1_id': bin1_id,
-                'bin2_id': list(accumulator.keys()),
-                'count': list(accumulator.values()),
-            }, columns=['bin1_id', 'bin2_id', 'count'])
-            agg = agg.sort_values('bin2_id')
-
-            yield {k: v.values for k,v in six.iteritems(agg)}
-
+        cid_per_bin = self.idmap[bins['chrom']].values
+        nbins_per_chrom =  bins.groupby(cid_per_bin, sort=False).size()
+        self.chrom_abspos = dict(zip(self.contigs, np.r_[0, np.cumsum(chromsizes)][:-1]))
+        self.chrom_binoffset = dict(zip(self.contigs, np.r_[0, np.cumsum(nbins_per_chrom)][:-1]))
+    
+    def _size(self, chrom):
+        import pysam
+        with pysam.TabixFile(self.filepath, 'r', encoding='ascii') as f:
+            return sum(1 for line in f.fetch(chrom))
+    
     def size(self):
+        if self.n_records is None:
+            with Pool(self.ncpus) as pool:
+                self.n_records = sum(pool.map(self._size, self.contigs))
         return self.n_records
+    
+    def _aggregate(self, chrom):
+        import pysam
+        filepath = self.filepath
+        binsize = self.binsize
+        chromsizes = self.chromsizes
+        chrom_binoffset = self.chrom_binoffset
+        
+        rows = []
+        with pysam.TabixFile(filepath, 'r', encoding='ascii') as f:
+            parser = pysam.asTuple()
+            accumulator = Counter()
+            offset = chrom_binoffset[chrom]
+            
+            for start1 in range(0, chromsizes[chrom], binsize):
+                bin1_id = offset + (start1 // binsize)
+                for line in f.fetch(chrom, start1, start1 + binsize, parser=parser):
+                    chrom2, pos2 = line[3], int(line[4])
+                    bin2_id = chrom_binoffset[chrom2] + (pos2 // binsize)
+                    accumulator[bin2_id] += 1
+                if not accumulator:
+                    continue
+                rows.append(
+                    pandas.DataFrame({
+                        'bin1_id': bin1_id,
+                        'bin2_id': list(accumulator.keys()),
+                        'count':   list(accumulator.values())},
+                        columns=['bin1_id', 'bin2_id', 'count'])
+                          .sort_values('bin2_id')
+                )
+                accumulator.clear()
+        #print(chrom, flush=True)
+        return pandas.concat(rows, axis=0) if len(rows) else None
+    
+    def aggregate(self, map=map):
+        return map(self._aggregate, list(self.contigs))
 
     def __iter__(self):
-
-        try:
-            file_contigs = [c.decode('ascii') for c in self.pairsfile.contigs]
-        except AttributeError:
-            file_contigs = self.pairsfile.contigs
-
-        for chrom in self.idmap.keys():
-            if chrom in file_contigs:
-                for chunk in self._iterchunks(chrom):
-                    yield chunk
-            else:
-                warnings.warn("Did not find contig '{}' in contact list file.".format(chrom))
+        with Pool(self.ncpus) as pool:
+            for df in self.aggregate(map=pool.imap):
+                if df is not None:
+                    yield {k: v.values for k, v in six.iteritems(df)}
 
 
 class CoolerAggregator(ContactReader):
