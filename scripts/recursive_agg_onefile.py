@@ -38,8 +38,7 @@ def main(infile, outfile, chunksize):
     n_zooms = int(np.ceil(np.log2(n_tiles)))
 
     print("binsize:", binsize)
-    print("total_length:", total_length)
-
+    print("total_length (bp):", total_length)
     print(
         "Copying base matrix to level {0} and producing {0} zoom levels starting from 0...".format(n_zooms),
         file=sys.stderr
