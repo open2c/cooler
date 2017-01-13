@@ -71,7 +71,7 @@ def test_balancing():
     tol = 1e-2
 
     with h5py.File(fp, 'r') as h5:
-        weights = cooler.ice.iterative_correction(h5, ignore_diags=1, min_nnz=10, tol=tol)
+        weights, stats = cooler.ice.iterative_correction(h5, ignore_diags=1, min_nnz=10, tol=tol)
 
     # Extract matrix and apply weights
     mat = cooler.Cooler(fp).matrix()[:, :]
