@@ -105,7 +105,7 @@ def balance(cool_path, nproc, chunksize, mad_max, min_nnz, min_count,
         pool = Pool(nproc)
         with h5py.File(cool_path, 'a') as h5:
 
-            bias = ice.iterative_correction(
+            bias, stats = ice.iterative_correction(
                 h5,
                 chunksize=chunksize,
                 cis_only=cis_only,
@@ -115,12 +115,14 @@ def balance(cool_path, nproc, chunksize, mad_max, min_nnz, min_count,
                 mad_max=mad_max,
                 max_iters=max_iters,
                 ignore_diags=ignore_diags,
+                normalize_marginals=True,
                 use_lock=False,
                 map=pool.map)
 
             # add the bias column to the file
             h5opts = dict(compression='gzip', compression_opts=6)
             h5['bins'].create_dataset('weight', data=bias, **h5opts)
+            h5['bins']['weight'].attrs.update(stats)
 
     finally:
         pool.close()

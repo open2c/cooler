@@ -252,26 +252,33 @@ def iterative_correction(h5, cooler_root='/', chunksize=None, map=map, tol=1e-5,
         marg_partials = map(worker, spans)
         marg = np.sum(list(marg_partials), axis=0)
 
-        marg_ = marg[marg != 0]
-        m = marg / marg_.mean()
-        m[m == 0] = 1
-        bias /= m
+        nzmarg = marg[marg != 0]
+        marg = marg / nzmarg.mean()
+        marg[marg == 0] = 1
+        bias /= marg
 
-        var = marg_.var()
+        var = nzmarg.var()
         print("variance is", var)
         if var < tol:
-
-            if normalize_marginals:
-                filters = base_filters + [TimesOuterProductFilter(bias)]
-                worker = Worker(filepath, cooler_root, filters, use_lock)
-                marg_partials = map(worker, spans)
-                marg = np.sum(list(marg_partials), axis=0)
-                bias /= np.sqrt(marg[marg != 0].mean())
-
-            bias[bias==0] = np.nan
-
+            factor = np.sqrt(nzmarg.mean())
+            bias[bias == 0] = np.nan
             break
     else:
         warnings.warn('Iteration limit reached without convergence.')
 
-    return bias
+    # TODO: fix cis_only
+
+    stats = {
+        'tol': tol,
+        'min_nnz': min_nnz,
+        'min_count': min_count,
+        'mad_max': mad_max,
+        'cis_only': cis_only,
+        'ignore_diags': ignore_diags,
+        'scale': factor if not cis_only else np.nan,
+    }
+
+    if normalize_marginals:
+        bias /= factor
+
+    return bias, stats
