@@ -15,17 +15,6 @@ TILESIZE = 256
 N_CPU = 8
 
 
-def set_postmortem_hook():
-    import sys, traceback, ipdb
-    def _excepthook(exc_type, value, tb):
-        traceback.print_exception(exc_type, value, tb)
-        print()
-        ipdb.pm()
-    sys.excepthook = _excepthook
-
-set_postmortem_hook()
-
-
 def main(infile, outfile, chunksize):
     c = cooler.Cooler(infile)
     binsize = c.info['bin-size']
@@ -40,63 +29,74 @@ def main(infile, outfile, chunksize):
     print("binsize:", binsize)
     print("total_length (bp):", total_length)
     print(
-        "Copying base matrix to level {0} and producing {0} zoom levels starting from 0...".format(n_zooms),
+        "Copying base matrix to level {0} and producing {0} new zoom levels counting down to 0...".format(n_zooms),
         file=sys.stderr
     )
 
-    # transfer base matrix
-    with h5py.File(outfile, 'w') as dest, \
-         h5py.File(infile, 'r') as src:
 
-        zoomLevel = str(n_zooms)
-        src.copy('/', dest, zoomLevel)
+    try:
+        # If using HDF5 file in a process pool, fork before opening
+        pool = Pool(N_CPU)
+        
+        print('n_zooms:', n_zooms, file=sys.stderr)
 
-        print(zoomLevel, file=sys.stderr)
+        # transfer base matrix
+        with h5py.File(outfile, 'w') as dest, \
+             h5py.File(infile, 'r') as src:
 
+            zoomLevel = str(n_zooms)
+            src.copy('/', dest, zoomLevel)
 
-    # produce aggregations
-    with h5py.File(outfile, 'r+') as f:
-        grp = f[str(n_zooms)]
-
-        f.attrs[str(n_zooms)] = binsize
-        f.attrs['max-zoom'] = n_zooms
-
-        c = cooler.Cooler(grp)
-        binsize = cooler.info(grp)['bin-size']
-        print("n_zooms:", n_zooms)
-
-        for i in range(n_zooms - 1, -1, -1):
-            zoomLevel = str(i)
-
-            # aggregate
-            new_binsize = binsize * FACTOR
-            new_bins = cooler.util.binnify(chromsizes, new_binsize)
-     
-            reader = CoolerAggregator(c, new_bins, chunksize)
+            binsize = src.attrs['bin-size']
+            dest.attrs[str(n_zooms)] = binsize
+            dest.attrs['max-zoom'] = n_zooms
             
-            grp = f.create_group(zoomLevel)
-            f.attrs[zoomLevel] = new_binsize
-            cooler.io.create(grp, chroms, lengths, new_bins, reader)
+            print("ZoomLevel:", zoomLevel, binsize, file=sys.stderr)
+            new_binsize = binsize
+        
+        with h5py.File(outfile, 'r+') as f:
+            # aggregate
+            for i in range(n_zooms - 1, -1, -1):    
 
+                new_binsize *= FACTOR
+                new_bins = cooler.util.binnify(chromsizes, new_binsize)
+
+                prevLevel = str(i+1)
+                zoomLevel = str(i)
+                print("ZoomLevel:", zoomLevel, new_binsize, file=sys.stderr, flush=True)
+                
+                c = cooler.Cooler(f[prevLevel])
+                reader = CoolerAggregator(c, new_bins, chunksize, map=pool.imap)
+                cooler.io.create(f.create_group(zoomLevel), chroms, lengths, new_bins, reader)
+                f.attrs[zoomLevel] = new_binsize
+                f.flush()
+        
+        with h5py.File(outfile, 'r+') as f:
             # balance
-            #with Pool(N_CPU) as pool:
-            too_close = 20000  # for HindIII
-            ignore_diags = max(int(np.ceil(too_close / new_binsize)), 3)
+            for i in range(n_zooms - 1, -1, -1):
+                zoomLevel = str(i)
+                grp = f[zoomLevel]
+                binsize = f.attrs[zoomLevel]
+                
+                # balance
+                too_close = 10000  # for HindIII
+                # too_close = 1000  # for DpnII
+                ignore_diags = 1 + int(np.ceil(too_close / binsize))
 
-            bias = cooler.ice.iterative_correction(
-                f, zoomLevel,
-                chunksize=chunksize,
-                min_nnz=10,
-                mad_max=3,
-                ignore_diags=ignore_diags,
-                map=map)
-            h5opts = dict(compression='gzip', compression_opts=6)
-            grp['bins'].create_dataset('weight', data=bias, **h5opts)
-
-            print(zoomLevel, file=sys.stderr)
-
-            c = cooler.Cooler(grp)
-            binsize = new_binsize
+                bias, stats = cooler.ice.iterative_correction(
+                    f, zoomLevel,
+                    chunksize=chunksize,
+                    min_nnz=10,
+                    mad_max=0,
+                    ignore_diags=ignore_diags,
+                    normalize_marginals=True,
+                    map=pool.map)
+                h5opts = dict(compression='gzip', compression_opts=6)
+                grp['bins'].create_dataset('weight', data=bias, **h5opts)
+                grp['bins']['weight'].attrs.update(stats)
+                
+    finally:
+        pool.close()
 
 
 if __name__ == '__main__':
@@ -118,6 +118,5 @@ if __name__ == '__main__':
     else:
         outfile = args['out']
 
-    chunksize = int(1e6)
+    chunksize = int(10e6)
     main(infile, outfile, chunksize)
-
