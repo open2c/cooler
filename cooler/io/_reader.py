@@ -10,8 +10,8 @@ binned contacts.
 from __future__ import division, print_function
 from collections import OrderedDict, Counter
 from contextlib import contextmanager
-from multiprocessing import Pool
 from bisect import bisect_left
+from multiprocess import Pool
 import subprocess
 import warnings
 import json
@@ -199,8 +199,11 @@ class TabixAggregator(ContactReader):
     
     def size(self):
         if self.n_records is None:
-            with Pool(self.ncpus) as pool:
+            try:
+                pool = Pool(self.ncpus)
                 self.n_records = sum(pool.map(self._size, self.contigs))
+            finally:
+                pool.close()
         return self.n_records
     
     def _aggregate(self, chrom):
@@ -240,10 +243,13 @@ class TabixAggregator(ContactReader):
         return map(self._aggregate, list(self.contigs))
 
     def __iter__(self):
-        with Pool(self.ncpus) as pool:
+        try:
+            pool = Pool(self.ncpus)
             for df in self.aggregate(map=pool.imap):
                 if df is not None:
                     yield {k: v.values for k, v in six.iteritems(df)}
+        finally:
+            pool.close()
 
 
 class CoolerAggregator(ContactReader):
