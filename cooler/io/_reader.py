@@ -24,6 +24,7 @@ import pandas
 import h5py
 
 from ..util import rlencode, get_binsize
+from .. import api
 
 
 class ContactReader(object):
@@ -301,10 +302,10 @@ class CoolerAggregator(ContactReader):
         print(lo, hi)
 
         with h5py.File(self.cooler_path, 'r') as h5:
-            table = cooler.Cooler(h5[self.cooler_root]).pixels(join=True)
+            table = api.Cooler(h5[self.cooler_root]).pixels(join=True)
             chunk = table[lo:hi]
             chunk['chrom1'] = pandas.Categorical(chunk['chrom1'], categories=self.chroms)
-            chunk['chrom2'] = pandas.Categorical(chunk['chrom1'], categories=self.chroms)
+            chunk['chrom2'] = pandas.Categorical(chunk['chrom2'], categories=self.chroms)
             #print(lo, hi)
 
         # use the "start" point as anchor for re-binning
