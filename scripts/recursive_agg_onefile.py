@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 from __future__ import division, print_function
 from multiprocessing import Pool
 import argparse
@@ -63,7 +64,7 @@ def main(infile, outfile, chunksize):
 
                 prevLevel = str(i+1)
                 zoomLevel = str(i)
-                print("ZoomLevel:", zoomLevel, new_binsize, file=sys.stderr, flush=True)
+                print("ZoomLevel:", zoomLevel, new_binsize, file=sys.stderr)
                 
                 c = cooler.Cooler(f[prevLevel])
                 reader = CoolerAggregator(c, new_bins, chunksize, map=pool.imap)
