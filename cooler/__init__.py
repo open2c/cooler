@@ -19,3 +19,4 @@ from .io import open_hdf5
 from . import util
 from . import ice
 from . import io
+from . import scripts
