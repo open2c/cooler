@@ -77,7 +77,7 @@ setup(
     description='Sparse binary format for genomic interaction matrices',
     long_description=get_long_description(),
     keywords=['genomics', 'bioinformatics', 'Hi-C', 'contact', 'matrix', 'format', 'hdf5'],
-    url='https://github.com/mirnylab/cooler',
+    url='https://github.com/scottx611x/cooler',
     packages=find_packages(),
     zip_safe=False,
     classifiers=[s.strip() for s in classifiers.split('\n') if s],
@@ -87,7 +87,7 @@ setup(
     entry_points={
         'console_scripts': [
             'cooler = cooler.cli:cli',
-            'cooler.scripts = scripts:scripts'
+            'cooler_scripts = scripts:scripts'
         ]
     }
 )
