@@ -41,11 +41,11 @@ def get_long_description():
 
 
 install_requires = [
-    'six', 
-    'numpy>=1.9', 
-    'scipy>=0.16', 
+    'six',
+    'numpy>=1.9',
+    'scipy>=0.16',
     'pandas>=0.17',
-    'h5py>=2.5', 
+    'h5py>=2.5',
     'click>=6.6',
     'pysam>0.8',
     'multiprocess',
@@ -62,7 +62,7 @@ tests_require = [
 
 extras_require = {
     'docs': [
-        'Sphinx>=1.1', 
+        'Sphinx>=1.1',
         'numpydoc>=0.5'
     ]
 }
@@ -87,6 +87,7 @@ setup(
     entry_points={
         'console_scripts': [
             'cooler = cooler.cli:cli',
+            'scripts = scripts:scripts'
         ]
     }
 )
