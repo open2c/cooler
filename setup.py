@@ -87,8 +87,7 @@ setup(
     entry_points={
         'console_scripts': [
             'cooler = cooler.cli:cli',
-            'cooler.scripts.recursive_agg_onefile = '
-            'scripts.recursive_agg_onefile:main'
+            'cooler.scripts = scripts:scripts'
         ]
     }
 )
