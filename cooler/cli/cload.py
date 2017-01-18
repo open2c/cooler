@@ -62,6 +62,7 @@ def _parse_bins(arg):
         raise ValueError(
             'Expected BINS to be either <Path to bins file> or '
             '<Path to chromsizes file>:<binsize in bp>.')
+
     return chromsizes, bins
 
 
@@ -115,7 +116,7 @@ def hiclib(bins, pairs_path, cool_path, metadata, assembly):
     """
 
     chromsizes, bins = _parse_bins(bins)
-    chroms, lengths = list(chromsizes.index), list(chromsizes.data)
+    chroms, lengths = list(chromsizes.index), list(chromsizes.values)
 
     if metadata is not None:
         with open(metadata, 'r') as f:
@@ -142,7 +143,7 @@ def tabix(bins, pairs_path, cool_path, metadata, assembly):
 
     """
     chromsizes, bins = _parse_bins(bins)
-    chroms, lengths = list(chromsizes.index), list(chromsizes.data)
+    chroms, lengths = list(chromsizes.index), list(chromsizes.values)
 
     if metadata is not None:
         with open(metadata, 'r') as f:
@@ -168,7 +169,7 @@ def pairix(bins, pairs_path, cool_path, metadata, assembly):
 
     """
     chromsizes, bins = _parse_bins(bins)
-    chroms, lengths = list(chromsizes.index), list(chromsizes.data)
+    chroms, lengths = list(chromsizes.index), list(chromsizes.values)
 
     if metadata is not None:
         with open(metadata, 'r') as f:

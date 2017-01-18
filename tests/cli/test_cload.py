@@ -65,6 +65,9 @@ def test_cload():
             testcool_path
         ]
     )
+    # set_trace()
+    # import traceback
+    # traceback.print_tb(result.exc_info[2])
     assert result.exit_code == 0
 
     ref_path = op.join(testdir, 'data', 'GM12878-MboI-matrix.2000kb.cool')
