@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 from __future__ import division, print_function
-from multiprocessing import Pool
+from multiprocess import Pool
+
 import argparse
 import sys
 
