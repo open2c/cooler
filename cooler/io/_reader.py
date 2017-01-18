@@ -13,6 +13,7 @@ from contextlib import contextmanager
 from bisect import bisect_left
 from multiprocess import Pool
 import subprocess
+import itertools
 import warnings
 import json
 import sys
@@ -24,6 +25,7 @@ import pandas
 import h5py
 
 from ..util import rlencode, get_binsize
+from .. import api
 
 
 class ContactReader(object):
@@ -148,6 +150,7 @@ class HDF5Aggregator(ContactReader):
                 yield chunk
 
 
+# TODO: make choice of columns customizable
 class TabixAggregator(ContactReader):
     """
     Aggregate contacts from a sorted, BGZIP-compressed and tabix-indexed
@@ -236,7 +239,115 @@ class TabixAggregator(ContactReader):
                           .sort_values('bin2_id')
                 )
                 accumulator.clear()
-        #print(chrom, flush=True)
+        
+        return pandas.concat(rows, axis=0) if len(rows) else None
+    
+    def aggregate(self, map=map):
+        return map(self._aggregate, list(self.contigs))
+
+    def __iter__(self):
+        try:
+            pool = Pool(self.ncpus)
+            for df in self.aggregate(map=pool.imap):
+                if df is not None:
+                    yield {k: v.values for k, v in six.iteritems(df)}
+        finally:
+            pool.close()
+
+
+class PairixAggregator(ContactReader):
+    def __init__(self, filepath, chromsizes, bins, ncpus=8):
+        try:
+            import pypairix
+        except ImportError:
+            raise ImportError("pypairix is required to read pairix-indexed files")
+        
+        self.ncpus = ncpus
+        # chromosomes
+        self.chromsizes = chromsizes
+        self.idmap = pandas.Series(index=chromsizes.keys(), 
+                                   data=range(len(chromsizes)))
+        
+        # bins
+        n_bins = len(bins)
+        self.bins = bins
+        self.binsize = get_binsize(bins)
+        
+        # read pair records
+        self.contigs = chromsizes.keys()
+        self.n_records = None
+        self.filepath = filepath
+
+        f = pypairix.open(filepath, 'r')
+        file_contigs = set(
+            itertools.chain.from_iterable([b.split('|') for b in f.get_blocknames()]))
+        
+        for chrom in self.contigs:
+            if chrom not in file_contigs:
+                warnings.warn("Did not find contig '{}' in contact list file.".format(chrom))
+        
+        # chrom offset index: chrom_id -> offset in bins
+        cid_per_bin = self.idmap[bins['chrom']].values
+        nbins_per_chrom =  bins.groupby(cid_per_bin, sort=False).size()
+        self.chrom_abspos = dict(zip(self.contigs, np.r_[0, np.cumsum(chromsizes)][:-1]))
+        self.chrom_binoffset = dict(zip(self.contigs, np.r_[0, np.cumsum(nbins_per_chrom)][:-1]))
+    
+    def _size(self, block):
+        import pypairix
+        f = pypairix.open(self.filepath, 'r')
+        chrom1, chrom2 = block
+        return sum(1 for line in f.query2D(
+            chrom1, 0, self.chromsizes[chrom1],
+            chrom2, 0, self.chromsizes[chrom2]))
+    
+    def size(self):
+        if self.n_records is None:
+            blocks = itertools.combinations_with_replacement(self.contigs, 2)
+            try:
+                pool = Pool(self.ncpus)
+                self.n_records = sum(pool.map(self._size, blocks))
+            finally:
+                pool.close()
+        return self.n_records
+    
+    def _aggregate(self, chrom1):
+        import pypairix
+        filepath = self.filepath
+        binsize = self.binsize
+        chromsizes = self.chromsizes
+        chrom_binoffset = self.chrom_binoffset
+
+        rows = []
+
+        f = pypairix.open(filepath, 'r')
+        accumulator = Counter()
+        offset = chrom_binoffset[chrom1]
+        remaining = self.contigs[list(self.contigs).index(chrom1):]
+
+        for start1 in range(0, chromsizes[chrom1], binsize):
+            for chrom2 in remaining:
+                chrom2_size = chromsizes[chrom2]
+                bin1_id = offset + (start1 // binsize)
+                for line in f.query2D(
+                        chrom1, start1, start1 + binsize,
+                        chrom2, 0, chrom2_size):
+                    pos2 = int(line[3])
+                    bin2_id = chrom_binoffset[chrom2] + (pos2 // binsize)
+                    accumulator[bin2_id] += 1
+            if not accumulator:
+                continue
+            rows.append(
+                pandas.DataFrame({
+                    'bin1_id': bin1_id,
+                    'bin2_id': list(accumulator.keys()),
+                    'count':   list(accumulator.values())},
+                    columns=['bin1_id', 'bin2_id', 'count'])
+                      .sort_values('bin2_id')
+            )
+            accumulator.clear()
+        
+        print(chrom1, chrom2, flush=True)
+
         return pandas.concat(rows, axis=0) if len(rows) else None
     
     def aggregate(self, map=map):
