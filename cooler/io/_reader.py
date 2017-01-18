@@ -25,7 +25,6 @@ import pandas
 import h5py
 
 from ..util import rlencode, get_binsize
-from .. import api
 
 
 class ContactReader(object):
