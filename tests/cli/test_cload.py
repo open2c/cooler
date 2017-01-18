@@ -11,10 +11,10 @@ import numpy as np
 import h5py
 
 import nose
-from nose.tools import with_setup
+from nose.tools import with_setup, set_trace
 from click.testing import CliRunner
 
-from cooler.cli.cload import cload
+from cooler.cli.cload import cload, tabix as cload_tabix
 from cooler.cli.csort import csort
 
 
@@ -59,7 +59,7 @@ def test_csort():
 def test_cload():
     runner = CliRunner()
     result = runner.invoke(
-        cload, [
+        cload_tabix, [
             op.join(testdir, 'data', 'hg19-bins.2000kb.bed.gz'),
             op.join(testdir, 'data', 'GM12878-MboI-contacts.subsample.sorted.txt.gz'),
             testcool_path

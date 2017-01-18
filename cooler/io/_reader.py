@@ -150,6 +150,7 @@ class HDF5Aggregator(ContactReader):
                 yield chunk
 
 
+# TODO: make choice of columns customizable
 class TabixAggregator(ContactReader):
     """
     Aggregate contacts from a sorted, BGZIP-compressed and tabix-indexed
@@ -224,7 +225,7 @@ class TabixAggregator(ContactReader):
             for start1 in range(0, chromsizes[chrom], binsize):
                 bin1_id = offset + (start1 // binsize)
                 for line in f.fetch(chrom, start1, start1 + binsize, parser=parser):
-                    chrom2, pos2 = line[2], int(line[3])
+                    chrom2, pos2 = line[3], int(line[4])
                     bin2_id = chrom_binoffset[chrom2] + (pos2 // binsize)
                     accumulator[bin2_id] += 1
                 if not accumulator:
@@ -238,7 +239,7 @@ class TabixAggregator(ContactReader):
                           .sort_values('bin2_id')
                 )
                 accumulator.clear()
-        print(chrom, flush=True)
+        
         return pandas.concat(rows, axis=0) if len(rows) else None
     
     def aggregate(self, map=map):

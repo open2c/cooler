@@ -8,8 +8,9 @@ import six
 import numpy as np
 import h5py
 
-from ._reader import (ContactReader, HDF5Aggregator, TabixAggregator, CoolerAggregator,
-                      SparseLoader, DenseLoader)
+from ._reader import (ContactReader, HDF5Aggregator, TabixAggregator,
+                      PairixAggregator, CoolerAggregator, SparseLoader, 
+                      DenseLoader)
 from ._writer import write_chroms, write_bins, write_pixels, write_indexes, write_info
 from ..util import get_binsize
 
