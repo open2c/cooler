@@ -6,7 +6,7 @@ import sys
 
 import numpy as np
 from cooler.io import CoolerAggregator
-import cooler.ice
+
 import cooler
 import h5py
 
