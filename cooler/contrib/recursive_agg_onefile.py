@@ -16,7 +16,7 @@ TILESIZE = 256
 N_CPU = 8
 
 
-def main(infile, outfile, chunksize):
+def main(infile, outfile, chunksize, use_pool):
     c = cooler.Cooler(infile)
     binsize = c.info['bin-size']
     chromtable = c.chroms()[:]
@@ -38,7 +38,7 @@ def main(infile, outfile, chunksize):
     try:
         # If using HDF5 file in a process pool, fork before opening
         pool = Pool(N_CPU)
-        
+
         print('n_zooms:', n_zooms, file=sys.stderr)
 
         # transfer base matrix
@@ -51,13 +51,13 @@ def main(infile, outfile, chunksize):
             binsize = src.attrs['bin-size']
             dest.attrs[str(n_zooms)] = binsize
             dest.attrs['max-zoom'] = n_zooms
-            
+
             print("ZoomLevel:", zoomLevel, binsize, file=sys.stderr)
             new_binsize = binsize
-        
+
         with h5py.File(outfile, 'r+') as f:
             # aggregate
-            for i in range(n_zooms - 1, -1, -1):    
+            for i in range(n_zooms - 1, -1, -1):
 
                 new_binsize *= FACTOR
                 new_bins = cooler.util.binnify(chromsizes, new_binsize)
@@ -65,20 +65,26 @@ def main(infile, outfile, chunksize):
                 prevLevel = str(i+1)
                 zoomLevel = str(i)
                 print("ZoomLevel:", zoomLevel, new_binsize, file=sys.stderr)
-                
+
                 c = cooler.Cooler(f[prevLevel])
-                reader = CoolerAggregator(c, new_bins, chunksize, map=pool.imap)
+
+                if use_pool:
+                    reader = CoolerAggregator(
+                        c, new_bins, chunksize, map=pool.imap)
+                else:
+                    reader = CoolerAggregator(c, new_bins, chunksize)
+
                 cooler.io.create(f.create_group(zoomLevel), chroms, lengths, new_bins, reader)
                 f.attrs[zoomLevel] = new_binsize
                 f.flush()
-        
+
         with h5py.File(outfile, 'r+') as f:
             # balance
             for i in range(n_zooms - 1, -1, -1):
                 zoomLevel = str(i)
                 grp = f[zoomLevel]
                 binsize = f.attrs[zoomLevel]
-                
+
                 # balance
                 too_close = 10000  # for HindIII
                 # too_close = 1000  # for DpnII
@@ -95,7 +101,7 @@ def main(infile, outfile, chunksize):
                 h5opts = dict(compression='gzip', compression_opts=6)
                 grp['bins'].create_dataset('weight', data=bias, **h5opts)
                 grp['bins']['weight'].attrs.update(stats)
-                
+
     finally:
         pool.close()
 
@@ -110,6 +116,10 @@ if __name__ == '__main__':
     parser.add_argument(
         "--out", "-o",
         help="Output file")
+    parser.add_argument(
+        "--use_pool", "-p",
+        help="Whether to use a process pool or not",
+        default=True)
     args = vars(parser.parse_args())
 
 
@@ -120,4 +130,4 @@ if __name__ == '__main__':
         outfile = args['out']
 
     chunksize = int(10e6)
-    main(infile, outfile, chunksize)
+    main(infile, outfile, chunksize, args["use_pool"])
