@@ -14,10 +14,9 @@ import h5py
 
 FACTOR = 2
 TILESIZE = 256
-N_CPU = 8
 
 
-def main(infile, outfile, chunksize, use_pool):
+def main(infile, outfile, chunksize, n_cpus):
     c = cooler.Cooler(infile)
     binsize = c.info['bin-size']
     chromtable = c.chroms()[:]
@@ -35,10 +34,9 @@ def main(infile, outfile, chunksize, use_pool):
         file=sys.stderr
     )
 
-
     try:
         # If using HDF5 file in a process pool, fork before opening
-        pool = Pool(N_CPU)
+        pool = Pool(n_cpus)
 
         print('n_zooms:', n_zooms, file=sys.stderr)
 
@@ -69,11 +67,7 @@ def main(infile, outfile, chunksize, use_pool):
 
                 c = cooler.Cooler(f[prevLevel])
 
-                if use_pool:
-                    reader = CoolerAggregator(
-                        c, new_bins, chunksize, map=pool.imap)
-                else:
-                    reader = CoolerAggregator(c, new_bins, chunksize)
+                reader = CoolerAggregator(c, new_bins, chunksize, map=pool.imap)
 
                 cooler.io.create(f.create_group(zoomLevel), chroms, lengths, new_bins, reader)
                 f.attrs[zoomLevel] = new_binsize
@@ -104,7 +98,16 @@ def main(infile, outfile, chunksize, use_pool):
                 grp['bins']['weight'].attrs.update(stats)
 
     finally:
-        pool.close()
+            pool.close()
+
+
+def check_ncpus(arg_value):
+    arg_value = int(arg_value)
+
+    if arg_value <= 0:
+        raise argparse.ArgumentTypeError("n_cpus must be >= 1")
+    else:
+        return arg_value
 
 
 if __name__ == '__main__':
@@ -118,11 +121,11 @@ if __name__ == '__main__':
         "--out", "-o",
         help="Output file")
     parser.add_argument(
-        "--use_pool", "-p",
-        help="Whether to use a process pool or not",
-        default=True)
+        "--n_cpus", "-n",
+        help="Number of cpus to use in process pool",
+        default=1,
+        type=check_ncpus)
     args = vars(parser.parse_args())
-
 
     infile = args['cooler_file']
     if args['out'] is None:
@@ -131,4 +134,4 @@ if __name__ == '__main__':
         outfile = args['out']
 
     chunksize = int(10e6)
-    main(infile, outfile, chunksize, args["use_pool"])
+    main(infile, outfile, chunksize, args["n_cpus"])
