@@ -97,6 +97,9 @@ def main(infile, outfile, chunksize, n_cpus):
                 grp['bins'].create_dataset('weight', data=bias, **h5opts)
                 grp['bins']['weight'].attrs.update(stats)
 
+    except Exception as e:
+        print(e)
+
     finally:
             pool.close()
 
