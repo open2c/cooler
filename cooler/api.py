@@ -154,6 +154,16 @@ class Cooler(object):
         with open_hdf5(self.fp, **self.kwargs) as h5:
             return h5['indexes'][name][:]
 
+    @property
+    def chromsizes(self):
+        """ Ordered mapping of reference sequences to their lengths in bp """
+        return self._chromsizes
+
+    @property
+    def chromnames(self):
+        """ List of reference sequence names """
+        return list(self._chromsizes.index)
+
     def offset(self, region):
         """ Bin ID containing the left end of a genomic region
 
