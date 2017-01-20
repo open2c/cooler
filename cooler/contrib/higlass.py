@@ -22,9 +22,9 @@ def annotate(pixels, bins, replace=True):
             lo = 0 if np.isnan(lo) else lo
             hi = 0 if np.isnan(hi) else hi
             right = bins[lo:hi]
-            right['chrom'] = right['chrom'].cat.codes
         else:
             right = bins[:]
+        right['chrom'] = right['chrom'].cat.codes
 
         pixels = pixels.merge(
             right,
@@ -40,9 +40,9 @@ def annotate(pixels, bins, replace=True):
             lo = 0 if np.isnan(lo) else lo
             hi = 0 if np.isnan(hi) else hi
             right = bins[lo:hi]
-            right['chrom'] = right['chrom'].cat.codes
         else:
             right = bins[:]
+        right['chrom'] = right['chrom'].cat.codes
 
         pixels = pixels.merge(
             right,
