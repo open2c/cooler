@@ -54,7 +54,8 @@ def main(infile, outfile, chunksize, n_cpus):
             print("ZoomLevel:", zoomLevel, binsize, file=sys.stderr)
             new_binsize = binsize
 
-        with h5py.File(outfile, 'r+') as f:
+        with h5py.File(outfile, 'r+') as fw, \
+             h5py.File(outfile, 'r') as fr:
             # aggregate
             for i in range(n_zooms - 1, -1, -1):
 
@@ -65,28 +66,27 @@ def main(infile, outfile, chunksize, n_cpus):
                 zoomLevel = str(i)
                 print("ZoomLevel:", zoomLevel, new_binsize, file=sys.stderr)
 
-                c = cooler.Cooler(f[prevLevel])
+                c = cooler.Cooler(fr[prevLevel])
 
                 reader = CoolerAggregator(c, new_bins, chunksize, map=pool.imap)
 
-                cooler.io.create(f.create_group(zoomLevel), chroms, lengths, new_bins, reader)
+                cooler.io.create(fw.create_group(zoomLevel), chroms, lengths, new_bins, reader)
                 f.attrs[zoomLevel] = new_binsize
                 f.flush()
 
-        with h5py.File(outfile, 'r+') as f:
+        with h5py.File(outfile, 'r+') as fw, \
+             h5py.File(outfile, 'r') as fr:
             # balance
             for i in range(n_zooms - 1, -1, -1):
                 zoomLevel = str(i)
-                grp = f[zoomLevel]
-                binsize = f.attrs[zoomLevel]
-
-                # balance
+                
+                binsize = fr.attrs[zoomLevel]
                 too_close = 10000  # for HindIII
                 # too_close = 1000  # for DpnII
                 ignore_diags = 1 + int(np.ceil(too_close / binsize))
 
                 bias, stats = cooler.ice.iterative_correction(
-                    f, zoomLevel,
+                    fr, zoomLevel,
                     chunksize=chunksize,
                     min_nnz=10,
                     mad_max=0,
@@ -94,6 +94,8 @@ def main(infile, outfile, chunksize, n_cpus):
                     normalize_marginals=True,
                     map=pool.map)
                 h5opts = dict(compression='gzip', compression_opts=6)
+
+                grp = fw[zoomLevel]
                 grp['bins'].create_dataset('weight', data=bias, **h5opts)
                 grp['bins']['weight'].attrs.update(stats)
 
