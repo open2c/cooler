@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 from __future__ import division, print_function
 from multiprocess import Pool
+import tempfile
 
 import argparse
 import sys
@@ -35,6 +36,9 @@ def main(infile, outfile, chunksize, n_cpus):
     )
 
     try:
+        # Le sigh
+        tmp = tempfile.NamedTemporaryFile()
+
         # If using HDF5 file in a process pool, fork before opening
         pool = Pool(n_cpus)
 
@@ -54,32 +58,34 @@ def main(infile, outfile, chunksize, n_cpus):
             print("ZoomLevel:", zoomLevel, binsize, file=sys.stderr)
             new_binsize = binsize
 
-        with h5py.File(outfile, 'r+') as fw, \
-             h5py.File(outfile, 'r') as fr:
-            # aggregate
-            for i in range(n_zooms - 1, -1, -1):
+        # aggregate
+        for i in range(n_zooms - 1, -1, -1):
 
-                new_binsize *= FACTOR
-                new_bins = cooler.util.binnify(chromsizes, new_binsize)
+            new_binsize *= FACTOR
+            new_bins = cooler.util.binnify(chromsizes, new_binsize)
 
-                prevLevel = str(i+1)
-                zoomLevel = str(i)
-                print("ZoomLevel:", zoomLevel, new_binsize, file=sys.stderr)
+            prevLevel = str(i+1)
+            zoomLevel = str(i)
+            print("ZoomLevel:", zoomLevel, new_binsize, file=sys.stderr)
+
+            with h5py.File(tmp.name, 'w') as fw, \
+                 h5py.File(outfile, 'r') as fr:
 
                 c = cooler.Cooler(fr[prevLevel])
-
                 reader = CoolerAggregator(c, new_bins, chunksize, map=pool.imap)
-
                 cooler.io.create(fw.create_group(zoomLevel), chroms, lengths, new_bins, reader)
-                f.attrs[zoomLevel] = new_binsize
-                f.flush()
-
-        with h5py.File(outfile, 'r+') as fw, \
-             h5py.File(outfile, 'r') as fr:
-            # balance
-            for i in range(n_zooms - 1, -1, -1):
-                zoomLevel = str(i)
                 
+            with h5py.File(outfile, 'w') as dest, \
+                 h5py.File(tmp.name, 'r') as src:
+
+                src.copy(zoomLevel, dest, zoomLevel)
+                dest.attrs[zoomLevel] = new_binsize
+
+        # balance
+        for i in range(n_zooms - 1, -1, -1):
+            zoomLevel = str(i)
+
+            with h5py.File(outfile, 'r') as fr:
                 binsize = fr.attrs[zoomLevel]
                 too_close = 10000  # for HindIII
                 # too_close = 1000  # for DpnII
@@ -93,14 +99,16 @@ def main(infile, outfile, chunksize, n_cpus):
                     ignore_diags=ignore_diags,
                     normalize_marginals=True,
                     map=pool.map)
+            
+            with h5py.File(outfile, 'r+') as fw:
                 h5opts = dict(compression='gzip', compression_opts=6)
-
                 grp = fw[zoomLevel]
                 grp['bins'].create_dataset('weight', data=bias, **h5opts)
                 grp['bins']['weight'].attrs.update(stats)
 
     finally:
             pool.close()
+            tmp.close()
 
 
 def check_ncpus(arg_value):
