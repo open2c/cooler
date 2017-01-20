@@ -92,7 +92,7 @@ def main(infile, outfile, chunksize, n_cpus, too_close=10000):
                 fr, zoomLevel,
                 chunksize=chunksize,
                 min_nnz=10,
-                mad_max=0,
+                mad_max=3,
                 ignore_diags=ignore_diags,
                 normalize_marginals=True,
                 map=pool.map)
