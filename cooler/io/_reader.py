@@ -373,11 +373,13 @@ class CoolerAggregator(ContactReader):
         self.cooler_path = cooler_path
         self.cooler_root = cooler_root
         with h5py.File(self.cooler_path, 'r') as h5:
-            self._size = h5.attrs['nnz']
-            chroms, lengths = h5['chroms/name'][:], h5['chroms/length'][:]
-            self.old_chrom_offset = h5['indexes/chrom_offset'][:]
-            self.old_bin1_offset = h5['indexes/bin1_offset'][:]
-            self.old_binsize = h5.attrs['bin-size']
+            grp = h5[cooler_root]
+            self._size = grp.attrs['nnz']
+            chroms = grp['chroms/name'][:].astype('U')
+            lengths = grp['chroms/length'][:]
+            self.old_chrom_offset = grp['indexes/chrom_offset'][:]
+            self.old_bin1_offset = grp['indexes/bin1_offset'][:]
+            self.old_binsize = grp.attrs['bin-size']
 
         self.new_binsize = get_binsize(bins)
         assert self.new_binsize % self.old_binsize == 0
@@ -451,7 +453,7 @@ class CoolerAggregator(ContactReader):
         factor = self.factor
         
         spans = []
-        for i, chrom in self.idmap.items():
+        for chrom, i in self.idmap.items():
             # it's important to extract some multiple of `factor` rows at a time
             c0, c1 = old_chrom_offset[i], old_chrom_offset[i+1]
             step = (chunksize // factor) * factor
@@ -460,7 +462,7 @@ class CoolerAggregator(ContactReader):
             spans.append(zip(edges[:-1], edges[1:]))
         spans = list(chain.from_iterable(spans))
         
-        for df in self.aggregate(spans):
+        for df in self._map(self._aggregate, spans):
             yield {k: v.values for k, v in six.iteritems(df)}
 
 

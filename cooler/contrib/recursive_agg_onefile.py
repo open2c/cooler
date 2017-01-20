@@ -17,7 +17,9 @@ FACTOR = 2
 TILESIZE = 256
 
 
-def main(infile, outfile, chunksize, n_cpus):
+def main(infile, outfile, chunksize, n_cpus, too_close=10000):
+    # too_close ~ 10000 for 6-cutter, ~1000 for 4-cutter
+
     c = cooler.Cooler(infile)
     binsize = c.info['bin-size']
     chromtable = c.chroms()[:]
@@ -35,73 +37,76 @@ def main(infile, outfile, chunksize, n_cpus):
         file=sys.stderr
     )
 
-    try:
-        # If using HDF5 file in a process pool, fork before opening
-        pool = Pool(n_cpus)
+    
+    # Note: If using HDF5 file in a process pool, fork before opening
 
-        print('n_zooms:', n_zooms, file=sys.stderr)
+    print('n_zooms:', n_zooms, file=sys.stderr)
 
-        # transfer base matrix
-        with h5py.File(infile, 'r') as src, \
-             h5py.File(outfile, 'w') as dest:
+    # transfer base matrix
+    with h5py.File(infile, 'r') as src, \
+         h5py.File(outfile, 'w') as dest:
 
-            zoomLevel = str(n_zooms)
-            src.copy('/', dest, zoomLevel)
+        zoomLevel = str(n_zooms)
+        src.copy('/', dest, zoomLevel)
 
-            binsize = src.attrs['bin-size']
-            dest.attrs[str(n_zooms)] = binsize
-            dest.attrs['max-zoom'] = n_zooms
+        binsize = src.attrs['bin-size']
+        dest.attrs[str(n_zooms)] = binsize
+        dest.attrs['max-zoom'] = n_zooms
 
-            print("ZoomLevel:", zoomLevel, binsize, file=sys.stderr)
-            new_binsize = binsize
+        print("ZoomLevel:", zoomLevel, binsize, file=sys.stderr)
+        new_binsize = binsize
 
-        # aggregate
-        for i in range(n_zooms - 1, -1, -1):
+    # aggregate
+    for i in range(n_zooms - 1, -1, -1):
 
-            new_binsize *= FACTOR
-            new_bins = cooler.util.binnify(chromsizes, new_binsize)
+        new_binsize *= FACTOR
+        new_bins = cooler.util.binnify(chromsizes, new_binsize)
 
-            prevLevel = str(i+1)
-            zoomLevel = str(i)
-            print("ZoomLevel:", zoomLevel, new_binsize, file=sys.stderr)
+        prevLevel = str(i+1)
+        zoomLevel = str(i)
+        print("ZoomLevel:", zoomLevel, new_binsize, file=sys.stderr)
 
+        try:
+            pool = Pool(n_cpus)
             with h5py.File(outfile, 'r+') as fw:
                 reader = CoolerAggregator(
                     outfile, 
                     new_bins, 
                     chunksize, 
-                    cooler_root= prevLevel, 
+                    cooler_root=prevLevel, 
                     map=pool.imap)
                 cooler.io.create(fw.create_group(zoomLevel), chroms, lengths, new_bins, reader)
                 fw.flush()
+        finally:
+            pool.close()
 
-        # balance
-        for i in range(n_zooms - 1, -1, -1):
-            zoomLevel = str(i)
+    # balance
+    for i in range(n_zooms - 1, -1, -1):
+        zoomLevel = str(i)
 
-            with h5py.File(outfile, 'r') as fr:
-                binsize = fr.attrs[zoomLevel]
-                too_close = 10000  # for HindIII
-                # too_close = 1000  # for DpnII
-                ignore_diags = 1 + int(np.ceil(too_close / binsize))
+        with h5py.File(outfile, 'r') as fr:
+            binsize = fr.attrs[zoomLevel]
+            ignore_diags = 1 + int(np.ceil(too_close / binsize))
 
-                bias, stats = cooler.ice.iterative_correction(
-                    fr, zoomLevel,
-                    chunksize=chunksize,
-                    min_nnz=10,
-                    mad_max=0,
-                    ignore_diags=ignore_diags,
-                    normalize_marginals=True,
-                    map=pool.map)
-            
+            bias, stats = cooler.ice.iterative_correction(
+                fr, zoomLevel,
+                chunksize=chunksize,
+                min_nnz=10,
+                mad_max=0,
+                ignore_diags=ignore_diags,
+                normalize_marginals=True,
+                map=pool.map)
+        
+        try:
+            pool = Pool(n_cpus)
             with h5py.File(outfile, 'r+') as fw:
                 h5opts = dict(compression='gzip', compression_opts=6)
                 grp = fw[zoomLevel]
                 grp['bins'].create_dataset('weight', data=bias, **h5opts)
                 grp['bins']['weight'].attrs.update(stats)
-
-    finally:
+        finally:
             pool.close()
+
 
 
 def check_ncpus(arg_value):
