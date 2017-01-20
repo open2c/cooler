@@ -367,28 +367,25 @@ class CoolerAggregator(ContactReader):
     Aggregate contacts from an existing Cooler file.
 
     """
-    def __init__(self, cool, bins, chunksize, map=map):
+    def __init__(self, cooler_path, bins, chunksize, cooler_root="/", map=map):
         self._map = map
-        self._cool = cool
         
-        self._size = cool.info['nnz']
-        self.cooler_path = cool.fp.file.filename
-        self.cooler_root = cool.fp.name
-        
-        #self.new_bins = bins
-        self.new_binsize = get_binsize(bins)
-        self.old_binsize = cool.info['bin-size']
+        self.cooler_path = cooler_path
+        self.cooler_root = cooler_root
+        with h5py.File(self.cooler_path, 'r') as h5:
+            self._size = h5.attrs['nnz']
+            chroms, lengths = h5['chroms/name'][:], h5['chroms/length'][:]
+            self.old_chrom_offset = h5['indexes/chrom_offset'][:]
+            self.old_bin1_offset = h5['indexes/bin1_offset'][:]
+            self.old_binsize = h5.attrs['bin-size']
 
+        self.new_binsize = get_binsize(bins)
         assert self.new_binsize % self.old_binsize == 0
         self.factor = self.new_binsize // self.old_binsize
-
         self.chunksize = chunksize
-        self.bin1_offset = cool._get_index('bin1_offset')
-
-        # convert genomic coords of bin starts to absolute
-        self.chroms = chroms = cool.chroms()['name'][:].values
-        lengths = cool.chroms()['length'][:].values
-
+        #self.new_bins = bins
+        
+        self.chroms = chroms
         self.idmap = pandas.Series(index=chroms, data=range(len(chroms)))
         bin_chrom_ids = self.idmap[bins['chrom']].values
         self.cumul_length = np.r_[0, np.cumsum(lengths)]
@@ -403,7 +400,6 @@ class CoolerAggregator(ContactReader):
     def __getstate__(self):
         d = self.__dict__.copy()
         d.pop('_map', None)
-        d.pop('_cool', None)
         return d
     
     def _aggregate(self, span):
@@ -411,6 +407,7 @@ class CoolerAggregator(ContactReader):
         lo, hi = span
         print(lo, hi)
 
+        # XXX - if necessary, put locks here
         with h5py.File(self.cooler_path, 'r') as h5:
             table = Cooler(h5[self.cooler_root]).pixels(join=True)
             chunk = table[lo:hi]
@@ -448,17 +445,18 @@ class CoolerAggregator(ContactReader):
 
     def __iter__(self):
         from itertools import chain
-        bin1_offset = self.bin1_offset
+        old_chrom_offset = self.old_chrom_offset
+        old_bin1_offset = self.old_bin1_offset
         chunksize = self.chunksize
         factor = self.factor
         
         spans = []
-        for chrom in self.idmap.keys():
+        for i, chrom in self.idmap.items():
             # it's important to extract some multiple of `factor` rows at a time
-            c0, c1 = self._cool.extent(chrom)
+            c0, c1 = old_chrom_offset[i], old_chrom_offset[i+1]
             step = (chunksize // factor) * factor
-            edges = np.arange(bin1_offset[c0], bin1_offset[c1]+step, step)
-            edges[-1] = bin1_offset[c1]
+            edges = np.arange(old_bin1_offset[c0], old_bin1_offset[c1]+step, step)
+            edges[-1] = old_bin1_offset[c1]
             spans.append(zip(edges[:-1], edges[1:]))
         spans = list(chain.from_iterable(spans))
         

@@ -36,17 +36,14 @@ def main(infile, outfile, chunksize, n_cpus):
     )
 
     try:
-        # Le sigh
-        tmp = tempfile.NamedTemporaryFile()
-
         # If using HDF5 file in a process pool, fork before opening
         pool = Pool(n_cpus)
 
         print('n_zooms:', n_zooms, file=sys.stderr)
 
         # transfer base matrix
-        with h5py.File(outfile, 'w') as dest, \
-             h5py.File(infile, 'r') as src:
+        with h5py.File(infile, 'r') as src, \
+             h5py.File(outfile, 'w') as dest:
 
             zoomLevel = str(n_zooms)
             src.copy('/', dest, zoomLevel)
@@ -68,18 +65,15 @@ def main(infile, outfile, chunksize, n_cpus):
             zoomLevel = str(i)
             print("ZoomLevel:", zoomLevel, new_binsize, file=sys.stderr)
 
-            with h5py.File(tmp.name, 'w') as fw, \
-                 h5py.File(outfile, 'r') as fr:
-
-                c = cooler.Cooler(fr[prevLevel])
-                reader = CoolerAggregator(c, new_bins, chunksize, map=pool.imap)
+            with h5py.File(outfile, 'r+') as fw:
+                reader = CoolerAggregator(
+                    outfile, 
+                    new_bins, 
+                    chunksize, 
+                    cooler_root= prevLevel, 
+                    map=pool.imap)
                 cooler.io.create(fw.create_group(zoomLevel), chroms, lengths, new_bins, reader)
-                
-            with h5py.File(outfile, 'w') as dest, \
-                 h5py.File(tmp.name, 'r') as src:
-
-                src.copy(zoomLevel, dest, zoomLevel)
-                dest.attrs[zoomLevel] = new_binsize
+                fw.flush()
 
         # balance
         for i in range(n_zooms - 1, -1, -1):
@@ -108,7 +102,6 @@ def main(infile, outfile, chunksize, n_cpus):
 
     finally:
             pool.close()
-            tmp.close()
 
 
 def check_ncpus(arg_value):
