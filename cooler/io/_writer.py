@@ -162,6 +162,7 @@ def write_pixels(grp, n_bins, reader, h5opts):
         bin2[nnz:nnz+n] = chunk['bin2_id']
         count[nnz:nnz+n] = chunk['count']
         nnz += n
+        grp.file.flush()
 
     # Index the first axis (matrix row) offsets
     bin1_offset = np.zeros(n_bins + 1, dtype=BIN1OFFSET_DTYPE)
