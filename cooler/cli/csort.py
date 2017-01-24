@@ -10,6 +10,12 @@ import click
 from . import cli
 from ..util import cmd_exists
 
+try:
+    from subprocess import DEVNULL  # py3
+except ImportError:
+    import os
+    DEVNULL = open(os.devnull, 'wb')
+
 
 AWK_TEMPLATE = """\
 BEGIN {{
@@ -160,9 +166,9 @@ def csort(chromsizes_path, pairs_path, chrom1, pos1, strand1, chrom2, pos2,
     if sort_options is not None:
         sort_options = shlex.split(sort_options)
     elif subprocess.call(['sort', '--parallel=1'],
-                         stdin=subprocess.DEVNULL, 
-                         stdout=subprocess.DEVNULL,
-                         stderr=subprocess.DEVNULL) == 0:
+                         stdin=DEVNULL, 
+                         stdout=DEVNULL,
+                         stderr=DEVNULL) == 0:
         sort_options = [
             '--parallel={}'.format(nproc//2), 
             '--buffer-size=1G'
