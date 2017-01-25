@@ -8,6 +8,7 @@ mock==2.0.0
 click==6.6
 biopython==1.66
 pyfaidx==0.4.7.1
+future==0.16.0
 
 # Unreleased Multiprocess hotfix See: http://bit.ly/2k1tHiq
 -e git://github.com/uqfoundation/multiprocess@02c1480e3e0a8d6740a2234f1f757d8d90dc7705#egg=multiprocess
