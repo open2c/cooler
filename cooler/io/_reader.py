@@ -8,6 +8,7 @@ binned contacts.
 
 """
 from __future__ import division, print_function
+from future.utils import iteritems
 from collections import OrderedDict, Counter
 from contextlib import contextmanager
 from bisect import bisect_left
@@ -453,7 +454,7 @@ class CoolerAggregator(ContactReader):
         factor = self.factor
 
         spans = []
-        for chrom, i in self.idmap.iteritems():
+        for chrom, i in iteritems(self.idmap):
             # it's important to extract some multiple of `factor` rows at a time
             c0, c1 = old_chrom_offset[i], old_chrom_offset[i+1]
             step = (chunksize // factor) * factor
