@@ -10,6 +10,12 @@ import click
 from . import cli
 from ..util import cmd_exists
 
+try:
+    from subprocess import DEVNULL  # py3
+except ImportError:
+    import os
+    DEVNULL = open(os.devnull, 'wb')
+
 
 AWK_TEMPLATE = """\
 BEGIN {{
@@ -36,9 +42,11 @@ BEGIN {{
 @cli.command()
 @click.argument(
     "chromsizes_path",
+    type=click.Path(exists=True),
     metavar="CHROMSIZES_PATH")
 @click.argument(
     "pairs_path",
+    type=click.Path(exists=True),
     metavar="PAIRS_PATH")
 @click.option(
     "--chrom1", "-c1",
@@ -71,7 +79,7 @@ BEGIN {{
     default=8)
 @click.option(
     "--sort-options",
-    help="sort options",
+    help="quoted list of options to `sort`",
     type=str)
 @click.option(
     "--out", "-o",
@@ -106,28 +114,42 @@ def csort(chromsizes_path, pairs_path, chrom1, pos1, strand1, chrom2, pos2,
     [*] Tabix manpage: <http://www.htslib.org/doc/tabix.html>.
 
     """
-    if not os.path.exists(chromsizes_path):
-        print('Path "{}" not found'.format(chromsizes_path), file=sys.stderr)
-        sys.exit(1)
-
-    if not os.path.exists(pairs_path):
-        print('Path "{}" not found'.format(pairs_path), file=sys.stderr)
-        sys.exit(1)
-
-    for tool in ['awk', 'sort', 'pigz', 'tabix', 'bgzip']:
+    # Check for required Unix tools
+    for tool in ['awk', 'sort', 'tabix', 'bgzip']:
         if not cmd_exists(tool):
             print('Command {} not found'.format(tool), file=sys.stderr)
             sys.exit(1)
 
+    # If output path is not given, produce output path by stripping any .txt,
+    # .gz or .txt.gz extension from the input path and appending .sorted[.txt].gz
     infile = pairs_path
     if out is None:
-        if infile.endswith('.txt.gz'):
-            outfile = infile.replace('.txt.gz', '.sorted.txt.gz')
-        else:
-            outfile = infile + '.sorted.gz'
+        prefix = infile
+        ext = '.gz'
+        if prefix.endswith('.gz'):
+            prefix = op.splitext(prefix)[0]
+        if prefix.endswith('.txt'):
+            prefix = op.splitext(prefix)[0]
+            ext = '.txt.gz'
+        outfile = prefix + '.sorted' + ext
     else:
         outfile = out
 
+    # If input file appears gzipped based its extension, read using one of pigz 
+    # or gzip for decompression. Otherwise assume uncompressed and use cat.
+    ingzip = infile.endswith('.gz')
+    if ingzip:
+        if cmd_exists('pigz'):
+            read_cmd = ['pigz', '-p', str(nproc//2), '-dc',  infile]
+        elif cmd_exists('gzip'):
+            read_cmd = ['gzip', '-dc', infile]
+        else:
+            print('No gzip decompressor found.', file=sys.stderr)
+            sys.exit(1)
+    else:
+        read_cmd = ['cat', infile]
+
+    # Generate awk program to reorder paired ends.
     params = {
         'CHROMSIZES_FILE': chromsizes_path,
         'C1': chrom1,
@@ -137,28 +159,38 @@ def csort(chromsizes_path, pairs_path, chrom1, pos1, strand1, chrom2, pos2,
         'P2': pos2,
         'S2': strand2,
     }
-    triu_reorder = AWK_TEMPLATE.format(**params)
+    triu_reorder_cmd = ['awk', AWK_TEMPLATE.format(**params)]
 
+    # Generate sort command
     os.environ['LC_ALL'] = 'C'
-
     if sort_options is not None:
         sort_options = shlex.split(sort_options)
-    else:
+    elif subprocess.call(['sort', '--parallel=1'],
+                         stdin=DEVNULL, 
+                         stdout=DEVNULL,
+                         stderr=DEVNULL) == 0:
         sort_options = [
             '--parallel={}'.format(nproc//2), 
             '--buffer-size=1G'
         ]
+    else:
+        sort_options = []
+    sort_cmd = ['sort', '-k1,1', '-k2,2n', '-k4,4', '-k5,5n'] + sort_options
 
-    # Re-order reads, sort, then bgzip
+    # Run pipeline: re-order reads, sort, then bgzip
+    print("Reordering paired end fields and sorting...", file=sys.stderr)
+    print("Input: '{}'".format(infile), file=sys.stderr)
+    print("Output: '{}'".format(outfile), file=sys.stderr)
+    assert infile != outfile
     with open(outfile, 'wb') as f:
         p1 = subprocess.Popen(
-            ['pigz', '-p', str(nproc//2), '-dc',  infile],
+            read_cmd,
             stdout=subprocess.PIPE)
         p2 = subprocess.Popen(
-            ['awk', triu_reorder],
+            triu_reorder_cmd,
             stdin=p1.stdout, stdout=subprocess.PIPE)
         p3 = subprocess.Popen(
-            ['sort', '-k1,1', '-k2,2n', '-k4,4', '-k5,5n'] + sort_options,
+            sort_cmd,
             stdin=p2.stdout, stdout=subprocess.PIPE)
         p4 = subprocess.Popen(
             ['bgzip', '-c'],
@@ -166,5 +198,6 @@ def csort(chromsizes_path, pairs_path, chrom1, pos1, strand1, chrom2, pos2,
         p4.communicate()
 
     # Create tabix index file
+    print("Indexing...", file=sys.stderr)
     p5 = subprocess.Popen(['tabix', '-0', '-s1', '-b2', '-e2', outfile])
     p5.communicate()

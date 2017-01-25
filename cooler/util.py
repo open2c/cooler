@@ -7,6 +7,7 @@ import os
 
 import numpy as np
 import pandas
+import h5py
 
 
 def atoi(s):
@@ -362,6 +363,10 @@ def lexbisect(arrays, values, side='left', lo=0, hi=None):
     return lo
 
 
+def asarray_or_dataset(x):
+    return x if isinstance(x, h5py.Dataset) else np.asarray(x)
+
+
 def rlencode(array, chunksize=None):
     """
     Run length encoding.
@@ -381,7 +386,7 @@ def rlencode(array, chunksize=None):
 
     """
     where = np.flatnonzero
-    array = np.asarray(array)
+    array = asarray_or_dataset(array)
     n = len(array)
     if n == 0:
         return (np.array([], dtype=int),
