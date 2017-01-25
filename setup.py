@@ -51,7 +51,7 @@ install_requires = [
     'multiprocess',
     'biopython',
     'pyfaidx',
-    'future=0.16'
+    'future>=0.16'
 ]
 
 
