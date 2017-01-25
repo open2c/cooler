@@ -2,7 +2,6 @@
 from __future__ import division, print_function
 import multiprocess as mp
 from six.moves import map
-import tempfile
 import argparse
 import sys
 
