@@ -408,16 +408,16 @@ class CoolerAggregator(ContactReader):
         print(lo, hi)
 
         # XXX - if necessary, put locks here
-        # try:
-        #     lock.acquire()
-        with h5py.File(self.cooler_path, 'r') as h5:
-            table = Cooler(h5[self.cooler_root]).pixels(join=True)
-            chunk = table[lo:hi]
-            chunk['chrom1'] = pandas.Categorical(chunk['chrom1'], categories=self.chroms)
-            chunk['chrom2'] = pandas.Categorical(chunk['chrom2'], categories=self.chroms)
-            #print(lo, hi)
-        # finally:
-        #     lock.release()
+        try:
+            lock.acquire()
+            with h5py.File(self.cooler_path, 'r') as h5:
+                table = Cooler(h5[self.cooler_root]).pixels(join=True)
+                chunk = table[lo:hi]
+                chunk['chrom1'] = pandas.Categorical(chunk['chrom1'], categories=self.chroms)
+                chunk['chrom2'] = pandas.Categorical(chunk['chrom2'], categories=self.chroms)
+                #print(lo, hi)
+        finally:
+            lock.release()
 
         # use the "start" point as anchor for re-binning
         # XXX - alternatives: midpoint anchor, proportional re-binning
