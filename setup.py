@@ -50,8 +50,7 @@ install_requires = [
     'pysam>0.8',
     'multiprocess',
     'biopython',
-    'pyfaidx',
-    'future>=0.16'
+    'pyfaidx'
 ]
 
 
