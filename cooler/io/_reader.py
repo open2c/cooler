@@ -10,7 +10,7 @@ binned contacts.
 from __future__ import division, print_function
 from collections import OrderedDict, Counter
 from bisect import bisect_left
-from multiprocess import Pool
+from multiprocess import Pool, Lock
 import subprocess
 import itertools
 import warnings
@@ -21,6 +21,8 @@ import pandas
 import h5py
 
 from ..util import rlencode, get_binsize
+
+lock = Lock()
 
 
 class ContactReader(object):
@@ -406,12 +408,16 @@ class CoolerAggregator(ContactReader):
         print(lo, hi)
 
         # XXX - if necessary, put locks here
+        # try:
+        #     lock.acquire()
         with h5py.File(self.cooler_path, 'r') as h5:
             table = Cooler(h5[self.cooler_root]).pixels(join=True)
             chunk = table[lo:hi]
             chunk['chrom1'] = pandas.Categorical(chunk['chrom1'], categories=self.chroms)
             chunk['chrom2'] = pandas.Categorical(chunk['chrom2'], categories=self.chroms)
             #print(lo, hi)
+        # finally:
+        #     lock.release()
 
         # use the "start" point as anchor for re-binning
         # XXX - alternatives: midpoint anchor, proportional re-binning
@@ -438,8 +444,12 @@ class CoolerAggregator(ContactReader):
         grouped = chunk.groupby(['bin1_id', 'bin2_id'], sort=False)
         return grouped['count'].sum().reset_index()
 
-    def aggregate(self, spans):
-        return self._map(self._aggregate, spans)
+    def aggregate(self, span):
+        try:
+            chunk = self._aggregate(span)
+        except MemoryError as e:
+            raise RuntimeError(str(e))
+        return chunk
 
     def __iter__(self):
         from itertools import chain
@@ -458,7 +468,7 @@ class CoolerAggregator(ContactReader):
             spans.append(zip(edges[:-1], edges[1:]))
         spans = list(chain.from_iterable(spans))
 
-        for df in self._map(self._aggregate, spans):
+        for df in self._map(self.aggregate, spans):
             yield {k: v.values for k, v in six.iteritems(df)}
 
 
