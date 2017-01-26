@@ -9,17 +9,13 @@ binned contacts.
 """
 from __future__ import division, print_function
 from collections import OrderedDict, Counter
-from contextlib import contextmanager
 from bisect import bisect_left
 from multiprocess import Pool
 import subprocess
 import itertools
 import warnings
-import json
-import sys
 import six
 
-from pandas.algos import is_lexsorted
 import numpy as np
 import pandas
 import h5py
