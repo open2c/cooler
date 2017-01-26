@@ -10,7 +10,7 @@ binned contacts.
 from __future__ import division, print_function
 from collections import OrderedDict, Counter
 from bisect import bisect_left
-from multiprocess import Pool, Lock
+from multiprocess import Pool
 import subprocess
 import itertools
 import warnings
@@ -20,9 +20,7 @@ import numpy as np
 import pandas
 import h5py
 
-from ..util import rlencode, get_binsize
-
-lock = Lock()
+from ..util import rlencode, get_binsize, lock
 
 
 class ContactReader(object):
@@ -413,9 +411,11 @@ class CoolerAggregator(ContactReader):
             with h5py.File(self.cooler_path, 'r') as h5:
                 table = Cooler(h5[self.cooler_root]).pixels(join=True)
                 chunk = table[lo:hi]
-                chunk['chrom1'] = pandas.Categorical(chunk['chrom1'], categories=self.chroms)
-                chunk['chrom2'] = pandas.Categorical(chunk['chrom2'], categories=self.chroms)
-                #print(lo, hi)
+                chunk['chrom1'] = pandas.Categorical(chunk['chrom1'],
+                                                     categories=self.chroms)
+                chunk['chrom2'] = pandas.Categorical(chunk['chrom2'],
+                                                     categories=self.chroms)
+                # print(lo, hi)
         finally:
             lock.release()
 

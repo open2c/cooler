@@ -15,7 +15,7 @@ import pandas
 import h5py
 
 from .. import __version__, __format_version__
-from ..util import rlencode
+from ..util import rlencode, lock
 
 
 CHROM_DTYPE = np.dtype('S32')
@@ -156,13 +156,17 @@ def write_pixels(grp, n_bins, reader, h5opts):
     nnz = 0
     for chunk in reader:
         n = len(chunk['bin1_id'])
-        for dset in [bin1, bin2, count]:
-            dset.resize((nnz + n,))
-        bin1[nnz:nnz+n] = chunk['bin1_id']
-        bin2[nnz:nnz+n] = chunk['bin2_id']
-        count[nnz:nnz+n] = chunk['count']
-        nnz += n
-        grp.file.flush()
+        try:
+            lock.acquire()
+            for dset in [bin1, bin2, count]:
+                dset.resize((nnz + n,))
+            bin1[nnz:nnz + n] = chunk['bin1_id']
+            bin2[nnz:nnz + n] = chunk['bin2_id']
+            count[nnz:nnz + n] = chunk['count']
+            nnz += n
+            grp.file.flush()
+        finally:
+            lock.release()
 
     # Index the first axis (matrix row) offsets
     bin1_offset = np.zeros(n_bins + 1, dtype=BIN1OFFSET_DTYPE)
