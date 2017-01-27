@@ -113,7 +113,7 @@ def write_bins(grp, chroms, bins, h5opts):
     return chrom_offset
 
 
-def write_pixels(filename, group_name, n_bins, reader, h5opts):
+def write_pixels(filename, groupname, subgroupname, n_bins, reader, h5opts):
     """
     Write the non-zero pixel table.
 
@@ -137,7 +137,7 @@ def write_pixels(filename, group_name, n_bins, reader, h5opts):
 
 
     with h5py.File(filename, 'r+') as f:
-        grp = f[group_name]
+        grp = f[groupname][subgroupname]
 
         # Preallocate
         bin1 = grp.create_dataset('bin1_id',
@@ -164,7 +164,7 @@ def write_pixels(filename, group_name, n_bins, reader, h5opts):
         try:
             lock.acquire()
             with h5py.File(filename, 'r+') as f:
-                grp = f[group_name]
+                grp = f[groupname][subgroupname]
                 bin1 = grp['bin1_id']
                 bin2 = grp['bin2_id']
                 count = grp['count']
@@ -179,7 +179,7 @@ def write_pixels(filename, group_name, n_bins, reader, h5opts):
 
     # Index the first axis (matrix row) offsets
     with h5py.File(filename, 'r') as f:
-        grp = f[group_name]
+        grp = f[groupname][subgroupname]
         bin1 = grp['bin1_id']
         bin1_offset = np.zeros(n_bins + 1, dtype=BIN1OFFSET_DTYPE)
         curr_val = 0
