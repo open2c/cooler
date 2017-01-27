@@ -116,9 +116,9 @@ def aggregate(infile, outfile, n_zooms, chunksize, n_cpus):
                 cooler.io.create(
                     fw.create_group(zoomLevel),
                     chroms, lengths, new_bins, reader)
-
-                fw.attrs[zoomLevel] = new_binsize
-                fw.flush()
+                with h5py.File(outfile, 'r+') as fw:
+                    fw.attrs[zoomLevel] = new_binsize
+                    fw.flush()
         finally:
             if n_cpus > 1:
                 pool.close()
