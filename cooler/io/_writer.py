@@ -192,10 +192,10 @@ def write_indexes(grp, chrom_offset, bin1_offset, h5opts):
 
     """
     grp.create_dataset("chrom_offset",
-                       shape=(len(chrom_offset),), dtype=np.int32,
+                       shape=(len(chrom_offset),), dtype=CHROMOFFSET_DTYPE,
                        data=chrom_offset, **h5opts)
     grp.create_dataset("bin1_offset",
-                       shape=(len(bin1_offset),), dtype=np.int32,
+                       shape=(len(bin1_offset),), dtype=BIN1OFFSET_DTYPE,
                        data=bin1_offset, **h5opts)
 
 
