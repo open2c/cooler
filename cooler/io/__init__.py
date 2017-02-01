@@ -64,7 +64,12 @@ def create(h5, chroms, lengths, bins, reader, metadata=None, assembly=None, h5op
 
     print('pixels')
     grp = h5.create_group('pixels')
-    bin1_offset, nnz = write_pixels(grp, n_bins, reader, h5opts)
+
+    filename = h5.file.filename
+    groupname = h5.name
+    h5.file.close()
+    bin1_offset, nnz = write_pixels(filename, groupname, 'pixels', n_bins, reader, h5opts)
+    h5 = h5py.File(filename, 'r+')[groupname]
 
     print('indexes')
     grp = h5.create_group('indexes')
@@ -82,6 +87,8 @@ def create(h5, chroms, lengths, bins, reader, metadata=None, assembly=None, h5op
     if metadata is not None:
         info['metadata'] = metadata
     write_info(h5, info)
+
+    h5.file.close()
 
 
 @contextmanager

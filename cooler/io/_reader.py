@@ -9,22 +9,18 @@ binned contacts.
 """
 from __future__ import division, print_function
 from collections import OrderedDict, Counter
-from contextlib import contextmanager
 from bisect import bisect_left
 from multiprocess import Pool
 import subprocess
 import itertools
 import warnings
-import json
-import sys
 import six
 
-from pandas.algos import is_lexsorted
 import numpy as np
 import pandas
 import h5py
 
-from ..util import rlencode, get_binsize
+from ..util import rlencode, get_binsize, lock
 
 
 class ContactReader(object):
@@ -161,44 +157,44 @@ class TabixAggregator(ContactReader):
             import pysam
         except ImportError:
             raise ImportError("pysam is required to read tabix files")
-        
+
         self.ncpus = ncpus
         # chromosomes
         self.chromsizes = chromsizes
-        self.idmap = pandas.Series(index=chromsizes.keys(), 
+        self.idmap = pandas.Series(index=chromsizes.keys(),
                                    data=range(len(chromsizes)))
-        
+
         # bins
         n_bins = len(bins)
         self.bins = bins
         self.binsize = get_binsize(bins)
-        
+
         # read pair records
         self.contigs = chromsizes.keys()
         self.n_records = None
         self.filepath = filepath
-        
+
         with pysam.TabixFile(filepath, 'r', encoding='ascii') as f:
             try:
                 file_contigs = [c.decode('ascii') for c in f.contigs]
             except AttributeError:
                 file_contigs = f.contigs
-        
+
         for chrom in self.contigs:
             if chrom not in file_contigs:
                 warnings.warn("Did not find contig '{}' in contact list file.".format(chrom))
-        
+
         # chrom offset index: chrom_id -> offset in bins
         cid_per_bin = self.idmap[bins['chrom']].values
         nbins_per_chrom =  bins.groupby(cid_per_bin, sort=False).size()
         self.chrom_abspos = dict(zip(self.contigs, np.r_[0, np.cumsum(chromsizes)][:-1]))
         self.chrom_binoffset = dict(zip(self.contigs, np.r_[0, np.cumsum(nbins_per_chrom)][:-1]))
-    
+
     def _size(self, chrom):
         import pysam
         with pysam.TabixFile(self.filepath, 'r', encoding='ascii') as f:
             return sum(1 for line in f.fetch(chrom))
-    
+
     def size(self):
         if self.n_records is None:
             try:
@@ -207,20 +203,20 @@ class TabixAggregator(ContactReader):
             finally:
                 pool.close()
         return self.n_records
-    
+
     def _aggregate(self, chrom):
         import pysam
         filepath = self.filepath
         binsize = self.binsize
         chromsizes = self.chromsizes
         chrom_binoffset = self.chrom_binoffset
-        
+
         rows = []
         with pysam.TabixFile(filepath, 'r', encoding='ascii') as f:
             parser = pysam.asTuple()
             accumulator = Counter()
             offset = chrom_binoffset[chrom]
-            
+
             for start1 in range(0, chromsizes[chrom], binsize):
                 bin1_id = offset + (start1 // binsize)
                 for line in f.fetch(chrom, start1, start1 + binsize, parser=parser):
@@ -238,9 +234,9 @@ class TabixAggregator(ContactReader):
                           .sort_values('bin2_id')
                 )
                 accumulator.clear()
-        
+
         return pandas.concat(rows, axis=0) if len(rows) else None
-    
+
     def aggregate(self, map=map):
         return map(self._aggregate, list(self.contigs))
 
@@ -260,18 +256,18 @@ class PairixAggregator(ContactReader):
             import pypairix
         except ImportError:
             raise ImportError("pypairix is required to read pairix-indexed files")
-        
+
         self.ncpus = ncpus
         # chromosomes
         self.chromsizes = chromsizes
-        self.idmap = pandas.Series(index=chromsizes.keys(), 
+        self.idmap = pandas.Series(index=chromsizes.keys(),
                                    data=range(len(chromsizes)))
-        
+
         # bins
         n_bins = len(bins)
         self.bins = bins
         self.binsize = get_binsize(bins)
-        
+
         # read pair records
         self.contigs = chromsizes.keys()
         self.n_records = None
@@ -280,17 +276,17 @@ class PairixAggregator(ContactReader):
         f = pypairix.open(filepath, 'r')
         file_contigs = set(
             itertools.chain.from_iterable([b.split('|') for b in f.get_blocknames()]))
-        
+
         for chrom in self.contigs:
             if chrom not in file_contigs:
                 warnings.warn("Did not find contig '{}' in contact list file.".format(chrom))
-        
+
         # chrom offset index: chrom_id -> offset in bins
         cid_per_bin = self.idmap[bins['chrom']].values
         nbins_per_chrom =  bins.groupby(cid_per_bin, sort=False).size()
         self.chrom_abspos = dict(zip(self.contigs, np.r_[0, np.cumsum(chromsizes)][:-1]))
         self.chrom_binoffset = dict(zip(self.contigs, np.r_[0, np.cumsum(nbins_per_chrom)][:-1]))
-    
+
     def _size(self, block):
         import pypairix
         f = pypairix.open(self.filepath, 'r')
@@ -298,7 +294,7 @@ class PairixAggregator(ContactReader):
         return sum(1 for line in f.query2D(
             chrom1, 0, self.chromsizes[chrom1],
             chrom2, 0, self.chromsizes[chrom2]))
-    
+
     def size(self):
         if self.n_records is None:
             blocks = itertools.combinations_with_replacement(self.contigs, 2)
@@ -308,7 +304,7 @@ class PairixAggregator(ContactReader):
             finally:
                 pool.close()
         return self.n_records
-    
+
     def _aggregate(self, chrom1):
         import pypairix
         filepath = self.filepath
@@ -344,11 +340,11 @@ class PairixAggregator(ContactReader):
                       .sort_values('bin2_id')
             )
             accumulator.clear()
-        
+
         print(chrom1, chrom2, flush=True)
 
         return pandas.concat(rows, axis=0) if len(rows) else None
-    
+
     def aggregate(self, map=map):
         return map(self._aggregate, list(self.contigs))
 
@@ -369,7 +365,7 @@ class CoolerAggregator(ContactReader):
     """
     def __init__(self, cooler_path, bins, chunksize, cooler_root="/", map=map):
         self._map = map
-        
+
         self.cooler_path = cooler_path
         self.cooler_root = cooler_root
         with h5py.File(self.cooler_path, 'r') as h5:
@@ -386,7 +382,7 @@ class CoolerAggregator(ContactReader):
         self.factor = self.new_binsize // self.old_binsize
         self.chunksize = chunksize
         #self.new_bins = bins
-        
+
         self.chroms = chroms
         self.idmap = pandas.Series(index=chroms, data=range(len(chroms)))
         bin_chrom_ids = self.idmap[bins['chrom']].values
@@ -403,19 +399,25 @@ class CoolerAggregator(ContactReader):
         d = self.__dict__.copy()
         d.pop('_map', None)
         return d
-    
+
     def _aggregate(self, span):
         from ..api import Cooler
         lo, hi = span
         print(lo, hi)
 
         # XXX - if necessary, put locks here
-        with h5py.File(self.cooler_path, 'r') as h5:
-            table = Cooler(h5[self.cooler_root]).pixels(join=True)
-            chunk = table[lo:hi]
-            chunk['chrom1'] = pandas.Categorical(chunk['chrom1'], categories=self.chroms)
-            chunk['chrom2'] = pandas.Categorical(chunk['chrom2'], categories=self.chroms)
-            #print(lo, hi)
+        try:
+            lock.acquire()
+            with h5py.File(self.cooler_path, 'r') as h5:
+                table = Cooler(h5[self.cooler_root]).pixels(join=True)
+                chunk = table[lo:hi]
+                chunk['chrom1'] = pandas.Categorical(chunk['chrom1'],
+                                                     categories=self.chroms)
+                chunk['chrom2'] = pandas.Categorical(chunk['chrom2'],
+                                                     categories=self.chroms)
+                # print(lo, hi)
+        finally:
+            lock.release()
 
         # use the "start" point as anchor for re-binning
         # XXX - alternatives: midpoint anchor, proportional re-binning
@@ -442,8 +444,12 @@ class CoolerAggregator(ContactReader):
         grouped = chunk.groupby(['bin1_id', 'bin2_id'], sort=False)
         return grouped['count'].sum().reset_index()
 
-    def aggregate(self, spans):
-        return self._map(self._aggregate, spans)
+    def aggregate(self, span):
+        try:
+            chunk = self._aggregate(span)
+        except MemoryError as e:
+            raise RuntimeError(str(e))
+        return chunk
 
     def __iter__(self):
         from itertools import chain
@@ -451,9 +457,9 @@ class CoolerAggregator(ContactReader):
         old_bin1_offset = self.old_bin1_offset
         chunksize = self.chunksize
         factor = self.factor
-        
+
         spans = []
-        for chrom, i in self.idmap.items():
+        for chrom, i in six.iteritems(self.idmap):
             # it's important to extract some multiple of `factor` rows at a time
             c0, c1 = old_chrom_offset[i], old_chrom_offset[i+1]
             step = (chunksize // factor) * factor
@@ -461,8 +467,8 @@ class CoolerAggregator(ContactReader):
             edges[-1] = old_bin1_offset[c1]
             spans.append(zip(edges[:-1], edges[1:]))
         spans = list(chain.from_iterable(spans))
-        
-        for df in self._map(self._aggregate, spans):
+
+        for df in self._map(self.aggregate, spans):
             yield {k: v.values for k, v in six.iteritems(df)}
 
 

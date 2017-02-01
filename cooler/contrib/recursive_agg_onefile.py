@@ -2,7 +2,6 @@
 from __future__ import division, print_function
 import multiprocess as mp
 from six.moves import map
-import tempfile
 import argparse
 import sys
 
@@ -16,10 +15,54 @@ import cooler
 FACTOR = 2
 TILESIZE = 256
 
+def main():
+    parser = argparse.ArgumentParser(
+        description="Recursively aggregate a single resolution cooler file into a multi-resolution file.")
+    parser.add_argument(
+        "cooler_file",
+        help="Cooler file",
+        metavar="COOLER_PATH")
+    parser.add_argument(
+        "--out", "-o",
+        help="Output multires file")
+    parser.add_argument(
+        "--n_cpus", "-n",
+        help="Number of cpus to use in process pool (Default=1, i.e. no pool)",
+        default=1,
+        type=check_ncpus)
+    parser.add_argument(
+        "--chunk-size", "-c",
+        help="Chunk size",
+        default=int(10e6),
+        type=int)
+    args = vars(parser.parse_args())
+
+    infile = args['cooler_file']
+    if args['out'] is None:
+        outfile = infile.replace('.cool', '.multires.cool')
+    else:
+        outfile = args['out']
+    chunksize = args['chunk_size']
+    n_cpus = args['n_cpus']
+
+    with h5py.File(infile, 'r') as f:
+        binsize = cooler.info(f)['bin-size']
+        chromsizes = cooler.chroms(f).set_index('name')['length']
+    total_length = np.sum(chromsizes.values)
+    n_tiles = total_length / binsize / TILESIZE
+    n_zooms = int(np.ceil(np.log2(n_tiles)))
+
+    print("binsize:", binsize, file=sys.stderr)
+    print("total_length (bp):", total_length, file=sys.stderr)
+    print('n_tiles:', n_tiles, file=sys.stderr)
+    print('n_zooms:', n_zooms, file=sys.stderr)
+    aggregate(infile, outfile, n_zooms, chunksize, n_cpus)
+    balance(outfile, n_zooms, chunksize, n_cpus)
+
 
 def aggregate(infile, outfile, n_zooms, chunksize, n_cpus):
     """
-    Generate a multires cooler in 2X bin size increments from a base-level 
+    Generate a multires cooler in 2X bin size increments from a base-level
     resolution.
 
     """
@@ -64,18 +107,18 @@ def aggregate(infile, outfile, n_zooms, chunksize, n_cpus):
                 pool = mp.Pool(n_cpus)
             with h5py.File(outfile, 'r+') as fw:
                 reader = CoolerAggregator(
-                    outfile, 
-                    new_bins, 
-                    chunksize, 
-                    cooler_root=prevLevel, 
+                    outfile,
+                    new_bins,
+                    chunksize,
+                    cooler_root=prevLevel,
                     map=pool.imap if n_cpus > 1 else map)
-                
-                cooler.io.create(
-                    fw.create_group(zoomLevel), 
-                    chroms, lengths, new_bins, reader)
 
-                fw.attrs[zoomLevel] = new_binsize
-                fw.flush()
+                cooler.io.create(
+                    fw.create_group(zoomLevel),
+                    chroms, lengths, new_bins, reader)
+                with h5py.File(outfile, 'r+') as fw:
+                    fw.attrs[zoomLevel] = new_binsize
+                    fw.flush()
         finally:
             if n_cpus > 1:
                 pool.close()
@@ -91,7 +134,7 @@ def balance(outfile, n_zooms, chunksize, n_cpus, too_close=10000, include_base=F
     mad_max = 3
     too_close : use ~ 10000 for 6-cutter, ~1000 for 4-cutter
         (determines number of diagonals to ignore)
-    
+
     """
     print("Performing matrix balancing...", file=sys.stderr)
     if include_base:
@@ -120,7 +163,7 @@ def balance(outfile, n_zooms, chunksize, n_cpus, too_close=10000, include_base=F
                     map=pool.map if n_cpus > 1 else map)
             finally:
                 if n_cpus > 1:
-                    pool.close()       
+                    pool.close()
 
         with h5py.File(outfile, 'r+') as fw:
             h5opts = dict(compression='gzip', compression_opts=6)
@@ -129,7 +172,6 @@ def balance(outfile, n_zooms, chunksize, n_cpus, too_close=10000, include_base=F
                 'weight', bias.shape, bias.dtype, **h5opts)
             dset[:] = bias
             dset.attrs.update(stats)
-
 
 
 def check_ncpus(arg_value):
@@ -142,46 +184,4 @@ def check_ncpus(arg_value):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(
-        description="Recursively aggregate a single resolution cooler file into a multi-resolution file.")
-    parser.add_argument(
-        "cooler_file",
-        help="Cooler file",
-        metavar="COOLER_PATH")
-    parser.add_argument(
-        "--out", "-o",
-        help="Output multires file")
-    parser.add_argument(
-        "--n_cpus", "-n",
-        help="Number of cpus to use in process pool (Default=1, i.e. no pool)",
-        default=1,
-        type=check_ncpus)
-    parser.add_argument(
-        "--chunk-size", "-c",
-        help="Chunk size",
-        default=int(10e6),
-        type=int)
-    args = vars(parser.parse_args())
-
-
-    infile = args['cooler_file']
-    if args['out'] is None:
-        outfile = infile.replace('.cool', '.multires.cool')
-    else:
-        outfile = args['out']
-    chunksize = args['chunk_size']
-    n_cpus = args['n_cpus']
-
-    with h5py.File(infile, 'r') as f:
-        binsize = cooler.info(f)['bin-size']
-        chromsizes= cooler.chroms(f).set_index('name')['length']
-    total_length = np.sum(chromsizes.values)
-    n_tiles = total_length / binsize / TILESIZE
-    n_zooms = int(np.ceil(np.log2(n_tiles)))
-
-    print("binsize:", binsize, file=sys.stderr)
-    print("total_length (bp):", total_length, file=sys.stderr)
-    print('n_tiles:', n_tiles, file=sys.stderr)
-    print('n_zooms:', n_zooms, file=sys.stderr)
-    aggregate(infile, outfile, n_zooms, chunksize, n_cpus)
-    balance(outfile, n_zooms, chunksize, n_cpus)
+    main()

@@ -8,6 +8,7 @@ import os
 import numpy as np
 import pandas
 import h5py
+from multiprocess import Lock
 
 
 def atoi(s):
@@ -24,7 +25,7 @@ def parse_region_string(s):
         UCSC-style string, e.g. "chr5:10,100,000-30,000,000". Ensembl and FASTA
         style sequence names are allowed. End coordinate must be greater than or
         equal to start.
-    
+
     Returns
     -------
     (str, int or None, int or None)
@@ -104,7 +105,7 @@ def parse_region(reg, chromsizes=None):
         clen = chromsizes[chrom] if chromsizes is not None else None
     except KeyError:
         raise ValueError("Unknown sequence label: {}".format(chrom))
-    
+
     start = 0 if start is None else start
     if end is None:
         if clen is None:  # TODO --- remove?
@@ -113,11 +114,11 @@ def parse_region(reg, chromsizes=None):
 
     if end < start:
         raise ValueError("End cannot be less than start")
-    
+
     if start < 0 or (clen is not None and end > clen):
         raise ValueError(
             "Genomic region out of bounds: [{}, {})".format(start, end))
-    
+
     return chrom, start, end
 
 
@@ -417,3 +418,6 @@ def cmd_exists(cmd):
     return any(os.access(os.path.join(path, cmd), os.X_OK)
                 for path in os.environ['PATH'].split(os.pathsep))
 
+
+# this is a hack
+lock = Lock()

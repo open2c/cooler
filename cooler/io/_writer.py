@@ -15,7 +15,7 @@ import pandas
 import h5py
 
 from .. import __version__, __format_version__
-from ..util import rlencode
+from ..util import rlencode, lock
 
 
 CHROM_DTYPE = np.dtype('S32')
@@ -113,7 +113,7 @@ def write_bins(grp, chroms, bins, h5opts):
     return chrom_offset
 
 
-def write_pixels(grp, n_bins, reader, h5opts):
+def write_pixels(filename, groupname, subgroupname, n_bins, reader, h5opts):
     """
     Write the non-zero pixel table.
 
@@ -135,42 +135,58 @@ def write_pixels(grp, n_bins, reader, h5opts):
     init_size = min(5 * n_bins, n_pairs)
     max_size = min(n_pairs, n_bins * (n_bins - 1) // 2 + n_bins)
 
-    # Preallocate
-    bin1 = grp.create_dataset('bin1_id',
-                              dtype=BIN_DTYPE,
-                              shape=(init_size,),
-                              maxshape=(max_size,),
-                              **h5opts)
-    bin2 = grp.create_dataset('bin2_id',
-                              dtype=BIN_DTYPE,
-                              shape=(init_size,),
-                              maxshape=(max_size,),
-                              **h5opts)
-    count = grp.create_dataset('count',
-                              dtype=COUNT_DTYPE,
-                              shape=(init_size,),
-                              maxshape=(max_size,),
-                              **h5opts)
+
+    with h5py.File(filename, 'r+') as f:
+        grp = f[groupname][subgroupname]
+
+        # Preallocate
+        bin1 = grp.create_dataset('bin1_id',
+                                  dtype=BIN_DTYPE,
+                                  shape=(init_size,),
+                                  maxshape=(max_size,),
+                                  **h5opts)
+        bin2 = grp.create_dataset('bin2_id',
+                                  dtype=BIN_DTYPE,
+                                  shape=(init_size,),
+                                  maxshape=(max_size,),
+                                  **h5opts)
+        count = grp.create_dataset('count',
+                                  dtype=COUNT_DTYPE,
+                                  shape=(init_size,),
+                                  maxshape=(max_size,),
+                                  **h5opts)
+
 
     # Store the pixels
     nnz = 0
     for chunk in reader:
         n = len(chunk['bin1_id'])
-        for dset in [bin1, bin2, count]:
-            dset.resize((nnz + n,))
-        bin1[nnz:nnz+n] = chunk['bin1_id']
-        bin2[nnz:nnz+n] = chunk['bin2_id']
-        count[nnz:nnz+n] = chunk['count']
-        nnz += n
-        grp.file.flush()
+        try:
+            lock.acquire()
+            with h5py.File(filename, 'r+') as f:
+                grp = f[groupname][subgroupname]
+                bin1 = grp['bin1_id']
+                bin2 = grp['bin2_id']
+                count = grp['count']
+                for dset in [bin1, bin2, count]:
+                    dset.resize((nnz + n,))
+                bin1[nnz:nnz + n] = chunk['bin1_id']
+                bin2[nnz:nnz + n] = chunk['bin2_id']
+                count[nnz:nnz + n] = chunk['count']
+                nnz += n
+        finally:
+            lock.release()
 
     # Index the first axis (matrix row) offsets
-    bin1_offset = np.zeros(n_bins + 1, dtype=BIN1OFFSET_DTYPE)
-    curr_val = 0
-    for start, length, value in zip(*rlencode(bin1, 1000000)):
-        bin1_offset[curr_val:value + 1] = start
-        curr_val = value + 1
-    bin1_offset[curr_val:] = nnz
+    with h5py.File(filename, 'r') as f:
+        grp = f[groupname][subgroupname]
+        bin1 = grp['bin1_id']
+        bin1_offset = np.zeros(n_bins + 1, dtype=BIN1OFFSET_DTYPE)
+        curr_val = 0
+        for start, length, value in zip(*rlencode(bin1, 1000000)):
+            bin1_offset[curr_val:value + 1] = start
+            curr_val = value + 1
+        bin1_offset[curr_val:] = nnz
 
     return bin1_offset, nnz
 
