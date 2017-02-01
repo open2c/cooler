@@ -30,8 +30,7 @@ def get_logger():
 
 
 from .api import Cooler, get, info, chroms, bins, pixels, matrix, annotate
-from .util import read_chromsizes, binnify
-from .io import open_hdf5
+from .util import read_chromsizes, binnify, open_hdf5
 from . import util
 from . import ice
 from . import io

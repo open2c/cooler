@@ -9,8 +9,7 @@ import pandas
 import h5py
 
 from .core import RangeSelector1D, RangeSelector2D, TriuReader, query_rect
-from .util import parse_region
-from .io import open_hdf5
+from .util import parse_region, open_hdf5
 
 
 def get(h5, lo=0, hi=None, fields=None, convert_enum=True, **kwargs):

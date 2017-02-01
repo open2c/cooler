@@ -24,7 +24,7 @@ import numpy as np
 import pandas
 import h5py
 
-from ..util import rlencode, get_binsize
+from .util import rlencode, get_binsize
 
 
 class ContactReader(object):

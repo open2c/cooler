@@ -14,8 +14,8 @@ import numpy as np
 import pandas
 import h5py
 
-from .. import __version__, __format_version__
-from ..util import rlencode
+from . import __version__, __format_version__
+from .util import rlencode
 
 
 CHROM_DTYPE = np.dtype('S32')
