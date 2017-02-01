@@ -136,18 +136,18 @@ def get_data(f, zoom_level, start_pos_1, end_pos_1, start_pos_2, end_pos_2):
     pixels = c.matrix(as_pixels=True, max_chunk=np.inf)[i0:i1, j0:j1]
  
     if not len(pixels):
-        return pd.DataFrame(columns=['genome_start', 'genome_end', 'balanced'])
+        return pd.DataFrame(columns=['genome_start1', 'genome_start2', 'balanced'])
  
     bins = c.bins()[['chrom', 'start', 'end', 'weight']]
     pixels = annotate(pixels, bins)
 
-    pixels['genome_start'] = chrom_cum_lengths[pixels['chrom1']] + pixels['start1']
-    pixels['genome_end'] = chrom_cum_lengths[pixels['chrom2']] + pixels['end2']
+    pixels['genome_start1'] = chrom_cum_lengths[pixels['chrom1']] + pixels['start1']
+    pixels['genome_start2'] = chrom_cum_lengths[pixels['chrom2']] + pixels['start2']
     pixels['balanced'] = (
         pixels['count'] * pixels['weight1'] * pixels['weight2']
     )
  
-    return pixels[['genome_start', 'genome_end', 'balanced']]
+    return pixels[['genome_start1', 'genome_start2', 'balanced']]
  
  
 def get_info(file_path):
