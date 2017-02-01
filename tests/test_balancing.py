@@ -17,55 +17,6 @@ import cooler
 testdir = os.path.dirname(os.path.realpath(__file__))
 
 
-# class MockCooler(dict):
-#     file = mock.Mock(['mode'])
-
-
-# def generate_mock_cooler(mat):
-#     binsize = 100
-#     n_bins = mat.shape[0]
-#     r = sparse.triu(mat, k=0).tocsr()  # drop lower triangle, keep main diagonal
-#     n_chr1 = n_bins //2
-#     n_chr2 = n_bins - (n_bins//2)
-
-#     mock_cooler = MockCooler({
-#         'chroms': {
-#             'name':   np.array(['chr1', 'chr2'], dtype='S'),
-#             'length': np.array([1000, 1000], dtype=np.int32),
-#         },
-#         'bins': {
-#             'chrom':    np.array(([0] * n_chr1) + ([1] * n_chr2), dtype=int),
-#             'start':    np.r_[np.arange(0, n_chr1*binsize, binsize),
-#                               np.arange(0, n_chr2*binsize, binsize)].astype(int),
-#             'end':      np.r_[np.arange(binsize, n_chr1*binsize + binsize, binsize),
-#                               np.arange(binsize, n_chr2*binsize + binsize, binsize)].astype(int),
-#         },
-#         'pixels': {
-#             'bin1_id':  r.tocoo().row,
-#             'bin2_id':  r.indices,
-#             'count':    r.data,
-#             'mask':     np.ones(r.nnz, dtype=bool),
-#         },
-#         'indexes': {
-#             'chrom_offset': np.array([0, n_chr1, n_bins], dtype=np.int32),
-#             'bin1_offset':  r.indptr,
-#         },
-#     })
-
-#     mock_cooler.attrs = {
-#         'bin-size': binsize,
-#         'bin-type': 'fixed',
-#         'nchroms': 2,
-#         'nbins': n_bins,
-#         'nnz': r.nnz,
-#         'metadata': '{}',
-#     }
-
-#     mock_cooler.file.mode = 'r'
-
-#     return mock_cooler
-
-
 def test_balancing():
     fp = os.path.join(testdir, 'data', 'GM12878-MboI-matrix.2000kb.cool')
     tol = 1e-2
@@ -95,3 +46,48 @@ def test_balancing():
     conv_marg = marg[~np.isnan(marg)].mean()
     err_marg = marg[~np.isnan(marg)].std()
     assert np.isclose(conv_marg, 1, atol=err_marg)
+
+
+def test_balancing_cisonly():
+    fp = os.path.join(testdir, 'data', 'GM12878-MboI-matrix.2000kb.cool')
+    tol = 1e-2
+
+    with h5py.File(fp, 'r') as h5:
+        chrom_offsets = h5['indexes/chrom_offset'][:]
+        weights, stats = cooler.ice.iterative_correction(
+            h5, ignore_diags=1, min_nnz=10, tol=tol, cis_only=True)
+
+    # Extract matrix and apply weights
+    mat = cooler.Cooler(fp).matrix()[:, :]
+    mat.data = weights[mat.row] * weights[mat.col] * mat.data
+    arr = mat.toarray()
+
+    # Re-apply bin level filters
+    mask = np.isnan(weights)
+    arr[mask, :] = 0
+    arr[:, mask] = 0
+    
+    # Apply diagonal filter
+    np.fill_diagonal(arr, 0)
+
+    # Filter out trans data
+    spans = list(zip(chrom_offsets[:-1], chrom_offsets[1:]))
+    from scipy.linalg import block_diag
+    blocks = [np.ones((hi -lo,) * 2) for lo, hi in spans]
+    mask = block_diag(*blocks).astype(bool)
+    arr[~mask] = 0
+
+    # Check that the balanced marginal is flat
+    marg = np.sum(arr, axis=0)
+    for lo, hi in spans:
+        m = marg[lo:hi]
+        m = m[m != 0]
+        if len(m):
+            print(lo, hi)
+            var = np.var(m[m != 0])
+            assert var < tol 
+
+            # Check that the balanced marginal is unity
+            conv_marg = m[~np.isnan(m)].mean()
+            err_marg = m[~np.isnan(m)].std()
+            assert np.isclose(conv_marg, 1, atol=err_marg)
