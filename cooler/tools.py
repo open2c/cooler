@@ -14,6 +14,7 @@ import h5py
 
 # Lock prevents race condition if HDF5 file is already open before forking.
 # See discussion: <https://groups.google.com/forum/#!topic/h5py/bJVtWdFtZQM>
+# And <https://github.com/h5py/h5py/issues/591#issuecomment-116785660>.
 lock = Lock()
 
 
