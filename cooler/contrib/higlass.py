@@ -133,7 +133,7 @@ def get_data(f, zoom_level, start_pos_1, end_pos_1, start_pos_2, end_pos_2):
     j0 = abs_coord_2_bin(c, start_pos_2, chroms, chrom_cum_lengths, chrom_sizes)
     j1 = abs_coord_2_bin(c, end_pos_2, chroms, chrom_cum_lengths, chrom_sizes)
  
-    pixels = c.matrix(as_pixels=True, max_chunk=np.inf)[i0:i1, j0:j1]
+    pixels = c.matrix(as_pixels=True, balance=False, max_chunk=np.inf)[i0:i1, j0:j1]
  
     if not len(pixels):
         return pd.DataFrame(columns=['genome_start1', 'genome_start2', 'balanced'])
