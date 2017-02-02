@@ -2,6 +2,7 @@
 from __future__ import division, print_function
 import json
 import six
+import os
 
 from scipy.sparse import coo_matrix
 import numpy as np
@@ -117,6 +118,20 @@ class Cooler(object):
     """
     Convenient interface to a cooler HDF5 file.
 
+    Parameters
+    ----------
+    store : str, h5py.File or h5py.Group
+        File path or open handle to the root HDF5 group of a cooler.
+    root : str, optional
+        HDF5 path to root of cooler tree. If not provided, the root is assumed
+        to be '/' if ``store`` is a file path or inferred if ``store`` is a 
+        File or Group object.
+    kwargs : optional
+        Options to be passed to h5py.File() on every access. By default, the
+        file is opened with the default driver and mode='r'.
+
+    Notes
+    -----
     * Metadata is accessible as a dictionary through the ``info`` property.
 
     * Data table range queries are provided through table selectors:
@@ -126,32 +141,43 @@ class Cooler(object):
     * Matrix range queries are provided via a matrix selector, ``matrix``,
       which return ``scipy.sparse.coo_matrix`` arrays.
 
-    Parameters
-    ----------
-    fp : str, h5py.File or h5py.Group
-        File path or open handle to the root HDF5 group of a cooler.
-
-    Notes
-    -----
-    If ``fp`` is a file path, the file will be opened temporarily in read-only
-    mode when performing operations. Such ``Cooler`` objects can be serialized
-    and used multiprocessing, for example. See the following
+    If ``store`` is a file path, the file will be opened temporarily in
+    read-only mode when performing operations. Such ``Cooler`` objects can be
+    serialized and used multiprocessing, for example. See the following
     `discussion <https://groups.google.com/forum/#!topic/h5py/bJVtWdFtZQM>`_
     on using h5py with multiprocessing safely.
 
     """
-    def __init__(self, fp, **kwargs):
-        self.fp = fp
+    def __init__(self, store, root=None, **kwargs):
+        self.store = store
         self.kwargs = kwargs
-        with open_hdf5(self.fp, **self.kwargs) as h5:
-            _ct = chroms(h5)
+        with open_hdf5(self.store, **self.kwargs) as h5:
+            self.filename = h5.file.filename
+            self.root = root if root is not None else h5.name
+            grp = h5[self.root]
+
+            _ct = chroms(grp)
             self._chromsizes = _ct.set_index('name')['length']
             self._chromids = dict(zip(_ct['name'], range(len(_ct))))
-            self._info = info(h5)
+            self._info = info(grp)
 
     def _get_index(self, name):
-        with open_hdf5(self.fp, **self.kwargs) as h5:
-            return h5['indexes'][name][:]
+        with open_hdf5(self.store, **self.kwargs) as h5:
+            grp = h5[self.root]
+            return grp['indexes'][name][:]
+
+    def _load_dset(self, path):
+        with open_hdf5(self.store, **self.kwargs) as h5:
+            grp = h5[self.root]
+            return grp[path][:]
+
+    def _load_attrs(self, path):
+        with open_hdf5(self.store, **self.kwargs) as h5:
+            grp = h5[self.root]
+            return dict(grp[path].attrs)
+
+    def open(self, mode='r', **kwargs):
+        return h5py.File(self.store, mode, **kwargs)
 
     @property
     def chromsizes(self):
@@ -181,9 +207,10 @@ class Cooler(object):
         1311
 
         """
-        with open_hdf5(self.fp, **self.kwargs) as h5:
+        with open_hdf5(self.store, **self.kwargs) as h5:
+            grp = h5[self.root]
             return region_to_offset(
-                h5, self._chromids,
+                grp, self._chromids,
                 parse_region(region, self._chromsizes))
 
     def extent(self, region):
@@ -204,9 +231,10 @@ class Cooler(object):
         (1311, 2131)
 
         """
-        with open_hdf5(self.fp, **self.kwargs) as h5:
+        with open_hdf5(self.store, **self.kwargs) as h5:
+            grp = h5[self.root]
             return region_to_extent(
-                h5, self._chromids,
+                grp, self._chromids,
                 parse_region(region, self._chromsizes))
 
     @property
@@ -218,14 +246,15 @@ class Cooler(object):
         dict
 
         """
-        with open_hdf5(self.fp, **self.kwargs) as h5:
-            return info(h5)
+        with open_hdf5(self.store, **self.kwargs) as h5:
+            grp = h5[self.root]
+            return info(grp)
 
     @property
     def shape(self):
         return (self._info['nbins'],) * 2
 
-    def chroms(self):
+    def chroms(self, **kwargs):
         """ Chromosome table selector
 
         Returns
@@ -234,12 +263,13 @@ class Cooler(object):
 
         """
         def _slice(fields, lo, hi):
-            with open_hdf5(self.fp, **self.kwargs) as h5:
-                return chroms(h5, lo, hi, fields)
+            with open_hdf5(self.store, **self.kwargs) as h5:
+                grp = h5[self.root]
+                return chroms(grp, lo, hi, fields, **kwargs)
 
         return RangeSelector1D(None, _slice, None, self._info['nchroms'])
 
-    def bins(self):
+    def bins(self, **kwargs):
         """ Bin table selector
 
         Returns
@@ -249,17 +279,19 @@ class Cooler(object):
         """
 
         def _slice(fields, lo, hi):
-            with open_hdf5(self.fp, **self.kwargs) as h5:
-                return bins(h5, lo, hi, fields)
+            with open_hdf5(self.store, **self.kwargs) as h5:
+                grp = h5[self.root]
+                return bins(grp, lo, hi, fields, **kwargs)
 
         def _fetch(region):
-            with open_hdf5(self.fp, **self.kwargs) as h5:
-                return region_to_extent(h5, self._chromids,
+            with open_hdf5(self.store, **self.kwargs) as h5:
+                grp = h5[self.root]
+                return region_to_extent(grp, self._chromids,
                                         parse_region(region, self._chromsizes))
 
         return RangeSelector1D(None, _slice, _fetch, self._info['nbins'])
 
-    def pixels(self, join=False):
+    def pixels(self, join=False, **kwargs):
         """ Pixel table selector
 
         Parameters
@@ -275,22 +307,24 @@ class Cooler(object):
         """
 
         def _slice(fields, lo, hi):
-            with open_hdf5(self.fp, **self.kwargs) as h5:
-                return pixels(h5, lo, hi, fields, join)
+            with open_hdf5(self.store, **self.kwargs) as h5:
+                grp = h5[self.root]
+                return pixels(grp, lo, hi, fields, join, **kwargs)
 
         def _fetch(region):
-            with open_hdf5(self.fp, **self.kwargs) as h5:
+            with open_hdf5(self.store, **self.kwargs) as h5:
+                grp = h5[self.root]
                 i0, i1 = region_to_extent(
-                    h5, self._chromids,
+                    grp, self._chromids,
                     parse_region(region, self._chromsizes))
-                lo = h5['indexes']['bin1_offset'][i0]
-                hi = h5['indexes']['bin1_offset'][i1]
+                lo = grp['indexes']['bin1_offset'][i0]
+                hi = grp['indexes']['bin1_offset'][i1]
                 return lo, hi
 
         return RangeSelector1D(None, _slice, _fetch, self._info['nnz'])
 
-    def matrix(self, field=None, balance=False, as_pixels=False, join=False,
-               ignore_index=True, max_chunk=500000000):
+    def matrix(self, field=None, dense=False, balance=True, as_pixels=False, 
+               join=False, ignore_index=True, max_chunk=500000000):
         """ Contact matrix selector
 
         Parameters
@@ -319,21 +353,27 @@ class Cooler(object):
         """
 
         def _slice(field, i0, i1, j0, j1):
-            with open_hdf5(self.fp, **self.kwargs) as h5:
-                return matrix(h5, i0, i1, j0, j1, field, balance, as_pixels,
-                    join, ignore_index, max_chunk)
+            with open_hdf5(self.store, **self.kwargs) as h5:
+                grp = h5[self.root]
+                return matrix(grp, i0, i1, j0, j1, field, dense,
+                    balance, as_pixels, join, ignore_index, max_chunk)
 
         def _fetch(region, region2=None):
-            with open_hdf5(self.fp, **self.kwargs) as h5:
+            with open_hdf5(self.store, **self.kwargs) as h5:
+                grp = h5[self.root]
                 if region2 is None:
                     region2 = region
                 region1 = parse_region(region, self._chromsizes)
                 region2 = parse_region(region2, self._chromsizes)
-                i0, i1 = region_to_extent(h5, self._chromids, region1)
-                j0, j1 = region_to_extent(h5, self._chromids, region2)
+                i0, i1 = region_to_extent(grp, self._chromids, region1)
+                j0, j1 = region_to_extent(grp, self._chromids, region2)
                 return i0, i1, j0, j1
 
         return RangeSelector2D(field, _slice, _fetch, (self._info['nbins'],) * 2)
+
+    def __repr__(self):
+        filename = os.path.basename(self.filename)
+        return '<Cooler "{}":"{}">'.format(filename, self.root)
 
 
 def info(h5):
@@ -361,7 +401,7 @@ def info(h5):
     return d
 
 
-def chroms(h5, lo=0, hi=None, fields=None):
+def chroms(h5, lo=0, hi=None, fields=None, **kwargs):
     """
     Table describing the chromosomes/scaffolds/contigs used.
     They appear in the same order they occur in the heatmap.
@@ -384,10 +424,10 @@ def chroms(h5, lo=0, hi=None, fields=None):
         fields = (pandas.Index(['name', 'length'])
                         .append(pandas.Index(h5['chroms'].keys()))
                         .drop_duplicates())
-    return get(h5['chroms'], lo, hi, fields)
+    return get(h5['chroms'], lo, hi, fields, **kwargs)
 
 
-def bins(h5, lo=0, hi=None, fields=None):
+def bins(h5, lo=0, hi=None, fields=None, **kwargs):
     """
     Table describing the genomic bins that make up the axes of the heatmap.
 
@@ -409,7 +449,43 @@ def bins(h5, lo=0, hi=None, fields=None):
         fields = (pandas.Index(['chrom', 'start', 'end'])
                         .append(pandas.Index(h5['bins'].keys()))
                         .drop_duplicates())
-    return get(h5['bins'], lo, hi, fields)
+    return get(h5['bins'], lo, hi, fields, **kwargs)
+
+
+def pixels(h5, lo=0, hi=None, fields=None, join=True, **kwargs):
+    """
+    Table describing the nonzero upper triangular pixels of the Hi-C contact
+    heatmap.
+
+    Parameters
+    ----------
+    h5 : ``h5py.File`` or ``h5py.Group``
+        Open handle to cooler file.
+    lo, hi : int, optional
+        Range of rows to select from the table.
+    fields : sequence of str, optional
+        Subset of columns to select from table.
+    join : bool, optional
+        Whether or not to expand bin ID columns to their full bin description
+        (chrom, start, end). Default is True.
+
+    Returns
+    -------
+    DataFrame
+
+    """
+    if fields is None:
+        fields = (pandas.Index(['bin1_id', 'bin2_id', 'count'])
+                        .append(pandas.Index(h5['pixels'].keys()))
+                        .drop_duplicates())
+
+    df = get(h5['pixels'], lo, hi, fields, **kwargs)
+
+    if join:
+        bins = get(h5['bins'], 0, None, ['chrom', 'start', 'end'])
+        df = annotate(df, bins)
+
+    return df
 
 
 def annotate(pixels, bins, replace=True):
@@ -484,44 +560,8 @@ def annotate(pixels, bins, replace=True):
     return pixels
 
 
-def pixels(h5, lo=0, hi=None, fields=None, join=True):
-    """
-    Table describing the nonzero upper triangular pixels of the Hi-C contact
-    heatmap.
-
-    Parameters
-    ----------
-    h5 : ``h5py.File`` or ``h5py.Group``
-        Open handle to cooler file.
-    lo, hi : int, optional
-        Range of rows to select from the table.
-    fields : sequence of str, optional
-        Subset of columns to select from table.
-    join : bool, optional
-        Whether or not to expand bin ID columns to their full bin description
-        (chrom, start, end). Default is True.
-
-    Returns
-    -------
-    DataFrame
-
-    """
-    if fields is None:
-        fields = (pandas.Index(['bin1_id', 'bin2_id', 'count'])
-                        .append(pandas.Index(h5['pixels'].keys()))
-                        .drop_duplicates())
-
-    df = get(h5['pixels'], lo, hi, fields)
-
-    if join:
-        bins = get(h5['bins'], 0, None, ['chrom', 'start', 'end'])
-        df = annotate(df, bins)
-
-    return df
-
-
-def matrix(h5, i0, i1, j0, j1, field=None, balance=False, as_pixels=False, 
-           join=True, ignore_index=True, max_chunk=500000000):
+def matrix(h5, i0, i1, j0, j1, field=None, dense=False, balance=True,
+           as_pixels=False, join=True, ignore_index=True, max_chunk=500000000):
     """
     Two-dimensional range query on the Hi-C contact heatmap.
     Returns either a rectangular sparse ``coo_matrix`` or a data frame of upper
@@ -570,7 +610,7 @@ def matrix(h5, i0, i1, j0, j1, field=None, balance=False, as_pixels=False,
     if balance and 'weight' not in h5['bins']:
         raise ValueError(
             "No column 'bins/weight' found. Use ``cooler.ice`` to "
-            "calculate balancing weights.")
+            "calculate balancing weights or set balance=False.")
 
     if as_pixels:
         index = None if ignore_index else triu_reader.index_col(i0, i1, j0, j1)
@@ -590,6 +630,18 @@ def matrix(h5, i0, i1, j0, j1, field=None, balance=False, as_pixels=False,
             df = annotate(df, bins)
 
         return df
+
+    elif dense:
+        i, j, v = query_rect(triu_reader.query, i0, i1, j0, j1)
+        arr = coo_matrix((v, (i-i0, j-j0)), (i1-i0, j1-j0)).toarray()
+
+        if balance:
+            weights = h5['bins']['weight']
+            bias1 = weights[i0:i1]
+            bias2 = bias1 if (i0, i1) == (j0, j1) else weights[j0:j1]
+            arr = arr * np.outer(bias1, bias2)
+
+        return arr
 
     else:
         i, j, v = query_rect(triu_reader.query, i0, i1, j0, j1)

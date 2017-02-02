@@ -25,7 +25,7 @@ def test_balancing():
         weights, stats = cooler.ice.iterative_correction(h5, ignore_diags=1, min_nnz=10, tol=tol)
 
     # Extract matrix and apply weights
-    mat = cooler.Cooler(fp).matrix()[:, :]
+    mat = cooler.Cooler(fp).matrix(balance=False)[:, :]
     mat.data = weights[mat.row] * weights[mat.col] * mat.data
     arr = mat.toarray()
 
@@ -58,7 +58,7 @@ def test_balancing_cisonly():
             h5, ignore_diags=1, min_nnz=10, tol=tol, cis_only=True)
 
     # Extract matrix and apply weights
-    mat = cooler.Cooler(fp).matrix()[:, :]
+    mat = cooler.Cooler(fp).matrix(balance=False)[:, :]
     mat.data = weights[mat.row] * weights[mat.col] * mat.data
     arr = mat.toarray()
 

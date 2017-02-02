@@ -127,8 +127,8 @@ def _balance_cisonly(bias, c, spans, filters, chunksize, map, tol, max_iters,
                      rescale_marginals, use_lock):
     chroms = c.chroms()['name'][:]
     chrom_ids = np.arange(len(c.chroms()))
-    chrom_offsets = c._get_index('chrom_offset')
-    bin1_offsets = c._get_index('bin1_offset')
+    chrom_offsets = c._load_dset('/indexes/chrom_offset')
+    bin1_offsets = c._load_dset('/indexes/bin1_offset')
     scales = np.ones(len(chrom_ids))
     
     for cid, lo, hi in zip(chrom_ids, chrom_offsets[:-1], chrom_offsets[1:]):

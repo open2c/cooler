@@ -50,18 +50,18 @@ def test_roundtrip():
     assert info['bin-type'] == 'fixed'
     assert info['bin-size'] == binsize
 
-    mat = cooler.matrix(h5, 0, 100, 0, 100, 'count')
+    mat = cooler.matrix(h5, 0, 100, 0, 100, 'count', balance=False)
     assert mat.shape == (100, 100)
     assert np.allclose(heatmap[:100,:100], mat.toarray())
 
-    mat = cooler.Cooler(h5).matrix('count')[:100, :100]
+    mat = cooler.Cooler(h5).matrix('count', balance=False)[:100, :100]
     assert mat.shape == (100, 100)
     assert np.allclose(heatmap[:100,:100], mat.toarray())
 
-    mat = cooler.matrix(h5, 100, 200, 100, 200, 'count')
+    mat = cooler.matrix(h5, 100, 200, 100, 200, 'count', balance=False)
     assert mat.shape == (100, 100)
     assert np.allclose(heatmap[100:200,100:200], mat.toarray())
 
-    mat = cooler.Cooler(h5).matrix('count')[100:200, 100:200]
+    mat = cooler.Cooler(h5).matrix('count', balance=False)[100:200, 100:200]
     assert mat.shape == (100, 100)
     assert np.allclose(heatmap[100:200,100:200], mat.toarray())

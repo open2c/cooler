@@ -139,4 +139,4 @@ def partition(start, stop, step):
 def split(clr, map=map, chunksize=int(10e6), spans=None, **kwargs):
     if spans is None:
         spans = partition(0, clr.info['nnz'], chunksize)
-    return ChunkedDataPipe(spans, chunkgetter(clr.fp, **kwargs), map)
+    return ChunkedDataPipe(spans, chunkgetter(clr.filename, **kwargs), map)

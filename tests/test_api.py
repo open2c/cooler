@@ -10,7 +10,7 @@ import cooler.api
 import mock
 
 
-class MockCooler(dict):
+class MockHDF5(dict):
     file = mock.Mock(['mode'])
 
 binsize = 100
@@ -19,7 +19,7 @@ r = sparse.random(n_bins, n_bins, density=1, random_state=1)
 r = sparse.triu(r, k=1).tocsr()
 r_full = r.toarray() + r.toarray().T
 
-mock_cooler = MockCooler({
+mock_cooler = MockHDF5({
     'chroms': {
         'name':   np.array(['chr1', 'chr2'], dtype='S'),
         'length': np.array([1000, 1000], dtype=np.int32),
@@ -61,6 +61,9 @@ mock_cooler.attrs = {
 }
 
 mock_cooler.file.mode = 'r'
+mock_cooler.file.filename = 'mock.cool'
+mock_cooler.name = '/'
+mock_cooler['/'] = mock_cooler
 
 chromID_lookup = pandas.Series({'chr1': 0, 'chr2': 1})
 
@@ -110,8 +113,8 @@ def test_cooler():
     assert c.extent('chr1') == (0, 10)
 
     # 2D range queries as rectangular or triangular
-    A1 = np.triu(c.matrix().fetch('chr2').toarray())
-    df = c.matrix(as_pixels=True, join=False).fetch('chr2')
+    A1 = np.triu(c.matrix(balance=False).fetch('chr2').toarray())
+    df = c.matrix(as_pixels=True, join=False, balance=False).fetch('chr2')
     i0 = c.offset('chr2')
     i, j, v = df['bin1_id'], df['bin2_id'], df['count']
     mat = sparse.coo_matrix((v, (i-i0, j-i0)), (A1.shape))
@@ -123,7 +126,7 @@ def test_annotate():
     c = cooler.Cooler(mock_cooler)
 
     # works with full bin table / view or only required bins
-    df = c.matrix(as_pixels=True).fetch('chr1')
+    df = c.matrix(as_pixels=True, balance=False).fetch('chr1')
     df1 = cooler.annotate(df, c.bins()[:])
     df2 = cooler.annotate(df, c.bins())
     df3 = cooler.annotate(df, c.bins().fetch('chr1'))
