@@ -161,11 +161,6 @@ class Cooler(object):
             self._chromids = dict(zip(_ct['name'], range(len(_ct))))
             self._info = info(grp)
 
-    def _get_index(self, name):
-        with open_hdf5(self.store, **self.kwargs) as h5:
-            grp = h5[self.root]
-            return grp['indexes'][name][:]
-
     def _load_dset(self, path):
         with open_hdf5(self.store, **self.kwargs) as h5:
             grp = h5[self.root]
