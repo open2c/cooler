@@ -18,6 +18,8 @@ from . import __version__, __format_version__
 from .util import rlencode
 
 
+MAGIC = "HDF5::Cooler"
+URL = "https://github.com/mirnylab/cooler"
 CHROM_DTYPE = np.dtype('S32')
 CHROMID_DTYPE = np.int32
 CHROMSIZE_DTYPE = np.int32
@@ -113,7 +115,7 @@ def write_bins(grp, chroms, bins, h5opts):
     return chrom_offset
 
 
-def write_pixels(grp, n_bins, reader, h5opts):
+def write_pixels(filepath, grouppath, n_bins, iterator, h5opts, lock=None):
     """
     Write the non-zero pixel table.
 
@@ -129,50 +131,70 @@ def write_pixels(grp, n_bins, reader, h5opts):
         bin2_id, count) sorted by ``bin1_id`` then ``bin2_id``.
     h5opts : dict
         HDF5 filter options.
+    lock : multiprocessing.Lock, optional
+        Optional lock to synchronize concurrent HDF5 file access.
 
     """
-    n_pairs = reader.size()
+    n_pairs = iterator.size()
     init_size = min(5 * n_bins, n_pairs)
     max_size = min(n_pairs, n_bins * (n_bins - 1) // 2 + n_bins)
 
     # Preallocate
-    bin1 = grp.create_dataset('bin1_id',
-                              dtype=BIN_DTYPE,
-                              shape=(init_size,),
-                              maxshape=(max_size,),
-                              **h5opts)
-    bin2 = grp.create_dataset('bin2_id',
-                              dtype=BIN_DTYPE,
-                              shape=(init_size,),
-                              maxshape=(max_size,),
-                              **h5opts)
-    count = grp.create_dataset('count',
-                              dtype=COUNT_DTYPE,
-                              shape=(init_size,),
-                              maxshape=(max_size,),
-                              **h5opts)
+    with h5py.File(filepath, 'r+') as f:
+        grp = f[grouppath]
+        bin1 = grp.create_dataset('bin1_id',
+                                  dtype=BIN_DTYPE,
+                                  shape=(init_size,),
+                                  maxshape=(max_size,),
+                                  **h5opts)
+        bin2 = grp.create_dataset('bin2_id',
+                                  dtype=BIN_DTYPE,
+                                  shape=(init_size,),
+                                  maxshape=(max_size,),
+                                  **h5opts)
+        count = grp.create_dataset('count',
+                                  dtype=COUNT_DTYPE,
+                                  shape=(init_size,),
+                                  maxshape=(max_size,),
+                                  **h5opts)
 
     # Store the pixels
     nnz = 0
-    for chunk in reader:
-        n = len(chunk['bin1_id'])
-        for dset in [bin1, bin2, count]:
-            dset.resize((nnz + n,))
-        bin1[nnz:nnz+n] = chunk['bin1_id']
-        bin2[nnz:nnz+n] = chunk['bin2_id']
-        count[nnz:nnz+n] = chunk['count']
-        nnz += n
-        grp.file.flush()
+    ncontacts = 0
+    for chunk in iterator:
+        try:
+            if lock is not None:
+                lock.acquire()
+            with h5py.File(filepath, 'r+') as f:
+                grp = f[grouppath]
+                bin1 = grp['bin1_id']
+                bin2 = grp['bin2_id']
+                count = grp['count']
+
+                n = len(chunk['bin1_id'])
+                for dset in [bin1, bin2, count]:
+                    dset.resize((nnz + n,))
+                bin1[nnz:nnz+n] = chunk['bin1_id']
+                bin2[nnz:nnz+n] = chunk['bin2_id']
+                count[nnz:nnz+n] = chunk['count']
+                nnz += n
+                ncontacts += chunk['count'].sum()
+        finally:
+            if lock is not None:
+                lock.release()
 
     # Index the first axis (matrix row) offsets
-    bin1_offset = np.zeros(n_bins + 1, dtype=BIN1OFFSET_DTYPE)
-    curr_val = 0
-    for start, length, value in zip(*rlencode(bin1, 1000000)):
-        bin1_offset[curr_val:value + 1] = start
-        curr_val = value + 1
-    bin1_offset[curr_val:] = nnz
+    with h5py.File(filepath, 'r') as f:
+        grp = f[grouppath]
+        bin1 = grp['bin1_id']
+        bin1_offset = np.zeros(n_bins + 1, dtype=BIN1OFFSET_DTYPE)
+        curr_val = 0
+        for start, length, value in zip(*rlencode(bin1, 1000000)):
+            bin1_offset[curr_val:value + 1] = start
+            curr_val = value + 1
+        bin1_offset[curr_val:] = nnz
 
-    return bin1_offset, nnz
+    return bin1_offset, nnz, ncontacts
 
 
 def write_indexes(grp, chrom_offset, bin1_offset, h5opts):
@@ -221,11 +243,11 @@ def write_info(grp, info):
     """
     assert 'nbins' in info
     assert 'nnz' in info
-    info.setdefault('id', "null")
     info.setdefault('genome-assembly', 'unknown')
     info['metadata'] = json.dumps(info.get('metadata', {}))
     info['creation-date'] = datetime.now().isoformat()
-    info['library-version'] = __version__
+    info['generated-by'] = 'cooler-' + __version__
+    info['format'] = MAGIC
     info['format-version'] = __format_version__
-    info['format-url'] = "https://github.com/mirnylab/cooler"
+    info['format-url'] = URL
     grp.attrs.update(info)
