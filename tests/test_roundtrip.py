@@ -28,15 +28,12 @@ def test_roundtrip():
     chromsizes = cooler.read_chromsizes(
         'https://genome.ucsc.edu/goldenpath/help/hg19.chrom.sizes',
         name_patterns=(r'^chr[0-9]+$', r'chrX$'))
-    chroms, lengths = zip(*iteritems(chromsizes))
-
     binsize = 2000000
     bintable = cooler.binnify(chromsizes, binsize)
 
     heatmap = np.load(os.path.join(testdir, 'data', 'IMR90-MboI-matrix.2000kb.npy'))
-    with h5py.File(testfile_path, 'w') as h5:
-        reader = cooler.io.DenseLoader(heatmap)
-        cooler.io.create(h5, chroms, lengths, bintable, reader, assembly='hg19')
+    reader = cooler.io.DenseLoader(heatmap)
+    cooler.io.create(testfile_path, chromsizes, bintable, reader, assembly='hg19')
 
     h5 = h5py.File(testfile_path, 'r')
     new_chromtable = cooler.chroms(h5)
@@ -52,16 +49,16 @@ def test_roundtrip():
 
     mat = cooler.matrix(h5, 0, 100, 0, 100, 'count', balance=False)
     assert mat.shape == (100, 100)
-    assert np.allclose(heatmap[:100,:100], mat.toarray())
+    assert np.allclose(heatmap[:100,:100], mat)
 
     mat = cooler.Cooler(h5).matrix('count', balance=False)[:100, :100]
     assert mat.shape == (100, 100)
-    assert np.allclose(heatmap[:100,:100], mat.toarray())
+    assert np.allclose(heatmap[:100,:100], mat)
 
     mat = cooler.matrix(h5, 100, 200, 100, 200, 'count', balance=False)
     assert mat.shape == (100, 100)
-    assert np.allclose(heatmap[100:200,100:200], mat.toarray())
+    assert np.allclose(heatmap[100:200,100:200], mat)
 
     mat = cooler.Cooler(h5).matrix('count', balance=False)[100:200, 100:200]
     assert mat.shape == (100, 100)
-    assert np.allclose(heatmap[100:200,100:200], mat.toarray())
+    assert np.allclose(heatmap[100:200,100:200], mat)

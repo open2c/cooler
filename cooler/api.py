@@ -23,11 +23,11 @@ class Cooler(object):
     store : str, h5py.File or h5py.Group
         File path or open handle to the root HDF5 group of a cooler.
     root : str, optional
-        HDF5 path to root of cooler tree. If not provided, the root is assumed
-        to be '/' if ``store`` is a file path or inferred if ``store`` is a 
-        File or Group object.
+        HDF5 path to root of cooler group. If not provided, the root is assumed
+        to be '/' if ``store`` is a file path or is inferred if ``store`` is a 
+        HDF5 File or Group object.
     kwargs : optional
-        Options to be passed to h5py.File() on every access. By default, the
+        Options to be passed to h5py.File() upon every access. By default, the
         file is opened with the default driver and mode='r'.
 
     Notes
@@ -42,8 +42,8 @@ class Cooler(object):
       which return ``scipy.sparse.coo_matrix`` arrays.
 
     If ``store`` is a file path, the file will be opened temporarily in
-    read-only mode when performing operations. Such ``Cooler`` objects can be
-    serialized and used multiprocessing, for example. See the following
+    when performing operations. Thus, ``Cooler`` objects are serializable and
+    can be used in multiprocessing, for example. See the following
     `discussion <https://groups.google.com/forum/#!topic/h5py/bJVtWdFtZQM>`_
     on using h5py with multiprocessing safely.
 
@@ -218,25 +218,27 @@ class Cooler(object):
 
         return RangeSelector1D(None, _slice, _fetch, self._info['nnz'])
 
-    def matrix(self, field=None, dense=False, balance=True, as_pixels=False, 
+    def matrix(self, field=None, balance=True, sparse=False, as_pixels=False, 
                join=False, ignore_index=True, max_chunk=500000000):
         """ Contact matrix selector
 
         Parameters
         ----------
         field : str, optional
-            Which column of the pixel table to fill matrix selections with.
-            By default, the 'count' column is used.
+            Which column of the pixel table to fill the matrix with. By default,
+            the 'count' column is used.
         balance : bool, optional
-            Whether to apply pre-calculated matrix balancing weights to
-            selections. Default is False.
-        as_pixels : bool, optional
-            Instead of a complete rectangular sparse matrix, return a DataFrame
-            containing the corresponding rows from the pixel table.
-            Default is False.
+            Whether to apply pre-calculated matrix balancing weights to the
+            selection. Default is False.
+        sparse: bool, optional
+            Return a scipy.sparse.coo_matrix instead of a dense 2D numpy array.
+        as_pixels: bool, optional
+            Return a DataFrame of the corresponding rows from the pixel table
+            instead of a rectangular sparse matrix. False by default.
         join : bool, optional
-            Whether to expand bin ID columns. False by default. Only applies if
-            ``as_pixels`` is True.
+            If requesting pixels, specifies whether to expand the bin ID columns
+            into (chrom, start, end). Has no effect when requesting a 
+            rectangular matrix. Default is True.
         ignore_index : bool, optional
             If requesting pixels, don't populate the index column with the pixel
             IDs to improve performance. Default is True.
@@ -250,8 +252,8 @@ class Cooler(object):
         def _slice(field, i0, i1, j0, j1):
             with open_hdf5(self.store, **self.kwargs) as h5:
                 grp = h5[self.root]
-                return matrix(grp, i0, i1, j0, j1, field, dense,
-                    balance, as_pixels, join, ignore_index, max_chunk)
+                return matrix(grp, i0, i1, j0, j1, field, balance, sparse,
+                    as_pixels, join, ignore_index, max_chunk)
 
         def _fetch(region, region2=None):
             with open_hdf5(self.store, **self.kwargs) as h5:
@@ -455,12 +457,12 @@ def annotate(pixels, bins, replace=True):
     return pixels
 
 
-def matrix(h5, i0, i1, j0, j1, field=None, dense=False, balance=True,
+def matrix(h5, i0, i1, j0, j1, field=None, balance=True, sparse=False,
            as_pixels=False, join=True, ignore_index=True, max_chunk=500000000):
     """
     Two-dimensional range query on the Hi-C contact heatmap.
-    Returns either a rectangular sparse ``coo_matrix`` or a data frame of upper
-    triangle pixels.
+    Depending on the options, returns either a 2D NumPy array, a rectangular
+    sparse ``coo_matrix``, or a data frame of upper triangle pixels.
 
     Parameters
     ----------
@@ -476,6 +478,8 @@ def matrix(h5, i0, i1, j0, j1, field=None, dense=False, balance=True,
     balance : bool, optional
         Whether to apply pre-calculated matrix balancing weights to the
         selection. Default is False.
+    sparse: bool, optional
+        Return a scipy.sparse.coo_matrix instead of a dense 2D numpy array.
     as_pixels: bool, optional
         Return a DataFrame of the corresponding rows from the pixel table
         instead of a rectangular sparse matrix. False by default.
@@ -489,7 +493,7 @@ def matrix(h5, i0, i1, j0, j1, field=None, dense=False, balance=True,
 
     Returns
     -------
-    coo_matrix
+    ndarray, coo_matrix or DataFrame
 
     Notes
     -----
@@ -521,24 +525,13 @@ def matrix(h5, i0, i1, j0, j1, field=None, dense=False, balance=True,
             df['balanced'] = df2['weight1'] * df2['weight2'] * df2[field]
 
         if join:
-            bins = get(h5['bins'], min(i0, j0), max(i1, j1), ['chrom', 'start', 'end'])
+            bins = get(h5['bins'], min(i0, j0), max(i1, j1), 
+                       ['chrom', 'start', 'end'])
             df = annotate(df, bins)
 
         return df
 
-    elif dense:
-        i, j, v = query_rect(triu_reader.query, i0, i1, j0, j1)
-        arr = coo_matrix((v, (i-i0, j-j0)), (i1-i0, j1-j0)).toarray()
-
-        if balance:
-            weights = h5['bins']['weight']
-            bias1 = weights[i0:i1]
-            bias2 = bias1 if (i0, i1) == (j0, j1) else weights[j0:j1]
-            arr = arr * np.outer(bias1, bias2)
-
-        return arr
-
-    else:
+    elif sparse:
         i, j, v = query_rect(triu_reader.query, i0, i1, j0, j1)
         mat = coo_matrix((v, (i-i0, j-j0)), (i1-i0, j1-j0))
 
@@ -549,3 +542,15 @@ def matrix(h5, i0, i1, j0, j1, field=None, dense=False, balance=True,
             mat.data = bias1[mat.row] * bias2[mat.col] * mat.data
 
         return mat
+
+    else:
+        i, j, v = query_rect(triu_reader.query, i0, i1, j0, j1)
+        arr = coo_matrix((v, (i-i0, j-j0)), (i1-i0, j1-j0)).toarray()
+
+        if balance:
+            weights = h5['bins']['weight']
+            bias1 = weights[i0:i1]
+            bias2 = bias1 if (i0, i1) == (j0, j1) else weights[j0:j1]
+            arr = arr * np.outer(bias1, bias2)
+
+        return arr

@@ -113,7 +113,7 @@ def test_cooler():
     assert c.extent('chr1') == (0, 10)
 
     # 2D range queries as rectangular or triangular
-    A1 = np.triu(c.matrix(balance=False).fetch('chr2').toarray())
+    A1 = np.triu(c.matrix(balance=False).fetch('chr2'))
     df = c.matrix(as_pixels=True, join=False, balance=False).fetch('chr2')
     i0 = c.offset('chr2')
     i, j, v = df['bin1_id'], df['bin2_id'], df['count']
