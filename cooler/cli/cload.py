@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import division, print_function
+from multiprocess import Pool
+from six.moves import map
 import os.path as op
 import json
 import sys
@@ -25,7 +27,7 @@ def cload():
 
 
 def _parse_bins(arg):
-    # Enforce mutual exclusion
+    # Provided chromsizes and binsize
     if ":" in arg:
         chromsizes_file, binsize = arg.split(":")
         if not op.exists(chromsizes_file):
@@ -37,8 +39,9 @@ def _parse_bins(arg):
                 'Expected integer binsize argument (bp), got "{}"'.format(binsize))
         chromsizes = util.read_chromsizes(chromsizes_file, all_names=True)
         bins = util.binnify(chromsizes, binsize)
+
+    # Provided bins
     elif op.exists(arg):
-        # Bin table
         try:
             bins = pd.read_csv(
                 arg,
@@ -50,7 +53,6 @@ def _parse_bins(arg):
             raise ValueError(
                 'Failed to parse bins file "{}": {}'.format(arg, str(e)))
 
-        # Chrom table
         chromtable = (
             bins.drop_duplicates(['chrom'], keep='last')[['chrom', 'end']]
                 .reset_index(drop=True)
@@ -58,6 +60,7 @@ def _parse_bins(arg):
         )
         chroms, lengths = list(chromtable['name']), list(chromtable['length'])
         chromsizes = pd.Series(index=chroms, data=lengths)
+        
     else:
         raise ValueError(
             'Expected BINS to be either <Path to bins file> or '
@@ -105,7 +108,13 @@ def add_arg_help(func):
 
 @register_subcommand
 @add_arg_help
-def hiclib(bins, pairs_path, cool_path, metadata, assembly):
+@click.option(
+    "--chunksize", "-c",
+    help="Control the number of pixels handled by each worker process at a time.",
+    type=int,
+    default=int(100e6),
+    show_default=True)
+def hiclib(bins, pairs_path, cool_path, metadata, assembly, chunksize):
     """
     Bin a hiclib HDF5 contact list (frag) file.
 
@@ -122,16 +131,20 @@ def hiclib(bins, pairs_path, cool_path, metadata, assembly):
         with open(metadata, 'r') as f:
             metadata = json.load(f)
 
-    chunksize = int(100e6)
-    with h5py.File(pairs_path, 'r') as h5pairs, \
-         h5py.File(cool_path, 'w') as h5:
+    with h5py.File(pairs_path, 'r') as h5pairs:
         iterator = HDF5Aggregator(h5pairs, chromsizes, bins, chunksize)
-        create(h5, chroms, lengths, bins, iterator, metadata, assembly)
+        create(cool_path, chromsizes, bins, iterator, metadata, assembly)
 
 
 @register_subcommand
 @add_arg_help
-def tabix(bins, pairs_path, cool_path, metadata, assembly):
+@click.option(
+    "--nproc", "-p",
+    help="Number of processes to split the work between.",
+    type=int,
+    default=8,
+    show_default=True)
+def tabix(bins, pairs_path, cool_path, metadata, assembly, nproc):
     """
     Bin a tabix-indexed contact list file.
 
@@ -149,15 +162,25 @@ def tabix(bins, pairs_path, cool_path, metadata, assembly):
         with open(metadata, 'r') as f:
             metadata = json.load(f)
 
-    iterator = TabixAggregator(pairs_path, chromsizes, bins)
-
-    with h5py.File(cool_path, 'w') as h5:
-        create(h5, chroms, lengths, bins, iterator, metadata, assembly)   
-
+    try:
+        if nproc > 1:
+            pool = Pool(nproc)
+            map = pool.map
+        iterator = TabixAggregator(pairs_path, chromsizes, bins, map=map)
+        create(cool_path, chromsizes, bins, iterator, metadata, assembly)
+    finally:
+        if nproc > 1:
+            pool.close() 
 
 @register_subcommand
 @add_arg_help
-def pairix(bins, pairs_path, cool_path, metadata, assembly):
+@click.option(
+    "--nproc", "-p",
+    help="Number of processes to split the work between.",
+    type=int,
+    default=8,
+    show_default=True)
+def pairix(bins, pairs_path, cool_path, metadata, assembly, nproc):
     """
     Bin a pairix-indexed contact list file.
 
@@ -175,7 +198,12 @@ def pairix(bins, pairs_path, cool_path, metadata, assembly):
         with open(metadata, 'r') as f:
             metadata = json.load(f)
 
-    iterator = PairixAggregator(pairs_path, chromsizes, bins)
-
-    with h5py.File(cool_path, 'w') as h5:
-        create(h5, chroms, lengths, bins, iterator, metadata, assembly)   
+    try:
+        if nproc > 1:
+            pool = Pool(nproc)
+            map = pool.map
+        iterator = PairixAggregator(pairs_path, chromsizes, bins, map=map)
+        create(cool_path, chromsizes, bins, iterator, metadata, assembly)
+    finally:
+        if nproc > 1:
+            pool.close() 
