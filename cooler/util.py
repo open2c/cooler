@@ -419,6 +419,10 @@ def cmd_exists(cmd):
                 for path in os.environ['PATH'].split(os.pathsep))
 
 
+def mad(data, axis=None):
+    return np.median(np.abs(data - np.median(data, axis)), axis)
+
+
 @contextmanager
 def open_hdf5(fp, mode='r', *args, **kwargs):
     """

@@ -6,7 +6,7 @@ import h5py
 import six
 
 
-def get(h5, lo=0, hi=None, fields=None, convert_enum=True, **kwargs):
+def get(h5, lo=0, hi=None, fields=None, convert_enum=True):
     """
     Query a range of rows from a table as a dataframe.
 
@@ -74,14 +74,12 @@ def get(h5, lo=0, hi=None, fields=None, convert_enum=True, **kwargs):
         return pandas.Series(
             data[fields[0]],
             index=index,
-            name=field,
-            **kwargs)
+            name=field)
     else:
         return pandas.DataFrame(
             data,
             columns=fields,
-            index=index,
-            **kwargs)
+            index=index)
 
 
 def _region_to_extent(h5, chrom_ids, region, binsize):
@@ -428,9 +426,6 @@ class RangeSelector1D(_IndexingMixin):
             return self._slice(self.fields, lo, hi)
         else:
             raise NotImplementedError
-
-    # def to_dask(self):
-    #     pass
 
 
 class RangeSelector2D(_IndexingMixin):

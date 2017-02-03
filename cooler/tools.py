@@ -18,7 +18,7 @@ import h5py
 lock = Lock()
 
 
-def get_dict(h5, lo=0, hi=None, fields=None, convert_enum=True, **kwargs):
+def get_dict(h5, lo=0, hi=None, fields=None, convert_enum=True):
     grp = h5
     series = False
     if fields is None:

@@ -11,28 +11,24 @@ import h5py
 
 from . import get_logger
 from .api import Cooler
-from .tools import split
+from .tools import split, partition
+from .util import mad
 
 
 logger = get_logger()
 
 
-def partition(start, stop, step):
-    return ((i, min(i+step, stop))
-                for i in range(start, stop, step))
-
-
-def init_transform(chunk):
+def _init_transform(chunk):
     return chunk, np.copy(chunk['pixels']['count'])
 
 
-def binarize_mask(args):
+def _binarize_mask(args):
     chunk, data = args
     data[data != 0] = 1
     return chunk, data
 
 
-def dropdiag_mask(n_diags, args):
+def _dropdiag_mask(n_diags, args):
     chunk, data = args
     pixels = chunk['pixels']
     mask = np.abs(pixels['bin1_id'] - pixels['bin2_id']) < n_diags
@@ -40,7 +36,7 @@ def dropdiag_mask(n_diags, args):
     return chunk, data
 
 
-def cisonly_mask(args):
+def _cisonly_mask(args):
     chunk, data = args
     chrom_ids = chunk['bins']['chrom']
     pixels = chunk['pixels']
@@ -49,19 +45,7 @@ def cisonly_mask(args):
     return chunk, data
 
 
-def maskchrom_transform(drop_chroms, args):
-    chunk, data = args
-    chrom_ids = chunk['bins']['chrom']
-    pixels = chunk['pixels']
-    mask = np.ones(len(data), dtype=bool)
-    for cid in drop_chroms:
-        mask |= chrom_ids[pixels['bin1_id']] == cid
-        mask |= chrom_ids[pixels['bin2_id']] == cid
-        data[mask] = 0
-    return chunk, data
-
-
-def timesouterproduct_transform(vec, args):
+def _timesouterproduct_transform(vec, args):
     chunk, data = args
     pixels = chunk['pixels']
     data = (vec[pixels['bin1_id']]
@@ -70,7 +54,7 @@ def timesouterproduct_transform(vec, args):
     return chunk, data
 
 
-def marginalize_transform(args):
+def _marginalize_transform(args):
     chunk, data = args
     n = len(chunk['bins']['chrom'])
     pixels = chunk['pixels']
@@ -81,20 +65,16 @@ def marginalize_transform(args):
     return marg
 
 
-def mad(data, axis=None):
-    return np.median(np.abs(data - np.median(data, axis)), axis)
-
-
 def _balance_genomewide(bias, c, spans, filters, chunksize, map, tol, max_iters,
                         rescale_marginals, use_lock):
     scale = 1.0
     for _ in range(max_iters):
         marg = np.sum(
             split(c, spans=spans, map=map, use_lock=use_lock)
-                .pipe(init_transform)
+                .pipe(_init_transform)
                 .pipe(filters)
-                .pipe(timesouterproduct_transform, bias)
-                .pipe(marginalize_transform)
+                .pipe(_timesouterproduct_transform, bias)
+                .pipe(_marginalize_transform)
                 .combine(),
             axis=0)
         
@@ -140,10 +120,10 @@ def _balance_cisonly(bias, c, spans, filters, chunksize, map, tol, max_iters,
         for _ in range(max_iters):
             marg = np.sum(
                 split(c, spans=spans, map=map, use_lock=use_lock)
-                    .pipe(init_transform)
+                    .pipe(_init_transform)
                     .pipe(filters)
-                    .pipe(timesouterproduct_transform, bias)
-                    .pipe(marginalize_transform)
+                    .pipe(_timesouterproduct_transform, bias)
+                    .pipe(_marginalize_transform)
                     .combine(),
                 axis=0)
 
@@ -220,6 +200,10 @@ def iterative_correction(h5, cooler_root='/', chunksize=None, map=map, tol=1e-5,
         matrix (including the main diagonal).
     max_iters : int, optional
         Iteration limit.
+    rescale_marginals : bool, optional
+        Normalize the balancing weights such that the balanced matrix has rows /
+        columns that sum to 1.0. The scale factor is stored in the ``stats``
+        output dictionary.
 
     Returns
     -------
@@ -227,6 +211,9 @@ def iterative_correction(h5, cooler_root='/', chunksize=None, map=map, tol=1e-5,
         Vector of bin bias weights to normalize the observed contact map.
         Dropped bins will be assigned the value NaN.
         N[i, j] = O[i, j] * bias[i] * bias[j]
+    stats : dict
+        Summary of parameters used to perform balancing and the average 
+        magnitude of the corrected matrix's marginal sum at convergence.
 
     """
     filepath = h5.file.filename
@@ -244,9 +231,9 @@ def iterative_correction(h5, cooler_root='/', chunksize=None, map=map, tol=1e-5,
     # List of pre-marginalization data transformations
     base_filters = []
     if cis_only:
-        base_filters.append(cisonly_mask)
+        base_filters.append(_cisonly_mask)
     if ignore_diags:
-        base_filters.append(partial(dropdiag_mask, ignore_diags))
+        base_filters.append(partial(_dropdiag_mask, ignore_diags))
 
     # Initialize the bias weights
     n_bins = h5[cooler_root].attrs['nbins']
@@ -254,12 +241,12 @@ def iterative_correction(h5, cooler_root='/', chunksize=None, map=map, tol=1e-5,
 
     # Drop bins with too few nonzeros from bias
     if min_nnz > 0:
-        filters = [binarize_mask] + base_filters
+        filters = [_binarize_mask] + base_filters
         marg_nnz = np.sum(
             split(c, spans=spans, map=map, use_lock=use_lock)
-                .pipe(init_transform)
+                .pipe(_init_transform)
                 .pipe(filters)
-                .pipe(marginalize_transform)
+                .pipe(_marginalize_transform)
                 .combine(),
             axis=0)
         bias[marg_nnz < min_nnz] = 0
@@ -267,9 +254,9 @@ def iterative_correction(h5, cooler_root='/', chunksize=None, map=map, tol=1e-5,
     filters = base_filters
     marg = np.sum(
         split(c, spans=spans, map=map, use_lock=use_lock)
-            .pipe(init_transform)
+            .pipe(_init_transform)
             .pipe(filters)
-            .pipe(marginalize_transform)
+            .pipe(_marginalize_transform)
             .combine(),
         axis=0)
 
