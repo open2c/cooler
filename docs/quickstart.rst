@@ -7,7 +7,7 @@ Installation
 
 Requirements:
 
-- Python 2.7 or 3.3+
+- Python 2.7 or 3.4 and higher
 - libhdf5
 - Python packages ``numpy``, ``scipy``, ``pandas``, ``h5py``. 
 
@@ -97,7 +97,7 @@ The ``cooler`` library provides a thin wrapper over the excellent NumPy-aware `h
     >>> c = cooler.Cooler('bigDataset.cool')
     >>> resolution = c.info['bin-size']
     >>> mat = c.matrix(balance=True).fetch('chr5:10,000,000-15,000,000')
-    >>> plt.matshow(np.log10(mat.toarray()), cmap='YlOrRd')
+    >>> plt.matshow(np.log10(mat), cmap='YlOrRd')
 
 
 See also:
