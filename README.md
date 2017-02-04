@@ -95,7 +95,7 @@ The `cooler` library provides a thin wrapper over the excellent [h5py](http://do
 >>> import h5py
 >>> pool = mp.Pool(8)
 >>> f = h5py.File('bigDataset.cool', 'r')
->>> weights = cooler.ice.iterative_correction(f, map=pool.map, ignore_diags=3, min_nnz=10)
+>>> weights, stats = cooler.ice.iterative_correction(f, map=pool.map, ignore_diags=3, min_nnz=10)
 ```
 
 See also:
