@@ -1,6 +1,26 @@
-### Upcoming
+### 0.6.0 (2017-02-03) ###
 
-* Added `recursive_agg_onefile.py` for creating multi-resolution cooler files
+General
+* Dropped Python 3.3 support. Added 3.6 support.
+* Added `contrib` subpackage containing utilities for higlass, including multires aggregation.
+* Fixed various issues with synchronizing read/write multiprocessing with HDF5.
+* Replacing prints with logging.
+* Added sandboxed `tools` module to develop utilities for out-of-core algorithms using Coolers.
+
+New features
+* Cooler objects have additional convenience properties `chromsizes`, `chromnames`.
+* New file introspection functions `ls` and `is_cooler` to support nested Cooler groups.
+* Cooler initializer can accept a file path and path to Cooler group.
+* `cload` accepts contact lists in hiclib-style HDF5 format, the legacy tabix-indexed format, and new pairix-indexed format.
+
+Backwards-incompatible changes
+* `create` only accepts a file path and optional group path instead of an open file object.
+* `Cooler.matrix` selector now returns a balanced dense 2D NumPy array by default. Explicitly set `balance` to False to get raw counts and set `sparse` to True to get a `coo_matrix` as per old behavior.
+* Command line parameters of `cload` changed significantly
+
+Bug fixes
+* Fixed bug in `csort` that led to incorrect triangularity of trans read pairs.
+
 
 ### 0.5.3 (2016-09-10) ###
 
