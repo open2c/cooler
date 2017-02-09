@@ -130,6 +130,8 @@ def balance(cool_path, nproc, chunksize, mad_max, min_nnz, min_count,
         pool = Pool(nproc)
         with h5py.File(cool_path, 'a') as h5:
 
+            ice.logger.info('Balancing "{}"'.format(cool_path))
+
             bias, stats = ice.iterative_correction(
                 h5,
                 chunksize=chunksize,
