@@ -207,6 +207,7 @@ class TabixAggregator(ContactReader):
         for chrom in self.contigs:
             if chrom not in file_contigs:
                 warnings.warn("Did not find contig '{}' in contact list file.".format(chrom))
+        self.contigs = [contig for contig in self.contigs if contig in file_contigs]
         
         # chrom offset index: chrom_id -> offset in bins
         cid_per_bin = self.idmap[bins['chrom']].values
@@ -230,9 +231,6 @@ class TabixAggregator(ContactReader):
         return self.n_records
     
     def aggregate(self, chrom):
-        if chrom not in self.contigs:
-            return None
-
         import pysam
         filepath = self.filepath
         binsize = self.binsize
