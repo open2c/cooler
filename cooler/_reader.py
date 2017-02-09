@@ -230,6 +230,9 @@ class TabixAggregator(ContactReader):
         return self.n_records
     
     def aggregate(self, chrom):
+        if chrom not in self.contigs:
+            return None
+
         import pysam
         filepath = self.filepath
         binsize = self.binsize
