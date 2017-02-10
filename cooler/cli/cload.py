@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 from __future__ import division, print_function
 from multiprocess import Pool
-from six.moves import map
 import os.path as op
 import json
+import six
 import sys
 
 import numpy as np
@@ -166,6 +166,8 @@ def tabix(bins, pairs_path, cool_path, metadata, assembly, nproc):
         if nproc > 1:
             pool = Pool(nproc)
             map = pool.map
+        else:
+            map = six.moves.map
         iterator = TabixAggregator(pairs_path, chromsizes, bins, map=map)
         create(cool_path, chromsizes, bins, iterator, metadata, assembly)
     finally:
@@ -202,6 +204,8 @@ def pairix(bins, pairs_path, cool_path, metadata, assembly, nproc):
         if nproc > 1:
             pool = Pool(nproc)
             map = pool.map
+        else:
+            map = six.moves.map
         iterator = PairixAggregator(pairs_path, chromsizes, bins, map=map)
         create(cool_path, chromsizes, bins, iterator, metadata, assembly)
     finally:
