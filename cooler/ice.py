@@ -91,14 +91,14 @@ def _balance_genomewide(bias, c, spans, filters, chunksize, map, tol, max_iters,
         var = nzmarg.var()
         logger.info("variance is {}".format(var))
         if var < tol:
-            scale = np.sqrt(nzmarg.mean())
+            scale = nzmarg.mean()
             bias[bias == 0] = np.nan
             break
     else:
         raise RuntimeError('Iteration limit reached without convergence.')
 
     if rescale_marginals:
-        bias /= scale
+        bias /= np.sqrt(scale)
 
     return bias, scale
 
@@ -141,7 +141,7 @@ def _balance_cisonly(bias, c, spans, filters, chunksize, map, tol, max_iters,
             var = nzmarg.var()
             logger.info("variance is {}".format(var))
             if var < tol:
-                scale = np.sqrt(nzmarg.mean())
+                scale = nzmarg.mean()
                 b = bias[lo:hi]
                 b[b == 0] = np.nan
                 break
@@ -151,7 +151,7 @@ def _balance_cisonly(bias, c, spans, filters, chunksize, map, tol, max_iters,
         
         scales[cid] = scale
         if rescale_marginals:
-            bias[lo:hi] /= scale
+            bias[lo:hi] /= np.sqrt(scale)
         
     return bias, scales
 
