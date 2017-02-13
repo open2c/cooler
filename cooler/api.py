@@ -270,7 +270,7 @@ class Cooler(object):
 
     def __repr__(self):
         filename = os.path.basename(self.filename)
-        return '<Cooler "{}":"{}">'.format(filename, self.root)
+        return '<Cooler "{}:{}">'.format(filename, self.root)
 
 
 def info(h5):
