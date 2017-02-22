@@ -41,7 +41,7 @@ def get_long_description():
     try:
         import pypandoc
         descr = pypandoc.convert_text(descr, 'rst')
-    except IOError, ImportError:
+    except (IOError, ImportError):
         pass
     return descr
 
