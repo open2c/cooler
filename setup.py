@@ -40,7 +40,7 @@ def get_long_description():
     descr = _read('README.md')
     try:
         import pypandoc
-        descr = pypandoc.convert_text(descr, 'rst')
+        descr = pypandoc.convert_text(descr, to='rst', format='md')
     except (IOError, ImportError):
         pass
     return descr

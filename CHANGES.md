@@ -1,3 +1,8 @@
+### 0.6.3 (2017-22-02) ###
+
+* Merge PairixAggregator patch from Soo.
+* Update repr string
+* Return matrix scale factor in balance stats rather than the bias scale factor: #35.
 
 ### 0.6.2 (2017-12-02) ###
 
