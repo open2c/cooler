@@ -303,7 +303,7 @@ class PairixAggregator(ContactReader):
         except ImportError:
             raise ImportError("pypairix is required to read pairix-indexed files")
         
-        self.P2 = kwargs.pop('P2', 3)
+        # self.P2 = kwargs.pop('P2', 4)
         self._map = map
         self.chromsizes = chromsizes
         self.bins = check_bins(bins, chromsizes)
@@ -324,6 +324,8 @@ class PairixAggregator(ContactReader):
             itertools.chain.from_iterable(
                 [b.split('|') for b in f.get_blocknames()]))
 
+        self.P2 = f.get_startpos2_col() 
+
         for chrom in self.contigs:
             if chrom not in file_contigs:
                 warnings.warn(
@@ -341,7 +343,7 @@ class PairixAggregator(ContactReader):
         chrom1, chrom2 = block
         return sum(1 for line in f.query2D(
             chrom1, 0, self.chromsizes[chrom1],
-            chrom2, 0, self.chromsizes[chrom2]))
+            chrom2, 0, self.chromsizes[chrom2], 1))
     
     def size(self):
         if self.n_records is None:
@@ -373,7 +375,7 @@ class PairixAggregator(ContactReader):
                 chrom2_size = chromsizes[chrom2]
                 for line in f.query2D(
                         chrom1, bin1.start, bin1.end,
-                        chrom2, 0, chrom2_size):
+                        chrom2, 0, chrom2_size, 1):
                     pos2 = int(line[P2])
                     if binsize is None:
                         lo, hi = chrom_binoffset[cid2], chrom_binoffset[cid2+1]
