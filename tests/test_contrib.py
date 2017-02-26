@@ -15,3 +15,9 @@ def test_data_retrieval():
 
     assert(data['genome_start1'].iloc[0] == 0.)
     assert(data['genome_start2'].iloc[0] == 0.)
+
+    data = cch.get_data(f, 4, 0, 256000000, 0, 256000000)
+
+    assert(data['genome_start1'].iloc[-1] > 255000000)
+    assert(data['genome_start1'].iloc[-1] < 256000000)
+    #print("ge1", data['genome_end1'])
