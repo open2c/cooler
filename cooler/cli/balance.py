@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import division, print_function
-from multiprocessing import Pool
+from multiprocess import Pool
+import logging
 import sys
 
 import numpy as np
@@ -11,9 +12,14 @@ from . import cli
 from .. import ice
 
 
+logging.basicConfig(stream=sys.stderr)
+ice.logger.setLevel(logging.INFO)
+
+
 @cli.command()
 @click.argument(
-    "cool_path")
+    "cool_path",
+    type=click.Path(exists=True))
 @click.option(
     "--nproc", "-p",
     help="Number of processes to split the work between.",
@@ -81,8 +87,18 @@ from .. import ice
     help="Overwrite the target dataset, 'weight', if it already exists.",
     is_flag=True,
     default=False)
+@click.option(
+    "--check",
+    help="Check whether a data column 'weight' already exists.",
+    is_flag=True,
+    default=False)
+@click.option(
+    "--stdout",
+    help="Print weight column to stdout instead of saving to file.",
+    is_flag=True,
+    default=False)
 def balance(cool_path, nproc, chunksize, mad_max, min_nnz, min_count,
-            ignore_diags, tol, cis_only, max_iters, force):
+            ignore_diags, tol, cis_only, max_iters, force, check, stdout):
     """
     Out-of-core contact matrix balancing.
 
@@ -92,8 +108,17 @@ def balance(cool_path, nproc, chunksize, mad_max, min_nnz, min_count,
     COOL_PATH : Path to a COOL file.
 
     """
+    if check:
+        with h5py.File(cool_path, 'r') as h5:
+            if 'weight' not in h5['bins']:
+                click.echo("{}: No 'weight' column found.".format(cool_path))
+                sys.exit(1)
+            else:
+                click.echo("{} is balanced.".format(cool_path))
+                sys.exit(0)
+
     with h5py.File(cool_path, 'r+') as h5:
-        if 'weight' in h5['bins']:
+        if 'weight' in h5['bins'] and not stdout:
             if not force:
                 print("'weight' column already exists. "
                       "Use --force option to overwrite.", file=sys.stderr)
@@ -105,6 +130,8 @@ def balance(cool_path, nproc, chunksize, mad_max, min_nnz, min_count,
         pool = Pool(nproc)
         with h5py.File(cool_path, 'a') as h5:
 
+            ice.logger.info('Balancing "{}"'.format(cool_path))
+
             bias, stats = ice.iterative_correction(
                 h5,
                 chunksize=chunksize,
@@ -115,14 +142,18 @@ def balance(cool_path, nproc, chunksize, mad_max, min_nnz, min_count,
                 mad_max=mad_max,
                 max_iters=max_iters,
                 ignore_diags=ignore_diags,
-                normalize_marginals=True,
+                rescale_marginals=True,
                 use_lock=False,
                 map=pool.map)
 
-            # add the bias column to the file
-            h5opts = dict(compression='gzip', compression_opts=6)
-            h5['bins'].create_dataset('weight', data=bias, **h5opts)
-            h5['bins']['weight'].attrs.update(stats)
+            if stdout:
+                np.savetxt(getattr(sys.stdout, 'buffer', sys.stdout), 
+                           bias, fmt='%g')
+            else:
+                # add the bias column to the file
+                h5opts = dict(compression='gzip', compression_opts=6)
+                h5['bins'].create_dataset('weight', data=bias, **h5opts)
+                h5['bins']['weight'].attrs.update(stats)
 
     finally:
         pool.close()

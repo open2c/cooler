@@ -56,7 +56,7 @@ def test_csort():
 
 
 @with_setup(teardown=partial(teardown_func, testcool_path))
-def test_cload():
+def test_cload_tabix():
     runner = CliRunner()
     result = runner.invoke(
         cload_tabix, [

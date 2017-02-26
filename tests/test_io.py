@@ -76,20 +76,19 @@ def teardown_func():
 
 
 def should_not_depend_on_chunksize(bintable):
-    chroms, lengths = zip(*iteritems(chromsizes))
     # try different chunk sizes
-    with h5py.File(testfile_path, 'w') as h5:
-        reader = cooler.io.HDF5Aggregator(
-            mock_reads, chromsizes, bintable, chunksize=66)
-        cooler.io.create(h5, chroms, lengths, bintable, reader)
+    reader = cooler.io.HDF5Aggregator(
+        mock_reads, chromsizes, bintable, chunksize=66)
+    cooler.io.create(testfile_path, chromsizes, bintable, reader)
+    with h5py.File(testfile_path, 'r') as h5:
         oc1 = h5['indexes']['chrom_offset'][:]
         ob1 = h5['indexes']['bin1_offset'][:]
         p1 = cooler.pixels(h5, join=False)
 
-    with h5py.File(testfile_path, 'w') as h5:
-        reader = cooler.io.HDF5Aggregator(
-            mock_reads, chromsizes, bintable, chunksize=666)
-        cooler.io.create(h5, chroms, lengths, bintable, reader)
+    reader = cooler.io.HDF5Aggregator(
+        mock_reads, chromsizes, bintable, chunksize=666)
+    cooler.io.create(testfile_path, chromsizes, bintable, reader)
+    with h5py.File(testfile_path, 'r') as h5:
         oc2 = h5['indexes']['chrom_offset'][:]
         ob2 = h5['indexes']['bin1_offset'][:]
         p2 = cooler.pixels(h5, join=False)
@@ -100,58 +99,55 @@ def should_not_depend_on_chunksize(bintable):
 
 
 def should_raise_if_input_not_sorted(bintable):
-    chroms, lengths = zip(*iteritems(chromsizes))
     # not sorted by chrm1
-    with h5py.File(testfile_path, 'w') as h5:
-        bad_reads = MockReads({
-            'chrms1': mock_reads['chrms2'],
-            'cuts1':  mock_reads['cuts2'],
-            'chrms2': mock_reads['chrms1'],
-            'cuts2':  mock_reads['cuts1'],
-        })
-        assert_raises(ValueError, cooler.io.HDF5Aggregator,
-            bad_reads, chromsizes, bintable, chunksize=66)
+    #with h5py.File(testfile_path, 'w') as h5:
+    bad_reads = MockReads({
+        'chrms1': mock_reads['chrms2'],
+        'cuts1':  mock_reads['cuts2'],
+        'chrms2': mock_reads['chrms1'],
+        'cuts2':  mock_reads['cuts1'],
+    })
+    assert_raises(ValueError, cooler.io.HDF5Aggregator,
+        bad_reads, chromsizes, bintable, chunksize=66)
 
     # not triu
-    with h5py.File(testfile_path, 'w') as h5:
-        bad_reads = MockReads({
-            'chrms1': mock_reads['chrms1'].copy(),
-            'cuts1':  mock_reads['cuts1'].copy(),
-            'chrms2': mock_reads['chrms2'].copy(),
-            'cuts2':  mock_reads['cuts2'].copy(),
-        })
-        bad_reads['chrms1'][0] = 0
-        bad_reads['chrms2'][0] = 0
-        bad_reads['cuts1'][0] = 10
-        bad_reads['cuts2'][0] = 9
-        reader = cooler.io.HDF5Aggregator(
-            bad_reads, chromsizes, bintable, chunksize=66)
-        assert_raises(ValueError, cooler.io.create,
-            h5, chroms, lengths, bintable, reader)
+    bad_reads = MockReads({
+        'chrms1': mock_reads['chrms1'].copy(),
+        'cuts1':  mock_reads['cuts1'].copy(),
+        'chrms2': mock_reads['chrms2'].copy(),
+        'cuts2':  mock_reads['cuts2'].copy(),
+    })
+    bad_reads['chrms1'][0] = 0
+    bad_reads['chrms2'][0] = 0
+    bad_reads['cuts1'][0] = 10
+    bad_reads['cuts2'][0] = 9
+    reader = cooler.io.HDF5Aggregator(
+        bad_reads, chromsizes, bintable, chunksize=66)
+    assert_raises(ValueError, cooler.io.create,
+        testfile_path, chromsizes, bintable, reader)
 
 
 def should_work_with_int32_cols(bintable):
-    chroms, lengths = zip(*iteritems(chromsizes))
     # int64
-    with h5py.File(testfile_path, 'w') as h5:
-        reader = cooler.io.HDF5Aggregator(
-            mock_reads, chromsizes, bintable, chunksize=66)
-        cooler.io.create(h5, chroms, lengths, bintable, reader)
+    reader = cooler.io.HDF5Aggregator(
+        mock_reads, chromsizes, bintable, chunksize=66)
+    cooler.io.create(testfile_path, chromsizes, bintable, reader)
+    with h5py.File(testfile_path, 'r') as h5:
         oc1 = h5['indexes']['chrom_offset'][:]
         ob1 = h5['indexes']['bin1_offset'][:]
         p1 = cooler.pixels(h5, join=False)
 
     # int32
-    with h5py.File(testfile_path, 'w') as h5:
-        mock_reads32 = MockReads({
-            'chrms1': mock_reads['chrms1'].astype(np.int32),
-            'cuts1':  mock_reads['cuts1'].astype(np.int32),
-            'chrms2': mock_reads['chrms2'].astype(np.int32),
-            'cuts2':  mock_reads['cuts2'].astype(np.int32),
-        })
-        reader = cooler.io.HDF5Aggregator(
-            mock_reads32, chromsizes, bintable, chunksize=66)
-        cooler.io.create(h5, chroms, lengths, bintable, reader)
+    mock_reads32 = MockReads({
+        'chrms1': mock_reads['chrms1'].astype(np.int32),
+        'cuts1':  mock_reads['cuts1'].astype(np.int32),
+        'chrms2': mock_reads['chrms2'].astype(np.int32),
+        'cuts2':  mock_reads['cuts2'].astype(np.int32),
+    })
+    reader = cooler.io.HDF5Aggregator(
+        mock_reads32, chromsizes, bintable, chunksize=66)
+    cooler.io.create(testfile_path, chromsizes, bintable, reader)
+    with h5py.File(testfile_path, 'r') as h5:
         oc2 = h5['indexes']['chrom_offset'][:]
         ob2 = h5['indexes']['bin1_offset'][:]
         p2 = cooler.pixels(h5, join=False)

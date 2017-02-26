@@ -31,7 +31,7 @@ To get started:
 
 Requirements:
 
-- Python 2.7/3.3+
+- Python 2.7/3.4+
 - libhdf5 and Python packages `numpy`, `scipy`, `pandas`, `h5py`. We highly recommend using the `conda` package manager to install scientific packages like these. To get it, you can either install the full [Anaconda](https://www.continuum.io/downloads) Python distribution or just the standalone [conda](http://conda.pydata.org/miniconda.html) package manager.
 
 Install from PyPI using pip.
@@ -76,7 +76,7 @@ See also:
 The `cooler` library provides a thin wrapper over the excellent [h5py](http://docs.h5py.org/en/latest/) Python interface to HDF5. It supports creation of cooler files and the following types of **range queries** on the data:
 
 - Tabular selections are retrieved as Pandas DataFrames and Series.
-- Matrix  selections are retrieved as SciPy sparse matrices.
+- Matrix  selections are retrieved as NumPy arrays or SciPy sparse matrices.
 - Metadata is retrieved as a json-serializable Python dictionary.
 - Range queries can be supplied using either integer bin indexes or genomic coordinate intervals.
 
@@ -87,7 +87,7 @@ The `cooler` library provides a thin wrapper over the excellent [h5py](http://do
 >>> c = cooler.Cooler('bigDataset.cool')
 >>> resolution = c.info['bin-size']
 >>> mat = c.matrix(balance=True).fetch('chr5:10,000,000-15,000,000')
->>> plt.matshow(np.log10(mat.toarray()), cmap='YlOrRd')
+>>> plt.matshow(np.log10(mat), cmap='YlOrRd')
 ```
 
 ```python
@@ -95,7 +95,7 @@ The `cooler` library provides a thin wrapper over the excellent [h5py](http://do
 >>> import h5py
 >>> pool = mp.Pool(8)
 >>> f = h5py.File('bigDataset.cool', 'r')
->>> weights = cooler.ice.iterative_correction(f, map=pool.map, ignore_diags=3, min_nnz=10)
+>>> weights, stats = cooler.ice.iterative_correction(f, map=pool.map, ignore_diags=3, min_nnz=10)
 ```
 
 See also:

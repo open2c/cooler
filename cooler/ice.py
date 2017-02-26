@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import division, print_function
-from multiprocessing import Pool, Lock
+from multiprocess import Pool, Lock
+from functools import partial
 import warnings
 import six
 
@@ -8,144 +9,157 @@ import numpy as np
 import pandas
 import h5py
 
-
-# Lock prevents race condition if HDF5 file is already open before forking.
-# See discussion: <https://groups.google.com/forum/#!topic/h5py/bJVtWdFtZQM>
-lock = Lock()
-
-
-class Worker(object):
-    """
-    Worker to do partial marginalization of a sparse heatmap in Cooler format.
-
-    A worker fetches a set of records representing matrix elements (pixels) and
-    uses a weighted bincount algorithm to compute the partial marginal sum of
-    the matrix coming from that set.
-
-    The initial weight assigned to each pixel in a chunk is its value. The
-    initializer accepts a sequence of "filters" or transformations to
-    sequentially process the pixel weights before aggregating/marginalizing,
-    e.g., to remove unwanted elements by setting their weights to zero.
-
-    Parameters
-    ----------
-    cooler_path : str
-        Path to Cooler HDF5 file. Must be a string and not a file-like object
-        when running in parallel because the latter cannot be pickled.
-
-    cooler_root : str
-        HDF5 path to root group of a Cooler tree.
-
-    filters : sequence of callables
-        Transformations that the worker will apply on the pixel weights prior
-        to bincount. The required signature is ``f(chunk, data_weights)``,
-        where ``chunk`` is a dictionary containing the data chunk and bin
-        information, and ``data_weights`` is the 1D-array of current pixel
-        weights of the chunk. The filter must return the updated array of pixel
-        weights.
-
-    Example
-    -------
-    # Create a worker and register filters f1, f2, f3
-    >>> w = Worker('mycooler.coo', [f1, f2, f3])
-
-    # Map to three consecutive chunks
-    >>> marg1 = w((0, 1000))
-    >>> marg2 = w((1000, 2000))
-    >>> marg3 = w((2000, 3000))
-
-    # Reduce the partial marginals into one
-    >>> marg = np.sum([marg1, marg2, marg3], axis=0)
-
-    """
-    def __init__(self, cooler_path, cooler_root, filters=None, use_lock=True):
-        self.filepath = cooler_path
-        self.root = cooler_root
-        self.use_lock = use_lock
-        self.filters = filters if filters is not None else []
-
-    def __call__(self, span):
-        lo, hi = span
-        import numpy as np
-        import h5py
-
-        # prepare chunk dict
-        chunk = {}
-
-        try:
-            if self.use_lock:
-                lock.acquire()
-
-            with h5py.File(self.filepath, 'r') as h5:
-                coo = h5[self.root]
-                n_bins_total = coo['bins/chrom'].shape[0]
-                chunk['bin1_id'] = coo['pixels/bin1_id'][lo:hi]
-                chunk['bin2_id'] = coo['pixels/bin2_id'][lo:hi]
-                chunk['count']   = coo['pixels/count'][lo:hi]
-                chunk['bintable'] = {
-                    'chrom_id':  coo['bins/chrom'][:],
-                    'start':     coo['bins/start'][:],
-                    'end':       coo['bins/end'][:],
-                }
-        finally:
-            if self.use_lock:
-                lock.release()
-
-        # apply filters to chunk
-        data_weights = chunk['count']
-        for filter_ in self.filters:
-            data_weights = filter_(chunk, data_weights)
-
-        # marginalize
-        marg = np.zeros(n_bins_total, dtype=float)
-        marg += np.bincount(
-            chunk['bin1_id'], weights=data_weights, minlength=n_bins_total)
-        marg += np.bincount(
-            chunk['bin2_id'], weights=data_weights, minlength=n_bins_total)
-        return marg
+from . import get_logger
+from .api import Cooler
+from .tools import split, partition
+from .util import mad
 
 
-class BinarizeFilter(object):
-    def __call__(self, chunk, data_weights):
-        data_weights[data_weights != 0] = 1
-        return data_weights
+logger = get_logger()
 
 
-class DropDiagFilter(object):
-    def __init__(self, n_diags):
-        self.n_diags = n_diags
-    def __call__(self, chunk, data_weights):
-        mask = np.abs(chunk['bin1_id'] - chunk['bin2_id']) < self.n_diags
-        data_weights[mask] = 0
-        return data_weights
+def _init_transform(chunk):
+    return chunk, np.copy(chunk['pixels']['count'])
 
 
-class CisOnlyFilter(object):
-    def __call__(self, chunk, data_weights):
-        chrom_ids = chunk['bintable']['chrom_id']
-        mask = chrom_ids[chunk['bin1_id']] != chrom_ids[chunk['bin2_id']]
-        data_weights[mask] = 0
-        return data_weights
+def _binarize_mask(args):
+    chunk, data = args
+    data[data != 0] = 1
+    return chunk, data
 
 
-class TimesOuterProductFilter(object):
-    def __init__(self, vec):
-        self.vec = vec
-    def __call__(self, chunk, data_weights):
-        data_weights = (self.vec[chunk['bin1_id']]
-                            * self.vec[chunk['bin2_id']]
-                            * data_weights)
-        return data_weights
+def _dropdiag_mask(n_diags, args):
+    chunk, data = args
+    pixels = chunk['pixels']
+    mask = np.abs(pixels['bin1_id'] - pixels['bin2_id']) < n_diags
+    data[mask] = 0
+    return chunk, data
 
 
-def mad(data, axis=None):
-    return np.median(np.abs(data - np.median(data, axis)), axis)
+def _cisonly_mask(args):
+    chunk, data = args
+    chrom_ids = chunk['bins']['chrom']
+    pixels = chunk['pixels']
+    mask = chrom_ids[pixels['bin1_id']] != chrom_ids[pixels['bin2_id']]
+    data[mask] = 0
+    return chunk, data
+
+
+def _timesouterproduct_transform(vec, args):
+    chunk, data = args
+    pixels = chunk['pixels']
+    data = (vec[pixels['bin1_id']]
+                * vec[pixels['bin2_id']]
+                * data)
+    return chunk, data
+
+
+def _marginalize_transform(args):
+    chunk, data = args
+    n = len(chunk['bins']['chrom'])
+    pixels = chunk['pixels']
+    marg = (
+          np.bincount(pixels['bin1_id'], weights=data, minlength=n)
+        + np.bincount(pixels['bin2_id'], weights=data, minlength=n)
+    )
+    return marg
+
+
+def _balance_genomewide(bias, c, spans, filters, chunksize, map, tol, max_iters,
+                        rescale_marginals, use_lock):
+    scale = 1.0
+    for _ in range(max_iters):
+        marg = np.sum(
+            split(c, spans=spans, map=map, use_lock=use_lock)
+                .pipe(_init_transform)
+                .pipe(filters)
+                .pipe(_timesouterproduct_transform, bias)
+                .pipe(_marginalize_transform)
+                .combine(),
+            axis=0)
+        
+        nzmarg = marg[marg != 0]
+        if not len(nzmarg):
+            scale = np.nan
+            bias[:] = np.nan
+            break
+
+        marg = marg / nzmarg.mean()
+        marg[marg == 0] = 1
+        bias /= marg
+
+        var = nzmarg.var()
+        logger.info("variance is {}".format(var))
+        if var < tol:
+            scale = nzmarg.mean()
+            bias[bias == 0] = np.nan
+            break
+    else:
+        raise RuntimeError('Iteration limit reached without convergence.')
+
+    if rescale_marginals:
+        bias /= np.sqrt(scale)
+
+    return bias, scale
+
+
+def _balance_cisonly(bias, c, spans, filters, chunksize, map, tol, max_iters,
+                     rescale_marginals, use_lock):
+    chroms = c.chroms()['name'][:]
+    chrom_ids = np.arange(len(c.chroms()))
+    chrom_offsets = c._load_dset('/indexes/chrom_offset')
+    bin1_offsets = c._load_dset('/indexes/bin1_offset')
+    scales = np.ones(len(chrom_ids))
+    
+    for cid, lo, hi in zip(chrom_ids, chrom_offsets[:-1], chrom_offsets[1:]):
+        logger.info(chroms[cid])
+
+        plo, phi = bin1_offsets[lo], bin1_offsets[hi]
+        spans = list(partition(plo, phi, chunksize))
+        scale = 1.0
+        for _ in range(max_iters):
+            marg = np.sum(
+                split(c, spans=spans, map=map, use_lock=use_lock)
+                    .pipe(_init_transform)
+                    .pipe(filters)
+                    .pipe(_timesouterproduct_transform, bias)
+                    .pipe(_marginalize_transform)
+                    .combine(),
+                axis=0)
+
+            marg = marg[lo:hi]
+            nzmarg = marg[marg != 0]
+            if not len(nzmarg):
+                scale = np.nan
+                bias[lo:hi] = np.nan
+                break
+
+            marg = marg / nzmarg.mean()
+            marg[marg == 0] = 1
+            bias[lo:hi] /= marg
+
+            var = nzmarg.var()
+            logger.info("variance is {}".format(var))
+            if var < tol:
+                scale = nzmarg.mean()
+                b = bias[lo:hi]
+                b[b == 0] = np.nan
+                break
+
+        else:
+            raise RuntimeError('Iteration limit reached without convergence.')
+        
+        scales[cid] = scale
+        if rescale_marginals:
+            bias[lo:hi] /= np.sqrt(scale)
+        
+    return bias, scales
 
 
 def iterative_correction(h5, cooler_root='/', chunksize=None, map=map, tol=1e-5,
                          min_nnz=0, min_count=0, mad_max=0,
                          cis_only=False, ignore_diags=False,
-                         max_iters=200, normalize_marginals=True,
+                         max_iters=200, rescale_marginals=True,
                          use_lock=True):
     """
     Iterative correction or matrix balancing of a sparse Hi-C contact map in
@@ -186,6 +200,10 @@ def iterative_correction(h5, cooler_root='/', chunksize=None, map=map, tol=1e-5,
         matrix (including the main diagonal).
     max_iters : int, optional
         Iteration limit.
+    rescale_marginals : bool, optional
+        Normalize the balancing weights such that the balanced matrix has rows /
+        columns that sum to 1.0. The scale factor is stored in the ``stats``
+        output dictionary.
 
     Returns
     -------
@@ -193,13 +211,18 @@ def iterative_correction(h5, cooler_root='/', chunksize=None, map=map, tol=1e-5,
         Vector of bin bias weights to normalize the observed contact map.
         Dropped bins will be assigned the value NaN.
         N[i, j] = O[i, j] * bias[i] * bias[j]
+    stats : dict
+        Summary of parameters used to perform balancing and the average 
+        magnitude of the corrected matrix's marginal sum at convergence.
 
     """
     filepath = h5.file.filename
+    c = Cooler(filepath)
 
     # Divide the number of elements into non-overlapping chunks
     nnz = h5[cooler_root].attrs['nnz']
     if chunksize is None:
+        chunksize = nnz
         spans = [(0, nnz)]
     else:
         edges = np.arange(0, nnz+chunksize, chunksize)
@@ -208,9 +231,9 @@ def iterative_correction(h5, cooler_root='/', chunksize=None, map=map, tol=1e-5,
     # List of pre-marginalization data transformations
     base_filters = []
     if cis_only:
-        base_filters.append(CisOnlyFilter())
+        base_filters.append(_cisonly_mask)
     if ignore_diags:
-        base_filters.append(DropDiagFilter(ignore_diags))
+        base_filters.append(partial(_dropdiag_mask, ignore_diags))
 
     # Initialize the bias weights
     n_bins = h5[cooler_root].attrs['nbins']
@@ -218,16 +241,24 @@ def iterative_correction(h5, cooler_root='/', chunksize=None, map=map, tol=1e-5,
 
     # Drop bins with too few nonzeros from bias
     if min_nnz > 0:
-        filters = [BinarizeFilter()] + base_filters
-        marg_partials = map(
-            Worker(filepath, cooler_root, filters, use_lock), spans)
-        marg_nnz = np.sum(list(marg_partials), axis=0)
+        filters = [_binarize_mask] + base_filters
+        marg_nnz = np.sum(
+            split(c, spans=spans, map=map, use_lock=use_lock)
+                .pipe(_init_transform)
+                .pipe(filters)
+                .pipe(_marginalize_transform)
+                .combine(),
+            axis=0)
         bias[marg_nnz < min_nnz] = 0
 
     filters = base_filters
-    marg_partials = map(
-        Worker(filepath, cooler_root, filters, use_lock), spans)
-    marg = np.sum(list(marg_partials), axis=0)
+    marg = np.sum(
+        split(c, spans=spans, map=map, use_lock=use_lock)
+            .pipe(_init_transform)
+            .pipe(filters)
+            .pipe(_marginalize_transform)
+            .combine(),
+        axis=0)
 
     # Drop bins with too few total counts from bias
     if min_count:
@@ -246,27 +277,14 @@ def iterative_correction(h5, cooler_root='/', chunksize=None, map=map, tol=1e-5,
         bias[marg < cutoff] = 0
 
     # Do balancing
-    for _ in range(max_iters):
-        filters = base_filters + [TimesOuterProductFilter(bias)]
-        worker = Worker(filepath, cooler_root, filters, use_lock)
-        marg_partials = map(worker, spans)
-        marg = np.sum(list(marg_partials), axis=0)
-
-        nzmarg = marg[marg != 0]
-        marg = marg / nzmarg.mean()
-        marg[marg == 0] = 1
-        bias /= marg
-
-        var = nzmarg.var()
-        print("variance is", var)
-        if var < tol:
-            factor = np.sqrt(nzmarg.mean())
-            bias[bias == 0] = np.nan
-            break
+    if cis_only:
+        bias, scale = _balance_cisonly(
+            bias, c, spans, base_filters, chunksize, map, tol, max_iters,
+            rescale_marginals, use_lock)
     else:
-        warnings.warn('Iteration limit reached without convergence.')
-
-    # TODO: fix cis_only
+        bias, scale = _balance_genomewide(
+            bias, c, spans, base_filters, chunksize, map, tol, max_iters,
+            rescale_marginals, use_lock)
 
     stats = {
         'tol': tol,
@@ -275,10 +293,7 @@ def iterative_correction(h5, cooler_root='/', chunksize=None, map=map, tol=1e-5,
         'mad_max': mad_max,
         'cis_only': cis_only,
         'ignore_diags': ignore_diags,
-        'scale': factor if not cis_only else np.nan,
+        'scale': scale,
     }
-
-    if normalize_marginals:
-        bias /= factor
 
     return bias, stats

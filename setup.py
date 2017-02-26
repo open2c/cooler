@@ -14,9 +14,9 @@ classifiers = """\
     Programming Language :: Python :: 2
     Programming Language :: Python :: 2.7
     Programming Language :: Python :: 3
-    Programming Language :: Python :: 3.3
     Programming Language :: Python :: 3.4
     Programming Language :: Python :: 3.5
+    Programming Language :: Python :: 3.6
 """
 
 
@@ -37,7 +37,13 @@ def get_version():
 
 
 def get_long_description():
-    return _read('README.md')
+    descr = _read('README.md')
+    try:
+        import pypandoc
+        descr = pypandoc.convert_text(descr, to='rst', format='md')
+    except (IOError, ImportError):
+        pass
+    return descr
 
 
 install_requires = [
@@ -51,6 +57,7 @@ install_requires = [
     'multiprocess',
     'biopython',
     'pyfaidx',
+    'pypairix',
 ]
 
 

@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import division, print_function
+from contextlib import contextmanager
 from collections import OrderedDict
 import six
 import re
@@ -417,3 +418,50 @@ def cmd_exists(cmd):
     return any(os.access(os.path.join(path, cmd), os.X_OK)
                 for path in os.environ['PATH'].split(os.pathsep))
 
+
+def mad(data, axis=None):
+    return np.median(np.abs(data - np.median(data, axis)), axis)
+
+
+@contextmanager
+def open_hdf5(fp, mode='r', *args, **kwargs):
+    """
+    Context manager like ``h5py.File`` but accepts already open HDF5 file
+    handles which do not get closed on teardown.
+
+    Parameters
+    ----------
+    fp : str or ``h5py.File`` object
+        If an open file object is provided, it passes through unchanged,
+        provided that the requested mode is compatible.
+        If a filepath is passed, the context manager will close the file on
+        tear down.
+
+    mode : str
+        * r        Readonly, file must exist
+        * r+       Read/write, file must exist
+        * a        Read/write if exists, create otherwise
+        * w        Truncate if exists, create otherwise
+        * w- or x  Fail if exists, create otherwise
+
+    """
+    if isinstance(fp, six.string_types):
+        own_fh = True
+        fh = h5py.File(fp, mode, *args, **kwargs)
+    else:
+        own_fh = False
+        if mode == 'r' and fp.file.mode == 'r+':
+            #warnings.warn("File object provided is writeable but intent is read-only")
+            pass
+        elif mode in ('r+', 'a') and fp.file.mode == 'r':
+            raise ValueError("File object provided is not writeable")
+        elif mode == 'w':
+            raise ValueError("Cannot truncate open file")
+        elif mode in ('w-', 'x'):
+            raise ValueError("File exists")
+        fh = fp
+    try:
+        yield fh
+    finally:
+        if own_fh:
+            fh.close()

@@ -28,5 +28,5 @@ from . import (
     balance,
     dump,
     show,
-    info
+    info,
 )

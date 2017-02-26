@@ -23,8 +23,7 @@ def get_matrix_size(c, row_region, col_region):
 
 def load_matrix(c, row_region, col_region, balanced, scale):
     mat = (c.matrix(balance=balanced)
-            .fetch(row_region, col_region)
-            .toarray())
+            .fetch(row_region, col_region))
 
     if scale == 'log2':
         mat = np.log2(mat)
