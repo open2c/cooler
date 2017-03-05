@@ -26,6 +26,7 @@ import h5py
 
 from . import get_logger
 from .util import rlencode, get_binsize
+from .tools import lock
 
 
 logger = get_logger()
@@ -452,9 +453,9 @@ class CoolerAggregator(ContactReader):
         return self._size
     
     def _aggregate(self, span):
-        from ..api import Cooler
+        from cooler.api import Cooler
         lo, hi = span
-        looger.info('{} {}'.format(lo, hi))
+        logger.info('{} {}'.format(lo, hi))
 
         try:
             lock.acquire()
@@ -462,8 +463,8 @@ class CoolerAggregator(ContactReader):
                 c = Cooler(h5[self.cooler_root])
                 table = c.pixels(join=True, convert_enum=False)
                 chunk = table[lo:hi]
-                #chunk['chrom1'] = pandas.Categorical(chunk['chrom1'], categories=self.chroms)
-                #chunk['chrom2'] = pandas.Categorical(chunk['chrom2'], categories=self.chroms)
+                chunk['chrom1'] = pandas.Categorical(chunk['chrom1'], categories=self.chroms)
+                chunk['chrom2'] = pandas.Categorical(chunk['chrom2'], categories=self.chroms)
         finally:
             lock.release()
 
@@ -474,8 +475,8 @@ class CoolerAggregator(ContactReader):
         cumul_length = self.cumul_length
         abs_start_coords = self.abs_start_coords
 
-        chrom_id1 = chunk['chrom1'].values  #.cat.codes.values
-        chrom_id2 = chunk['chrom2'].values  #.cat.codes.values
+        chrom_id1 = chunk['chrom1'].cat.codes.values
+        chrom_id2 = chunk['chrom2'].cat.codes.values
         start1 = chunk['start1'].values
         start2 = chunk['start2'].values
         if binsize is None:

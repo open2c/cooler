@@ -71,8 +71,11 @@ def aggregate(infile, outfile, n_zooms, chunksize, n_cpus):
                     map=pool.imap if n_cpus > 1 else map)
                 
                 cooler.io.create(
-                    fw.create_group(zoomLevel), 
-                    chroms, lengths, new_bins, reader)
+                    outfile, 
+                    chromsizes,
+                    new_bins, 
+                    reader,
+                    group=zoomLevel)
 
                 fw.attrs[zoomLevel] = new_binsize
                 fw.flush()
@@ -116,7 +119,7 @@ def balance(outfile, n_zooms, chunksize, n_cpus, too_close=10000, include_base=F
                     min_nnz=10,
                     mad_max=3,
                     ignore_diags=ignore_diags,
-                    normalize_marginals=True,
+                    rescale_marginals=True,
                     map=pool.map if n_cpus > 1 else map)
             finally:
                 if n_cpus > 1:
