@@ -138,14 +138,22 @@ def get_data(f, zoom_level, start_pos_1, end_pos_1, start_pos_2, end_pos_2):
     if not len(pixels):
         return pd.DataFrame(columns=['genome_start1', 'genome_start2', 'balanced'])
  
-    bins = c.bins()[['chrom', 'start', 'end', 'weight']]
+    if 'weight' in c.bins():
+        bins = c.bins()[['chrom', 'start', 'end', 'weight']]
+    else:
+        bins = c.bins()[['chrom', 'start', 'end']]
+
     pixels = annotate(pixels, bins)
 
     pixels['genome_start1'] = chrom_cum_lengths[pixels['chrom1']] + pixels['start1']
     pixels['genome_start2'] = chrom_cum_lengths[pixels['chrom2']] + pixels['start2']
-    pixels['balanced'] = (
-        pixels['count'] * pixels['weight1'] * pixels['weight2']
-    )
+
+    if not 'weight1' in pixels or not 'weight2' in pixels:
+        return pixels[['genome_start1', 'genome_start2', 'count']]
+    else:
+        pixels['balanced'] = (
+            pixels['count'] * pixels['weight1'] * pixels['weight2']
+        )
  
     return pixels[['genome_start1', 'genome_start2', 'balanced']]
  
