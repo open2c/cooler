@@ -432,14 +432,11 @@ class CoolerAggregator(ContactReader):
         assert self.new_binsize % self.old_binsize == 0
         self.factor = self.new_binsize // self.old_binsize
         self.chunksize = chunksize
-        #self.new_bins = bins
-        
         self.chroms = chroms
         self.idmap = pandas.Series(index=chroms, data=range(len(chroms)))
         bin_chrom_ids = self.idmap[bins['chrom']].values
         self.cumul_length = np.r_[0, np.cumsum(lengths)]
         self.abs_start_coords = self.cumul_length[bin_chrom_ids] + bins['start']
-
         # chrom offset index: chrom_id -> offset in bins
         self.chrom_offset = np.r_[0, 
             np.cumsum(bins.groupby('chrom', sort=False).size())]
@@ -508,7 +505,7 @@ class CoolerAggregator(ContactReader):
         factor = self.factor
         
         spans = []
-        for chrom, i in self.idmap.items():
+        for chrom, i in six.iteritems(self.idmap):
             # it's important to extract some multiple of `factor` rows at a time
             c0, c1 = old_chrom_offset[i], old_chrom_offset[i+1]
             step = (chunksize // factor) * factor
