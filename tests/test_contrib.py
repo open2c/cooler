@@ -1,6 +1,7 @@
 from __future__ import print_function
 
 import cooler.contrib.higlass as cch
+import cooler.contrib.recursive_agg_onefile as ra
 import h5py
 import os.path as op
 
@@ -21,3 +22,13 @@ def test_data_retrieval():
     assert(data['genome_start1'].iloc[-1] > 255000000)
     assert(data['genome_start1'].iloc[-1] < 256000000)
     #print("ge1", data['genome_end1'])
+
+
+def test_recursive_agg():
+    infile = op.join(testdir, 'data', 'GM12878-MboI-matrix.2000kb.cool')
+    outfile = '/tmp/bla.cool'
+    chunksize = int(10e6)
+    n_zooms = 2
+    n_cpus = 8
+    ra.aggregate(infile, outfile, n_zooms, chunksize, n_cpus)
+    ra.balance(outfile, n_zooms, chunksize, n_cpus)
