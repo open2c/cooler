@@ -9,6 +9,7 @@ import sys
 import numpy as np
 import h5py
 
+from cooler.tools import lock
 from cooler.io import CoolerAggregator
 import cooler
 
@@ -75,7 +76,8 @@ def aggregate(infile, outfile, n_zooms, chunksize, n_cpus):
                     chromsizes,
                     new_bins, 
                     reader,
-                    group=zoomLevel)
+                    group=zoomLevel,
+                    lock=lock)
 
                 fw.attrs[zoomLevel] = new_binsize
                 fw.flush()
