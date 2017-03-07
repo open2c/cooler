@@ -146,7 +146,7 @@ def check_ncpus(arg_value):
         return min(arg_value, mp.cpu_count())
 
 
-if __name__ == '__main__':
+def main():
     parser = argparse.ArgumentParser(
         description="Recursively aggregate a single resolution cooler file into a multi-resolution file.")
     parser.add_argument(
@@ -166,6 +166,11 @@ if __name__ == '__main__':
         help="Chunk size",
         default=int(10e6),
         type=int)
+
+    parser.add_argument('--balance', dest='balance', action='store_true')
+    parser.add_argument('--no-balance', dest='balance', action='store_false')
+    parser.set_defaults(balance=False)
+
     args = vars(parser.parse_args())
 
 
@@ -189,4 +194,9 @@ if __name__ == '__main__':
     print('n_tiles:', n_tiles, file=sys.stderr)
     print('n_zooms:', n_zooms, file=sys.stderr)
     aggregate(infile, outfile, n_zooms, chunksize, n_cpus)
-    balance(outfile, n_zooms, chunksize, n_cpus)
+
+    if args['balance']:
+        balance(outfile, n_zooms, chunksize, n_cpus)
+
+if __name__ == '__main__':
+    main()
