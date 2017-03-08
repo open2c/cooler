@@ -172,6 +172,14 @@ def multires_balance(outfile, n_zooms, chunksize, n_cpus, too_close=10000, inclu
         default=True,
         help="Don't balance each level while recursing")
 def aggregate(cooler_file, output_file, n_cpus, chunk_size, balance):
+    """
+    Aggregation to multi-res cooler file.
+
+    Converts a single resolution cooler file to a multi-resolution representation
+    by recursively aggregating (summing) adjacent bins.
+
+    COOL_PATH : Path to a COOL file
+    """
     infile = cooler_file
     if output_file is None:
         outfile = infile.replace('.cool', '.multires.cool')
