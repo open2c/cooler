@@ -29,4 +29,5 @@ from . import (
     dump,
     show,
     info,
+    aggregate
 )
