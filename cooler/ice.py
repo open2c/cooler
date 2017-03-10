@@ -70,7 +70,7 @@ def _balance_genomewide(bias, c, spans, filters, chunksize, map, tol, max_iters,
     scale = 1.0
     for _ in range(max_iters):
         marg = np.sum(
-            split(c, spans=spans, map=map, use_lock=use_lock)
+            split(c, cooler_root=c.root, spans=spans, map=map, use_lock=use_lock)
                 .pipe(_init_transform)
                 .pipe(filters)
                 .pipe(_timesouterproduct_transform, bias)
@@ -119,7 +119,7 @@ def _balance_cisonly(bias, c, spans, filters, chunksize, map, tol, max_iters,
         scale = 1.0
         for _ in range(max_iters):
             marg = np.sum(
-                split(c, spans=spans, map=map, use_lock=use_lock)
+                split(c, cooler_root=c.root,  spans=spans, map=map, use_lock=use_lock)
                     .pipe(_init_transform)
                     .pipe(filters)
                     .pipe(_timesouterproduct_transform, bias)
@@ -217,7 +217,7 @@ def iterative_correction(h5, cooler_root='/', chunksize=None, map=map, tol=1e-5,
 
     """
     filepath = h5.file.filename
-    c = Cooler(filepath)
+    c = Cooler(filepath, cooler_root)
 
     # Divide the number of elements into non-overlapping chunks
     nnz = h5[cooler_root].attrs['nnz']
@@ -243,7 +243,7 @@ def iterative_correction(h5, cooler_root='/', chunksize=None, map=map, tol=1e-5,
     if min_nnz > 0:
         filters = [_binarize_mask] + base_filters
         marg_nnz = np.sum(
-            split(c, spans=spans, map=map, use_lock=use_lock)
+            split(c, cooler_root=c.root, spans=spans, map=map, use_lock=use_lock)
                 .pipe(_init_transform)
                 .pipe(filters)
                 .pipe(_marginalize_transform)
@@ -253,7 +253,7 @@ def iterative_correction(h5, cooler_root='/', chunksize=None, map=map, tol=1e-5,
 
     filters = base_filters
     marg = np.sum(
-        split(c, spans=spans, map=map, use_lock=use_lock)
+        split(c, cooler_root=c.root, spans=spans, map=map, use_lock=use_lock)
             .pipe(_init_transform)
             .pipe(filters)
             .pipe(_marginalize_transform)
