@@ -4,6 +4,7 @@ import multiprocess as mp
 from six.moves import map
 import tempfile
 import argparse
+import logging
 import sys
 
 import numpy as np
@@ -12,6 +13,10 @@ import h5py
 from cooler.tools import lock
 from cooler.io import CoolerAggregator
 import cooler
+
+
+logging.basicConfig(stream=sys.stderr)
+cooler.get_logger().setLevel(logging.INFO)
 
 
 FACTOR = 2
@@ -86,7 +91,7 @@ def aggregate(infile, outfile, n_zooms, chunksize, n_cpus):
                 pool.close()
 
 
-def balance(outfile, n_zooms, chunksize, n_cpus, too_close=10000, include_base=False):
+def balance(outfile, n_zooms, chunksize, n_cpus, too_close=10000, mad_max=3, include_base=False):
     """
     Balance a multires file.
 
@@ -102,7 +107,9 @@ def balance(outfile, n_zooms, chunksize, n_cpus, too_close=10000, include_base=F
     if include_base:
         n = n_zooms
     else:
-        n = n_zooms - 1
+        with h5py.File(outfile, 'r') as fr:
+            has_weights = 'weight' in fr[str(n_zooms)]['bins'].keys()
+        n = n_zooms - 1 if has_weights else n_zooms
 
     # balance
     for i in range(n, -1, -1):
@@ -119,7 +126,7 @@ def balance(outfile, n_zooms, chunksize, n_cpus, too_close=10000, include_base=F
                     fr, zoomLevel,
                     chunksize=chunksize,
                     min_nnz=10,
-                    mad_max=3,
+                    mad_max=mad_max,
                     ignore_diags=ignore_diags,
                     rescale_marginals=True,
                     map=pool.map if n_cpus > 1 else map)
@@ -166,6 +173,16 @@ if __name__ == '__main__':
         help="Chunk size",
         default=int(10e6),
         type=int)
+    parser.add_argument(
+        "--too-close",
+        help="remove diagonals for distances less than this number (bp)",
+        default=1000,
+        type=int)
+    parser.add_argument(
+        "--mad-max",
+        help="MAD-max filter",
+        default=3,
+        type=int)
     args = vars(parser.parse_args())
 
 
@@ -181,7 +198,7 @@ if __name__ == '__main__':
         binsize = cooler.info(f)['bin-size']
         chromsizes= cooler.chroms(f).set_index('name')['length']
     total_length = np.sum(chromsizes.values)
-    n_tiles = total_length / binsize / TILESIZE
+    n_tiles = total_length / binsize / TILESIZE  # todo: coerce to correctly rounded int
     n_zooms = int(np.ceil(np.log2(n_tiles)))
 
     print("binsize:", binsize, file=sys.stderr)
@@ -189,4 +206,4 @@ if __name__ == '__main__':
     print('n_tiles:', n_tiles, file=sys.stderr)
     print('n_zooms:', n_zooms, file=sys.stderr)
     aggregate(infile, outfile, n_zooms, chunksize, n_cpus)
-    balance(outfile, n_zooms, chunksize, n_cpus)
+    balance(outfile, n_zooms, chunksize, n_cpus, args['too_close'], args['mad_max'])
