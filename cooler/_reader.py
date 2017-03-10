@@ -264,7 +264,10 @@ class TabixAggregator(ContactReader):
             for bin1_id, bin1 in these_bins.iterrows():
                 for line in f.fetch(chrom, bin1.start, bin1.end, parser=parser):
                     chrom2, pos2 = line[C2], int(line[P2])
-                    cid2 = idmap[chrom2]
+                    try:
+                        cid2 = idmap[chrom2]
+                    except KeyError:
+                        continue
                     if binsize is None:
                         lo, hi = chrom_binoffset[cid2], chrom_binoffset[cid2+1]
                         bin2_id = lo + np.searchsorted(
