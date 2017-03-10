@@ -71,7 +71,7 @@ def multires_aggregate(infile, outfile, n_zooms, chunksize, n_cpus):
 
         prevLevel = str(i+1)
         zoomLevel = str(i)
-        logger.info("Aggregating at zoom level: " + str(zoomLevel) + " bin size: " + str(binsize))
+        logger.info("Aggregating at zoom level: " + str(zoomLevel) + " bin size: " + str(new_binsize))
 
         # Note: If using HDF5 file in a process pool, fork before opening
         try:
