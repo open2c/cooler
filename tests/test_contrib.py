@@ -1,7 +1,7 @@
 from __future__ import print_function
 
 import cooler.contrib.higlass as cch
-import cooler.cli.aggregate as cca
+import cooler.cli.coarsegrain as ccc
 import h5py
 import os.path as op
 
@@ -30,5 +30,5 @@ def test_recursive_agg():
     chunksize = int(10e6)
     n_zooms = 2
     n_cpus = 8
-    cca.multires_aggregate(infile, outfile, n_zooms, chunksize, n_cpus)
-    cca.multires_balance(outfile, n_zooms, chunksize, n_cpus)
+    ccc.multires_aggregate(infile, outfile, n_zooms, chunksize, n_cpus)
+    ccc.multires_balance(outfile, n_zooms, chunksize, n_cpus)
