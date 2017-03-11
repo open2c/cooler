@@ -40,7 +40,7 @@ def check_ncpus(arg_value):
 
 def multires_aggregate(infile, outfile, n_zooms, chunksize, n_cpus):
     """
-    Generate a multires cooler in 2X bin size increments from a base-level 
+    Generate a multires cooler in 2X bin size increments from a base-level
     resolution.
 
     """
@@ -52,7 +52,7 @@ def multires_aggregate(infile, outfile, n_zooms, chunksize, n_cpus):
 
     logger.info(
         "Copying base matrix to level " +
-        "{0} and producing {0} new zoom levels ".format(n_zooms) + 
+        "{0} and producing {0} new zoom levels ".format(n_zooms) +
         "counting down to 0..."
     )
 
@@ -68,9 +68,9 @@ def multires_aggregate(infile, outfile, n_zooms, chunksize, n_cpus):
         dest.attrs['max-zoom'] = n_zooms
 
         logger.info(
-            "Aggregating at zoom level: " 
-            + str(zoomLevel) 
-            + " bin size: " 
+            "Aggregating at zoom level: "
+            + str(zoomLevel)
+            + " bin size: "
             + str(binsize))
         new_binsize = binsize
 
@@ -83,9 +83,9 @@ def multires_aggregate(infile, outfile, n_zooms, chunksize, n_cpus):
         prevLevel = str(i+1)
         zoomLevel = str(i)
         logger.info(
-            "Aggregating at zoom level: " 
-            + str(zoomLevel) 
-            + " bin size: " 
+            "Aggregating at zoom level: "
+            + str(zoomLevel)
+            + " bin size: "
             + str(new_binsize))
 
         # Note: If using HDF5 file in a process pool, fork before opening
@@ -94,16 +94,16 @@ def multires_aggregate(infile, outfile, n_zooms, chunksize, n_cpus):
                 pool = mp.Pool(n_cpus)
             with h5py.File(outfile, 'r+') as fw:
                 reader = CoolerAggregator(
-                    outfile, 
-                    new_bins, 
-                    chunksize, 
-                    cooler_root=prevLevel, 
+                    outfile,
+                    new_bins,
+                    chunksize,
+                    cooler_root=prevLevel,
                     map=pool.imap if n_cpus > 1 else map)
-                
+
                 create(
-                    outfile, 
+                    outfile,
                     chromsizes,
-                    new_bins, 
+                    new_bins,
                     reader,
                     group=zoomLevel,
                     lock=lock)
@@ -115,7 +115,7 @@ def multires_aggregate(infile, outfile, n_zooms, chunksize, n_cpus):
                 pool.close()
 
 
-def multires_balance(outfile, n_zooms, chunksize, n_cpus, too_close=10000, 
+def multires_balance(outfile, n_zooms, chunksize, n_cpus, too_close=10000,
                      mad_max=3, include_base=False):
     """
     Balance a multires file.
@@ -126,7 +126,7 @@ def multires_balance(outfile, n_zooms, chunksize, n_cpus, too_close=10000,
     mad_max = 3
     too_close : use ~ 10000 for 6-cutter, ~1000 for 4-cutter
         (determines number of diagonals to ignore)
-    
+
     """
     logger.info("Performing matrix balancing...")
     if include_base:
@@ -144,9 +144,9 @@ def multires_balance(outfile, n_zooms, chunksize, n_cpus, too_close=10000,
             binsize = fr.attrs[zoomLevel]
             ignore_diags = 1 + int(np.ceil(too_close / binsize))
             logger.info(
-                "balancing at zoom level: " 
-                + str(zoomLevel) 
-                + " bin size: " 
+                "balancing at zoom level: "
+                + str(zoomLevel)
+                + " bin size: "
                 + str(binsize))
             try:
                 if n_cpus > 1:
@@ -161,7 +161,7 @@ def multires_balance(outfile, n_zooms, chunksize, n_cpus, too_close=10000,
                     map=pool.map if n_cpus > 1 else map)
             finally:
                 if n_cpus > 1:
-                    pool.close()       
+                    pool.close()
 
         with h5py.File(outfile, 'r+') as fw:
             h5opts = dict(compression='gzip', compression_opts=6)
@@ -204,7 +204,8 @@ def multires_balance(outfile, n_zooms, chunksize, n_cpus, too_close=10000,
     '--balance/--no-balance',
     default=True,
     help="Don't balance each level while recursing")
-def aggregate(cooler_file, output_file, n_cpus, chunk_size, balance):
+
+def coarsegrain(cooler_file, output_file, n_cpus, chunk_size, too_close, mad_max, balance):
     """
     Aggregation to multi-res cooler file.
 
@@ -234,9 +235,12 @@ def aggregate(cooler_file, output_file, n_cpus, chunk_size, balance):
     print("total_length (bp):", total_length, file=sys.stderr)
     print('n_tiles:', n_tiles, file=sys.stderr)
     print('n_zooms:', n_zooms, file=sys.stderr)
+    print("too_close (bp):", too_close)
+    print("MAD_max:", mad_max)
     print("balance:", balance)
 
     multires_aggregate(infile, outfile, n_zooms, chunk_size, n_cpus)
 
     if balance:
-        multires_balance(outfile, n_zooms, chunk_size, n_cpus)
+        multires_balance(outfile, n_zooms, chunk_size, too_close=too_close,
+                         mad_max=mad_max, n_cpus=n_cpus)
