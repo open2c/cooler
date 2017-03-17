@@ -76,7 +76,7 @@ def is_cooler(filepath, group=None):
 
 
 def create(filepath, chromsizes, bins, iterator, metadata=None, assembly=None,
-           h5opts=None, group='/', lock=None):
+           h5opts=None, group='/', append=False, lock=None):
     """
     Create a new Cooler file.
 
@@ -113,6 +113,7 @@ def create(filepath, chromsizes, bins, iterator, metadata=None, assembly=None,
     Cooler hierarchy stored in ``filepath`` under ``group``.
 
     """
+    mode = 'a' if append else 'w'
     if h5opts is None:
         h5opts = dict(compression='gzip', compression_opts=6)
 
@@ -124,8 +125,8 @@ def create(filepath, chromsizes, bins, iterator, metadata=None, assembly=None,
     binsize = get_binsize(bins)
     n_chroms = len(chroms)
     n_bins = len(bins)
-    
-    with h5py.File(filepath, 'a') as f:
+
+    with h5py.File(filepath, mode) as f:
         logger.info('Creating cooler at "{}::{}"'.format(filepath, group))
         if group is '/':
             for name in ['chroms', 'bins', 'pixels', 'indexes']:

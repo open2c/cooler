@@ -106,7 +106,8 @@ def multires_aggregate(infile, outfile, n_zooms, chunksize, n_cpus):
                     new_bins,
                     reader,
                     group=zoomLevel,
-                    lock=lock)
+                    lock=lock,
+                    append=True)
 
                 fw.attrs[zoomLevel] = new_binsize
                 fw.flush()

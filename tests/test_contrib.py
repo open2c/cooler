@@ -7,6 +7,7 @@ import os.path as op
 
 testdir = op.realpath(op.dirname(__file__))
 
+
 def test_data_retrieval():
     data_file = op.join(testdir, 'data', 'dixon2012-h1hesc-hindiii-allreps-filtered.1000kb.multires.cool')
     
