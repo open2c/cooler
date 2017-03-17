@@ -491,6 +491,7 @@ class CoolerAggregator(ContactReader):
         else:
             rel_bin1 = np.floor(start1/binsize).astype(int)
             rel_bin2 = np.floor(start2/binsize).astype(int)
+
             chunk['bin1_id'] = chrom_offset[chrom_id1] + rel_bin1
             chunk['bin2_id'] = chrom_offset[chrom_id2] + rel_bin2
 
@@ -510,13 +511,19 @@ class CoolerAggregator(ContactReader):
         old_bin1_offset = self.old_bin1_offset
         chunksize = self.chunksize
         factor = self.factor
+        print("iter:")
         
         spans = []
         for chrom, i in six.iteritems(self.idmap):
+            print("i:", i, "chrom", chrom)
             # it's important to extract some multiple of `factor` rows at a time
             c0, c1 = old_chrom_offset[i], old_chrom_offset[i+1]
+            print("c0:,c1", c0, c1)
             step = (chunksize // factor) * factor
+            print("step:", step)
             edges = np.arange(old_bin1_offset[c0], old_bin1_offset[c1]+step, step)
+            print("old_bin1_offset:", old_bin1_offset[c0], old_bin1_offset[c1])
+            print("edges:", edges)
             edges[-1] = old_bin1_offset[c1]
             spans.append(zip(edges[:-1], edges[1:]))
         spans = list(chain.from_iterable(spans))

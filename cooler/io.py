@@ -159,8 +159,11 @@ def create(filepath, chromsizes, bins, iterator, metadata=None, assembly=None,
     # obtain the correct file state for reading.
     logger.info('Writing pixels')
     target = posixpath.join(group, 'pixels')
+    print("n_bins:", n_bins)
     bin1_offset, nnz, ncontacts = write_pixels(
         filepath, target, n_bins, iterator, h5opts, lock)
+
+    print("bin1_offset", bin1_offset)
 
     with h5py.File(filepath, 'r+') as f:
         h5 = f[group]
