@@ -1,3 +1,8 @@
+### 0.6.4 (2017-17-03) ###
+
+* Migrated higlass multires aggregator to `cooler coarsegrain` command
+* Fixed pairix aggregator to properly deal with autoflipping of pairs
+
 ### 0.6.3 (2017-22-02) ###
 
 * Merge PairixAggregator patch from Soo.
