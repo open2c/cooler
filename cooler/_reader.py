@@ -226,7 +226,8 @@ class TabixAggregator(ContactReader):
         for chrom in self.contigs:
             if chrom not in file_contigs:
                 warnings.warn(
-                    "Did not find contig '{}' in contact list file.".format(chrom))
+                    "Did not find contig " +
+                    " '{}' in contact list file.".format(chrom))
         self.contigs = [ctg for ctg in self.contigs if ctg in file_contigs]
 
     def __getstate__(self):
@@ -328,8 +329,9 @@ class PairixAggregator(ContactReader):
                 [b.split('|') for b in f.get_blocknames()]))
 
         self.C1 = f.get_chr1_col()
+        self.C2 = f.get_chr2_col()
         self.P1 = f.get_startpos1_col()
-        self.P2 = f.get_startpos2_col() 
+        self.P2 = f.get_startpos2_col()
 
         for chrom in self.contigs:
             if chrom not in file_contigs:
@@ -366,25 +368,34 @@ class PairixAggregator(ContactReader):
         chrom_abspos = self.chrom_abspos
         start_abspos = self.start_abspos
         C1 = self.C1
+        C2 = self.C2
         P1 = self.P1
         P2 = self.P2
         these_bins = self.bins_grouped.get_group(chrom1)
 
-        rows = []
-
         f = pypairix.open(filepath, 'r')
-        accumulator = Counter()
-        i = self.contigs.index(chrom1)
-        remaining = self.contigs[i:]
+        cid1 = self.contigs.index(chrom1)
+        remaining = self.contigs[cid1:]
 
+        accumulator = Counter()
+        rows = []
         for bin1_id, bin1 in these_bins.iterrows():
             chrom1 = bin1.chrom
-            for cid2, chrom2 in enumerate(remaining, i):
+            
+            for cid2, chrom2 in enumerate(remaining, cid1):
                 chrom2_size = chromsizes[chrom2]
+
+                trans = chrom1 != chrom2
+            
                 for line in f.query2D(
                         chrom1, bin1.start, bin1.end,
                         chrom2, 0, chrom2_size, 1):
-                    pos2 = int(line[P2]) if line[C1] == chrom1 else int(line[P1])
+                    
+                    if trans and line[C2] == chrom1:
+                        pos2 = int(line[P1])
+                    else:
+                        pos2 = int(line[P2])
+
                     if binsize is None:
                         lo, hi = chrom_binoffset[cid2], chrom_binoffset[cid2+1]
                         bin2_id = lo + np.searchsorted(
@@ -393,9 +404,12 @@ class PairixAggregator(ContactReader):
                             side='right') - 1
                     else:
                         bin2_id = chrom_binoffset[cid2] + (pos2 // binsize)
+                    
                     accumulator[bin2_id] += 1
+            
             if not accumulator:
                 continue
+            
             rows.append(
                 pandas.DataFrame({
                     'bin1_id': bin1_id,
@@ -404,6 +418,7 @@ class PairixAggregator(ContactReader):
                     columns=['bin1_id', 'bin2_id', 'count'])
                       .sort_values('bin2_id')
             )
+            
             accumulator.clear()
         
         logger.info(chrom1)
