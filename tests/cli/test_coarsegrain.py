@@ -40,7 +40,6 @@ def teardown_func(*filepaths):
 
 @with_setup(teardown=partial(teardown_func, multires_path))
 def test_csort():
-    logging.disable('INFO')
     runner = CliRunner()
     result = runner.invoke(
         coarsegrain, [
