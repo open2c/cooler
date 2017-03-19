@@ -80,9 +80,6 @@ def multires_aggregate(infile, outfile, n_zooms, chunksize, n_cpus):
         new_binsize *= FACTOR
         new_bins = binnify(chromsizes, new_binsize)
 
-        if (new_binsize > 2):
-            sys.exit(1)
-
         prevLevel = str(i+1)
         zoomLevel = str(i)
         logger.info(
