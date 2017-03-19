@@ -57,8 +57,8 @@ def test_csort():
     #c = cooler.Cooler(h5py.File(multires_path)['5'])
     #print('pixels (5):', len(c.pixels()[:].index))
 
-    c = cooler.Cooler(h5py.File(multires_path)['4'])
-    print('pixels (4):', len(c.pixels()[:].index))
-    assert(len(c.pixels()[:].index) > 0)
+    # should get a ValueError because the chromosome names in the pixels dont' match
+    # the stored chromosome names
+    assert(result.exit_code == -1)
 
 

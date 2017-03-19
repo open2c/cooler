@@ -14,12 +14,17 @@ import numpy as np
 import pandas
 import h5py
 
+import logging
+from . import get_logger
+
 from . import __version__, __format_version__
 from .util import rlencode
 
+logger = get_logger()
 
 MAGIC = "HDF5::Cooler"
 URL = "https://github.com/mirnylab/cooler"
+MAX_CHROMNAME_LENGTH=32
 CHROM_DTYPE = np.dtype('S32')
 CHROMID_DTYPE = np.int32
 CHROMSIZE_DTYPE = np.int32
@@ -47,6 +52,13 @@ def write_chroms(grp, chroms, lengths, h5opts):
 
     """
     n_chroms = len(chroms)
+    for chrom in chroms:
+        if len(chrom) > MAX_CHROMNAME_LENGTH:
+            err_string = ("Chromosome name ({}) longer than maximum ".format(chrom) +
+                         "chromosome name length ({})".format(MAX_CHROMNAME_LENGTH))
+            #logging.error(err_string)
+            raise ValueError(err_string)
+
     names = np.array(chroms, dtype=CHROM_DTYPE)
     grp.create_dataset('name',
                        shape=(n_chroms,),
@@ -192,7 +204,6 @@ def write_pixels(filepath, grouppath, n_bins, iterator, h5opts, lock=None):
     with h5py.File(filepath, 'r') as f:
         grp = f[grouppath]
         bin1 = grp['bin1_id'][:]
-        print("bin1:", bin1)
         bin1_offset = np.zeros(n_bins + 1, dtype=BIN1OFFSET_DTYPE)
         curr_val = 0
         for start, length, value in zip(*rlencode(bin1, 1000000)):

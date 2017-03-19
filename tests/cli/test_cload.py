@@ -10,6 +10,7 @@ import os
 import numpy as np
 import h5py
 
+import logging
 import nose
 from nose.tools import with_setup, set_trace
 from click.testing import CliRunner
@@ -77,4 +78,17 @@ def test_cload_tabix():
         assert np.all(f1['pixels/bin2_id'][:] == f2['pixels/bin2_id'][:])
         assert np.all(f1['pixels/count'][:] == f2['pixels/count'][:])
 
+    # test loading a file with long chromosome names which should raise
+    # an error
+    result = runner.invoke(
+        cload_tabix, [
+            op.join(testdir, 'data', 'UBR4_chromsize_bins.1nt.bed'),
+            op.join(testdir, 'data', 'dec2_20_pluslig_1pGene_grch38_UBR4_D_1nt.pairwise.sorted.txt.gz'),
+            testcool_path
+        ]
+    )
+
+    # the cload command should raise a ValueError because the chromosome names are too
+    # long (greater than 32 characters)
+    assert result.exit_code == -1
 

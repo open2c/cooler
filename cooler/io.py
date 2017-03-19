@@ -141,8 +141,8 @@ def create(filepath, chromsizes, bins, iterator, metadata=None, assembly=None,
     with h5py.File(filepath, 'r+') as f:
         h5 = f[group]
 
-        logger.info('Writing chroms')
         grp = h5.create_group('chroms')
+        print("chroms:", chroms)
         write_chroms(grp, chroms, lengths, h5opts)
 
         logger.info('Writing bins')
