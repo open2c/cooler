@@ -174,8 +174,13 @@ def write_pixels(filepath, grouppath, n_bins, iterator, h5opts, lock=None):
                 n = len(chunk['bin1_id'])
                 for dset in [bin1, bin2, count]:
                     dset.resize((nnz + n,))
+
+
+                # store the bins that each pixel belongs to
+                # i.e. the coordinates for each "count"
                 bin1[nnz:nnz+n] = chunk['bin1_id']
                 bin2[nnz:nnz+n] = chunk['bin2_id']
+
                 count[nnz:nnz+n] = chunk['count']
                 nnz += n
                 ncontacts += chunk['count'].sum()
@@ -186,13 +191,16 @@ def write_pixels(filepath, grouppath, n_bins, iterator, h5opts, lock=None):
     # Index the first axis (matrix row) offsets
     with h5py.File(filepath, 'r') as f:
         grp = f[grouppath]
-        bin1 = grp['bin1_id']
+        bin1 = grp['bin1_id'][:]
+        print("bin1:", bin1)
         bin1_offset = np.zeros(n_bins + 1, dtype=BIN1OFFSET_DTYPE)
         curr_val = 0
         for start, length, value in zip(*rlencode(bin1, 1000000)):
             bin1_offset[curr_val:value + 1] = start
             curr_val = value + 1
         bin1_offset[curr_val:] = nnz
+
+    #sys.exit(1)
 
     return bin1_offset, nnz, ncontacts
 

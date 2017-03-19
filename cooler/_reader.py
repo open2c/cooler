@@ -467,8 +467,25 @@ class CoolerAggregator(ContactReader):
                 c = Cooler(h5[self.cooler_root])
                 table = c.pixels(join=True, convert_enum=False)
                 chunk = table[lo:hi]
+
+                # store the raw chromosome values in case 
+                # something goes wrong in converting them to categorical values
+                raw_chrom1 = chunk['chrom1']
+                raw_chrom2 = chunk['chrom2']
+
+                print("chunk['chrom1']", chunk['chrom1'])
+                print("self.chroms():", self.chroms)
+
                 chunk['chrom1'] = pandas.Categorical(chunk['chrom1'], categories=self.chroms)
                 chunk['chrom2'] = pandas.Categorical(chunk['chrom2'], categories=self.chroms)
+
+                if (sum(np.isnan(chunk['chrom1'])) > 0 or
+                    sum(np.isnan(chunk['chrom2']))) > 0:
+                    print("warning!!!!")
+                    logger.warn("Invalid chromosome names found") 
+                    logger.warn("Chromosomes given:", set(raw_chrom1 + raw_chrom2))
+                    logger.warn("Chromosome categories:", self.chroms)
+
         finally:
             lock.release()
 
@@ -478,6 +495,7 @@ class CoolerAggregator(ContactReader):
         chrom_offset = self.chrom_offset
         cumul_length = self.cumul_length
         abs_start_coords = self.abs_start_coords
+        print("chunk1:", chunk['chrom1'])
 
         chrom_id1 = chunk['chrom1'].cat.codes.values
         chrom_id2 = chunk['chrom2'].cat.codes.values
@@ -495,6 +513,13 @@ class CoolerAggregator(ContactReader):
             chunk['bin1_id'] = chrom_offset[chrom_id1] + rel_bin1
             chunk['bin2_id'] = chrom_offset[chrom_id2] + rel_bin2
 
+            print("chrom_id1:", chrom_id1)
+            print("chrom_id2:", chrom_id2)
+            print("cumul_length:", cumul_length[chrom_id1])
+            print("start1:", start1)
+            print("binsize:", binsize)
+            print("cb1:", chunk['bin1_id'][:])
+
         grouped = chunk.groupby(['bin1_id', 'bin2_id'], sort=False)
         return grouped['count'].sum().reset_index()
 
@@ -511,14 +536,13 @@ class CoolerAggregator(ContactReader):
         old_bin1_offset = self.old_bin1_offset
         chunksize = self.chunksize
         factor = self.factor
-        print("iter:")
+        print("self.idmap:", self.idmap)
         
         spans = []
         for chrom, i in six.iteritems(self.idmap):
-            print("i:", i, "chrom", chrom)
             # it's important to extract some multiple of `factor` rows at a time
             c0, c1 = old_chrom_offset[i], old_chrom_offset[i+1]
-            print("c0:,c1", c0, c1)
+            print("c0", c0, "c1:", c1)
             step = (chunksize // factor) * factor
             print("step:", step)
             edges = np.arange(old_bin1_offset[c0], old_bin1_offset[c1]+step, step)
@@ -527,6 +551,7 @@ class CoolerAggregator(ContactReader):
             edges[-1] = old_bin1_offset[c1]
             spans.append(zip(edges[:-1], edges[1:]))
         spans = list(chain.from_iterable(spans))
+        print("spans:", spans)
         
         for df in self._map(self.aggregate, spans):
             yield {k: v.values for k, v in six.iteritems(df)}

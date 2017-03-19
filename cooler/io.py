@@ -163,8 +163,6 @@ def create(filepath, chromsizes, bins, iterator, metadata=None, assembly=None,
     bin1_offset, nnz, ncontacts = write_pixels(
         filepath, target, n_bins, iterator, h5opts, lock)
 
-    print("bin1_offset", bin1_offset)
-
     with h5py.File(filepath, 'r+') as f:
         h5 = f[group]
 
