@@ -208,6 +208,7 @@ def multires_balance(outfile, n_zooms, chunksize, n_cpus, too_close=10000,
     default=True,
     help="Don't balance each level while recursing")
 
+
 def coarsegrain(cooler_file, output_file, n_cpus, chunk_size, too_close, mad_max, balance):
     """
     Aggregation to multi-res cooler file.
