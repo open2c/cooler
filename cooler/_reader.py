@@ -228,8 +228,6 @@ class TabixAggregator(ContactReader):
                     "Did not find contig " +
                     " '{}' in contact list file.".format(chrom))
         
-        # TODO: add warning about requested chrom order to agree 
-        # with mate flip order in pairs
         warnings.warn(
             "NOTE: When using the Tabix aggregator, make sure the order of "
             "chromosomes in the provided chromsizes agrees with the chromosome "
@@ -402,6 +400,9 @@ class PairixAggregator(ContactReader):
                 chrom2_size = chromsizes[chrom2]
                 is_trans = chrom1 != chrom2
             
+                # XXX - a better solution than autoflip would be a function that
+                # indicates whether (chrom1, chrom2) are present in a block in 
+                # the file and whether the orientation is flipped
                 for line in f.query2D(
                         chrom1, bin1.start, bin1.end,
                         chrom2, 0, chrom2_size, 1):
@@ -455,30 +456,24 @@ class CoolerAggregator(ContactReader):
     """
     def __init__(self, cooler_path, bins, chunksize, cooler_root="/", map=map):
         self._map = map
-        
         self.cooler_path = cooler_path
         self.cooler_root = cooler_root
+        self.chunksize = chunksize
+
         with h5py.File(self.cooler_path, 'r') as h5:
             grp = h5[cooler_root]
             self._size = grp.attrs['nnz']
             chroms = grp['chroms/name'][:].astype('U')
             lengths = grp['chroms/length'][:]
+            chromsizes = pandas.Series(index=chroms, data=lengths)
             self.old_chrom_offset = grp['indexes/chrom_offset'][:]
             self.old_bin1_offset = grp['indexes/bin1_offset'][:]
             self.old_binsize = grp.attrs['bin-size']
 
+        self.gs = GenomeSegmentation(chromsizes, bins)
         self.new_binsize = get_binsize(bins)
         assert self.new_binsize % self.old_binsize == 0
         self.factor = self.new_binsize // self.old_binsize
-        self.chunksize = chunksize
-        self.chroms = chroms
-        self.idmap = pandas.Series(index=chroms, data=range(len(chroms)))
-        bin_chrom_ids = self.idmap[bins['chrom']].values
-        self.cumul_length = np.r_[0, np.cumsum(lengths)]
-        self.abs_start_coords = self.cumul_length[bin_chrom_ids] + bins['start']
-        # chrom offset index: chrom_id -> offset in bins
-        self.chrom_offset = np.r_[0, 
-            np.cumsum(bins.groupby('chrom', sort=False).size())]
 
     def __getstate__(self):
         d = self.__dict__.copy()
@@ -497,42 +492,41 @@ class CoolerAggregator(ContactReader):
             lock.acquire()
             with h5py.File(self.cooler_path, 'r') as h5:
                 c = Cooler(h5[self.cooler_root])
+                # convert_enum=False should return chroms as int
                 table = c.pixels(join=True, convert_enum=False)
                 chunk = table[lo:hi]
-                chunk['chrom1'] = pandas.Categorical(chunk['chrom1'], 
-                                                     categories=self.chroms)
-                chunk['chrom2'] = pandas.Categorical(chunk['chrom2'], 
-                                                     categories=self.chroms)
+                #chunk['chrom1'] = pandas.Categorical(chunk['chrom1'], categories=self.chroms)
+                #chunk['chrom2'] = pandas.Categorical(chunk['chrom2'], categories=self.chroms)
         finally:
             lock.release()
 
         # use the "start" point as anchor for re-binning
         # XXX - alternatives: midpoint anchor, proportional re-binning
-        binsize = self.new_binsize
-        chrom_offset = self.chrom_offset
-        cumul_length = self.cumul_length
-        abs_start_coords = self.abs_start_coords
+        binsize = self.gs.binsize
+        chrom_binoffset = self.gs.chrom_binoffset
+        chrom_abspos = self.gs.chrom_abspos
+        start_abspos = self.gs.start_abspos
 
-        chrom_id1 = chunk['chrom1'].cat.codes.values
-        chrom_id2 = chunk['chrom2'].cat.codes.values
+        chrom_id1 = chunk['chrom1'].values  #.cat.codes.values
+        chrom_id2 = chunk['chrom2'].values  #.cat.codes.values
         start1 = chunk['start1'].values
         start2 = chunk['start2'].values
         if binsize is None:
-            abs_start1 = cumul_length[chrom_id1] + start1
-            abs_start2 = cumul_length[chrom_id2] + start2
+            abs_start1 = chrom_abspos[chrom_id1] + start1
+            abs_start2 = chrom_abspos[chrom_id2] + start2
             chunk['bin1_id'] = np.searchsorted(
-                abs_start_coords, 
+                start_abspos, 
                 abs_start1, 
                 side='right') - 1
             chunk['bin2_id'] = np.searchsorted(
-                abs_start_coords, 
+                start_abspos, 
                 abs_start2, 
                 side='right') - 1
         else:
             rel_bin1 = np.floor(start1/binsize).astype(int)
             rel_bin2 = np.floor(start2/binsize).astype(int)
-            chunk['bin1_id'] = chrom_offset[chrom_id1] + rel_bin1
-            chunk['bin2_id'] = chrom_offset[chrom_id2] + rel_bin2
+            chunk['bin1_id'] = chrom_binoffset[chrom_id1] + rel_bin1
+            chunk['bin2_id'] = chrom_binoffset[chrom_id2] + rel_bin2
 
         grouped = chunk.groupby(['bin1_id', 'bin2_id'], sort=False)
         return grouped['count'].sum().reset_index()
@@ -545,24 +539,24 @@ class CoolerAggregator(ContactReader):
         return chunk
 
     def __iter__(self):
-        from itertools import chain
         old_chrom_offset = self.old_chrom_offset
         old_bin1_offset = self.old_bin1_offset
         chunksize = self.chunksize
         factor = self.factor
         
         spans = []
-        for chrom, i in six.iteritems(self.idmap):
+        for chrom, i in six.iteritems(self.gs.idmap):
             # it's important to extract some multiple of `factor` rows at a time
-            c0, c1 = old_chrom_offset[i], old_chrom_offset[i+1]
+            c0 = old_chrom_offset[i]
+            c1 = old_chrom_offset[i + 1]
             step = (chunksize // factor) * factor
             edges = np.arange(
                 old_bin1_offset[c0], 
-                old_bin1_offset[c1]+step, 
+                old_bin1_offset[c1] + step, 
                 step)
             edges[-1] = old_bin1_offset[c1]
             spans.append(zip(edges[:-1], edges[1:]))
-        spans = list(chain.from_iterable(spans))
+        spans = list(itertools.chain.from_iterable(spans))
         
         for df in self._map(self.aggregate, spans):
             yield {k: v.values for k, v in six.iteritems(df)}
