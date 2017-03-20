@@ -142,8 +142,8 @@ def create(filepath, chromsizes, bins, iterator, metadata=None, assembly=None,
     with h5py.File(filepath, 'r+') as f:
         h5 = f[group]
 
+        logger.info('Writing chroms')
         grp = h5.create_group('chroms')
-        print("chroms:", chroms)
         write_chroms(grp, chroms, lengths, h5opts)
 
         logger.info('Writing bins')
@@ -160,7 +160,6 @@ def create(filepath, chromsizes, bins, iterator, metadata=None, assembly=None,
     # obtain the correct file state for reading.
     logger.info('Writing pixels')
     target = posixpath.join(group, 'pixels')
-    print("n_bins:", n_bins)
     bin1_offset, nnz, ncontacts = write_pixels(
         filepath, target, n_bins, iterator, h5opts, lock)
 
