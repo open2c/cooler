@@ -325,10 +325,10 @@ def get_chromsizes(bins):
 
     """
     chromtable = (
-            bins.drop_duplicates(['chrom'], keep='last')[['chrom', 'end']]
-                .reset_index(drop=True)
-                .rename(columns={'chrom': 'name', 'end': 'length'})
-        )
+        bins.drop_duplicates(['chrom'], keep='last')[['chrom', 'end']]
+            .reset_index(drop=True)
+            .rename(columns={'chrom': 'name', 'end': 'length'})
+    )
     chroms, lengths = list(chromtable['name']), list(chromtable['length'])
     return pandas.Series(index=chroms, data=lengths)
 
