@@ -59,5 +59,3 @@ def test_csort():
     # should get a ValueError because the chromosome names in the pixels dont' match
     # the stored chromosome names
     assert(result.exit_code == -1)
-
-

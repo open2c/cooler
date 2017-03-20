@@ -314,6 +314,25 @@ def get_binsize(bins):
         return None
 
 
+def get_chromsizes(bins):
+    """
+    Infer chromsizes Series from a bin DataFrame. Assumes that the last bin of 
+    each contig is allowed to differ in size from the rest.
+
+    Returns
+    -------
+    int or None if bins are non-uniform
+
+    """
+    chromtable = (
+            bins.drop_duplicates(['chrom'], keep='last')[['chrom', 'end']]
+                .reset_index(drop=True)
+                .rename(columns={'chrom': 'name', 'end': 'length'})
+        )
+    chroms, lengths = list(chromtable['name']), list(chromtable['length'])
+    return pandas.Series(index=chroms, data=lengths)
+
+
 def lexbisect(arrays, values, side='left', lo=0, hi=None):
     """
     Bisection search on lexically sorted arrays.

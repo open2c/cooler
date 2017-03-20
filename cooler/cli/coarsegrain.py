@@ -12,9 +12,9 @@ import h5py
 
 from ..io import CoolerAggregator, create
 from ..ice import iterative_correction
-from ..util import binnify
+from ..util import binnify, get_chromsizes
 from ..tools import lock
-from .. import chroms, info
+from .. import api
 
 import click
 from . import cli, logger
@@ -40,10 +40,9 @@ def multires_aggregate(infile, outfile, n_zooms, chunksize, n_cpus):
 
     """
     with h5py.File(infile, 'r') as f:
-        binsize = info(f)['bin-size']
-        chromtable = chroms(f)
-    chromsizes = chromtable.set_index('name')['length']
-    _, lengths = chromtable['name'].values, chromtable['length'].values
+        binsize = api.info(f)['bin-size']
+        bintable = api.bins(f)
+        chromsizes = get_chromsizes(bintable)
 
     logger.info(
         "Copying base matrix to level " +
@@ -217,12 +216,10 @@ def coarsegrain(cooler_file, output_file, n_cpus, chunk_size, too_close, mad_max
     else:
         outfile = output_file
 
-    chunksize = chunk_size
-    n_cpus = n_cpus
-
     with h5py.File(infile, 'r') as f:
-        binsize = info(f)['bin-size']
-        chromsizes= chroms(f).set_index('name')['length']
+        binsize = api.info(f)['bin-size']
+        bintable = api.bins(f)
+        chromsizes = get_chromsizes(bintable)
 
     total_length = np.sum(chromsizes.values)
     n_tiles = total_length / binsize / TILESIZE  # todo: coerce to correctly rounded int
