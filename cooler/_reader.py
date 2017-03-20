@@ -374,15 +374,15 @@ class PairixAggregator(ContactReader):
         these_bins = self.bins_grouped.get_group(chrom1)
 
         f = pypairix.open(filepath, 'r')
-        cid1 = self.contigs.index(chrom1)
-        remaining = self.contigs[cid1:]
+        cid1 = self.idmap[chrom1]
+        remaining = self.idmap[chrom1:]
 
         accumulator = Counter()
         rows = []
         for bin1_id, bin1 in these_bins.iterrows():
             chrom1 = bin1.chrom
             
-            for cid2, chrom2 in enumerate(remaining, cid1):
+            for chrom2, cid2 in remaining.items():
                 chrom2_size = chromsizes[chrom2]
 
                 trans = chrom1 != chrom2
