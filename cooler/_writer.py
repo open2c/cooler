@@ -9,6 +9,7 @@ This module defines and implements the Cooler schema.
 from __future__ import division, print_function
 from datetime import datetime
 import json
+import six
 
 import numpy as np
 import pandas
@@ -135,9 +136,8 @@ def write_pixels(filepath, grouppath, n_bins, iterator, h5opts, lock=None):
         Optional lock to synchronize concurrent HDF5 file access.
 
     """
-    n_pairs = iterator.size()
-    init_size = min(5 * n_bins, n_pairs)
-    max_size = min(n_pairs, n_bins * (n_bins - 1) // 2 + n_bins)
+    max_size = n_bins * (n_bins - 1) // 2 + n_bins
+    init_size = min(5 * n_bins, max_size)
 
     # Preallocate
     with h5py.File(filepath, 'r+') as f:
@@ -162,6 +162,7 @@ def write_pixels(filepath, grouppath, n_bins, iterator, h5opts, lock=None):
     nnz = 0
     ncontacts = 0
     for chunk in iterator:
+        #chunk_dict = {k: v.values for k, v in six.iteritems(chunk)}
         try:
             if lock is not None:
                 lock.acquire()
