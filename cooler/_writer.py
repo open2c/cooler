@@ -15,17 +15,16 @@ import numpy as np
 import pandas
 import h5py
 
-import logging
-from . import get_logger
-
-from . import __version__, __format_version__
+from . import __version__, __format_version__, get_logger
 from .util import rlencode
+
 
 logger = get_logger()
 
+
 MAGIC = "HDF5::Cooler"
 URL = "https://github.com/mirnylab/cooler"
-MAX_CHROMNAME_LENGTH=32
+MAX_CHROMNAME_LENGTH = 32
 CHROM_DTYPE = np.dtype('S32')
 CHROMID_DTYPE = np.int32
 CHROMSIZE_DTYPE = np.int32
@@ -55,10 +54,9 @@ def write_chroms(grp, chroms, lengths, h5opts):
     n_chroms = len(chroms)
     for chrom in chroms:
         if len(chrom) > MAX_CHROMNAME_LENGTH:
-            err_string = ("Chromosome name ({}) longer than maximum ".format(chrom) +
-                         "chromosome name length ({})".format(MAX_CHROMNAME_LENGTH))
-            #logging.error(err_string)
-            raise ValueError(err_string)
+            raise ValueError(
+                "Chromosome name ({}) longer than maximum ".format(chrom) +
+                "chromosome name length ({})".format(MAX_CHROMNAME_LENGTH))
 
     names = np.array(chroms, dtype=CHROM_DTYPE)
     grp.create_dataset('name',
@@ -188,13 +186,12 @@ def write_pixels(filepath, grouppath, n_bins, iterator, h5opts, lock=None):
                 for dset in [bin1, bin2, count]:
                     dset.resize((nnz + n,))
 
-
                 # store the bins that each pixel belongs to
                 # i.e. the coordinates for each "count"
                 bin1[nnz:nnz+n] = chunk['bin1_id']
                 bin2[nnz:nnz+n] = chunk['bin2_id']
-
                 count[nnz:nnz+n] = chunk['count']
+
                 nnz += n
                 ncontacts += chunk['count'].sum()
         finally:
@@ -204,15 +201,13 @@ def write_pixels(filepath, grouppath, n_bins, iterator, h5opts, lock=None):
     # Index the first axis (matrix row) offsets
     with h5py.File(filepath, 'r') as f:
         grp = f[grouppath]
-        bin1 = grp['bin1_id'][:]
+        bin1 = grp['bin1_id']
         bin1_offset = np.zeros(n_bins + 1, dtype=BIN1OFFSET_DTYPE)
         curr_val = 0
         for start, length, value in zip(*rlencode(bin1, 1000000)):
             bin1_offset[curr_val:value + 1] = start
             curr_val = value + 1
         bin1_offset[curr_val:] = nnz
-
-    #sys.exit(1)
 
     return bin1_offset, nnz, ncontacts
 
