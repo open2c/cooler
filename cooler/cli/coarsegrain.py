@@ -14,15 +14,10 @@ from ..io import CoolerAggregator, create
 from ..ice import iterative_correction
 from ..util import binnify
 from ..tools import lock
-from .. import chroms, info, get_logger
+from .. import chroms, info
 
 import click
-from . import cli
-
-
-logging.basicConfig(stream=sys.stderr)
-logger = get_logger()
-logger.setLevel(logging.INFO)
+from . import cli, logger
 
 
 FACTOR = 2
@@ -106,7 +101,8 @@ def multires_aggregate(infile, outfile, n_zooms, chunksize, n_cpus):
                     new_bins,
                     reader,
                     group=zoomLevel,
-                    lock=lock)
+                    lock=lock,
+                    append=True)
 
                 fw.attrs[zoomLevel] = new_binsize
                 fw.flush()

@@ -25,7 +25,7 @@ import pandas
 import h5py
 
 from . import get_logger
-from .util import rlencode, get_binsize
+from .util import rlencode, get_binsize, parse_region
 from .tools import lock
 
 
@@ -65,14 +65,32 @@ def check_bins(bins, chromsizes):
     return bins
 
 
-def parse_genomic_segmentation(chromsizes, bins):
-    idmap = pandas.Series(index=chromsizes.keys(), data=range(len(chromsizes)))
-    bins_chrom_id = bins['chrom'].cat.codes
-    chrom_posoffset = np.r_[0, np.cumsum(chromsizes.values)]
-    start_abspos = chrom_posoffset[bins_chrom_id] + bins['start'].values
-    chrom_binoffset = np.r_[0, np.cumsum(
-        bins.groupby('chrom', sort=False).size().values)]
-    return idmap, chrom_binoffset, chrom_posoffset, start_abspos
+class GenomeSegmentation(object):
+    def __init__(self, chromsizes, bins):
+        bins = check_bins(bins, chromsizes)
+        self._bins_grouped = bins.groupby('chrom', sort=False)
+        nbins_per_chrom = self._bins_grouped.size().values
+        
+        self.chromsizes = chromsizes
+        self.binsize = get_binsize(bins)
+        self.contigs = list(chromsizes.keys())
+        self.bins = bins
+        self.idmap = pandas.Series(
+            index=chromsizes.keys(), 
+            data=range(len(chromsizes)))
+        self.chrom_binoffset = np.r_[0, np.cumsum(nbins_per_chrom)]
+        self.chrom_abspos = np.r_[0, np.cumsum(chromsizes.values)]
+        self.start_abspos = (self.chrom_abspos[bins['chrom'].cat.codes] + 
+                             bins['start'].values)
+    
+    def fetch(self, region):
+        chrom, start, end = parse_region(region, self.chromsizes)
+        result = self._bins_grouped.get_group(chrom)
+        if start > 0 or end < self.chromsizes[chrom]:
+            lo = result['end'].values.searchsorted(start, side='right')
+            hi = lo + result['start'].values[lo:].searchsorted(end, side='left')
+            result = result.iloc[lo:hi]
+        return result
 
 
 class HDF5Aggregator(ContactReader):
@@ -86,24 +104,12 @@ class HDF5Aggregator(ContactReader):
         self.P1 = kwargs.pop('P1', 'cuts1')
         self.C2 = kwargs.pop('C2', 'chrms2')
         self.P2 = kwargs.pop('P2', 'cuts2')
-        self.bins = bins
-        self.binsize = get_binsize(bins)
-        self.n_contacts = len(self.h5[self.C1])
-        self.n_bins = len(bins)
+        self.gs = GenomeSegmentation(chromsizes, bins)
         self.chunksize = chunksize
-        # convert genomic coords of bin starts to absolute
-        self.idmap = pandas.Series(index=chromsizes.keys(), 
-                                   data=range(len(chromsizes)))
-        bin_chrom_ids = self.idmap[bins['chrom']].values
-        self.cumul_length = np.r_[0, np.cumsum(chromsizes)]
-        self.abs_start_coords = self.cumul_length[bin_chrom_ids] + bins['start']
-        # chrom offset index: chrom_id -> offset in bins
-        chrom_nbins =  bins.groupby(bin_chrom_ids, sort=False).size()
-        self.chrom_offset = np.r_[0, np.cumsum(chrom_nbins)]
-        # index extents of chromosomes on first axis of contact list
         self.partition = self._index_chroms()
 
     def _index_chroms(self):
+        # index extents of chromosomes on first axis of contact list
         starts, lengths, values = rlencode(self.h5[self.C1], self.chunksize)
         if len(set(values)) != len(values):
             raise ValueError(
@@ -122,37 +128,35 @@ class HDF5Aggregator(ContactReader):
     def aggregate(self, chrom):
         h5pairs = self.h5
         C1, P1, C2, P2 = self.C1, self.P1, self.C2, self.P2
-        bins = self.bins
-        binsize = self.binsize
         chunksize = self.chunksize
-        chrom_offset = self.chrom_offset
-        cumul_length = self.cumul_length
-        abs_start_coords = self.abs_start_coords
+        bins = self.gs.bins
+        binsize = self.gs.binsize
+        chrom_binoffset = self.gs.chrom_binoffset
+        chrom_abspos = self.gs.chrom_abspos
+        start_abspos = self.gs.start_abspos
+        cid = self.gs.idmap[chrom]
 
-        cid = self.idmap[chrom]
         chrom_lo, chrom_hi = self.partition.get(cid, (-1, -1))
         lo = chrom_lo
         hi = lo
         while hi < chrom_hi:
-            # fetch next chunk, making sure our selection doesn't split a bin1
+            # update `hi` to make sure our selection doesn't split a bin1
             lo, hi = hi, min(hi + chunksize, chrom_hi)
-            abs_pos = cumul_length[cid] + h5pairs[P1][hi-1]
-            i = int(np.searchsorted(abs_start_coords, abs_pos, 
-                    side='right')) - 1
-            bin_end = bins['end'][i]
+            abspos = chrom_abspos[cid] + h5pairs[P1][hi - 1]
+            bin_id = int(np.searchsorted(
+                start_abspos, abspos, side='right')) - 1
+            bin_end = bins['end'][bin_id]
             hi = bisect_left(h5pairs[P1], bin_end, lo, chrom_hi)
             if lo == hi:
                 hi = chrom_hi
 
             logger.info('{} {}'.format(lo, hi))
 
-            # assign bins to reads
+            # load chunk and assign bin IDs to each read side
             table = self._load_chunk(lo, hi)
-            abs_pos1 = (cumul_length[h5pairs[C1][lo:hi]] +
-                        h5pairs[P1][lo:hi])
-            abs_pos2 = (cumul_length[h5pairs[C2][lo:hi]] +
-                        h5pairs[P2][lo:hi])
-            if np.any(abs_pos1 > abs_pos2):
+            abspos1 = chrom_abspos[h5pairs[C1][lo:hi]] + h5pairs[P1][lo:hi]
+            abspos2 = chrom_abspos[h5pairs[C2][lo:hi]] + h5pairs[P2][lo:hi]
+            if np.any(abspos1 > abspos2):
                 raise ValueError(
                     "Found a read pair that maps to the lower triangle of the "
                     "contact map (side1 > side2). Check that the provided "
@@ -162,16 +166,16 @@ class HDF5Aggregator(ContactReader):
 
             if binsize is None:
                 table['bin1_id'] = np.searchsorted(
-                    abs_start_coords, abs_pos1, side='right') - 1
+                    start_abspos, abspos1, side='right') - 1
                 table['bin2_id'] = np.searchsorted(
-                    abs_start_coords, abs_pos2, side='right') - 1
+                    start_abspos, abspos2, side='right') - 1
             else:
                 rel_bin1 = np.floor(table['cut1']/binsize).astype(int)
                 rel_bin2 = np.floor(table['cut2']/binsize).astype(int)
                 table['bin1_id'] = (
-                    chrom_offset[table['chrom_id1'].values] + rel_bin1)
+                    chrom_binoffset[table['chrom_id1'].values] + rel_bin1)
                 table['bin2_id'] = (
-                    chrom_offset[table['chrom_id2'].values] + rel_bin2)
+                    chrom_binoffset[table['chrom_id2'].values] + rel_bin2)
 
             # reduce
             gby = table.groupby(['bin1_id', 'bin2_id'])
@@ -184,7 +188,7 @@ class HDF5Aggregator(ContactReader):
         return len(self.h5['chrms1'])
 
     def __iter__(self):
-        for chrom in self.idmap.keys():
+        for chrom in self.gs.contigs:
             for df in self.aggregate(chrom):
                 yield {k: v.values for k, v in six.iteritems(df)}
 
@@ -201,33 +205,33 @@ class TabixAggregator(ContactReader):
         except ImportError:
             raise ImportError("pysam is required to read tabix files")
         
+        self._map = map
         self.C2 = kwargs.pop('C2', 3)
         self.P2 = kwargs.pop('P2', 4)
-        self._map = map
-        self.chromsizes = chromsizes
-        self.bins = check_bins(bins, chromsizes)
-        self.binsize = get_binsize(bins)
-        self.bins_grouped = bins.groupby('chrom', sort=False)
-        self.idmap, \
-        self.chrom_binoffset, \
-        self.chrom_abspos, \
-        self.start_abspos = parse_genomic_segmentation(chromsizes, bins)
         
-        # read pair records
+        # all requested contigs will be placed in the output matrix
+        self.gs = GenomeSegmentation(chromsizes, bins)
+        
+        # find available contigs in the contact list
         self.filepath = filepath
         self.n_records = None
-        self.contigs = list(chromsizes.keys())
         with pysam.TabixFile(filepath, 'r', encoding='ascii') as f:
             try:
-                file_contigs = [c.decode('ascii') for c in f.contigs]
+                self.file_contigs = [c.decode('ascii') for c in f.contigs]
             except AttributeError:
-                file_contigs = f.contigs
+                self.file_contigs = f.contigs
         
-        for chrom in self.contigs:
-            if chrom not in file_contigs:
+        # warn about requested contigs not seen in the contact list
+        for chrom in self.gs.contigs:
+            if chrom not in self.file_contigs:
                 warnings.warn(
-                    "Did not find contig '{}' in contact list file.".format(chrom))
-        self.contigs = [ctg for ctg in self.contigs if ctg in file_contigs]
+                    "Did not find contig " +
+                    " '{}' in contact list file.".format(chrom))
+        
+        warnings.warn(
+            "NOTE: When using the Tabix aggregator, make sure the order of "
+            "chromosomes in the provided chromsizes agrees with the chromosome "
+            "ordering of read ends in the contact list file.")
 
     def __getstate__(self):
         d = self.__dict__.copy()
@@ -241,41 +245,50 @@ class TabixAggregator(ContactReader):
     
     def size(self):
         if self.n_records is None:
-            self.n_records = sum(self._map(self._size, self.contigs))
+            chroms = [ctg for ctg in self.gs.contigs 
+                            if ctg in self.file_contigs]
+            self.n_records = sum(self._map(self._size, chroms))
         return self.n_records
     
     def aggregate(self, chrom):
         import pysam
         filepath = self.filepath
-        binsize = self.binsize
-        idmap = self.idmap
-        chromsizes = self.chromsizes
-        chrom_binoffset = self.chrom_binoffset
-        chrom_abspos = self.chrom_abspos
-        start_abspos = self.start_abspos
+        binsize = self.gs.binsize
+        idmap = self.gs.idmap
+        chromsizes = self.gs.chromsizes
+        chrom_binoffset = self.gs.chrom_binoffset
+        chrom_abspos = self.gs.chrom_abspos
+        start_abspos = self.gs.start_abspos
         C2, P2 = self.C2, self.P2
-        these_bins = self.bins_grouped.get_group(chrom)
         
+        these_bins = self.gs.fetch(chrom)
         rows = []
         with pysam.TabixFile(filepath, 'r', encoding='ascii') as f:
             parser = pysam.asTuple()
             accumulator = Counter()
             
             for bin1_id, bin1 in these_bins.iterrows():
-                for line in f.fetch(chrom, bin1.start, bin1.end, parser=parser):
-                    chrom2, pos2 = line[C2], int(line[P2])
+                for line in f.fetch(chrom, bin1.start, bin1.end,
+                                    parser=parser):
+                    chrom2 = line[C2]
+                    pos2 = int(line[P2])
+                    
                     try:
                         cid2 = idmap[chrom2]
                     except KeyError:
+                        # this chrom2 is not requested
                         continue
+                    
                     if binsize is None:
-                        lo, hi = chrom_binoffset[cid2], chrom_binoffset[cid2+1]
+                        lo = chrom_binoffset[cid2]
+                        hi = chrom_binoffset[cid2 + 1]
                         bin2_id = lo + np.searchsorted(
                             start_abspos[lo:hi], 
                             chrom_abspos[cid2] + pos2,
                             side='right') - 1
                     else:
                         bin2_id = chrom_binoffset[cid2] + (pos2 // binsize)
+                    
                     accumulator[bin2_id] += 1
 
                 if not accumulator:
@@ -289,53 +302,55 @@ class TabixAggregator(ContactReader):
                         columns=['bin1_id', 'bin2_id', 'count'])
                           .sort_values('bin2_id')
                 )
+                
                 accumulator.clear()
         
         logger.info(chrom)
         return pandas.concat(rows, axis=0) if len(rows) else None
     
     def __iter__(self):
-        for df in self._map(self.aggregate, list(self.contigs)):
+        chroms = [ctg for ctg in self.gs.contigs if ctg in self.file_contigs]
+        for df in self._map(self.aggregate, chroms):
             if df is not None:
                 yield {k: v.values for k, v in six.iteritems(df)}
 
 
 class PairixAggregator(ContactReader):
+    """
+    Aggregate contacts from a sorted, BGZIP-compressed and pairix-indexed
+    tab-delimited text file.
+
+    """
     def __init__(self, filepath, chromsizes, bins, map=map, **kwargs):
         try:
             import pypairix
         except ImportError:
-            raise ImportError("pypairix is required to read pairix-indexed files")
+            raise ImportError(
+                "pypairix is required to read pairix-indexed files")
         
         self._map = map
-        self.chromsizes = chromsizes
-        self.bins = check_bins(bins, chromsizes)
-        self.binsize = get_binsize(bins)
-        self.bins_grouped = bins.groupby('chrom', sort=False)
-        self.idmap, \
-        self.chrom_binoffset, \
-        self.chrom_abspos, \
-        self.start_abspos = parse_genomic_segmentation(chromsizes, bins)
-
-        # read pair records
-        self.filepath = filepath
-        self.n_records = None
-        self.contigs = list(chromsizes.keys())
-
         f = pypairix.open(filepath, 'r')
-        file_contigs = set(
+        self.C1 = f.get_chr1_col()
+        self.C2 = f.get_chr2_col()
+        self.P1 = f.get_startpos1_col()
+        self.P2 = f.get_startpos2_col()
+        self.file_contigs = set(
             itertools.chain.from_iterable(
                 [b.split('|') for b in f.get_blocknames()]))
-
-        self.C1 = f.get_chr1_col()
-        self.P1 = f.get_startpos1_col()
-        self.P2 = f.get_startpos2_col() 
-
-        for chrom in self.contigs:
-            if chrom not in file_contigs:
+        
+        # all requested contigs will be placed in the output matrix
+        self.gs = GenomeSegmentation(chromsizes, bins)
+        
+        # find available contigs in the contact list
+        self.filepath = filepath
+        self.n_records = None
+       
+        # warn about requested contigs not seen in the contact list
+        for chrom in self.gs.contigs:
+            if chrom not in self.file_contigs:
                 warnings.warn(
-                    "Did not find contig '{}' in contact list file.".format(chrom))
-        self.contigs = [ctg for ctg in self.contigs if ctg in file_contigs]
+                    "Did not find contig " +
+                    " '{}' in contact list file.".format(chrom))
 
     def __getstate__(self):
         d = self.__dict__.copy()
@@ -347,55 +362,71 @@ class PairixAggregator(ContactReader):
         f = pypairix.open(self.filepath, 'r')
         chrom1, chrom2 = block
         return sum(1 for line in f.query2D(
-            chrom1, 0, self.chromsizes[chrom1],
-            chrom2, 0, self.chromsizes[chrom2], 1))
+            chrom1, 0, self.gs.chromsizes[chrom1],
+            chrom2, 0, self.gs.chromsizes[chrom2], 1))
     
     def size(self):
         if self.n_records is None:
-            blocks = itertools.combinations_with_replacement(self.contigs, 2)
+            chroms = [ctg for ctg in self.gs.contigs 
+                            if ctg in self.file_contigs]
+            blocks = itertools.combinations_with_replacement(chroms, 2)
             self.n_records = sum(self._map(self._size, blocks))
         return self.n_records
     
     def aggregate(self, chrom1):
         import pypairix
         filepath = self.filepath
-        chromsizes = self.chromsizes
-        binsize = self.binsize
-        idmap = self.idmap
-        chrom_binoffset = self.chrom_binoffset
-        chrom_abspos = self.chrom_abspos
-        start_abspos = self.start_abspos
+        binsize = self.gs.binsize
+        chromsizes = self.gs.chromsizes
+        chrom_binoffset = self.gs.chrom_binoffset
+        chrom_abspos = self.gs.chrom_abspos
+        start_abspos = self.gs.start_abspos
         C1 = self.C1
+        C2 = self.C2
         P1 = self.P1
         P2 = self.P2
-        these_bins = self.bins_grouped.get_group(chrom1)
-
-        rows = []
-
+        
         f = pypairix.open(filepath, 'r')
-        accumulator = Counter()
-        i = self.contigs.index(chrom1)
-        remaining = self.contigs[i:]
+        these_bins = self.gs.fetch(chrom1)
+        remaining_chroms = self.gs.idmap[chrom1:]
+        cid1 = self.gs.idmap[chrom1]
 
+        accumulator = Counter()
+        rows = []
         for bin1_id, bin1 in these_bins.iterrows():
-            chrom1 = bin1.chrom
-            for cid2, chrom2 in enumerate(remaining, i):
+            
+            for chrom2, cid2 in remaining_chroms.items():
+                
                 chrom2_size = chromsizes[chrom2]
+                is_trans = chrom1 != chrom2
+            
+                # XXX - a better solution than autoflip would be a function that
+                # indicates whether (chrom1, chrom2) are present in a block in 
+                # the file and whether the orientation is flipped
                 for line in f.query2D(
                         chrom1, bin1.start, bin1.end,
                         chrom2, 0, chrom2_size, 1):
-                    pos2 = int(line[P2]) if line[C1] == chrom1 else int(line[P1])
+                    
+                    if is_trans and line[C2] == chrom1:
+                        pos2 = int(line[P1])
+                    else:
+                        pos2 = int(line[P2])
+
                     if binsize is None:
-                        lo, hi = chrom_binoffset[cid2], chrom_binoffset[cid2+1]
+                        lo = chrom_binoffset[cid2]
+                        hi = chrom_binoffset[cid2 + 1]
                         bin2_id = lo + np.searchsorted(
                             start_abspos[lo:hi], 
                             chrom_abspos[cid2] + pos2,
                             side='right') - 1
                     else:
                         bin2_id = chrom_binoffset[cid2] + (pos2 // binsize)
+                    
                     accumulator[bin2_id] += 1
+            
             if not accumulator:
                 continue
+            
             rows.append(
                 pandas.DataFrame({
                     'bin1_id': bin1_id,
@@ -404,6 +435,7 @@ class PairixAggregator(ContactReader):
                     columns=['bin1_id', 'bin2_id', 'count'])
                       .sort_values('bin2_id')
             )
+            
             accumulator.clear()
         
         logger.info(chrom1)
@@ -411,7 +443,8 @@ class PairixAggregator(ContactReader):
         return pandas.concat(rows, axis=0) if len(rows) else None
     
     def __iter__(self):
-        for df in self._map(self.aggregate, list(self.contigs)):
+        chroms = [ctg for ctg in self.gs.contigs if ctg in self.file_contigs]
+        for df in self._map(self.aggregate, chroms):
             if df is not None:
                 yield {k: v.values for k, v in six.iteritems(df)}
 
@@ -423,30 +456,24 @@ class CoolerAggregator(ContactReader):
     """
     def __init__(self, cooler_path, bins, chunksize, cooler_root="/", map=map):
         self._map = map
-        
         self.cooler_path = cooler_path
         self.cooler_root = cooler_root
+        self.chunksize = chunksize
+
         with h5py.File(self.cooler_path, 'r') as h5:
             grp = h5[cooler_root]
             self._size = grp.attrs['nnz']
             chroms = grp['chroms/name'][:].astype('U')
             lengths = grp['chroms/length'][:]
+            chromsizes = pandas.Series(index=chroms, data=lengths)
             self.old_chrom_offset = grp['indexes/chrom_offset'][:]
             self.old_bin1_offset = grp['indexes/bin1_offset'][:]
             self.old_binsize = grp.attrs['bin-size']
 
+        self.gs = GenomeSegmentation(chromsizes, bins)
         self.new_binsize = get_binsize(bins)
         assert self.new_binsize % self.old_binsize == 0
         self.factor = self.new_binsize // self.old_binsize
-        self.chunksize = chunksize
-        self.chroms = chroms
-        self.idmap = pandas.Series(index=chroms, data=range(len(chroms)))
-        bin_chrom_ids = self.idmap[bins['chrom']].values
-        self.cumul_length = np.r_[0, np.cumsum(lengths)]
-        self.abs_start_coords = self.cumul_length[bin_chrom_ids] + bins['start']
-        # chrom offset index: chrom_id -> offset in bins
-        self.chrom_offset = np.r_[0, 
-            np.cumsum(bins.groupby('chrom', sort=False).size())]
 
     def __getstate__(self):
         d = self.__dict__.copy()
@@ -465,49 +492,41 @@ class CoolerAggregator(ContactReader):
             lock.acquire()
             with h5py.File(self.cooler_path, 'r') as h5:
                 c = Cooler(h5[self.cooler_root])
+                # convert_enum=False should return chroms as int
                 table = c.pixels(join=True, convert_enum=False)
                 chunk = table[lo:hi]
-
-                # store the raw chromosome values in case 
-                # something goes wrong in converting them to categorical values
-                raw_chrom1 = chunk['chrom1']
-                raw_chrom2 = chunk['chrom2']
-
-                chunk['chrom1'] = pandas.Categorical(chunk['chrom1'], categories=self.chroms)
-                chunk['chrom2'] = pandas.Categorical(chunk['chrom2'], categories=self.chroms)
-
-                if (sum(pandas.isnull(chunk['chrom1'])) > 0 or
-                    sum(pandas.isnull(chunk['chrom2']))) > 0:
-                    logger.error("Chromosomes given: {}".format(set(raw_chrom1.values).union(set(raw_chrom2.values))))
-                    logger.error("Chromosome known: {}".format(self.chroms))
-                    raise ValueError("Invalid chromosome names found")
-
+                #chunk['chrom1'] = pandas.Categorical(chunk['chrom1'], categories=self.chroms)
+                #chunk['chrom2'] = pandas.Categorical(chunk['chrom2'], categories=self.chroms)
         finally:
             lock.release()
 
         # use the "start" point as anchor for re-binning
         # XXX - alternatives: midpoint anchor, proportional re-binning
-        binsize = self.new_binsize
-        chrom_offset = self.chrom_offset
-        cumul_length = self.cumul_length
-        abs_start_coords = self.abs_start_coords
+        binsize = self.gs.binsize
+        chrom_binoffset = self.gs.chrom_binoffset
+        chrom_abspos = self.gs.chrom_abspos
+        start_abspos = self.gs.start_abspos
 
-        chrom_id1 = chunk['chrom1'].cat.codes.values
-        chrom_id2 = chunk['chrom2'].cat.codes.values
+        chrom_id1 = chunk['chrom1'].values  #.cat.codes.values
+        chrom_id2 = chunk['chrom2'].values  #.cat.codes.values
         start1 = chunk['start1'].values
         start2 = chunk['start2'].values
         if binsize is None:
-            abs_start1 = cumul_length[chrom_id1] + start1
-            abs_start2 = cumul_length[chrom_id2] + start2
-            chunk['bin1_id'] = np.searchsorted(abs_start_coords, abs_start1, side='right') - 1
-            chunk['bin2_id'] = np.searchsorted(abs_start_coords, abs_start2, side='right') - 1
+            abs_start1 = chrom_abspos[chrom_id1] + start1
+            abs_start2 = chrom_abspos[chrom_id2] + start2
+            chunk['bin1_id'] = np.searchsorted(
+                start_abspos, 
+                abs_start1, 
+                side='right') - 1
+            chunk['bin2_id'] = np.searchsorted(
+                start_abspos, 
+                abs_start2, 
+                side='right') - 1
         else:
             rel_bin1 = np.floor(start1/binsize).astype(int)
             rel_bin2 = np.floor(start2/binsize).astype(int)
-
-            chunk['bin1_id'] = chrom_offset[chrom_id1] + rel_bin1
-            chunk['bin2_id'] = chrom_offset[chrom_id2] + rel_bin2
-
+            chunk['bin1_id'] = chrom_binoffset[chrom_id1] + rel_bin1
+            chunk['bin2_id'] = chrom_binoffset[chrom_id2] + rel_bin2
 
         grouped = chunk.groupby(['bin1_id', 'bin2_id'], sort=False)
         return grouped['count'].sum().reset_index()
@@ -520,21 +539,24 @@ class CoolerAggregator(ContactReader):
         return chunk
 
     def __iter__(self):
-        from itertools import chain
         old_chrom_offset = self.old_chrom_offset
         old_bin1_offset = self.old_bin1_offset
         chunksize = self.chunksize
         factor = self.factor
         
         spans = []
-        for chrom, i in six.iteritems(self.idmap):
+        for chrom, i in six.iteritems(self.gs.idmap):
             # it's important to extract some multiple of `factor` rows at a time
-            c0, c1 = old_chrom_offset[i], old_chrom_offset[i+1]
+            c0 = old_chrom_offset[i]
+            c1 = old_chrom_offset[i + 1]
             step = (chunksize // factor) * factor
-            edges = np.arange(old_bin1_offset[c0], old_bin1_offset[c1]+step, step)
+            edges = np.arange(
+                old_bin1_offset[c0], 
+                old_bin1_offset[c1] + step, 
+                step)
             edges[-1] = old_bin1_offset[c1]
             spans.append(zip(edges[:-1], edges[1:]))
-        spans = list(chain.from_iterable(spans))
+        spans = list(itertools.chain.from_iterable(spans))
         
         for df in self._map(self.aggregate, spans):
             yield {k: v.values for k, v in six.iteritems(df)}
@@ -547,8 +569,10 @@ class SparseLoader(ContactReader):
     """
     def __init__(self, filepath, chunksize):
         # number of lines in file
-        p1 = subprocess.Popen(['unpigz',  '-p', '8',  '-c', filepath], stdout=subprocess.PIPE)
-        p2 = subprocess.Popen(['wc', '-l'], stdin=p1.stdout, stdout=subprocess.PIPE)
+        p1 = subprocess.Popen(
+            ['unpigz',  '-p', '8',  '-c', filepath], stdout=subprocess.PIPE)
+        p2 = subprocess.Popen(
+            ['wc', '-l'], stdin=p1.stdout, stdout=subprocess.PIPE)
         self.n_records = int(p2.communicate()[0])
 
         # file iterator

@@ -237,8 +237,17 @@ def binnify(chromsizes, binsize):
                 'start': binedges[:-1],
                 'end': binedges[1:],
             }, columns=['chrom', 'start', 'end'])
-    bintable = pandas.concat(map(_each, chromsizes.keys()),
-                             axis=0, ignore_index=True)
+    
+    bintable = pandas.concat(
+        map(_each, chromsizes.keys()),
+        axis=0, 
+        ignore_index=True)
+    
+    bintable['chrom'] = pandas.Categorical(
+        bintable['chrom'], 
+        categories=list(chromsizes.index), 
+        ordered=True)
+
     return bintable
 
 make_bintable = binnify
@@ -465,3 +474,15 @@ def open_hdf5(fp, mode='r', *args, **kwargs):
     finally:
         if own_fh:
             fh.close()
+
+
+def attrs_to_jsonable(attrs):
+    out = dict(attrs)
+    for k, v in attrs.items():
+        try:
+            out[k] = np.asscalar(v)
+        except ValueError:
+            out[k] = v.tolist()
+        except AttributeError:
+            out[k] = v
+    return out

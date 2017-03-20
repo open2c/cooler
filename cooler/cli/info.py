@@ -6,6 +6,7 @@ import sys
 import click
 from . import cli
 from ..api import Cooler
+from ..util import attrs_to_jsonable
 
 
 @cli.command()
@@ -43,6 +44,8 @@ def info(cool_path, field, metadata, out):
 
         if metadata:
             json.dump(c.info['metadata'], f, indent=4)
+            print(end='\n', file=f)
+
         elif field is not None:
             try:
                 result = c.info[field]
@@ -50,11 +53,12 @@ def info(cool_path, field, metadata, out):
                 print("Data field {} not found.".format(field))
                 sys.exit(1)
             print(result, file=f)
+
         else:
-            dct = c.info
-            for field in dct.keys():
-                if field != 'metadata':
-                    print(field + '\t' + str(dct[field]), file=f)
+            dct = c.info.copy()
+            dct.pop('metadata', None)
+            json.dump(attrs_to_jsonable(dct), f, indent=4)
+            print(end='\n', file=f)
 
     except OSError:
         pass
