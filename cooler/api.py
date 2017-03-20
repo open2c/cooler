@@ -379,7 +379,7 @@ def pixels(h5, lo=0, hi=None, fields=None, join=True, **kwargs):
     df = get(h5['pixels'], lo, hi, fields, **kwargs)
 
     if join:
-        bins = get(h5['bins'], 0, None, ['chrom', 'start', 'end'])
+        bins = get(h5['bins'], 0, None, ['chrom', 'start', 'end'], **kwargs)
         df = annotate(df, bins)
 
     return df
