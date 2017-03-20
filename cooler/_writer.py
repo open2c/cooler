@@ -15,12 +15,16 @@ import numpy as np
 import pandas
 import h5py
 
-from . import __version__, __format_version__
+from . import __version__, __format_version__, get_logger
 from .util import rlencode
+
+
+logger = get_logger()
 
 
 MAGIC = "HDF5::Cooler"
 URL = "https://github.com/mirnylab/cooler"
+MAX_CHROMNAME_LENGTH = 32
 CHROM_DTYPE = np.dtype('S32')
 CHROMID_DTYPE = np.int32
 CHROMSIZE_DTYPE = np.int32
@@ -48,6 +52,12 @@ def write_chroms(grp, chroms, lengths, h5opts):
 
     """
     n_chroms = len(chroms)
+    for chrom in chroms:
+        if len(chrom) > MAX_CHROMNAME_LENGTH:
+            raise ValueError(
+                "Chromosome name ({}) longer than maximum ".format(chrom) +
+                "chromosome name length ({})".format(MAX_CHROMNAME_LENGTH))
+
     names = np.array(chroms, dtype=CHROM_DTYPE)
     grp.create_dataset('name',
                        shape=(n_chroms,),
@@ -175,9 +185,13 @@ def write_pixels(filepath, grouppath, n_bins, iterator, h5opts, lock=None):
                 n = len(chunk['bin1_id'])
                 for dset in [bin1, bin2, count]:
                     dset.resize((nnz + n,))
+
+                # store the bins that each pixel belongs to
+                # i.e. the coordinates for each "count"
                 bin1[nnz:nnz+n] = chunk['bin1_id']
                 bin2[nnz:nnz+n] = chunk['bin2_id']
                 count[nnz:nnz+n] = chunk['count']
+
                 nnz += n
                 ncontacts += chunk['count'].sum()
         finally:
