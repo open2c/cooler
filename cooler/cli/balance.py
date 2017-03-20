@@ -1,19 +1,14 @@
 # -*- coding: utf-8 -*-
 from __future__ import division, print_function
 from multiprocess import Pool
-import logging
 import sys
 
 import numpy as np
 import h5py
 
 import click
-from . import cli
+from . import cli, logger
 from .. import ice
-
-
-logging.basicConfig(stream=sys.stderr)
-ice.logger.setLevel(logging.INFO)
 
 
 @cli.command()
@@ -130,7 +125,7 @@ def balance(cool_path, nproc, chunksize, mad_max, min_nnz, min_count,
         pool = Pool(nproc)
         with h5py.File(cool_path, 'a') as h5:
 
-            ice.logger.info('Balancing "{}"'.format(cool_path))
+            logger.info('Balancing "{}"'.format(cool_path))
 
             bias, stats = ice.iterative_correction(
                 h5,
