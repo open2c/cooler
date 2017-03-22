@@ -1,26 +1,31 @@
-### 0.6.5 (2017-18-03) ###
+### 0.6.6 (2017-03-21) ###
+
+* Chromosome names longer than 32 chars are forbidden for now
+* Improved pairix and tabix iterators, dropped need for slow first pass over contacts
+
+### 0.6.5 (2017-03-18) ###
 
 * Fixed pairix aggregator to properly deal with autoflipping of pairs
 
-### 0.6.4 (2017-17-03) ###
+### 0.6.4 (2017-03-17) ###
 
 * Migrated higlass multires aggregator to `cooler coarsegrain` command
 * Fixed pairix aggregator to properly deal with autoflipping of pairs
 
-### 0.6.3 (2017-22-02) ###
+### 0.6.3 (2017-02-22) ###
 
 * Merge PairixAggregator patch from Soo.
 * Update repr string
 * Return matrix scale factor in balance stats rather than the bias scale factor: #35.
 
-### 0.6.2 (2017-12-02) ###
+### 0.6.2 (2017-02-12) ###
 
 Fixed regressions in
 
 * cooler cload tabix/pairix failed on non-fixed sized bins
 * cooler show
 
-### 0.6.1 (2017-06-02) ###
+### 0.6.1 (2017-02-06) ###
 
 * This fixes stale build used in bdist_wheel packaging that broke 0.6.0. #29
 
