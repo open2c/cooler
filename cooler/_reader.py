@@ -395,7 +395,7 @@ class PairixAggregator(ContactReader):
         rows = []
         for bin1_id, bin1 in these_bins.iterrows():
             
-            for chrom2, cid2 in remaining_chroms.items():
+            for chrom2, cid2 in six.iteritems(remaining_chroms):
                 
                 chrom2_size = chromsizes[chrom2]
                 is_trans = chrom1 != chrom2
