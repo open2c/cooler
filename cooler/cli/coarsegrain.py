@@ -172,11 +172,7 @@ def multires_balance(outfile, n_zooms, chunksize, n_cpus, too_close=10000,
     'cooler_file',
     metavar="COOLER_PATH")
 @click.option(
-    '--output-file',
-    '-o',
-    help="Output multires file")
-@click.option(
-    '--n_cpus', '-n',
+    '--n_cpus', '-n', '-p',
     help="Number of cpus to use in process pool (Default=1, i.e. no pool)",
     default=1,
     type=check_ncpus)
@@ -193,14 +189,16 @@ def multires_balance(outfile, n_zooms, chunksize, n_cpus, too_close=10000,
 @click.option(
     "--mad-max",
     help="MAD-max filter",
-    default=3,
+    default=5,
     type=int)
 @click.option(
     '--balance/--no-balance',
     default=True,
     help="Don't balance each level while recursing")
-
-
+@click.option(
+    '--output-file',
+    '-o',
+    help="Output multires file")
 def coarsegrain(cooler_file, output_file, n_cpus, chunk_size, too_close, mad_max, balance):
     """
     Aggregation to multi-res cooler file.
@@ -209,6 +207,7 @@ def coarsegrain(cooler_file, output_file, n_cpus, chunk_size, too_close, mad_max
     by recursively aggregating (summing) adjacent bins.
 
     COOL_PATH : Path to a COOL file
+
     """
     infile = cooler_file
     if output_file is None:

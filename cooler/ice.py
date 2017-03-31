@@ -75,7 +75,7 @@ def _balance_genomewide(bias, c, spans, filters, chunksize, map, tol, max_iters,
                 .pipe(filters)
                 .pipe(_timesouterproduct_transform, bias)
                 .pipe(_marginalize_transform)
-                .combine(),
+                .gather(),
             axis=0)
         
         nzmarg = marg[marg != 0]
@@ -124,7 +124,7 @@ def _balance_cisonly(bias, c, spans, filters, chunksize, map, tol, max_iters,
                     .pipe(filters)
                     .pipe(_timesouterproduct_transform, bias)
                     .pipe(_marginalize_transform)
-                    .combine(),
+                    .gather(),
                 axis=0)
 
             marg = marg[lo:hi]
@@ -247,7 +247,7 @@ def iterative_correction(h5, cooler_root='/', chunksize=None, map=map, tol=1e-5,
                 .pipe(_init_transform)
                 .pipe(filters)
                 .pipe(_marginalize_transform)
-                .combine(),
+                .gather(),
             axis=0)
         bias[marg_nnz < min_nnz] = 0
 
@@ -257,7 +257,7 @@ def iterative_correction(h5, cooler_root='/', chunksize=None, map=map, tol=1e-5,
             .pipe(_init_transform)
             .pipe(filters)
             .pipe(_marginalize_transform)
-            .combine(),
+            .gather(),
         axis=0)
 
     # Drop bins with too few total counts from bias
