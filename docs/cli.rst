@@ -15,19 +15,21 @@ cooler
     Usage: cooler [OPTIONS] COMMAND [ARGS]...
     
     Options:
-      --version  Show the version and exit.
-      --help     Show this message and exit.
+      --debug / --no-debug  Verbose logging
+      --version             Show the version and exit.
+      --help                Show this message and exit.
     
     Commands:
-      balance   Out-of-core contact matrix balancing.
-      cload     Create a COOL file from a sorted list of...
-      csort     Sort and index a contact list.
-      digest    Make fragment-delimited genomic bins.
-      dump      Dump a contact matrix.
-      info      Display file info and metadata.
-      load      Load a contact matrix.
-      makebins  Make fixed-width genomic bins.
-      show      Display a contact matrix.
+      balance      Out-of-core contact matrix balancing.
+      cload        Create a COOL file from a sorted list of...
+      coarsegrain  Aggregation to multi-res cooler file.
+      csort        Sort and index a contact list.
+      digest       Make fragment-delimited genomic bins.
+      dump         Dump a contact matrix.
+      info         Display file info and metadata.
+      load         Load a contact matrix.
+      makebins     Make fixed-width genomic bins.
+      show         Display a contact matrix.
 
 
 cooler makebins
@@ -208,11 +210,13 @@ cooler cload
           Tabix manpage: <http://www.htslib.org/doc/tabix.html>.
         
         Options:
-          --metadata TEXT      Path to JSON file containing user metadata.
-          --assembly TEXT      Name of genome assembly (e.g. hg19, mm10)
-          -p, --nproc INTEGER  Number of processes to split the work between.
-                               [default: 8]
-          --help               Show this message and exit.
+          --metadata TEXT        Path to JSON file containing user metadata.
+          --assembly TEXT        Name of genome assembly (e.g. hg19, mm10)
+          -p, --nproc INTEGER    Number of processes to split the work between.
+                                 [default: 8]
+          -c2, --chrom2 INTEGER  chrom2 field number (one-based)
+          -p2, --pos2 INTEGER    pos2 field number (one-based)
+          --help                 Show this message and exit.
         
 
 
@@ -262,6 +266,32 @@ cooler balance
       --stdout                 Print weight column to stdout instead of saving to
                                file.
       --help                   Show this message and exit.
+
+
+cooler coarsegrain
+----------------
+
+::
+
+    Usage: cooler coarsegrain [OPTIONS] COOLER_PATH
+    
+      Aggregation to multi-res cooler file.
+    
+      Converts a single resolution cooler file to a multi-resolution
+      representation by recursively aggregating (summing) adjacent bins.
+    
+      COOL_PATH : Path to a COOL file
+    
+    Options:
+      -n, -p, --n_cpus CHECK_NCPUS  Number of cpus to use in process pool
+                                    (Default=1, i.e. no pool)
+      -c, --chunk-size INTEGER      Chunk size
+      --too-close INTEGER           remove diagonals for distances less than this
+                                    number (bp)
+      --mad-max INTEGER             MAD-max filter
+      --balance / --no-balance      Don't balance each level while recursing
+      -o, --output-file TEXT        Output multires file
+      --help                        Show this message and exit.
 
 
 cooler info

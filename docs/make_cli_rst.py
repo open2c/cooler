@@ -13,6 +13,7 @@ COMMANDS = [
     'csort',
     'cload',
     'balance',
+    'coarsegrain',
     'info',
     'dump',
     'show'
