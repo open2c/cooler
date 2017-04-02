@@ -7,8 +7,28 @@ API Reference
    :maxdepth: 1
 
 
-cooler
-------
+Quick reference
+---------------
+
+.. autosummary:: 
+    cooler.Cooler
+    cooler.get
+    cooler.info
+    cooler.chroms
+    cooler.bins
+    cooler.pixels
+    cooler.matrix
+    cooler.annotate
+
+.. autosummary:: 
+    cooler.io.create
+    cooler.io.is_cooler
+    cooler.io.ls
+    cooler.io.ContactReader
+
+.. autosummary:: 
+    cooler.ice.iterative_correction
+
 
 Data selectors
 ~~~~~~~~~~~~~~
@@ -19,10 +39,10 @@ Several :class:`cooler.Cooler` methods return data selectors. They don't retriev
 Table selectors (chroms, bins, pixels)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-- lazy select columns using pandas style syntax, returning new selectors
+- lazy select columns or lists of columns, returning new selectors
 - query rows using integer/slice indexing syntax
-- bins supports fetching genomic ranges using ``fetch`` method
-- pixels supports fetching genomic ranges along the bin1 axis
+- *bins* supports fetching genomic ranges using ``fetch`` method
+- *pixels* supports fetching genomic ranges along the *bin1* axis
 
 .. code-block:: python
 
@@ -114,6 +134,12 @@ Matrix selector
     >>> A4 = c.matrix().fetch('chr2', 'chr3')
 
 
+Genomic intervals can be provided using UCSC-style strings or chrom-start-end triples ``(str, int, int)``.
+
+
+cooler
+------
+
 .. autoclass:: cooler.Cooler
     :members:
 .. autofunction:: cooler.get
@@ -132,10 +158,12 @@ cooler.io
     :members:
     :undoc-members:
     :show-inheritance:
+.. autoclass:: cooler.io.ContactReader
+    :members: __iter__
 
 cooler.ice
 ----------
-    
+
 .. autofunction:: cooler.ice.iterative_correction
 
 
