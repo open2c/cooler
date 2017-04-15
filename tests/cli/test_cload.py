@@ -43,8 +43,9 @@ def test_csort():
     runner = CliRunner()
     result = runner.invoke(
         csort, [
-            op.join(testdir, 'data', 'hg19-chromsizes.select.txt'),
             op.join(testdir, 'data', 'GM12878-MboI-contacts.subsample.shuffled.txt.gz'),
+            op.join(testdir, 'data', 'hg19-chromsizes.select.txt'),
+            '-i', 'tabix',
             '-c1', '1', '-p1', '2', '-s1', '3', '-c2', '4', '-p2', '5', '-s2', '6',
             '--out', testcsort_path,
         ]

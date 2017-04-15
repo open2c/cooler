@@ -17,7 +17,7 @@ from nose.tools import with_setup, set_trace
 from click.testing import CliRunner
 
 from cooler.cli.cload import cload, tabix as cload_tabix
-from cooler.cli.coarsegrain import coarsegrain
+from cooler.cli.coarsen import coarsen, tile, multires_aggregate
 
 
 if sys.version_info[0] == 3 and sys.version_info[1] == 3:
@@ -38,13 +38,23 @@ def teardown_func(*filepaths):
             pass
 
 
+def test_recursive_agg():
+    infile = op.join(testdir, 'data', 'GM12878-MboI-matrix.2000kb.cool')
+    outfile = '/tmp/bla.cool'
+    chunksize = int(10e6)
+    n_zooms = 2
+    n_cpus = 8
+    multires_aggregate(infile, outfile, n_cpus, chunksize)
+    #ccc.multires_balance(outfile, n_zooms, chunksize, n_cpus)
+
+
 @with_setup(teardown=partial(teardown_func, multires_path))
-def test_csort():
+def test_tile():
     runner = CliRunner()
     result = runner.invoke(
-        coarsegrain, [
+        tile, [
             op.join(testdir, 'data', 'dec2_20_pluslig_1pGene_grch38_UBR4_D_1nt.pairwise.sorted.cool'),
-            '--output-file', multires_path,
+            '--out', multires_path,
             '--no-balance',
         ]
     )

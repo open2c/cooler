@@ -1,7 +1,6 @@
 from __future__ import print_function
 
 import cooler.contrib.higlass as cch
-import cooler.cli.coarsegrain as ccc
 import h5py
 import os.path as op
 
@@ -25,11 +24,3 @@ def test_data_retrieval():
     #print("ge1", data['genome_end1'])
 
 
-def test_recursive_agg():
-    infile = op.join(testdir, 'data', 'GM12878-MboI-matrix.2000kb.cool')
-    outfile = '/tmp/bla.cool'
-    chunksize = int(10e6)
-    n_zooms = 2
-    n_cpus = 8
-    ccc.multires_aggregate(infile, outfile, n_zooms, chunksize, n_cpus)
-    ccc.multires_balance(outfile, n_zooms, chunksize, n_cpus)
