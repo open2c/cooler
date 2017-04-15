@@ -171,7 +171,7 @@ def coarsen(cool_uri, factor, nproc, chunksize, out):
     infile, _ = parse_cooler_uri(cool_uri)
     outfile, _ = parse_cooler_uri(out)
     same_file = op.realpath(infile) == op.realpath(outfile)
-    aggregate(input_uri, out, factor, nproc, chunksize, 
+    aggregate(cool_uri, out, factor, nproc, chunksize, 
               lock=lock if same_file else None)
 
 
@@ -221,9 +221,9 @@ def tile(cool_uri, nproc, chunksize, balance, balance_args, out):
         logger.error("HiGlass aggregation requires a tiling factor of 2")
         sys.exit(1)
     
-    logger.info('Recursively aggregating "{}"'.format(input_uri))
+    logger.info('Recursively aggregating "{}"'.format(cool_uri))
     logger.info('Writing to "{}"'.format(outfile))
-    multires_aggregate(input_uri, outfile, nproc, chunksize, lock=lock)
+    multires_aggregate(cool_uri, outfile, nproc, chunksize, lock=lock)
 
     if balance:
         balance_cmd(**balance_cmd.parse_args(balance_args))
