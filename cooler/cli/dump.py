@@ -13,8 +13,8 @@ from .. import api
 
 @cli.command()
 @click.argument(
-    "cool_path",
-    metavar="COOL_PATH")
+    "cool_uri",
+    metavar="COOL_URI")
 @click.option(
     "--table", "-t",
     help="Which table to dump. Choosing 'chroms' or 'bins' will cause all "
@@ -72,7 +72,7 @@ from .. import api
     "--out", "-o",
     help="Output text file If .gz extension is detected, file is written "
          "using zlib. Default behavior is to stream to stdout.")
-def dump(cool_path, table, chunksize, range, range2, join,
+def dump(cool_uri, table, chunksize, range, range2, join,
          annotate, balanced, header, out):
     """
     Dump a contact matrix.
@@ -81,7 +81,7 @@ def dump(cool_path, table, chunksize, range, range2, join,
     COOL_PATH : Path to COOL file containing a contact matrix.
 
     """
-    c = api.Cooler(cool_path)
+    c = api.Cooler(cool_uri)
 
     # output stream
     if out is None or out == '-':

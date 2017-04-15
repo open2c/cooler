@@ -11,9 +11,9 @@ from ..util import attrs_to_jsonable
 
 @cli.command()
 @click.argument(
-    "cool_path",
+    "cool_uri",
     type=str,
-    metavar="COOL_PATH")
+    metavar="COOL_URI")
 @click.option(
     "--field", "-f",
     help="Print the value of a specific info field.",
@@ -26,14 +26,14 @@ from ..util import attrs_to_jsonable
 @click.option(
     "--out", "-o",
     help="Output file (defaults to stdout)")
-def info(cool_path, field, metadata, out):
+def info(cool_uri, field, metadata, out):
     """
     Display file info and metadata.
 
     COOL_PATH : Path to a COOL file.
 
     """
-    c = Cooler(cool_path)
+    c = Cooler(cool_uri)
 
     # Write output
     try:

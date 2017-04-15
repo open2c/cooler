@@ -103,9 +103,8 @@ def interactive(ax, c, row_chrom, col_chrom, balanced, scale):
         ax.figure.canvas.draw_idle()
 
     binsize = c.info['bin-size']
-    chromsizes = c.chroms()[:].set_index('name')['length']
-    row_chrom_len = chromsizes[row_chrom]
-    col_chrom_len = chromsizes[col_chrom]
+    row_chrom_len = c.chromsizes[row_chrom]
+    col_chrom_len = c.chromsizes[col_chrom]
     plotstate = {
         'placeholders': [],
         'prev_extent': get_extent(plt.gca())
@@ -116,8 +115,8 @@ def interactive(ax, c, row_chrom, col_chrom, balanced, scale):
 
 @cli.command()
 @click.argument(
-    "cooler_file",
-    metavar="COOLER_PATH")
+    "cool_uri",
+    metavar="COOLER_URI")
 @click.argument(
     "range",
     type=str)
@@ -169,7 +168,7 @@ def interactive(ax, c, row_chrom, col_chrom, balanced, scale):
     default="YlOrRd",
     help="The colormap used to display the contact matrix. "
          "See the full list at http://matplotlib.org/examples/color/colormaps_reference.html")
-def show(cooler_file, range, range2, balanced, out, dpi, scale, force, zmin, zmax, cmap):
+def show(cool_uri, range, range2, balanced, out, dpi, scale, force, zmin, zmax, cmap):
     """
     Display a contact matrix.
     Display a region of a contact matrix stored in a COOL file.
@@ -189,8 +188,9 @@ def show(cooler_file, range, range2, balanced, out, dpi, scale, force, zmin, zma
         print("Install matplotlib to use cooler show", file=sys.stderr)
         sys.exit(1)
 
-    c = Cooler(cooler_file)
-    chromsizes = c.chroms()[:].set_index('name')['length']
+    c = Cooler(cool_uri)
+
+    chromsizes = c.chromsizes
     row_region = range
     col_region = row_region if range2 is None else range2
     row_chrom, row_lo, row_hi = util.parse_region(row_region, chromsizes)
