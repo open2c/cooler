@@ -174,7 +174,7 @@ def tabix(bins, pairs_path, cool_path, metadata, assembly, nproc, **kwargs):
         if nproc > 1:
             pool = Pool(nproc)
             logger.info("Using {} cores".format(nproc))
-            map = pool.map
+            map = pool.imap
         else:
             map = six.moves.map
         opts = {}
@@ -187,6 +187,7 @@ def tabix(bins, pairs_path, cool_path, metadata, assembly, nproc, **kwargs):
     finally:
         if nproc > 1:
             pool.close() 
+
 
 @register_subcommand
 @add_arg_help
@@ -217,7 +218,7 @@ def pairix(bins, pairs_path, cool_path, metadata, assembly, nproc):
         if nproc > 1:
             pool = Pool(nproc)
             logger.info("Using {} cores".format(nproc))
-            map = pool.map
+            map = pool.imap
         else:
             map = six.moves.map
         iterator = PairixAggregator(pairs_path, chromsizes, bins, map=map)
