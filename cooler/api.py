@@ -12,6 +12,7 @@ import h5py
 from .core import (get, region_to_offset, region_to_extent, RangeSelector1D, 
                    RangeSelector2D, TriuReader, query_rect)
 from .util import parse_region, open_hdf5
+from .io import parse_cooler_uri
 
 
 class Cooler(object):
@@ -49,30 +50,52 @@ class Cooler(object):
 
     """
     def __init__(self, store, root=None, **kwargs):
-        self.store = store
-        self.kwargs = kwargs
-        with open_hdf5(self.store, **self.kwargs) as h5:
-            self.filename = h5.file.filename
-            self.root = root if root is not None else h5.name
+        if isinstance(store, six.string_types):
+            if root is None:
+                self.filename, self.root = parse_cooler_uri(store)
+            elif h5py.is_hdf5(store):
+                with open_hdf5(store, **kwargs) as h5:
+                    self.filename = h5.file.filename
+                    self.root = root
+            else:
+                raise ValueError('Not a valid path to a Cooler file')
+            self.uri = self.filename + '::' + self.root
+            self.store = self.filename
+            self.open_kws = kwargs
+        else:
+            # Assume an open HDF5 handle, ignore open_kws
+            self.filename = store.file.filename
+            self.root = store.name
+            self.uri = self.filename + '::' + self.root
+            self.store = store.file
+            self.open_kws = {}
+        
+        with open_hdf5(self.store, **self.open_kws) as h5:
             grp = h5[self.root]
-
             _ct = chroms(grp)
             self._chromsizes = _ct.set_index('name')['length']
             self._chromids = dict(zip(_ct['name'], range(len(_ct))))
             self._info = info(grp)
 
     def _load_dset(self, path):
-        with open_hdf5(self.store, **self.kwargs) as h5:
+        with open_hdf5(self.store, **self.open_kws) as h5:
             grp = h5[self.root]
             return grp[path][:]
 
     def _load_attrs(self, path):
-        with open_hdf5(self.store, **self.kwargs) as h5:
+        with open_hdf5(self.store, **self.open_kws) as h5:
             grp = h5[self.root]
             return dict(grp[path].attrs)
 
     def open(self, mode='r', **kwargs):
-        return h5py.File(self.store, mode, **kwargs)
+        if isinstance(self.store, six.string_types):
+            return h5py.File(self.store, mode, **kwargs)
+        else:
+            return self.store
+
+    @property
+    def binsize(self):
+        return self._info['bin-size']
 
     @property
     def chromsizes(self):
@@ -102,7 +125,7 @@ class Cooler(object):
         1311
 
         """
-        with open_hdf5(self.store, **self.kwargs) as h5:
+        with open_hdf5(self.store, **self.open_kws) as h5:
             grp = h5[self.root]
             return region_to_offset(
                 grp, self._chromids,
@@ -126,7 +149,7 @@ class Cooler(object):
         (1311, 2131)
 
         """
-        with open_hdf5(self.store, **self.kwargs) as h5:
+        with open_hdf5(self.store, **self.open_kws) as h5:
             grp = h5[self.root]
             return region_to_extent(
                 grp, self._chromids,
@@ -141,7 +164,7 @@ class Cooler(object):
         dict
 
         """
-        with open_hdf5(self.store, **self.kwargs) as h5:
+        with open_hdf5(self.store, **self.open_kws) as h5:
             grp = h5[self.root]
             return info(grp)
 
@@ -158,7 +181,7 @@ class Cooler(object):
 
         """
         def _slice(fields, lo, hi):
-            with open_hdf5(self.store, **self.kwargs) as h5:
+            with open_hdf5(self.store, **self.open_kws) as h5:
                 grp = h5[self.root]
                 return chroms(grp, lo, hi, fields, **kwargs)
 
@@ -174,12 +197,12 @@ class Cooler(object):
         """
 
         def _slice(fields, lo, hi):
-            with open_hdf5(self.store, **self.kwargs) as h5:
+            with open_hdf5(self.store, **self.open_kws) as h5:
                 grp = h5[self.root]
                 return bins(grp, lo, hi, fields, **kwargs)
 
         def _fetch(region):
-            with open_hdf5(self.store, **self.kwargs) as h5:
+            with open_hdf5(self.store, **self.open_kws) as h5:
                 grp = h5[self.root]
                 return region_to_extent(grp, self._chromids,
                                         parse_region(region, self._chromsizes))
@@ -202,12 +225,12 @@ class Cooler(object):
         """
 
         def _slice(fields, lo, hi):
-            with open_hdf5(self.store, **self.kwargs) as h5:
+            with open_hdf5(self.store, **self.open_kws) as h5:
                 grp = h5[self.root]
                 return pixels(grp, lo, hi, fields, join, **kwargs)
 
         def _fetch(region):
-            with open_hdf5(self.store, **self.kwargs) as h5:
+            with open_hdf5(self.store, **self.open_kws) as h5:
                 grp = h5[self.root]
                 i0, i1 = region_to_extent(
                     grp, self._chromids,
@@ -250,13 +273,13 @@ class Cooler(object):
         """
 
         def _slice(field, i0, i1, j0, j1):
-            with open_hdf5(self.store, **self.kwargs) as h5:
+            with open_hdf5(self.store, **self.open_kws) as h5:
                 grp = h5[self.root]
                 return matrix(grp, i0, i1, j0, j1, field, balance, sparse,
                     as_pixels, join, ignore_index, max_chunk)
 
         def _fetch(region, region2=None):
-            with open_hdf5(self.store, **self.kwargs) as h5:
+            with open_hdf5(self.store, **self.open_kws) as h5:
                 grp = h5[self.root]
                 if region2 is None:
                     region2 = region
@@ -269,8 +292,12 @@ class Cooler(object):
         return RangeSelector2D(field, _slice, _fetch, (self._info['nbins'],) * 2)
 
     def __repr__(self):
-        filename = os.path.basename(self.filename)
-        return '<Cooler "{}:{}">'.format(filename, self.root)
+        if isinstance(self.store, six.string_types):
+            filename = os.path.basename(self.store)
+            container = '{}::{}'.format(filename, self.root)
+        else:
+            container = repr(self.store)
+        return '<Cooler "{}">'.format(container)
 
 
 def info(h5):
@@ -506,9 +533,14 @@ def matrix(h5, i0, i1, j0, j1, field=None, balance=True, sparse=False,
 
     triu_reader = TriuReader(h5, field, max_chunk)
 
-    if balance and 'weight' not in h5['bins']:
+    if isinstance(balance, str):
+        name = balance
+    elif balance:
+        name = 'weight'
+
+    if balance and name not in h5['bins']:
         raise ValueError(
-            "No column 'bins/weight' found. Use ``cooler.ice`` to "
+            "No column 'bins/{}' found. Use ``cooler.ice`` to ".format(name) +
             "calculate balancing weights or set balance=False.")
 
     if as_pixels:
@@ -520,9 +552,9 @@ def matrix(h5, i0, i1, j0, j1, field=None, balance=True, sparse=False,
                               columns=cols, index=index)
 
         if balance:
-            weights = get(h5['bins'], min(i0, j0), max(i1, j1), ['weight'])
+            weights = get(h5['bins'], min(i0, j0), max(i1, j1), [name])
             df2 = annotate(df, weights)
-            df['balanced'] = df2['weight1'] * df2['weight2'] * df2[field]
+            df['balanced'] = df2[name+'1'] * df2[name+'2'] * df2[field]
 
         if join:
             bins = get(h5['bins'], min(i0, j0), max(i1, j1), 
@@ -536,7 +568,7 @@ def matrix(h5, i0, i1, j0, j1, field=None, balance=True, sparse=False,
         mat = coo_matrix((v, (i-i0, j-j0)), (i1-i0, j1-j0))
 
         if balance:
-            weights = h5['bins']['weight']
+            weights = h5['bins'][name]
             bias1 = weights[i0:i1]
             bias2 = bias1 if (i0, i1) == (j0, j1) else weights[j0:j1]
             mat.data = bias1[mat.row] * bias2[mat.col] * mat.data
@@ -548,7 +580,7 @@ def matrix(h5, i0, i1, j0, j1, field=None, balance=True, sparse=False,
         arr = coo_matrix((v, (i-i0, j-j0)), (i1-i0, j1-j0)).toarray()
 
         if balance:
-            weights = h5['bins']['weight']
+            weights = h5['bins'][name]
             bias1 = weights[i0:i1]
             bias2 = bias1 if (i0, i1) == (j0, j1) else weights[j0:j1]
             arr = arr * np.outer(bias1, bias2)
