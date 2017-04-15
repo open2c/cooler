@@ -82,7 +82,8 @@ def abs_coord_2_bin(c, abs_pos, chroms, chrom_cum_lengths, chrom_sizes):
     rel_pos = abs_pos - chrom_cum_lengths[chr_id]
  
     return c.offset((chrom, rel_pos, chrom_sizes[chrom]))
- 
+
+
 def get_chromosome_names_cumul_lengths(c):
     '''
     Get the chromosome names and cumulative lengths:
@@ -95,18 +96,10 @@ def get_chromosome_names_cumul_lengths(c):
  
     (names, sizes, lengths) -> (list(string), dict, np.array(int))
     '''
-    chrom_sizes = {}
-    chrom_cum_lengths = [0]
-    chroms = []
- 
-    for chrom in c.chroms():
-        (name, length) = chrom.as_matrix()[0]
- 
-        chroms += [name]
-        chrom_cum_lengths += [chrom_cum_lengths[-1] + length]
-        chrom_sizes[name] = length
- 
-    return (chroms, chrom_sizes, np.array(chrom_cum_lengths))
+    chrom_names = c.chromnames
+    chrom_sizes = dict(c.chromsizes)
+    chrom_cum_lengths = np.r_[0, np.cumsum(c.chromsizes.values)]
+    return chrom_names, chrom_sizes, chrom_cum_lengths
  
  
 def get_data(f, zoom_level, start_pos_1, end_pos_1, start_pos_2, end_pos_2):
@@ -138,8 +131,8 @@ def get_data(f, zoom_level, start_pos_1, end_pos_1, start_pos_2, end_pos_2):
     if not len(pixels):
         return pd.DataFrame(columns=['genome_start1', 'genome_start2', 'balanced'])
  
-    bins = c.bins()[['chrom', 'start', 'end', 'weight']]
-    pixels = annotate(pixels, bins)
+    bins = c.bins(convert_enum=False)[['chrom', 'start', 'end', 'weight']]
+    pixels = cooler.annotate(pixels, bins)
 
     pixels['genome_start1'] = chrom_cum_lengths[pixels['chrom1']] + pixels['start1']
     pixels['genome_start2'] = chrom_cum_lengths[pixels['chrom2']] + pixels['start2']
