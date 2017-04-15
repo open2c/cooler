@@ -333,6 +333,20 @@ def get_chromsizes(bins):
     return pandas.Series(index=chroms, data=lengths)
 
 
+def bedslice(grouped, chromsizes, region):
+    """
+    Range query on a BED-like dataframe with non-overlapping intervals.
+
+    """
+    chrom, start, end = parse_region(region, chromsizes)
+    result = grouped.get_group(chrom)
+    if start > 0 or end < chromsizes[chrom]:
+        lo = result['end'].values.searchsorted(start, side='right')
+        hi = lo + result['start'].values[lo:].searchsorted(end, side='left')
+        result = result.iloc[lo:hi]
+    return result
+
+
 def lexbisect(arrays, values, side='left', lo=0, hi=None):
     """
     Bisection search on lexically sorted arrays.
@@ -505,3 +519,9 @@ def attrs_to_jsonable(attrs):
         except AttributeError:
             out[k] = v
     return out
+
+
+def unstar(func):
+    def unstarred(args):
+        return func(*args)
+    return unstarred
