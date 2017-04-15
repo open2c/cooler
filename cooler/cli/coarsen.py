@@ -61,7 +61,7 @@ def get_quadtree_depth(chromsizes, binsize):
     """
     tile_size_bp = QUAD_TILE_SIZE_PIXELS * binsize
     min_tile_cover = math.ceil(sum(chromsizes) / tile_size_bp)
-    return math.ceil(np.log2(min_tile_cover))
+    return int(math.ceil(np.log2(min_tile_cover)))
 
 
 def multires_aggregate(input_uri, outfile, nproc, chunksize, lock=None):
@@ -235,7 +235,7 @@ def tile(cool_uri, nproc, chunksize, balance, balance_args, out):
 @click.pass_context
 def coarsegrain(ctx):
     """
-    Deprecated in favor of "coarsen" and "tile" commands. Do not use.
+    Deprecated in favor of separate "coarsen" and "tile" commands. Do not use.
 
     """
     click.echo(
