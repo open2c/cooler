@@ -118,7 +118,7 @@ def balance(cool_uri, nproc, chunksize, mad_max, min_nnz, min_count, blacklist,
     COOL_PATH : Path to a COOL file.
 
     """
-    cool_path, group_path = util.parse_cooler_uri(cool_uri)
+    cool_path, group_path = parse_cooler_uri(cool_uri)
 
     if check:
         with h5py.File(cool_path, 'r') as h5:
