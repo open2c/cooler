@@ -1,44 +1,42 @@
 # -*- coding: utf-8 -*-
 """
-Contact Readers
+Contact Binners
 ~~~~~~~~~~~~~~~
 
-Reader classes convert input data of various flavors into a chunked stream of
-binned contacts.
+Binners are iterators that convert input data of various flavors into a 
+properly sorted, chunked stream of binned contacts.
 
 """
 from __future__ import division, print_function
 from collections import OrderedDict, Counter
-from contextlib import contextmanager
 from bisect import bisect_left
 from multiprocess import Pool
-import subprocess
 import itertools
 import warnings
-import json
 import sys
 import six
 
-from pandas.algos import is_lexsorted
+#from pandas.algos import is_lexsorted
 import numpy as np
 import pandas
 import h5py
 
 from . import get_logger
 from .util import rlencode, get_binsize, parse_region
-from .tools import lock
+from .io import parse_cooler_uri
+from .tools import lock, partition
 
 
 logger = get_logger()
 
 
-class ContactReader(object):
+class ContactBinner(object):
     """
     Interface of a contact reader.
 
     """
     def size(self):
-        """ Total number of contacts """
+        """ Returns the total number of contacts.  **DEPRECATED** """
         raise NotImplementedError
 
     def __iter__(self):
@@ -93,7 +91,7 @@ class GenomeSegmentation(object):
         return result
 
 
-class HDF5Aggregator(ContactReader):
+class HDF5Aggregator(ContactBinner):
     """
     Aggregate contacts from a hiclib-style HDF5 contacts file.
 
@@ -193,7 +191,7 @@ class HDF5Aggregator(ContactReader):
                 yield {k: v.values for k, v in six.iteritems(df)}
 
 
-class TabixAggregator(ContactReader):
+class TabixAggregator(ContactBinner):
     """
     Aggregate contacts from a sorted, BGZIP-compressed and tabix-indexed
     tab-delimited text file.
@@ -315,7 +313,7 @@ class TabixAggregator(ContactReader):
                 yield {k: v.values for k, v in six.iteritems(df)}
 
 
-class PairixAggregator(ContactReader):
+class PairixAggregator(ContactBinner):
     """
     Aggregate contacts from a sorted, BGZIP-compressed and pairix-indexed
     tab-delimited text file.
@@ -449,19 +447,19 @@ class PairixAggregator(ContactReader):
                 yield {k: v.values for k, v in six.iteritems(df)}
 
 
-class CoolerAggregator(ContactReader):
+class CoolerAggregator(ContactBinner):
     """
     Aggregate contacts from an existing Cooler file.
 
     """
-    def __init__(self, cooler_path, bins, chunksize, cooler_root="/", map=map):
+    def __init__(self, source_uri, bins, chunksize, batchsize, map=map):
         self._map = map
-        self.cooler_path = cooler_path
-        self.cooler_root = cooler_root
+        self.cooler_path, self.cooler_root = parse_cooler_uri(source_uri)
         self.chunksize = chunksize
+        self.batchsize = batchsize
 
         with h5py.File(self.cooler_path, 'r') as h5:
-            grp = h5[cooler_root]
+            grp = h5[self.cooler_root]
             self._size = grp.attrs['nnz']
             chroms = grp['chroms/name'][:].astype('U')
             lengths = grp['chroms/length'][:]
@@ -486,19 +484,13 @@ class CoolerAggregator(ContactReader):
     def _aggregate(self, span):
         from cooler.api import Cooler
         lo, hi = span
-        logger.info('{} {}'.format(lo, hi))
 
-        try:
-            lock.acquire()
-            with h5py.File(self.cooler_path, 'r') as h5:
-                c = Cooler(h5[self.cooler_root])
-                # convert_enum=False should return chroms as int
-                table = c.pixels(join=True, convert_enum=False)
-                chunk = table[lo:hi]
-                #chunk['chrom1'] = pandas.Categorical(chunk['chrom1'], categories=self.chroms)
-                #chunk['chrom2'] = pandas.Categorical(chunk['chrom2'], categories=self.chroms)
-        finally:
-            lock.release()
+        with h5py.File(self.cooler_path, 'r') as h5:
+            c = Cooler(h5[self.cooler_root])
+            # convert_enum=False returns chroms as int
+            table = c.pixels(join=True, convert_enum=False)
+            chunk = table[lo:hi]
+        logger.info('{} {}'.format(lo, hi))
 
         # use the "start" point as anchor for re-binning
         # XXX - alternatives: midpoint anchor, proportional re-binning
@@ -507,8 +499,8 @@ class CoolerAggregator(ContactReader):
         chrom_abspos = self.gs.chrom_abspos
         start_abspos = self.gs.start_abspos
 
-        chrom_id1 = chunk['chrom1'].values  #.cat.codes.values
-        chrom_id2 = chunk['chrom2'].values  #.cat.codes.values
+        chrom_id1 = chunk['chrom1'].values
+        chrom_id2 = chunk['chrom2'].values
         start1 = chunk['start1'].values
         start2 = chunk['start2'].values
         if binsize is None:
@@ -542,8 +534,10 @@ class CoolerAggregator(ContactReader):
         old_chrom_offset = self.old_chrom_offset
         old_bin1_offset = self.old_bin1_offset
         chunksize = self.chunksize
+        batchsize = self.batchsize
         factor = self.factor
         
+        # Partition pixels into chunks, respecting chrom1 boundaries
         spans = []
         for chrom, i in six.iteritems(self.gs.idmap):
             # it's important to extract some multiple of `factor` rows at a time
@@ -558,52 +552,156 @@ class CoolerAggregator(ContactReader):
             spans.append(zip(edges[:-1], edges[1:]))
         spans = list(itertools.chain.from_iterable(spans))
         
-        for df in self._map(self.aggregate, spans):
+        # Process batches of k chunks at a time, then yield the results
+        for i in range(0, len(spans), batchsize):
+            try:
+                lock.acquire()
+                results = self._map(self.aggregate, spans[i:i+batchsize])
+            finally:
+                lock.release()
+            for df in results:
+                yield {k: v.values for k, v in six.iteritems(df)}
+
+
+class CoolerMerger(ContactBinner):
+    """
+    Merge (i.e. sum) multiple cooler matrices with identical axes.
+
+    """
+    def __init__(self, coolers, chunksize, **kwargs):
+        self.coolers = list(coolers)
+        self.chunksize = chunksize
+
+        binsize = coolers[0].binsize
+        if binsize is not None:
+            if len(set(c.binsize for c in coolers)) > 1:
+                raise ValueError("Coolers must have the same resolution")
+            chromsizes = coolers[0].chromsizes
+            for i in range(1, len(coolers)):
+                if not np.all(coolers[i].chromsizes == chromsizes):
+                    raise ValueError("Coolers must have the same chromosomes")
+        else:
+            bins = coolers[0].bins()[['chrom', 'start', 'end']][:]
+            for i in range(1, len(coolers)):
+                if not np.all(
+                    coolers[i].bins()[['chrom', 'start', 'end']][:] == bins):
+                    raise ValueError("Coolers must have same bin structure")
+
+    def size(self):
+        return np.sum(c.info['nnz'] for c in self.coolers)
+
+    def __iter__(self):
+        chunksize = self.chunksize
+        indexes = [c._load_dset('indexes/bin1_offset') for c in self.coolers]
+        nnzs = [len(c.pixels()) for c in self.coolers]
+        logger.info('nnzs: {}'.format(nnzs))
+
+        lo = 0
+        starts = [0] * len(self.coolers)
+        while True:
+            hi = max(bisect_left(o[:-1], min(start + chunksize, nnz), lo=lo) 
+                                 for start, nnz, o in zip(starts, nnzs, indexes))
+            if hi == lo:
+                break
+            stops = [o[hi] for o in indexes]
+            logger.info('current: {}'.format(stops))
+            
+            combined = pandas.concat(
+                [c.pixels()[start:stop] 
+                    for c, start, stop in zip(self.coolers, starts, stops)],
+                axis=0,
+                ignore_index=True)
+
+            df = (combined.groupby(['bin1_id', 'bin2_id'], sort=True)
+                          .aggregate({'count': np.sum})
+                          .reset_index())
             yield {k: v.values for k, v in six.iteritems(df)}
 
+            lo = hi
+            starts = stops
 
-class SparseLoader(ContactReader):
+
+class SparseLoader(ContactBinner):
     """
     Load binned contacts from a single 3-column sparse matrix text file.
 
     """
     def __init__(self, filepath, chunksize):
-        # number of lines in file
-        p1 = subprocess.Popen(
-            ['unpigz',  '-p', '8',  '-c', filepath], stdout=subprocess.PIPE)
-        p2 = subprocess.Popen(
-            ['wc', '-l'], stdin=p1.stdout, stdout=subprocess.PIPE)
-        self.n_records = int(p2.communicate()[0])
+        """
+        Parameters
+        ----------
+        filepath : str
+            Path to tsv file
+        chunksize : number of rows of the matrix file to read at a time
 
-        # file iterator
-        self.reader = pandas.read_csv(filepath, sep='\t', iterator=True,
+        """
+        self.iterator = pandas.read_csv(
+            filepath, 
+            sep='\t', 
+            iterator=True,
+            chunksize=chunksize,
             names=['bin1_id', 'bin2_id', 'count'])
-        self.chunksize = chunksize
-
-    def size(self):
-        return self.n_records
 
     def __iter__(self):
-        while True:
-            try:
-                data = self.reader.read(self.chunksize)
-                yield {k: v.values for k,v in six.iteritems(data)}
-            except StopIteration:
-                break
+        for chunk in self.iterator:
+            yield {k: v.values for k,v in six.iteritems(chunk)}
 
 
-class SparseTileLoader(ContactReader):
+class BedGraph2DLoader(ContactBinner):
     """
-    Load binned contacts from a collection of 3-column sparse matrix files
-    representing contig-contig contact matrix tiles.
-
+    Contact iterator for a sparse tsv Hi-C matrix with fields:
+        "chrom1, start1, end1, chrom2, start2, end2, count"
+    
+    The fields are assumed to be defined and records assumed to 
+    be sorted consistently with the bin table provided.
+    
     """
-    pass
+    def __init__(self, filepath, bins, chunksize):
+        """
+        Parameters
+        ----------
+        filepath : str
+            Path to tsv file
+        bins : DataFrame
+            A bin table dataframe
+        chunksize : number of rows of the matrix file to read at a time
+
+        """
+        self.iterator = pandas.read_csv(
+            filepath, 
+            sep='\t', 
+            iterator=True,
+            chunksize=chunksize,
+            names=['chrom1', 'start1', 'end1', 
+                   'chrom2', 'start2', 'end2', 'count'])
+        self.bins = bins
+        self.chunksize = chunksize
+
+    def __iter__(self):
+        bins = self.bins
+        iterator = self.iterator
+        bins['bin'] = bins.index
+        
+        for chunk in iterator:
+            # assign bin IDs from bin table
+            df = (chunk.merge(bins, 
+                              left_on=['chrom1', 'start1', 'end1'], 
+                              right_on=['chrom', 'start', 'end'])
+                       .merge(bins, 
+                              left_on=['chrom2', 'start2', 'end2'], 
+                              right_on=['chrom', 'start', 'end'], 
+                              suffixes=('1', '2')))
+            df = (df[['bin1', 'bin2', 'count']]
+                      .rename(columns={'bin1': 'bin1_id', 
+                                       'bin2': 'bin2_id'})
+                      .sort_values(['bin1_id', 'bin2_id']))
+            yield {k: v.values for k,v in six.iteritems(df)}
 
 
-class DenseLoader(ContactReader):
+class DenseLoader(ContactBinner):
     """
     Load a dense genome-wide numpy array contact matrix.
+    TODO: support dask array and/or memmapped arrays
 
     """
     def __init__(self, heatmap):
@@ -623,13 +721,3 @@ class DenseLoader(ContactReader):
 
     def __iter__(self):
         yield self.data
-
-
-class DenseTileLoader(ContactReader):
-    """
-    Load a contact matrix from a collection of dense numpy array contig-contig
-    tiles.
-
-    """
-    pass
-

@@ -171,13 +171,17 @@ def write_pixels(filepath, grouppath, n_bins, iterator, h5opts, lock=None):
     # Store the pixels
     nnz = 0
     ncontacts = 0
-    for chunk in iterator:
+    for i, chunk in enumerate(iterator):
         #chunk_dict = {k: v.values for k, v in six.iteritems(chunk)}
+        
         try:
             if lock is not None:
                 lock.acquire()
-            with h5py.File(filepath, 'r+') as f:
-                grp = f[grouppath]
+
+            logger.debug("writing chunk {}".format(i), flush=True)
+            
+            with h5py.File(filepath, 'r+') as fw:
+                grp = fw[grouppath]
                 bin1 = grp['bin1_id']
                 bin2 = grp['bin2_id']
                 count = grp['count']
@@ -194,9 +198,12 @@ def write_pixels(filepath, grouppath, n_bins, iterator, h5opts, lock=None):
 
                 nnz += n
                 ncontacts += chunk['count'].sum()
+                fw.flush()
+
         finally:
             if lock is not None:
                 lock.release()
+
 
     # Index the first axis (matrix row) offsets
     with h5py.File(filepath, 'r') as f:
