@@ -41,5 +41,7 @@ from . import (
     dump,
     show,
     info,
-    coarsegrain,
+    list_,
+    coarsen,
+    merge,
 )
