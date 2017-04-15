@@ -80,8 +80,8 @@ Table selectors (chroms, bins, pixels)
 
     >>> weights = c.bins()['weight'].fetch('chr3')
 
-    >>> weights1 = c.bins().fetch('chr3:10,000,000-20,000,000')
-    >>> weights2 = c.bins().fetch( ('chr3', 10000000, 20000000) )
+    >>> mybins1 = c.bins().fetch('chr3:10,000,000-20,000,000')
+    >>> mybins2 = c.bins().fetch( ('chr3', 10000000, 20000000) )
 
 
 
