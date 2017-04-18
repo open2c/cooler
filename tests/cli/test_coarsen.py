@@ -53,19 +53,22 @@ def test_tile():
     runner = CliRunner()
     result = runner.invoke(
         tile, [
-            op.join(testdir, 'data', 'dec2_20_pluslig_1pGene_grch38_UBR4_D_1nt.pairwise.sorted.cool'),
+            op.join(testdir, 'data', 
+                'dec2_20_pluslig_1pGene_grch38_UBR4_D_1nt.pairwise.sorted.cool'),
             '--out', multires_path,
             '--no-balance',
         ]
     )
 
-    sys.stdout.write(result.output)
+    #sys.stdout.write(result.output)
+    assert(result.exit_code == 0)
 
-    # this file should have 6 zoom levels
+    # this file should have base + 6 zoom levels
+    assert(len(cooler.io.ls(multires_path)) == 7)
 
-    #c = cooler.Cooler(h5py.File(multires_path)['5'])
-    #print('pixels (5):', len(c.pixels()[:].index))
-
-    # should get a ValueError because the chromosome names in the pixels dont' match
-    # the stored chromosome names
-    assert(result.exit_code == -1)
+    # inconsistent chromosome names in chrom table (truncated) and bin table 
+    # (full length) of the input file are now resolved by forcing use of the 
+    # chrom table names in the bin tables of the output file
+    c = cooler.Cooler(multires_path)
+    names = c.bins()['chrom'][:].cat.categories
+    assert names[0] == 'ENSG00000127481|ENST00000375254|'
