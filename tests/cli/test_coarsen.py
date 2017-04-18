@@ -69,6 +69,11 @@ def test_tile():
     # inconsistent chromosome names in chrom table (truncated) and bin table 
     # (full length) of the input file are now resolved by forcing use of the 
     # chrom table names in the bin tables of the output file
-    c = cooler.Cooler(multires_path)
+    c = cooler.Cooler(multires_path + '::' + '1')
     names = c.bins()['chrom'][:].cat.categories
     assert names[0] == 'ENSG00000127481|ENST00000375254|'
+
+    # FIXME: with the exception of the base resolution
+    c = cooler.Cooler(multires_path + '::' + '6')
+    names = c.bins()['chrom'][:].cat.categories
+    assert names[0] != 'ENSG00000127481|ENST00000375254|'
