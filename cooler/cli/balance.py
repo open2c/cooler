@@ -9,9 +9,10 @@ import h5py
 
 import click
 from . import cli, logger
-from ..api import Cooler
 from .. import ice
 from ..io import parse_cooler_uri
+from ..api import Cooler
+from ..util import bedslice
 
 
 @cli.command()
@@ -156,8 +157,8 @@ def balance(cool_uri, nproc, chunksize, mad_max, min_nnz, min_count, blacklist,
         
         bad_bins = []
         for _, reg in bad_regions.iterrows():
-            result = util.bedslice(bins_grouped, chromsizes, 
-                                   (reg.chrom, reg.start, reg.end))
+            result = bedslice(bins_grouped, chromsizes, 
+                              (reg.chrom, reg.start, reg.end))
             bad_bins.append(result.index.values)
         bad_bins = np.concatenate(bad_bins)
     else:
