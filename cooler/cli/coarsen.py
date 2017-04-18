@@ -139,8 +139,8 @@ def multires_aggregate(input_uri, outfile, nproc, chunksize, lock=None):
     metavar="COOL_URI")
 @click.option(
     '--factor', '-k',
-    help="Tiling factor. The contact matrix is coarsegrained by aggregating "
-         "each chromosome-chromosome block in k-by-k tiles",
+    help="Gridding factor. The contact matrix is coarsegrained by grouping "
+         "each chromosomal contact block into k-by-k element tiles",
     type=int,
     default=2,
     show_default=True)
@@ -162,8 +162,9 @@ def multires_aggregate(input_uri, outfile, nproc, chunksize, lock=None):
     help="Output file or URI")
 def coarsen(cool_uri, factor, nproc, chunksize, out):
     """
-    Coarse-grain a contact matrix by uniformly tiling each chromosomal block 
-    and summing the elements in each tile (i.e., 2D histogram).
+    Coarsen a contact matrix by uniformly gridding the elements of each 
+    chromosomal block and summing the elements inside the grid tiles, i.e. a
+    2-D histogram.
 
     COOL_URI : Path to a COOL file or URI to a Cooler group
 
@@ -205,8 +206,8 @@ def coarsen(cool_uri, factor, nproc, chunksize, out):
     help="Output file or URI")
 def tile(cool_uri, nproc, chunksize, balance, balance_args, out):
     """
-    Generate zoom levels for HiGlass by recursively generating 2x2 tiling
-    aggregations of the contact matrix until reaching a minimum
+    Generate zoom levels for HiGlass by recursively generating 2-by-2 element 
+    tiled aggregations of the contact matrix until reaching a minimum
     dimension. The aggregations are stored in a multi-resolution file.
 
     """
@@ -217,10 +218,6 @@ def tile(cool_uri, nproc, chunksize, balance, balance_args, out):
     else:
         outfile, _ = parse_cooler_uri(out)
 
-    if factor != 2:
-        logger.error("HiGlass aggregation requires a tiling factor of 2")
-        sys.exit(1)
-    
     logger.info('Recursively aggregating "{}"'.format(cool_uri))
     logger.info('Writing to "{}"'.format(outfile))
     multires_aggregate(cool_uri, outfile, nproc, chunksize, lock=lock)
@@ -229,16 +226,16 @@ def tile(cool_uri, nproc, chunksize, balance, balance_args, out):
         balance_cmd(**balance_cmd.parse_args(balance_args))
 
 
-@cli.command(context_settings={
-    'ignore_unknown_options': True,
-    'allow_extra_args': True})
-@click.pass_context
-def coarsegrain(ctx):
-    """
-    Deprecated in favor of separate "coarsen" and "tile" commands. Do not use.
+# @cli.command(context_settings={
+#     'ignore_unknown_options': True,
+#     'allow_extra_args': True})
+# @click.pass_context
+# def coarsegrain(ctx):
+#     """
+#     Deprecated in favor of separate "coarsen" and "tile" commands. Do not use.
 
-    """
-    click.echo(
-        '"cooler coarsegrain" is deprecated.\nUse "cooler coarsen" for '
-        ' single aggregations.\nUse "cooler tile" for multiresolution '
-        'aggregation.')
+#     """
+#     click.echo(
+#         '"cooler coarsegrain" is deprecated.\nUse "cooler coarsen" for '
+#         ' single aggregations.\nUse "cooler tile" for multiresolution '
+#         'aggregation.')
