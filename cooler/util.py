@@ -509,6 +509,15 @@ def open_hdf5(fp, mode='r', *args, **kwargs):
             fh.close()
 
 
+class closing_hdf5(h5py.Group):
+    def __init__(self, grp):
+        super(closing_hdf5, self).__init__(grp.id)
+    def __enter__(self):
+        return self
+    def __exit__(self, *exc_info):
+        return self.file.close()
+
+
 def attrs_to_jsonable(attrs):
     out = dict(attrs)
     for k, v in attrs.items():

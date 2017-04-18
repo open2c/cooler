@@ -11,7 +11,7 @@ import h5py
 
 from .core import (get, region_to_offset, region_to_extent, RangeSelector1D, 
                    RangeSelector2D, TriuReader, query_rect)
-from .util import parse_region, open_hdf5
+from .util import parse_region, open_hdf5, closing_hdf5
 from .io import parse_cooler_uri
 
 
@@ -88,13 +88,29 @@ class Cooler(object):
             return dict(grp[path].attrs)
 
     def open(self, mode='r', **kwargs):
+        """ Open the HDF5 group containing the Cooler using h5py
+
+        Functions as a context manager. Any ``open_kws`` passed during 
+        construction are ignored.
+
+        Parameters
+        ----------
+        mode : str
+            r (readonly) or r+ (read/write), default: 'r'
+
+        Additional keywords
+            See h5py.File
+
+        """
         if isinstance(self.store, six.string_types):
-            return h5py.File(self.store, mode, **kwargs)
+            f = h5py.File(self.store, mode, **kwargs)[self.root]
         else:
-            return self.store
+            f = self.store
+        return closing_hdf5(f)
 
     @property
     def binsize(self):
+        """ Resolution in base pairs if uniform else None """
         return self._info['bin-size']
 
     @property
@@ -436,9 +452,10 @@ def annotate(pixels, bins, replace=True):
     DataFrame
 
     """
-    ncols = len(pixels.columns)
+    columns = pixels.columns
+    ncols = len(columns)
 
-    if 'bin1_id' in pixels:
+    if 'bin1_id' in columns:
         if len(bins) > len(pixels):
             bin1 = pixels['bin1_id']
             lo = bin1.min()
@@ -455,7 +472,7 @@ def annotate(pixels, bins, replace=True):
             left_on='bin1_id',
             right_index=True)
 
-    if 'bin2_id' in pixels:
+    if 'bin2_id' in columns:
         if len(bins) > len(pixels):
             bin2 = pixels['bin2_id']
             lo = bin2.min()
@@ -478,7 +495,7 @@ def annotate(pixels, bins, replace=True):
 
     # drop bin IDs
     if replace:
-        cols_to_drop = [col for col in ('bin1_id', 'bin2_id') if col in pixels]
+        cols_to_drop = [col for col in ('bin1_id', 'bin2_id') if col in columns]
         pixels = pixels.drop(cols_to_drop, axis=1)
 
     return pixels
