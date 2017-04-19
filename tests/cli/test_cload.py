@@ -91,5 +91,6 @@ def test_cload_tabix():
 
     # the cload command should raise a ValueError because the chromosome names are too
     # long (greater than 32 characters)
-    assert result.exit_code == -1
+    # UPDATE: no longer a limit
+    assert result.exit_code == 0
 

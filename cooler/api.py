@@ -73,6 +73,7 @@ class Cooler(object):
         with open_hdf5(self.store, **self.open_kws) as h5:
             grp = h5[self.root]
             _ct = chroms(grp)
+            _ct['name'] = _ct['name'].astype(object)
             self._chromsizes = _ct.set_index('name')['length']
             self._chromids = dict(zip(_ct['name'], range(len(_ct))))
             self._info = info(grp)

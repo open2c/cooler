@@ -24,8 +24,7 @@ logger = get_logger()
 
 MAGIC = "HDF5::Cooler"
 URL = "https://github.com/mirnylab/cooler"
-MAX_CHROMNAME_LENGTH = 32
-CHROM_DTYPE = np.dtype('S32')
+CHROM_DTYPE = np.dtype('S')
 CHROMID_DTYPE = np.int32
 CHROMSIZE_DTYPE = np.int32
 COORD_DTYPE = np.int32
@@ -52,16 +51,10 @@ def write_chroms(grp, chroms, lengths, h5opts):
 
     """
     n_chroms = len(chroms)
-    for chrom in chroms:
-        if len(chrom) > MAX_CHROMNAME_LENGTH:
-            raise ValueError(
-                "Chromosome name ({}) longer than maximum ".format(chrom) +
-                "chromosome name length ({})".format(MAX_CHROMNAME_LENGTH))
-
-    names = np.array(chroms, dtype=CHROM_DTYPE)
+    names = np.array(chroms, dtype=CHROM_DTYPE)  # determines char length
     grp.create_dataset('name',
                        shape=(n_chroms,),
-                       dtype=CHROM_DTYPE,
+                       dtype=names.dtype,
                        data=names,
                        **h5opts)
     grp.create_dataset('length',
