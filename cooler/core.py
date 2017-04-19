@@ -6,6 +6,10 @@ import h5py
 import six
 
 
+def is_categorical(array_like):
+    return array_like.dtype.name == 'category'
+
+
 def get(h5, lo=0, hi=None, fields=None, convert_enum=True):
     """
     Query a range of rows from a table as a dataframe.
@@ -82,7 +86,7 @@ def get(h5, lo=0, hi=None, fields=None, convert_enum=True):
             index=index)
 
 
-def put(h5, df, lo=0, convert_categoricals=True, h5opts=None):
+def put(h5, df, lo=0, store_categories=True, h5opts=None):
     """
     Store a dataframe into a column-oriented table store.
     
@@ -98,7 +102,7 @@ def put(h5, df, lo=0, convert_categoricals=True, h5opts=None):
         Data columns to write to the HDF5 group
     lo : int, optional
         Row offset for data to be stored.
-    convert_categoricals : bool, optional
+    store_categories : bool, optional
         Whether to convert ``pandas.Categorical`` columns into HDF5 enum
         datasets instead of plain integer datasets. Default is True.
     h5opts : dict, optional
@@ -122,7 +126,7 @@ def put(h5, df, lo=0, convert_categoricals=True, h5opts=None):
     for field, data in six.iteritems(df):
         
         if is_categorical(data):
-            if convert_categoricals:
+            if store_categories:
                 cats = data.cat.categories
                 enum = (data.cat.codes.dtype, 
                         dict(zip(cats, range(len(cats)))))
