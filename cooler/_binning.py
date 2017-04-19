@@ -60,6 +60,7 @@ def check_bins(bins, chromsizes):
             ordered=True)
     else:
         assert (bins['chrom'].cat.categories == chromsizes.index).all()
+
     return bins
 
 
@@ -453,22 +454,18 @@ class CoolerAggregator(ContactBinner):
 
     """
     def __init__(self, source_uri, bins, chunksize, batchsize, map=map):
+        from cooler.api import Cooler
         self._map = map
-        self.cooler_path, self.cooler_root = parse_cooler_uri(source_uri)
+        self.source_uri = source_uri
         self.chunksize = chunksize
         self.batchsize = batchsize
 
-        with h5py.File(self.cooler_path, 'r') as h5:
-            grp = h5[self.cooler_root]
-            self._size = grp.attrs['nnz']
-            chroms = grp['chroms/name'][:].astype('U')
-            lengths = grp['chroms/length'][:]
-            chromsizes = pandas.Series(index=chroms, data=lengths)
-            self.old_chrom_offset = grp['indexes/chrom_offset'][:]
-            self.old_bin1_offset = grp['indexes/bin1_offset'][:]
-            self.old_binsize = grp.attrs['bin-size']
-
-        self.gs = GenomeSegmentation(chromsizes, bins)
+        clr = Cooler(source_uri)
+        self._size = clr.info['nnz']
+        self.old_binsize = clr.binsize
+        self.old_chrom_offset = clr._load_dset('indexes/chrom_offset')
+        self.old_bin1_offset = clr._load_dset('indexes/bin1_offset')
+        self.gs = GenomeSegmentation(clr.chromsizes, bins)
         self.new_binsize = get_binsize(bins)
         assert self.new_binsize % self.old_binsize == 0
         self.factor = self.new_binsize // self.old_binsize
@@ -485,11 +482,10 @@ class CoolerAggregator(ContactBinner):
         from cooler.api import Cooler
         lo, hi = span
 
-        with h5py.File(self.cooler_path, 'r') as h5:
-            c = Cooler(h5[self.cooler_root])
-            # convert_enum=False returns chroms as int
-            table = c.pixels(join=True, convert_enum=False)
-            chunk = table[lo:hi]
+        clr = Cooler(self.source_uri)
+        # convert_enum=False returns chroms as raw ints
+        table = clr.pixels(join=True, convert_enum=False)
+        chunk = table[lo:hi]
         logger.info('{} {}'.format(lo, hi))
 
         # use the "start" point as anchor for re-binning
