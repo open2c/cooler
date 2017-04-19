@@ -88,6 +88,10 @@ def daskify(filepath, grouppath, keys=None, chunksize=int(10e6), index=None,
     lock : multiprocessing.Lock, optional
         Lock to synchronize HDF5 read/write access. Default is no lock.
 
+    Returns
+    -------
+    dask.dataframe.DataFrame
+
     """
     nrows, keys, meta, categoricals = get_group_info(filepath, grouppath, keys)
     
