@@ -103,11 +103,8 @@ class Cooler(object):
             See h5py.File
 
         """
-        if isinstance(self.store, six.string_types):
-            f = h5py.File(self.store, mode, **kwargs)[self.root]
-        else:
-            f = self.store
-        return closing_hdf5(f)
+        grp = h5py.File(self.filename, mode, **kwargs)[self.root]
+        return closing_hdf5(grp)
 
     @property
     def binsize(self):

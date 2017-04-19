@@ -49,10 +49,16 @@ def get_dict(h5, lo=0, hi=None, fields=None, convert_enum=True):
     return data
 
 
-def apply_pipeline(funcs, get, key):
-    data = get(key)
-    for func in funcs:
-        data = func(data)
+def apply_pipeline(funcs, prepare, get, key):
+    chunk = get(key)
+    if prepare is not None:
+        chunk, data = prepare(chunk)
+        for func in funcs:
+            data = func(chunk, data)
+    else:
+        data = chunk
+        for func in funcs:
+            data = func(data)
     return data
 
 
@@ -130,6 +136,7 @@ class MultiplexDataPipe(object):
         self.keys = list(keys)
         self.map = map
         self.funcs = []
+        self._prepare = None
 
     def __copy__(self):
         other = self.__class__(self.get, self.keys, self.map)
@@ -143,6 +150,9 @@ class MultiplexDataPipe(object):
     
     def __iter__(self):
         return iter(self.run())
+
+    def prepare(self, func):
+        self._prepare = func
 
     def pipe(self, func, *args, **kwargs):
         """
@@ -177,7 +187,7 @@ class MultiplexDataPipe(object):
         Output depends on map implementation.
         
         """
-        pipeline = partial(apply_pipeline, self.funcs, self.get)
+        pipeline = partial(apply_pipeline, self.funcs, self._prepare, self.get)
         return self.map(pipeline, self.keys)
     
     def gather(self, combine=list, *args, **kwargs):
@@ -216,10 +226,8 @@ class MultiplexDataPipe(object):
 
 
 class chunkgetter(object):
-    def __init__(self, cooler_path, cooler_root='/', include_chroms=False, 
-                 include_bins=True, use_lock=False):
-        self.cooler_path = cooler_path
-        self.cooler_root = cooler_root
+    def __init__(self, clr, include_chroms=False, include_bins=True, use_lock=False):
+        self.cooler = clr
         self.include_chroms = include_chroms
         self.include_bins = include_bins
         self.use_lock = use_lock
@@ -227,12 +235,10 @@ class chunkgetter(object):
     def __call__(self, span):
         lo, hi = span
         chunk = {}
-
         try:
             if self.use_lock:
                 lock.acquire()
-            with h5py.File(self.cooler_path, 'r') as h5:
-                grp = h5[self.cooler_root]
+            with self.cooler.open('r') as grp:
                 if self.include_chroms:
                     chunk['chroms'] = get_dict(grp['chroms'])
                 if self.include_bins:
@@ -241,7 +247,6 @@ class chunkgetter(object):
         finally:
             if self.use_lock:
                 lock.release()
-        
         return chunk
 
 
@@ -253,4 +258,4 @@ def partition(start, stop, step):
 def split(clr, map=map, chunksize=int(10e6), spans=None, **kwargs):
     if spans is None:
         spans = partition(0, clr.info['nnz'], chunksize)
-    return MultiplexDataPipe(chunkgetter(clr.filename, **kwargs), spans, map)
+    return MultiplexDataPipe(chunkgetter(clr, **kwargs), spans, map)
