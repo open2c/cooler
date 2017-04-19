@@ -17,7 +17,7 @@ from nose.tools import with_setup, set_trace
 from click.testing import CliRunner
 
 from cooler.cli.cload import cload, tabix as cload_tabix
-from cooler.cli.coarsen import coarsen, tile, multires_aggregate
+from cooler.cli.tile import coarsen, tile, multires_aggregate
 
 
 if sys.version_info[0] == 3 and sys.version_info[1] == 3:
