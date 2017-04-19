@@ -9,12 +9,10 @@ import h5py
 
 import click
 from . import cli
-from ..io import create, SparseLoader #, BedGraph2DLoader
+from ..io import create, SparseLoader, BedGraph2DLoader
 
-# TODO:
-# cooler load bedpe
-# cooler load coo
-# cooler load block_coo
+
+# TODO: support positional and block sorted pixel data
 
 
 def _parse_bins(arg):
@@ -60,49 +58,6 @@ def _parse_bins(arg):
     return chromsizes, bins
 
 
-def iter_sparse(filepath, bins, chunksize):
-    """
-    Contact iterator for a sparse tsv Hi-C matrix with fields:
-        "chrom1, start1, end1, chrom2, start2, end2, count"
-    
-    The fields are assumed to be defined and records assumed to 
-    be sorted consistently with the bin table provided.
-    
-    Parameters
-    ----------
-    filepath : str
-        Path to tsv file
-    bins : DataFrame
-        A bin table dataframe
-    chunksize : number of rows of the matrix file to read at a time
-    
-    """
-    iterator = pandas.read_csv(
-        filepath, 
-        sep='\t', 
-        iterator=True,
-        chunksize=chunksize,
-        names=['chrom1', 'start1', 'end1', 
-               'chrom2', 'start2', 'end2', 'count'])
-    bins['bin'] = bins.index
-    
-    for chunk in iterator:
-        # assign bin IDs from bin table
-        df = (chunk.merge(bins, 
-                          left_on=['chrom1', 'start1', 'end1'], 
-                          right_on=['chrom', 'start', 'end'])
-                   .merge(bins, 
-                          left_on=['chrom2', 'start2', 'end2'], 
-                          right_on=['chrom', 'start', 'end'], 
-                          suffixes=('1', '2')))
-        df = (df[['bin1', 'bin2', 'count']]
-                .rename(columns={'bin1': 'bin1_id', 
-                                 'bin2': 'bin2_id'})
-                .sort_values(['bin1_id', 'bin2_id']))
-        yield {k: v.values for k,v in six.iteritems(df)}
-
-
-
 @cli.command()
 @click.argument(
     "bins_path",
@@ -115,28 +70,47 @@ def iter_sparse(filepath, bins, chunksize):
     metavar="COOL_PATH")
 @click.option(
     "--format", "-f",
-    help="",
-    type=click.Choice(['BEDPE', 'COO']),
-    default='BEDPE',
+    help="COO refers to a tab-delimited sparse triple file (bin1, bin2, count). "
+         "BG2 refers to a 2D bedGraph-like file (chrom1, start1, end1, chrom2, start2, end2, count).",
+    type=click.Choice(['BG2', 'COO']),
+    default='COO',
     show_default=True)
+@click.option(
+    "--chunksize", "-c",
+    type=int,
+    default=int(10e6))
 @click.option(
     "--metadata",
     help="Path to JSON file containing user metadata.")
 @click.option(
     "--assembly",
     help="Name of genome assembly (e.g. hg19, mm10)")
-def load(bins_path, pixels_path, cool_path, metadata, assembly):
+def load(bins_path, pixels_path, cool_path, format, metadata, assembly, chunksize):
     """
     Load a contact matrix.
     Load a sparse-formatted text dump of a contact matrix into a COOL file.
 
-    Three-column, sorted sparse matrix text file in ijv-triple
-    format, a.k.a. COO format.
+    \b
+    Two input format options (tab-delimited):
+
+    * COO: COO-rdinate matrix format (i.e. ijv triple). 3 columns.
+
+    \b
+    - columns: "bin1_id, bin2_id, count",
+    - lexicographically sorted by bin1_id, bin2_id
+
+    * BG2: 2D version of the bedGraph format. 7 columns.
+
+    \b
+    - columns: "chrom1, start1, end1, chrom2, start2, end2, count"
+    - each record has chrom1 <= chrom2, with respect to the chromosome order in BINS
+    - sorted by chrom1, start1, chrom2, start2,  with respect to the chromosome order in BINS
+
+    \b\bArguments:
 
     BINS_PATH : BED-like file containing genomic bin segmentation
 
-    PIXELS_PATH : Text file containing nonzero pixel values. May be gzipped. 
-    Must be lexically sorted by bin1_id and bin2_id.
+    PIXELS_PATH : Text file containing nonzero pixel values. May be gzipped.
 
     COOL_PATH : Output COOL file path
 
@@ -149,6 +123,8 @@ def load(bins_path, pixels_path, cool_path, metadata, assembly):
             metadata = json.load(f)
 
     # Load the binned contacts
-    chunksize = int(100e6)
-    iterator = SparseLoader(pixels_path, chunksize)
+    if format == 'BG2':
+        iterator = BedGraph2DLoader(bins, pixels_path, chunksize)
+    else:
+        iterator = SparseLoader(pixels_path, chunksize)
     create(cool_path, chromsizes, bins, iterator, metadata, assembly)
