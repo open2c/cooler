@@ -21,7 +21,7 @@ from .. import util
     metavar="BINSIZE")
 def makebins(chromsizes, binsize, out):
     """
-    Make fixed-width genomic bins.
+    Generate fixed-width genomic bins.
     Output a genome segmentation at a fixed resolution as a BED file.
 
     CHROMSIZES_PATH : UCSC-like chromsizes file, with chromosomes in desired

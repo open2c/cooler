@@ -23,7 +23,7 @@ from ..io import create, CoolerMerger
     show_default=True)
 def merge(out_path, in_paths, chunksize):
     """
-    Merge (i.e. sum the counts) of multiple contact matrices with identical axes.
+    Merge multiple contact matrices with identical axes.
 
     Data columns merged:
 
@@ -44,16 +44,3 @@ def merge(out_path, in_paths, chunksize):
     assembly = clrs[0].info.get('genome-assembly', None)
     iterator = CoolerMerger(clrs, chunksize=chunksize)
     create(out_path, chromsizes, bins, iterator, assembly=assembly)
-
-
-    # try:
-    #     if nproc > 1:
-    #         pool = mp.Pool(nproc)
-
-    #     iterator = CoolerMerger(clrs, map=pool.map if nproc > 1 else map)
-    #     create(out_path, chromsizes, bins, iterator, assembly=assembly)
-
-    # finally:
-    #     if nproc > 1:
-    #         pool.close()
-    

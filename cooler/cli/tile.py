@@ -226,16 +226,16 @@ def tile(cool_uri, nproc, chunksize, balance, balance_args, out):
         balance_cmd(**balance_cmd.parse_args(balance_args))
 
 
-# @cli.command(context_settings={
-#     'ignore_unknown_options': True,
-#     'allow_extra_args': True})
-# @click.pass_context
-# def coarsegrain(ctx):
-#     """
-#     Deprecated in favor of separate "coarsen" and "tile" commands. Do not use.
+@cli.command(context_settings={
+    'ignore_unknown_options': True,
+    'allow_extra_args': True})
+@click.pass_context
+def coarsegrain(ctx):
+    """
+    Deprecated in favor of separate "coarsen" and "tile" commands. Do not use.
 
-#     """
-#     click.echo(
-#         '"cooler coarsegrain" is deprecated.\nUse "cooler coarsen" for '
-#         ' single aggregations.\nUse "cooler tile" for multiresolution '
-#         'aggregation.')
+    """
+    click.echo(
+        '"cooler coarsegrain" is deprecated.\nUse "cooler coarsen" for '
+        ' single aggregations.\nUse "cooler tile" for multiresolution '
+        'aggregation.')
