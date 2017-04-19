@@ -163,7 +163,8 @@ def iterative_correction(clr, chunksize=None, map=map, tol=1e-5,
                          min_nnz=0, min_count=0, mad_max=0,
                          cis_only=False, ignore_diags=False,
                          max_iters=200, rescale_marginals=True,
-                         use_lock=False, blacklist=None, x0=None):
+                         use_lock=False, blacklist=None, x0=None,
+                         store=False, store_name='weight'):
     """
     Iterative correction or matrix balancing of a sparse Hi-C contact map in
     Cooler HDF5 format.
@@ -303,5 +304,13 @@ def iterative_correction(clr, chunksize=None, map=map, tol=1e-5,
         'ignore_diags': ignore_diags,
         'scale': scale,
     }
+
+    if store:
+        with clr.open('r+') as grp:
+            if store_name in grp['bins']:
+                del grp['bins'][store_name]
+            h5opts = dict(compression='gzip', compression_opts=6)
+            grp['bins'].create_dataset(store_name, data=bias, **h5opts)
+            grp['bins'][store_name].attrs.update(stats)
 
     return bias, stats
