@@ -397,19 +397,19 @@ class PairixAggregator(ContactBinner):
             for chrom2, cid2 in six.iteritems(remaining_chroms):
                 
                 chrom2_size = chromsizes[chrom2]
-                is_trans = chrom1 != chrom2
-            
-                # XXX - a better solution than autoflip would be a function that
-                # indicates whether (chrom1, chrom2) are present in a block in 
-                # the file and whether the orientation is flipped
-                for line in f.query2D(
-                        chrom1, bin1.start, bin1.end,
-                        chrom2, 0, chrom2_size, 1):
+
+                if chrom1 != chrom2 and f.exists2(chrom2, chrom1):  # flipped
+                    iterator = f.query2D(chrom2, 0, chrom2_size, 
+                                         chrom1, bin1.start, bin1.end)
+                    pos2_col = P1
+                else:
+                    iterator = f.query2D(chrom1, bin1.start, bin1.end, 
+                                         chrom2, 0, chrom2_size)
+                    pos2_col = P2
+
+                for line in iterator:
                     
-                    if is_trans and line[C2] == chrom1:
-                        pos2 = int(line[P1])
-                    else:
-                        pos2 = int(line[P2])
+                    pos2 = int(line[pos2_col])
 
                     if binsize is None:
                         lo = chrom_binoffset[cid2]

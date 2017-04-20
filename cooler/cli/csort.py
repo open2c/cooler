@@ -139,7 +139,7 @@ def make_index_command(index, fields, zero_based, outfile):
 @cli.command()
 @click.argument(
     "pairs_path",
-    type=click.Path(exists=True),
+    type=click.Path(exists=True, allow_dash=True),
     metavar="PAIRS_PATH")
 @click.argument(
     "chromosomes_path",
@@ -249,6 +249,8 @@ def csort(pairs_path, chromosomes_path, index, chrom1, chrom2, pos1, pos2,
     [*] Tabix manpage: <http://www.htslib.org/doc/tabix.html>.
     [+] Pairix on Github: <https://github.com/4dn-dcic/pairix>
 
+    \b\bArguments:
+    
     PAIRS_PATH : Contacts (i.e. read pairs) text file, optionally compressed.
 
     CHROMOSOMES_PATH : File listing desired chromosomes in the desired order.
@@ -266,6 +268,9 @@ def csort(pairs_path, chromosomes_path, index, chrom1, chrom2, pos1, pos2,
     # .gz or .txt.gz extension from the input path and appending .sorted[.txt].gz
     infile = pairs_path
     if out is None:
+        if infile == '-':
+            logger.error("Output name required when input is stdin")
+            raise click.Abort
         prefix = infile
         ext = '.gz'
         if prefix.endswith('.gz'):
@@ -287,7 +292,7 @@ def csort(pairs_path, chromosomes_path, index, chrom1, chrom2, pos1, pos2,
     elif _has_parallel_sort():
         sort_options = [
             '--parallel={}'.format(nproc), 
-            '--buffer-size=1G'
+            '--buffer-size=50%'
         ]
     else:
         sort_options = []
@@ -313,6 +318,7 @@ def csort(pairs_path, chromosomes_path, index, chrom1, chrom2, pos1, pos2,
         pipeline.append(
             subprocess.Popen(
                 read_cmd,
+                stdin=sys.stdin if infile == '-' else None,
                 stdout=subprocess.PIPE)
         )
 
@@ -334,11 +340,15 @@ def csort(pairs_path, chromosomes_path, index, chrom1, chrom2, pos1, pos2,
         # run pipeline
         logger.info("Reordering pair mates and sorting pair records...")
         if index == 'pairix':
-            logger.info("Sort order: block (chr1, chr2, pos1, pos2)")
+            logger.info("Sort order: block (chrom1, chrom2, pos1, pos2)")
+            logger.info(' '.join(sort_cmd))
             logger.info("Indexer: pairix")
+            logger.info(' '.join(index_cmd))
         else:
-            logger.info("Sort order: positional (chr1, pos1, chr2, pos2)")
+            logger.info("Sort order: positional (chrom1, pos1, chrom2, pos2)")
+            logger.info(' '.join(sort_cmd))
             logger.info("Indexer: tabix")
+            logger.info(' '.join(index_cmd))
         logger.info("Input: '{}'".format(infile))
         logger.info("Output: '{}'".format(outfile))
         assert infile != outfile
@@ -351,6 +361,7 @@ def csort(pairs_path, chromosomes_path, index, chrom1, chrom2, pos1, pos2,
             pipeline.append(
                 subprocess.Popen(
                     read_cmd,
+                    stdin=sys.stdin if infile == '-' else None,
                     stdout=subprocess.PIPE)
             )
 
