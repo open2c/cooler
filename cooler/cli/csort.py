@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import division, print_function
+from signal import signal, SIGPIPE, SIG_DFL
 import os.path as op
 import subprocess
 import shlex
@@ -16,7 +17,7 @@ except ImportError:
     import os
     DEVNULL = open(os.devnull, 'wb')
 
-
+signal(SIGPIPE, SIG_DFL)
 logger = get_logger()
 
 
@@ -31,7 +32,7 @@ INDEX_PX2 = 'pairix -f -s{C1} -d{C2} -b{P1} -e{P1} -u{P2} -v{P2}'
 FLIP_TEMPLATE = \
 """import sys
 from signal import signal, SIGPIPE, SIG_DFL
-signal(SIGPIPE, SIG_DFL) 
+signal(SIGPIPE, SIG_DFL)
 
 instream = getattr(sys.stdin, "buffer", sys.stdin)
 outstream = getattr(sys.stdout, "buffer", sys.stdout)
@@ -268,7 +269,7 @@ def csort(pairs_path, chromosomes_path, index, chrom1, chrom2, pos1, pos2,
     # .gz or .txt.gz extension from the input path and appending .sorted[.txt].gz
     infile = pairs_path
     if out is None:
-        if infile == '-':
+        if infile == '-' and not flip_only:
             logger.error("Output name required when input is stdin")
             raise click.Abort
         prefix = infile
@@ -331,6 +332,8 @@ def csort(pairs_path, chromosomes_path, index, chrom1, chrom2, pos1, pos2,
         )
         for p in pipeline[::-1]:
             p.communicate()
+            if p.returncode != 0:
+                sys.exit(1)
     else:
 
         sort_cmd = make_sort_command(index, fields, sort_options)
@@ -392,8 +395,7 @@ def csort(pairs_path, chromosomes_path, index, chrom1, chrom2, pos1, pos2,
             for p in pipeline[::-1]:
                 p.communicate()
                 if p.returncode != 0:
-                    raise RuntimeError(
-                        "Process failed: {}".format(' '.join(p.args)))
+                    sys.exit(1)
 
         # Create index file
         logger.info("Indexing...")
@@ -401,5 +403,4 @@ def csort(pairs_path, chromosomes_path, index, chrom1, chrom2, pos1, pos2,
         p = subprocess.Popen(index_cmd)
         p.communicate()
         if p.returncode != 0:
-            raise RuntimeError(
-                "Process failed: {}".format(' '.join(p.args)))
+            sys.exit(1)
