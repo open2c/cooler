@@ -11,57 +11,6 @@ logger = logging.getLogger(__name__)
 TILE_SIZE = 256
 
 
-def annotate(pixels, bins, replace=True):
-    ncols = len(pixels.columns)
-
-    if 'bin1_id' in pixels:
-        if len(bins) > len(pixels):
-            bin1 = pixels['bin1_id']
-            lo = bin1.min()
-            hi = bin1.max() + 1
-            lo = 0 if np.isnan(lo) else lo
-            hi = 0 if np.isnan(hi) else hi
-            right = bins[lo:hi]
-        else:
-            right = bins[:]
-        right['chrom'] = right['chrom'].cat.codes
-
-        pixels = pixels.merge(
-            right,
-            how='left',
-            left_on='bin1_id',
-            right_index=True)
-
-    if 'bin2_id' in pixels:
-        if len(bins) > len(pixels):
-            bin2 = pixels['bin2_id']
-            lo = bin2.min()
-            hi = bin2.max() + 1
-            lo = 0 if np.isnan(lo) else lo
-            hi = 0 if np.isnan(hi) else hi
-            right = bins[lo:hi]
-        else:
-            right = bins[:]
-        right['chrom'] = right['chrom'].cat.codes
-
-        pixels = pixels.merge(
-            right,
-            how='left',
-            left_on='bin2_id',
-            right_index=True,
-            suffixes=('1', '2'))
-
-    # rearrange columns
-    pixels = pixels[list(pixels.columns[ncols:]) + list(pixels.columns[:ncols])]
-
-    # drop bin IDs
-    if replace:
-        cols_to_drop = [col for col in ('bin1_id', 'bin2_id') if col in pixels]
-        pixels = pixels.drop(cols_to_drop, axis=1)
-
-    return pixels
-
-
 def abs_coord_2_bin(c, abs_pos, chroms, chrom_cum_lengths, chrom_sizes):
     """Get bin ID from absolute coordinates.
  
