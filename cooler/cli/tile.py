@@ -55,8 +55,9 @@ def aggregate(input_uri, output_uri, factor, nproc, chunksize, lock):
 
 def get_quadtree_depth(chromsizes, binsize):
     """
-    Depth of quad tree necessary to tesselate the concatenated genome with leaf
-    quad tiles whose linear dimension is some multiple of the bin size.
+    Depth of quad tree necessary to tesselate the concatenated genome with quad
+    tiles such that linear dimension of the tiles is a preset multiple of the 
+    genomic resolution.
 
     """
     tile_size_bp = QUAD_TILE_SIZE_PIXELS * binsize
@@ -88,6 +89,7 @@ def multires_aggregate(input_uri, outfile, nproc, chunksize, lock=None):
     binsize = clr.binsize
     zoomLevel = str(n_zooms)
     zoom_meta = {}
+    zoom_levels = []
 
     logger.info(
         "Zoom level: "
@@ -102,6 +104,7 @@ def multires_aggregate(input_uri, outfile, nproc, chunksize, lock=None):
         src.copy(ingroup, dest, zoomLevel)
         zoom_meta['max-zoom'] = n_zooms
         zoom_meta[zoomLevel] = binsize
+        zoom_levels.append(zoomLevel)
     
     # Aggregate
     # Use lock to sync read/write ops on same file
@@ -125,10 +128,14 @@ def multires_aggregate(input_uri, outfile, nproc, chunksize, lock=None):
             lock
         )
         zoom_meta[zoomLevel] = new_binsize
+        zoom_levels.append(zoomLevel)
 
     with h5py.File(outfile, 'r+') as fw:
         grp = fw.require_group('.zoominfo')
         grp.attrs.update(zoom_meta)
+        # hard links
+        for level in zoom_levels:
+            grp[level] = fw[level]
 
     return zoom_meta
 
@@ -136,7 +143,7 @@ def multires_aggregate(input_uri, outfile, nproc, chunksize, lock=None):
 @cli.command()
 @click.argument(
     'cool_uri',
-    metavar="COOL_URI")
+    metavar="COOL_PATH")
 @click.option(
     '--factor', '-k',
     help="Gridding factor. The contact matrix is coarsegrained by grouping "
@@ -166,7 +173,9 @@ def coarsen(cool_uri, factor, nproc, chunksize, out):
     chromosomal block and summing the elements inside the grid tiles, i.e. a
     2-D histogram.
 
-    COOL_URI : Path to a COOL file or URI to a Cooler group
+    \b\bArguments:
+
+    COOL_PATH : Path to a COOL file or Cooler URI.
 
     """
     infile, _ = parse_cooler_uri(cool_uri)
@@ -179,7 +188,7 @@ def coarsen(cool_uri, factor, nproc, chunksize, out):
 @cli.command()
 @click.argument(
     'cool_uri',
-    metavar="COOL_URI")
+    metavar="COOL_PATH")
 @click.option(
     '--nproc', '-n', '-p',
     help="Number of processes to use for batch processing chunks of pixels "
@@ -204,11 +213,15 @@ def coarsen(cool_uri, factor, nproc, chunksize, out):
 @click.option(
     '--out', '-o',
     help="Output file or URI")
-def tile(cool_uri, nproc, chunksize, balance, balance_args, out):
+def zoomify(cool_uri, nproc, chunksize, balance, balance_args, out):
     """
     Generate zoom levels for HiGlass by recursively generating 2-by-2 element 
     tiled aggregations of the contact matrix until reaching a minimum
     dimension. The aggregations are stored in a multi-resolution file.
+
+    \b\bArguments:
+
+    COOL_PATH : Path to a COOL file or Cooler URI.
 
     """
     infile, _ = parse_cooler_uri(cool_uri)
@@ -232,10 +245,10 @@ def tile(cool_uri, nproc, chunksize, balance, balance_args, out):
 @click.pass_context
 def coarsegrain(ctx):
     """
-    Deprecated in favor of separate "coarsen" and "tile" commands. Do not use.
+    Deprecated in favor of separate "coarsen" and "zoomify" commands. Do not use.
 
     """
     click.echo(
         '"cooler coarsegrain" is deprecated.\nUse "cooler coarsen" for '
-        ' single aggregations.\nUse "cooler tile" for multiresolution '
+        'single aggregations.\nUse "cooler tile" for multiresolution '
         'aggregation.')
