@@ -104,8 +104,8 @@ def _balance_cisonly(bias, clr, spans, filters, chunksize, map, tol, max_iters,
                      rescale_marginals, use_lock):
     chroms = clr.chroms()['name'][:]
     chrom_ids = np.arange(len(clr.chroms()))
-    chrom_offsets = clr._load_dset('/indexes/chrom_offset')
-    bin1_offsets = clr._load_dset('/indexes/bin1_offset')
+    chrom_offsets = clr._load_dset('indexes/chrom_offset')
+    bin1_offsets = clr._load_dset('indexes/bin1_offset')
     scales = np.ones(len(chrom_ids))
     n_bins = len(bias)
     
@@ -266,7 +266,7 @@ def iterative_correction(clr, chunksize=None, map=map, tol=1e-5,
 
     # MAD-max filter on the marginals
     if mad_max > 0:
-        offsets = clr._load_dset('/indexes/chrom_offset')
+        offsets = clr._load_dset('indexes/chrom_offset')
         for lo, hi in zip(offsets[:-1], offsets[1:]):
             c_marg = marg[lo:hi]
             marg[lo:hi] /= np.median(c_marg[c_marg > 0])
