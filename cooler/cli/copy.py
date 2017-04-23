@@ -18,33 +18,37 @@ from ..io import ls, parse_cooler_uri
     "--overwrite", "-w",
     help="Truncate and replace destination file if it already exists.",
     is_flag=True,
-    default=False,
-    show_default=True)
+    default=False)
 @click.option(
     "--link", "-l",
     help="If the source and destination file are the same, create a hard link "
          "to the source group instead of a true copy.",
     is_flag=True,
-    default=False,
-    show_default=True)
+    default=False)
+@click.option(
+    "--rename", "-m",
+    help="If the source and destination file are the same, create a hard link "
+         "to the source group and remove the original reference.",
+    is_flag=True,
+    default=False,)
 @click.option(
     "--soft-link", "-s",
     help="If the source and destination file are the same, create a soft link. "
-         "If the destination file is different, create an external link. These "
-         "link types are essentially text paths rather than pointers.",
+         "If the destination file is different, create an external link. This "
+         "type of link uses a path rather than a pointer.",
     is_flag=True,
-    default=False,
-    show_default=True)
-def copy(src_uri, dst_uri, overwrite, link, soft_link):
+    default=False)
+def copy(src_uri, dst_uri, overwrite, link, rename, soft_link):
     """
-    Copy a cooler can from one file to another.
+    Copy a Cooler from one file to another or within the same file.
+
+    See also: h5copy, h5repack tools from HDF5 suite
+
+    \b\bArguments:
 
     SRC_URI : Path to source file or URI to source Cooler group
-    DST_URI : Path to destination file or URI to destination Cooler group
 
-    See also
-    --------
-    h5copy tool from HDF5 suite
+    DST_URI : Path to destination file or URI to destination Cooler group
 
     """
     src_path, src_group = parse_cooler_uri(src_uri)
@@ -60,14 +64,16 @@ def copy(src_uri, dst_uri, overwrite, link, soft_link):
 
         if dst_group in dst:
             click.confirm(
-                "A group named '{}' already exists in '{}'. Overwite?".format(
+                "A group named '{}' already exists in '{}'. Overwrite?".format(
                     dst_group, dst_path), 
                 abort=True)
             del dst[dst_group]
 
         if src_path == dst_path:
-            if link:
+            if link or rename:
                 src[dst_group] = src[src_group]
+                if rename:
+                    del src[src_group]
             elif soft_link:
                 src[dst_group] = h5py.SoftLink(src_group)
         else:
