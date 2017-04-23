@@ -14,7 +14,7 @@ from .. import api
 @cli.command()
 @click.argument(
     "cool_uri",
-    metavar="COOL_URI")
+    metavar="COOL_PATH")
 @click.option(
     "--table", "-t",
     help="Which table to dump. Choosing 'chroms' or 'bins' will cause all "
@@ -78,7 +78,7 @@ def dump(cool_uri, table, chunksize, range, range2, join,
     Dump a contact matrix.
     Print the contents of a COOL file to tab-delimited text.
 
-    COOL_PATH : Path to COOL file containing a contact matrix.
+    COOL_PATH : Path to COOL file or Cooler URI.
 
     """
     c = api.Cooler(cool_uri)

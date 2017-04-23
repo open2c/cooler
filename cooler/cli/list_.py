@@ -16,7 +16,7 @@ from ..api import Cooler
     is_flag=True)
 def list(cool_path, long):
     """
-    List all Cooler "cans" inside a COOL file.
+    List all Coolers inside a COOL file.
 
     """
     for group_path in ls(cool_path):

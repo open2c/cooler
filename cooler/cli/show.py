@@ -116,7 +116,7 @@ def interactive(ax, c, row_chrom, col_chrom, balanced, scale):
 @cli.command()
 @click.argument(
     "cool_uri",
-    metavar="COOLER_URI")
+    metavar="COOL_PATH")
 @click.argument(
     "range",
     type=str)
@@ -173,7 +173,9 @@ def show(cool_uri, range, range2, balanced, out, dpi, scale, force, zmin, zmax, 
     Display a contact matrix.
     Display a region of a contact matrix stored in a COOL file.
 
-    COOLER_PATH : Path to a COOL file
+    \b\bArguments:
+    
+    COOL_PATH : Path to a COOL file or Cooler URI.
 
     RANGE : The coordinates of the genomic region to display, in UCSC notation.
     Example: chr1:10,000,000-11,000,000

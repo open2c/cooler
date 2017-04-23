@@ -19,7 +19,7 @@ from ..io import create, TabixAggregator, HDF5Aggregator, PairixAggregator
 @cli.group()
 def cload():
     """
-    Create a COOL file from a sorted list of contacts and a list of genomic bins.
+    Create a Cooler from a sorted list of contacts and a list of genomic bins.
     Choose a subcommand based on the format of the input contact list.
 
     """
