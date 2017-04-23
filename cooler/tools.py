@@ -52,7 +52,7 @@ def get_dict(h5, lo=0, hi=None, fields=None, convert_enum=True):
 def apply_pipeline(funcs, prepare, get, key):
     chunk = get(key)
     if prepare is not None:
-        chunk, data = prepare(chunk)
+        data = prepare(chunk)
         for func in funcs:
             data = func(chunk, data)
     else:
@@ -141,6 +141,7 @@ class MultiplexDataPipe(object):
     def __copy__(self):
         other = self.__class__(self.get, self.keys, self.map)
         other.funcs = list(self.funcs)
+        other._prepare = self._prepare
         return other
 
     def __reduce__(self):
@@ -153,6 +154,7 @@ class MultiplexDataPipe(object):
 
     def prepare(self, func):
         self._prepare = func
+        return self
 
     def pipe(self, func, *args, **kwargs):
         """

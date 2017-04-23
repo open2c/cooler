@@ -19,44 +19,39 @@ from .util import mad
 logger = get_logger()
 
 
-def _init_transform(chunk):
-    return chunk, np.copy(chunk['pixels']['count'])
+def _init(chunk):
+    return np.copy(chunk['pixels']['count'])
 
 
-def _binarize_mask(args):
-    chunk, data = args
+def _binarize(chunk, data):
     data[data != 0] = 1
-    return chunk, data
+    return data
 
 
-def _dropdiag_mask(n_diags, args):
-    chunk, data = args
+def _zero_diags(n_diags, chunk, data):
     pixels = chunk['pixels']
     mask = np.abs(pixels['bin1_id'] - pixels['bin2_id']) < n_diags
     data[mask] = 0
-    return chunk, data
+    return data
 
 
-def _cisonly_mask(args):
-    chunk, data = args
+def _zero_trans(chunk, data):
     chrom_ids = chunk['bins']['chrom']
     pixels = chunk['pixels']
     mask = chrom_ids[pixels['bin1_id']] != chrom_ids[pixels['bin2_id']]
     data[mask] = 0
-    return chunk, data
+    return data
 
 
-def _timesouterproduct_transform(vec, args):
-    chunk, data = args
+def _timesouterproduct(vec, chunk, data):
     pixels = chunk['pixels']
     data = (vec[pixels['bin1_id']]
                 * vec[pixels['bin2_id']]
                 * data)
-    return chunk, data
+    return data
 
 
-def _marginalize_transform(args):
-    chunk, data = args
+def _marginalize(chunk, data):
     n = len(chunk['bins']['chrom'])
     pixels = chunk['pixels']
     marg = (
@@ -73,10 +68,10 @@ def _balance_genomewide(bias, clr, spans, filters, chunksize, map, tol, max_iter
     for _ in range(max_iters):
         marg = (
             split(clr, spans=spans, map=map, use_lock=use_lock)
-                .pipe(_init_transform)
+                .prepare(_init)
                 .pipe(filters)
-                .pipe(_timesouterproduct_transform, bias)
-                .pipe(_marginalize_transform)
+                .pipe(_timesouterproduct, bias)
+                .pipe(_marginalize)
                 .reduce(add, np.zeros(n_bins))
         )
         
@@ -123,10 +118,10 @@ def _balance_cisonly(bias, clr, spans, filters, chunksize, map, tol, max_iters,
         for _ in range(max_iters):
             marg = (
                 split(clr, spans=spans, map=map, use_lock=use_lock)
-                    .pipe(_init_transform)
+                    .prepare(_init)
                     .pipe(filters)
-                    .pipe(_timesouterproduct_transform, bias)
-                    .pipe(_marginalize_transform)
+                    .pipe(_timesouterproduct, bias)
+                    .pipe(_marginalize)
                     .reduce(add, np.zeros(n_bins))
             )
 
@@ -232,9 +227,9 @@ def iterative_correction(clr, chunksize=None, map=map, tol=1e-5,
     # List of pre-marginalization data transformations
     base_filters = []
     if cis_only:
-        base_filters.append(_cisonly_mask)
+        base_filters.append(_zero_trans)
     if ignore_diags:
-        base_filters.append(partial(_dropdiag_mask, ignore_diags))
+        base_filters.append(partial(_zero_diags, ignore_diags))
 
     # Initialize the bias weights
     n_bins = clr.info['nbins']
@@ -246,12 +241,12 @@ def iterative_correction(clr, chunksize=None, map=map, tol=1e-5,
 
     # Drop bins with too few nonzeros from bias
     if min_nnz > 0:
-        filters = [_binarize_mask] + base_filters
+        filters = [_binarize] + base_filters
         marg_nnz = (
             split(clr, spans=spans, map=map, use_lock=use_lock)
-                .pipe(_init_transform)
+                .prepare(_init)
                 .pipe(filters)
-                .pipe(_marginalize_transform)
+                .pipe(_marginalize)
                 .reduce(add, np.zeros(n_bins))
         )
         bias[marg_nnz < min_nnz] = 0
@@ -259,9 +254,9 @@ def iterative_correction(clr, chunksize=None, map=map, tol=1e-5,
     filters = base_filters
     marg = (
         split(clr, spans=spans, map=map, use_lock=use_lock)
-            .pipe(_init_transform)
+            .prepare(_init)
             .pipe(filters)
-            .pipe(_marginalize_transform)
+            .pipe(_marginalize)
             .reduce(add, np.zeros(n_bins))
     )
 
