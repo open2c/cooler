@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import division, print_function
+from collections import OrderedDict
 from six.moves import map
 import multiprocess as mp
 import os.path as op
@@ -16,7 +17,9 @@ from ..tools import lock
 from .. import api
 
 import click
-from . import cli, logger, balance as balance_cmd
+from click.testing import CliRunner
+from . import cli, logger
+from .balance import balance as balance_cmd
 
 
 QUAD_TILE_SIZE_PIXELS = 256
@@ -86,11 +89,9 @@ def multires_aggregate(input_uri, outfile, nproc, chunksize, lock=None):
         "counting down to 0..."
     )
 
-    binsize = clr.binsize
+    zoom_levels = OrderedDict()
     zoomLevel = str(n_zooms)
-    zoom_meta = {}
-    zoom_levels = []
-
+    binsize = clr.binsize
     logger.info(
         "Zoom level: "
         + str(zoomLevel)
@@ -101,43 +102,41 @@ def multires_aggregate(input_uri, outfile, nproc, chunksize, lock=None):
     with h5py.File(infile, 'r') as src, \
          h5py.File(outfile, 'w') as dest:
 
-        src.copy(ingroup, dest, zoomLevel)
-        zoom_meta['max-zoom'] = n_zooms
-        zoom_meta[zoomLevel] = binsize
-        zoom_levels.append(zoomLevel)
+        src.copy(ingroup, dest, str(zoomLevel))
+        zoom_levels[zoomLevel] = binsize
     
     # Aggregate
     # Use lock to sync read/write ops on same file
-    new_binsize = binsize
     for i in range(n_zooms - 1, -1, -1):
-        new_binsize *= factor
+        prev_binsize = binsize
+        binsize *= factor
         prevLevel = str(i+1)
         zoomLevel = str(i)
         logger.info(
             "Aggregating at zoom level: "
             + str(zoomLevel)
             + " bin size: "
-            + str(new_binsize))
+            + str(binsize))
 
         aggregate(
-            outfile + '::' + prevLevel, 
-            outfile + '::' + zoomLevel,
+            outfile + '::' + str(prevLevel), 
+            outfile + '::' + str(zoomLevel),
             factor, 
             nproc, 
             chunksize,
             lock
         )
-        zoom_meta[zoomLevel] = new_binsize
-        zoom_levels.append(zoomLevel)
+        zoom_levels[zoomLevel] = binsize
 
     with h5py.File(outfile, 'r+') as fw:
-        grp = fw.require_group('.zoominfo')
-        grp.attrs.update(zoom_meta)
-        # hard links
-        for level in zoom_levels:
-            grp[level] = fw[level]
+        fw.attrs.update({'max-zoom': n_zooms})
+        # grp = fw.require_group('.zooms')
+        # grp.attrs.update({'max-zoom': n_zooms})
+        # # hard links
+        # for level, res in zoom_levels.items():
+        #     fw['.zooms'][level] = fw[str(res)]
 
-    return zoom_meta
+    return n_zooms, zoom_levels
 
 
 @cli.command()
@@ -213,7 +212,8 @@ def coarsen(cool_uri, factor, nproc, chunksize, out):
 @click.option(
     '--out', '-o',
     help="Output file or URI")
-def zoomify(cool_uri, nproc, chunksize, balance, balance_args, out):
+@click.pass_context
+def zoomify(ctx, cool_uri, nproc, chunksize, balance, balance_args, out):
     """
     Generate zoom levels for HiGlass by recursively generating 2-by-2 element 
     tiled aggregations of the contact matrix until reaching a minimum
@@ -233,10 +233,23 @@ def zoomify(cool_uri, nproc, chunksize, balance, balance_args, out):
 
     logger.info('Recursively aggregating "{}"'.format(cool_uri))
     logger.info('Writing to "{}"'.format(outfile))
-    multires_aggregate(cool_uri, outfile, nproc, chunksize, lock=lock)
+    n_zooms, zoom_levels = multires_aggregate(cool_uri, outfile, nproc, chunksize, lock=lock)
 
     if balance:
-        balance_cmd(**balance_cmd.parse_args(balance_args))
+        runner = CliRunner()
+
+        if balance_args is None: 
+            balance_args = []
+
+        for level, res in reversed(zoom_levels.items()):
+            uri = outfile + '::' + str(res)
+            if level == str(n_zooms):
+                if 'weight' in api.Cooler(uri).bins():
+                    continue
+            logger.info('Balancing zoom level {}, bin size {}'.format(level, res))
+            result = runner.invoke(balance_cmd, args=[uri] + balance_args)
+            if result.exit_code != 0:
+                raise result.exception
 
 
 @cli.command(context_settings={
@@ -250,5 +263,5 @@ def coarsegrain(ctx):
     """
     click.echo(
         '"cooler coarsegrain" is deprecated.\nUse "cooler coarsen" for '
-        'single aggregations.\nUse "cooler tile" for multiresolution '
+        'single aggregations.\nUse "cooler zoomify" for multiresolution '
         'aggregation.')
