@@ -617,6 +617,92 @@ class CoolerMerger(ContactBinner):
             starts = stops
 
 
+class BedGraph2DLoader(ContactBinner):
+    """
+    Contact iterator for a sparse tsv Hi-C matrix with fields:
+        "chrom1, start1, end1, chrom2, start2, end2, count"
+
+    """
+    def __init__(self, filepath, chromsizes, bins):
+        try:
+            import pypairix
+        except ImportError:
+            raise ImportError(
+                "pypairix is required to read pairix-indexed files")
+        
+        self._map = map
+        self.filepath = filepath
+        f = pypairix.open(self.filepath, 'r')
+        self.file_contigs = set(
+            itertools.chain.from_iterable(
+                [b.split('|') for b in f.get_blocknames()]))
+        
+        # all requested contigs will be placed in the output matrix
+        self.gs = GenomeSegmentation(chromsizes, bins)
+        self.bins = self.gs.bins.copy()
+        self.bins['chrom'] = self.bins['chrom'].astype(object)
+        self.bins['bin'] = self.bins.index
+       
+        # warn about requested contigs not seen in the contact list
+        for chrom in self.gs.contigs:
+            if chrom not in self.file_contigs:
+                warnings.warn(
+                    "Did not find contig " +
+                    " '{}' in bg2 file.".format(chrom))
+    
+    def aggregate(self, chrom1):
+        import pypairix
+        f = pypairix.open(self.filepath, 'r')
+        cid1 = self.gs.idmap[chrom1]
+        chromsizes = self.gs.chromsizes
+        these_bins = self.gs.fetch(chrom1)
+        remaining_chroms = self.gs.idmap[chrom1:]
+        
+        for bin1_id, bin1 in these_bins.iterrows():
+            
+            # extract entire row of contact matrix
+            row = []
+            for chrom2, cid2 in six.iteritems(remaining_chroms):
+                chrom2_size = chromsizes[chrom2]
+                if chrom1 != chrom2 and f.exists2(chrom2, chrom1):  # flipped block
+                    chunk = pandas.DataFrame.from_records(
+                        f.query2D(chrom2, 0, chrom2_size, 
+                                  chrom1, bin1.start, bin1.end),
+                        columns=['chrom2', 'start2', 'end2', 
+                                 'chrom1', 'start1', 'end1', 'count'])
+                else:
+                    chunk = pandas.DataFrame.from_records(
+                        f.query2D(chrom1, bin1.start, bin1.end,
+                                  chrom2, 0, chrom2_size),
+                        columns=['chrom1', 'start1', 'end1',
+                                 'chrom2', 'start2', 'end2', 'count'])
+                for col in ['start1', 'end1', 'start2', 'end2', 'count']:
+                    chunk[col] = chunk[col].astype(int)
+                row.append(chunk)
+            df = pandas.concat(row, axis=0, ignore_index=True)
+
+            # assign bin IDs from bin table
+            df = (df.merge(self.bins, 
+                           left_on=['chrom1', 'start1', 'end1'], 
+                           right_on=['chrom', 'start', 'end'])
+                    .merge(self.bins, 
+                           left_on=['chrom2', 'start2', 'end2'], 
+                           right_on=['chrom', 'start', 'end'], 
+                           suffixes=('1', '2')))
+            
+            df = (df[['bin1', 'bin2', 'count']]
+                    .rename(columns={'bin1': 'bin1_id', 
+                                     'bin2': 'bin2_id'})
+                    .sort_values(['bin1_id', 'bin2_id']))
+            return df
+    
+    def __iter__(self):
+        chroms = [ctg for ctg in self.gs.contigs if ctg in self.file_contigs]
+        for df in self._map(self.aggregate, chroms):
+            if df is not None:
+                yield {k: v.values for k, v in six.iteritems(df)}
+
+
 class SparseLoader(ContactBinner):
     """
     Load binned contacts from a single 3-column sparse matrix text file.
@@ -643,77 +729,160 @@ class SparseLoader(ContactBinner):
             yield {k: v.values for k,v in six.iteritems(chunk)}
 
 
-class BedGraph2DLoader(ContactBinner):
-    """
-    Contact iterator for a sparse tsv Hi-C matrix with fields:
-        "chrom1, start1, end1, chrom2, start2, end2, count"
-    
-    The fields are assumed to be defined and records assumed to 
-    be sorted consistently with the bin table provided.
-    
-    """
-    def __init__(self, filepath, bins, chunksize):
-        """
-        Parameters
-        ----------
-        filepath : str
-            Path to tsv file
-        bins : DataFrame
-            A bin table dataframe
-        chunksize : number of rows of the matrix file to read at a time
-
-        """
-        self.iterator = pandas.read_csv(
-            filepath, 
-            sep='\t', 
-            iterator=True,
-            chunksize=chunksize,
-            names=['chrom1', 'start1', 'end1', 
-                   'chrom2', 'start2', 'end2', 'count'])
-        self.bins = bins
-        self.chunksize = chunksize
-
-    def __iter__(self):
-        bins = self.bins
-        iterator = self.iterator
-        bins['bin'] = bins.index
-        
-        for chunk in iterator:
-            # assign bin IDs from bin table
-            df = (chunk.merge(bins, 
-                              left_on=['chrom1', 'start1', 'end1'], 
-                              right_on=['chrom', 'start', 'end'])
-                       .merge(bins, 
-                              left_on=['chrom2', 'start2', 'end2'], 
-                              right_on=['chrom', 'start', 'end'], 
-                              suffixes=('1', '2')))
-            df = (df[['bin1', 'bin2', 'count']]
-                      .rename(columns={'bin1': 'bin1_id', 
-                                       'bin2': 'bin2_id'})
-                      .sort_values(['bin1_id', 'bin2_id']))
-            yield {k: v.values for k,v in six.iteritems(df)}
-
-
-class DenseLoader(ContactBinner):
+class ArrayLoader(ContactBinner):
     """
     Load a dense genome-wide numpy array contact matrix.
-    TODO: support dask array and/or memmapped arrays
+    Works with array-likes such as h5py.Dataset and memmapped arrays
 
     """
-    def __init__(self, heatmap):
+    def __init__(self, bins, array, chunksize):
+        if len(bins) != array.shape[0]:
+            raise ValueError("Number of bins must equal the dimenion of the matrix")
+        self.array = array
+        self.chunksize = chunksize
+    
+    def __iter__(self):
+        n_bins = self.array.shape[0]
+        spans = partition(0, n_bins, self.chunksize)
+        
         # TRIU sparsify the matrix
-        i, j = np.nonzero(heatmap)
-        mask = i <= j
-        triu_i, triu_j = i[mask], j[mask]
-        self.data = {
-            'bin1_id': triu_i,
-            'bin2_id': triu_j,
-            'count': heatmap[triu_i, triu_j],
-        }
-        self.nnz = len(triu_i)
+        for lo, hi in spans:
+            X = self.array[lo:hi, :]
+            i, j = np.nonzero(X)
+            
+            mask = (lo + i) <= j
+            triu_i, triu_j = i[mask], j[mask]
+            
+            yield {
+                'bin1_id': lo + triu_i,
+                'bin2_id': triu_j,
+                'count': X[triu_i, triu_j],
+            }
 
-    def size(self):
-        return self.nnz
+
+class BlockArrayLoader(ContactBinner):
+    """
+    
+    """
+    def __init__(self, chromsizes, bins, mapping, chunksize):
+        bins = check_bins(bins, chromsizes)
+        self.bins = bins
+        self.chromosomes = list(chromsizes.index)
+        self.chunksize = chunksize
+        n_chroms = len(chromsizes)
+        n_bins = len(bins)
+        
+        chrom_ids = bins['chrom'].cat.codes
+        self.offsets = np.zeros(n_chroms + 1, dtype=int)
+        curr_val = 0
+        for start, length, value in zip(*rlencode(chrom_ids)):
+            self.offsets[curr_val:value + 1] = start
+            curr_val = value + 1
+        self.offsets[curr_val:] = n_bins
+        
+        self.mapping = mapping
+        
+    def select_block(self, chrom1, chrom2):
+        try:
+            block = self.mapping[chrom1, chrom2]
+        except KeyError:
+            try:
+                block = self.mapping[chrom2, chrom1].T
+            except KeyError:
+                warning.warn(
+                    "Block for {{{}, {}}} not found".format(chrom1, chrom2))
+                raise
+        return block
 
     def __iter__(self):
-        yield self.data
+        n_bins = len(self.bins)
+        chromosomes = self.chromosomes
+        
+        for cid1, chrom1 in enumerate(chromosomes):
+            offset = self.offsets[cid1]
+            chrom1_nbins = self.offsets[cid1 + 1] - offset
+            spans = partition(0, chrom1_nbins, self.chunksize)
+            
+            for lo, hi in spans:
+                chunks = []
+                for chrom2 in chromosomes[cid1:]:
+                    try:
+                        block = self.select_block(chrom1, chrom2)
+                    except KeyError:
+                        continue
+                    chunks.append(block[lo:hi, :])
+                X = np.concatenate(chunks, axis=1)
+                
+                i, j = np.nonzero(X)
+                mask = (offset + i) <= (offset + j)
+                triu_i, triu_j = i[mask], j[mask]
+
+                yield {
+                    'bin1_id': offset + triu_i,
+                    'bin2_id': offset + triu_j,
+                    'count': X[triu_i, triu_j],
+                }
+
+
+class BlockSparseLoader(object):
+    """
+
+    """
+    def __init__(self, chromsizes, bins, mapping, chunksize):
+        bins = check_bins(bins, chromsizes)
+        self.bins = bins
+        self.chromosomes = list(chromsizes.index)
+        self.chunksize = chunksize
+        n_chroms = len(chromsizes)
+        n_bins = len(bins)
+        
+        chrom_ids = bins['chrom'].cat.codes
+        self.offsets = np.zeros(n_chroms + 1, dtype=int)
+        curr_val = 0
+        for start, length, value in zip(*rlencode(chrom_ids)):
+            self.offsets[curr_val:value + 1] = start
+            curr_val = value + 1
+        self.offsets[curr_val:] = n_bins
+        
+        self.mapping = mapping
+        
+    def select_block(self, chrom1, chrom2):
+        try:
+            block = self.mapping[chrom1, chrom2]
+        except KeyError:
+            try:
+                block = self.mapping[chrom2, chrom1].T
+            except KeyError:
+                warning.warn(
+                    "Block for {{{}, {}}} not found".format(chrom1, chrom2))
+                raise
+        return block
+
+    def __iter__(self):
+        n_bins = len(self.bins)
+        chromosomes = self.chromosomes
+        
+        for cid1, chrom1 in enumerate(chromosomes):
+            offset = self.offsets[cid1]
+            chrom1_nbins = self.offsets[cid1 + 1] - offset
+            spans = partition(0, chrom1_nbins, self.chunksize)
+            
+            for lo, hi in spans:
+                chunks = []
+                for chrom2 in chromosomes[cid1:]:
+                    try:
+                        block = self.select_block(chrom1, chrom2)
+                    except KeyError:
+                        continue
+                    chunks.append(block.tocsr()[lo:hi, :])
+                X = scipy.sparse.hstack(chunks).tocsr().tocoo()
+                
+                i, j, v = X.row, X.col, X.data
+                mask = (offset + i) <= (offset + j)
+                triu_i, triu_j, triu_v = i[mask], j[mask], v[mask]
+
+                yield {
+                    'bin1_id': offset + triu_i,
+                    'bin2_id': offset + triu_j,
+                    'count': triu_v,
+                }

@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import division, print_function
+import os.path as op
 import json
 import sys
 
@@ -9,10 +10,12 @@ import h5py
 
 import click
 from . import cli
-from ..io import create, SparseLoader, BedGraph2DLoader
+from .. import util
+from ..io import create, parse_cooler_uri, SparseLoader, BedGraph2DLoader
 
 
 # TODO: support positional and block sorted pixel data
+# dense text or binary memmapped?
 
 
 def _parse_bins(arg):
@@ -72,9 +75,8 @@ def _parse_bins(arg):
     "--format", "-f",
     help="COO refers to a tab-delimited sparse triple file (bin1, bin2, count). "
          "BG2 refers to a 2D bedGraph-like file (chrom1, start1, end1, chrom2, start2, end2, count).",
-    type=click.Choice(['BG2', 'COO']),
-    default='COO',
-    show_default=True)
+    type=click.Choice(['COO', 'BG2']),
+    required=True)
 @click.option(
     "--chunksize", "-c",
     type=int,
@@ -103,8 +105,7 @@ def load(bins_path, pixels_path, cool_path, format, metadata, assembly, chunksiz
 
     \b
     - columns: "chrom1, start1, end1, chrom2, start2, end2, count"
-    - each record has chrom1 <= chrom2, with respect to the chromosome order in BINS
-    - sorted by chrom1, start1, chrom2, start2,  with respect to the chromosome order in BINS
+    - sorted, compressed and indexed with Pairix
 
     \b\bArguments:
 
@@ -115,7 +116,7 @@ def load(bins_path, pixels_path, cool_path, format, metadata, assembly, chunksiz
     COOL_PATH : Output COOL file path
 
     """
-    chromsizes, bins = _parse_bins(bins)
+    chromsizes, bins = _parse_bins(bins_path)
 
     # User-supplied JSON file
     if metadata is not None:
@@ -124,7 +125,7 @@ def load(bins_path, pixels_path, cool_path, format, metadata, assembly, chunksiz
 
     # Load the binned contacts
     if format == 'BG2':
-        iterator = BedGraph2DLoader(bins, pixels_path, chunksize)
+        binner = BedGraph2DLoader(pixels_path, chromsizes, bins)
     else:
-        iterator = SparseLoader(pixels_path, chunksize)
-    create(cool_path, chromsizes, bins, iterator, metadata, assembly)
+        binner = SparseLoader(pixels_path, chunksize)
+    create(cool_path, chromsizes, bins, binner, metadata, assembly)
