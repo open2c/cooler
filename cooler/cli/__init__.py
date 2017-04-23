@@ -43,6 +43,6 @@ from . import (
     info,
     dump,
     balance,
-    tile,
+    aggregate,
     show,
 )
