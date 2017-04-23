@@ -30,7 +30,7 @@ def info(cool_uri, field, metadata, out):
     """
     Display file info and metadata.
 
-    COOL_PATH : Path to a COOL file.
+    COOL_PATH : Path to a COOL file or Cooler URI.
 
     """
     c = Cooler(cool_uri)
