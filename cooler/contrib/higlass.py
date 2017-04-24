@@ -76,29 +76,26 @@ def get_data(f, zoom_level, start_pos_1, end_pos_1, start_pos_2, end_pos_2):
     j1 = abs_coord_2_bin(c, end_pos_2, chroms, chrom_cum_lengths, chrom_sizes)
  
     pixels = c.matrix(as_pixels=True, balance=False, max_chunk=np.inf)[i0:i1+1, j0:j1+1]
- 
+
     if not len(pixels):
         return pd.DataFrame(columns=['genome_start1', 'genome_start2', 'balanced'])
  
     if 'weight' in c.bins():
-        bins = c.bins()[['chrom', 'start', 'end', 'weight']]
+        bins = c.bins(convert_enum=False)[['chrom', 'start', 'end', 'weight']]
     else:
-        bins = c.bins()[['chrom', 'start', 'end']]
-
-    pixels = annotate(pixels, bins)
-
-
+        bins = c.bins(convert_enum=False)[['chrom', 'start', 'end']]
+    
+    pixels = cooler.annotate(pixels, bins)
     pixels['genome_start1'] = chrom_cum_lengths[pixels['chrom1']] + pixels['start1']
     pixels['genome_start2'] = chrom_cum_lengths[pixels['chrom2']] + pixels['start2']
 
-    if not 'weight1' in pixels or not 'weight2' in pixels:
-        return pixels[['genome_start1', 'genome_start2', 'count']]
-    else:
+    if 'weight' in c.bins():
         pixels['balanced'] = (
             pixels['count'] * pixels['weight1'] * pixels['weight2']
         )
- 
-    return pixels[['genome_start1', 'genome_start2', 'balanced']]
+        return pixels[['genome_start1', 'genome_start2', 'balanced']]
+    else:
+        return pixels[['genome_start1', 'genome_start2', 'count']]
  
  
 def get_info(file_path):
