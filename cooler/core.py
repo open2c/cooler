@@ -6,6 +6,10 @@ import h5py
 import six
 
 
+def is_categorical(array_like):
+    return array_like.dtype.name == 'category'
+
+
 def get(h5, lo=0, hi=None, fields=None, convert_enum=True):
     """
     Query a range of rows from a table as a dataframe.
@@ -80,6 +84,105 @@ def get(h5, lo=0, hi=None, fields=None, convert_enum=True):
             data,
             columns=fields,
             index=index)
+
+
+def put(h5, df, lo=0, store_categories=True, h5opts=None):
+    """
+    Store a dataframe into a column-oriented table store.
+    
+    A table is an HDF5 group containing equal-length 1D datasets serving as
+    columns.
+
+    Parameters
+    ----------
+    h5 : ``h5py.Group`` or any dict-like of array-likes
+        Handle to an HDF5 group containing only 1D datasets or any similar
+        collection of 1D datasets or arrays
+    df : DataFrame or Series
+        Data columns to write to the HDF5 group
+    lo : int, optional
+        Row offset for data to be stored.
+    store_categories : bool, optional
+        Whether to convert ``pandas.Categorical`` columns into HDF5 enum
+        datasets instead of plain integer datasets. Default is True.
+    h5opts : dict, optional
+        HDF5 dataset filter options to use (compression, shuffling,
+        checksumming, etc.). Default is to use autochunking and GZIP
+        compression, level 6.
+
+    Notes
+    -----
+    Categories must be ASCII compatible.
+    
+    """
+    grp = h5
+    if h5opts is None:
+        h5opts = dict(compression='gzip', compression_opts=6)
+    
+    if isinstance(df, pandas.Series):
+        df = df.to_frame()
+
+    fields = df.keys()
+    for field, data in six.iteritems(df):
+        
+        if is_categorical(data):
+            if store_categories:
+                cats = data.cat.categories
+                enum = (data.cat.codes.dtype, 
+                        dict(zip(cats, range(len(cats)))))
+                data = data.cat.codes
+                dtype = h5py.special_dtype(enum=enum)
+                fillvalue = -1
+            else:
+                data = data.cat.codes
+                dtype = data.dtype
+                fillvalue = -1
+        else:
+            dtype = data.dtype
+            fillvalue = None
+        
+        hi = lo + len(data)
+        try:
+            dset = grp[field]
+        except KeyError:
+            dset = grp.create_dataset(
+                field, 
+                shape=(hi,), 
+                dtype=dtype, 
+                maxshape=(None,),
+                fillvalue=fillvalue,
+                **h5opts)
+        if hi > len(dset):
+            dset.resize((hi,))
+        
+        dset[lo:hi] = data.values
+
+
+def delete(h5, fields=None):
+    """
+    Delete columns from a table.
+
+    A table is an HDF5 group containing equal-length 1D datasets serving as
+    columns.
+
+    Parameters
+    ----------
+    h5 : ``h5py.Group`` or any dict-like of array-likes
+        Handle to an HDF5 group containing only 1D datasets or any similar
+        collection of 1D datasets or arrays
+    fields : str or sequence of str, optional
+        Column or list of columns to query. Defaults to all available columns.
+        A single string returns a Series instead of a DataFrame.
+
+    """
+    grp = h5
+    if fields is None:
+        fields = list(grp.keys())
+    elif isinstance(fields, six.string_types):
+        fields = [fields]
+    for field in fields:
+        if field in grp.keys():
+            del grp[field]
 
 
 def _region_to_extent(h5, chrom_ids, region, binsize):
@@ -369,11 +472,6 @@ class RangeSelector1D(_IndexingMixin):
     >>> sel.fetch('chr3:10,000,000-12,000,000') # doctest: +SKIP
     >>> sel.fetch(('chr3', 10000000, 12000000))
 
-    Iterate over the table in chunks of a given size using the slicer.
-
-    >>> for chunk in sel.iterchunks(size=1000):  # doctest: +SKIP
-    >>>     ...
-
     """
     def __init__(self, fields, slicer, fetcher, nmax):
         self.fields = fields
@@ -412,13 +510,6 @@ class RangeSelector1D(_IndexingMixin):
                 raise IndexError('too many indices for table')
         lo, hi = self._process_slice(key, self._shape[0])
         return self._slice(self.fields, lo, hi)
-
-    def iterchunks(self, lo=0, hi=None, size=None):
-        lo, hi = self._process_slice(slice(lo, hi), self._shape[0])
-        if size is None:
-            size = hi - lo
-        for i in range(lo, hi, size):
-            yield self._slice(self.fields, i, i+size)
 
     def fetch(self, *args, **kwargs):
         if self._fetch is not None:

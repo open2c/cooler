@@ -11,7 +11,7 @@ import pandas as pd
 import h5py
 
 import click
-from . import cli
+from . import cli, logger
 from .. import util
 from ..io import create, TabixAggregator, HDF5Aggregator, PairixAggregator
 
@@ -19,7 +19,7 @@ from ..io import create, TabixAggregator, HDF5Aggregator, PairixAggregator
 @cli.group()
 def cload():
     """
-    Create a COOL file from a sorted list of contacts and a list of genomic bins.
+    Create a Cooler from a sorted list of contacts and a list of genomic bins.
     Choose a subcommand based on the format of the input contact list.
 
     """
@@ -125,7 +125,6 @@ def hiclib(bins, pairs_path, cool_path, metadata, assembly, chunksize):
     """
 
     chromsizes, bins = _parse_bins(bins)
-    chroms, lengths = list(chromsizes.index), list(chromsizes.values)
 
     if metadata is not None:
         with open(metadata, 'r') as f:
@@ -144,7 +143,17 @@ def hiclib(bins, pairs_path, cool_path, metadata, assembly, chunksize):
     type=int,
     default=8,
     show_default=True)
-def tabix(bins, pairs_path, cool_path, metadata, assembly, nproc):
+@click.option(
+    "--chrom2", "-c2",
+    help="chrom2 field number (one-based)",
+    type=int,
+    default=4)
+@click.option(
+    "--pos2", "-p2",
+    help="pos2 field number (one-based)",
+    type=int,
+    default=5)
+def tabix(bins, pairs_path, cool_path, metadata, assembly, nproc, **kwargs):
     """
     Bin a tabix-indexed contact list file.
 
@@ -156,7 +165,6 @@ def tabix(bins, pairs_path, cool_path, metadata, assembly, nproc):
 
     """
     chromsizes, bins = _parse_bins(bins)
-    chroms, lengths = list(chromsizes.index), list(chromsizes.values)
 
     if metadata is not None:
         with open(metadata, 'r') as f:
@@ -165,14 +173,21 @@ def tabix(bins, pairs_path, cool_path, metadata, assembly, nproc):
     try:
         if nproc > 1:
             pool = Pool(nproc)
-            map = pool.map
+            logger.info("Using {} cores".format(nproc))
+            map = pool.imap
         else:
             map = six.moves.map
-        iterator = TabixAggregator(pairs_path, chromsizes, bins, map=map)
+        opts = {}
+        if 'chrom2' in kwargs:
+            opts['C2'] = kwargs['chrom2'] - 1
+        if 'pos2' in kwargs:
+            opts['P2'] = kwargs['pos2'] - 1
+        iterator = TabixAggregator(pairs_path, chromsizes, bins, map=map, **opts)
         create(cool_path, chromsizes, bins, iterator, metadata, assembly)
     finally:
         if nproc > 1:
             pool.close() 
+
 
 @register_subcommand
 @add_arg_help
@@ -194,7 +209,6 @@ def pairix(bins, pairs_path, cool_path, metadata, assembly, nproc):
 
     """
     chromsizes, bins = _parse_bins(bins)
-    chroms, lengths = list(chromsizes.index), list(chromsizes.values)
 
     if metadata is not None:
         with open(metadata, 'r') as f:
@@ -203,7 +217,8 @@ def pairix(bins, pairs_path, cool_path, metadata, assembly, nproc):
     try:
         if nproc > 1:
             pool = Pool(nproc)
-            map = pool.map
+            logger.info("Using {} cores".format(nproc))
+            map = pool.imap
         else:
             map = six.moves.map
         iterator = PairixAggregator(pairs_path, chromsizes, bins, map=map)

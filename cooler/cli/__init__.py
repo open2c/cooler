@@ -1,7 +1,14 @@
 # -*- coding: utf-8 -*-
 from __future__ import division, print_function
+import logging
+import sys
+
 import click
-from .. import __version__
+from .. import __version__, get_logger
+
+logging.basicConfig(stream=sys.stderr)
+logger = get_logger()
+logger.setLevel(logging.INFO)
 
 
 # Monkey patch
@@ -15,8 +22,13 @@ CONTEXT_SETTINGS = {
 
 @click.version_option(version=__version__)
 @click.group(context_settings=CONTEXT_SETTINGS)
-def cli():
-    pass
+@click.option(
+    '--debug/--no-debug', 
+    help="Verbose logging", 
+    default=False)
+def cli(debug):
+    if debug:
+        logger.setLevel(logging.DEBUG)
 
 
 from . import (
@@ -25,8 +37,12 @@ from . import (
     csort,
     cload,
     load,
-    balance,
-    dump,
-    show,
+    merge,
+    copy,
+    list_,
     info,
+    dump,
+    balance,
+    aggregate,
+    show,
 )

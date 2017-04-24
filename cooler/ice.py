@@ -2,6 +2,7 @@
 from __future__ import division, print_function
 from multiprocess import Pool, Lock
 from functools import partial
+from operator import add
 import warnings
 import six
 
@@ -18,44 +19,39 @@ from .util import mad
 logger = get_logger()
 
 
-def _init_transform(chunk):
-    return chunk, np.copy(chunk['pixels']['count'])
+def _init(chunk):
+    return np.copy(chunk['pixels']['count'])
 
 
-def _binarize_mask(args):
-    chunk, data = args
+def _binarize(chunk, data):
     data[data != 0] = 1
-    return chunk, data
+    return data
 
 
-def _dropdiag_mask(n_diags, args):
-    chunk, data = args
+def _zero_diags(n_diags, chunk, data):
     pixels = chunk['pixels']
     mask = np.abs(pixels['bin1_id'] - pixels['bin2_id']) < n_diags
     data[mask] = 0
-    return chunk, data
+    return data
 
 
-def _cisonly_mask(args):
-    chunk, data = args
+def _zero_trans(chunk, data):
     chrom_ids = chunk['bins']['chrom']
     pixels = chunk['pixels']
     mask = chrom_ids[pixels['bin1_id']] != chrom_ids[pixels['bin2_id']]
     data[mask] = 0
-    return chunk, data
+    return data
 
 
-def _timesouterproduct_transform(vec, args):
-    chunk, data = args
+def _timesouterproduct(vec, chunk, data):
     pixels = chunk['pixels']
     data = (vec[pixels['bin1_id']]
                 * vec[pixels['bin2_id']]
                 * data)
-    return chunk, data
+    return data
 
 
-def _marginalize_transform(args):
-    chunk, data = args
+def _marginalize(chunk, data):
     n = len(chunk['bins']['chrom'])
     pixels = chunk['pixels']
     marg = (
@@ -65,18 +61,19 @@ def _marginalize_transform(args):
     return marg
 
 
-def _balance_genomewide(bias, c, spans, filters, chunksize, map, tol, max_iters,
+def _balance_genomewide(bias, clr, spans, filters, chunksize, map, tol, max_iters,
                         rescale_marginals, use_lock):
     scale = 1.0
+    n_bins = len(bias)
     for _ in range(max_iters):
-        marg = np.sum(
-            split(c, spans=spans, map=map, use_lock=use_lock)
-                .pipe(_init_transform)
+        marg = (
+            split(clr, spans=spans, map=map, use_lock=use_lock)
+                .prepare(_init)
                 .pipe(filters)
-                .pipe(_timesouterproduct_transform, bias)
-                .pipe(_marginalize_transform)
-                .combine(),
-            axis=0)
+                .pipe(_timesouterproduct, bias)
+                .pipe(_marginalize)
+                .reduce(add, np.zeros(n_bins))
+        )
         
         nzmarg = marg[marg != 0]
         if not len(nzmarg):
@@ -103,13 +100,14 @@ def _balance_genomewide(bias, c, spans, filters, chunksize, map, tol, max_iters,
     return bias, scale
 
 
-def _balance_cisonly(bias, c, spans, filters, chunksize, map, tol, max_iters,
+def _balance_cisonly(bias, clr, spans, filters, chunksize, map, tol, max_iters,
                      rescale_marginals, use_lock):
-    chroms = c.chroms()['name'][:]
-    chrom_ids = np.arange(len(c.chroms()))
-    chrom_offsets = c._load_dset('/indexes/chrom_offset')
-    bin1_offsets = c._load_dset('/indexes/bin1_offset')
+    chroms = clr.chroms()['name'][:]
+    chrom_ids = np.arange(len(clr.chroms()))
+    chrom_offsets = clr._load_dset('indexes/chrom_offset')
+    bin1_offsets = clr._load_dset('indexes/bin1_offset')
     scales = np.ones(len(chrom_ids))
+    n_bins = len(bias)
     
     for cid, lo, hi in zip(chrom_ids, chrom_offsets[:-1], chrom_offsets[1:]):
         logger.info(chroms[cid])
@@ -118,14 +116,14 @@ def _balance_cisonly(bias, c, spans, filters, chunksize, map, tol, max_iters,
         spans = list(partition(plo, phi, chunksize))
         scale = 1.0
         for _ in range(max_iters):
-            marg = np.sum(
-                split(c, spans=spans, map=map, use_lock=use_lock)
-                    .pipe(_init_transform)
+            marg = (
+                split(clr, spans=spans, map=map, use_lock=use_lock)
+                    .prepare(_init)
                     .pipe(filters)
-                    .pipe(_timesouterproduct_transform, bias)
-                    .pipe(_marginalize_transform)
-                    .combine(),
-                axis=0)
+                    .pipe(_timesouterproduct, bias)
+                    .pipe(_marginalize)
+                    .reduce(add, np.zeros(n_bins))
+            )
 
             marg = marg[lo:hi]
             nzmarg = marg[marg != 0]
@@ -156,11 +154,12 @@ def _balance_cisonly(bias, c, spans, filters, chunksize, map, tol, max_iters,
     return bias, scales
 
 
-def iterative_correction(h5, cooler_root='/', chunksize=None, map=map, tol=1e-5,
+def iterative_correction(clr, chunksize=None, map=map, tol=1e-5,
                          min_nnz=0, min_count=0, mad_max=0,
                          cis_only=False, ignore_diags=False,
                          max_iters=200, rescale_marginals=True,
-                         use_lock=True):
+                         use_lock=False, blacklist=None, x0=None,
+                         store=False, store_name='weight'):
     """
     Iterative correction or matrix balancing of a sparse Hi-C contact map in
     Cooler HDF5 format.
@@ -190,7 +189,7 @@ def iterative_correction(h5, cooler_root='/', chunksize=None, map=map, tol=1e-5,
         this value.
     mad_max : int, optional
         Pre-processing bin-level filter. Drop bins whose log marginal sum is
-        less than ``mad_max`` mean absolute deviations below the median log
+        less than ``mad_max`` median absolute deviations below the median log
         marginal sum.
     cis_only: bool, optional
         Do iterative correction on intra-chromosomal data only.
@@ -216,11 +215,8 @@ def iterative_correction(h5, cooler_root='/', chunksize=None, map=map, tol=1e-5,
         magnitude of the corrected matrix's marginal sum at convergence.
 
     """
-    filepath = h5.file.filename
-    c = Cooler(filepath)
-
     # Divide the number of elements into non-overlapping chunks
-    nnz = h5[cooler_root].attrs['nnz']
+    nnz = clr.info['nnz']
     if chunksize is None:
         chunksize = nnz
         spans = [(0, nnz)]
@@ -231,34 +227,38 @@ def iterative_correction(h5, cooler_root='/', chunksize=None, map=map, tol=1e-5,
     # List of pre-marginalization data transformations
     base_filters = []
     if cis_only:
-        base_filters.append(_cisonly_mask)
+        base_filters.append(_zero_trans)
     if ignore_diags:
-        base_filters.append(partial(_dropdiag_mask, ignore_diags))
+        base_filters.append(partial(_zero_diags, ignore_diags))
 
     # Initialize the bias weights
-    n_bins = h5[cooler_root].attrs['nbins']
-    bias = np.ones(n_bins, dtype=float)
+    n_bins = clr.info['nbins']
+    if x0 is not None:
+        bias = x0
+        bias[np.isnan(bias)] = 0
+    else:
+        bias = np.ones(n_bins, dtype=float)
 
     # Drop bins with too few nonzeros from bias
     if min_nnz > 0:
-        filters = [_binarize_mask] + base_filters
-        marg_nnz = np.sum(
-            split(c, spans=spans, map=map, use_lock=use_lock)
-                .pipe(_init_transform)
+        filters = [_binarize] + base_filters
+        marg_nnz = (
+            split(clr, spans=spans, map=map, use_lock=use_lock)
+                .prepare(_init)
                 .pipe(filters)
-                .pipe(_marginalize_transform)
-                .combine(),
-            axis=0)
+                .pipe(_marginalize)
+                .reduce(add, np.zeros(n_bins))
+        )
         bias[marg_nnz < min_nnz] = 0
 
     filters = base_filters
-    marg = np.sum(
-        split(c, spans=spans, map=map, use_lock=use_lock)
-            .pipe(_init_transform)
+    marg = (
+        split(clr, spans=spans, map=map, use_lock=use_lock)
+            .prepare(_init)
             .pipe(filters)
-            .pipe(_marginalize_transform)
-            .combine(),
-        axis=0)
+            .pipe(_marginalize)
+            .reduce(add, np.zeros(n_bins))
+    )
 
     # Drop bins with too few total counts from bias
     if min_count:
@@ -266,24 +266,28 @@ def iterative_correction(h5, cooler_root='/', chunksize=None, map=map, tol=1e-5,
 
     # MAD-max filter on the marginals
     if mad_max > 0:
-        offsets = h5[cooler_root]['indexes']['chrom_offset'][:]
+        offsets = clr._load_dset('indexes/chrom_offset')
         for lo, hi in zip(offsets[:-1], offsets[1:]):
             c_marg = marg[lo:hi]
             marg[lo:hi] /= np.median(c_marg[c_marg > 0])
         logNzMarg = np.log(marg[marg>0])
-        logMedMarg = np.median(logNzMarg)
-        madSigma = mad(logNzMarg) / 0.6745
-        cutoff = np.exp(logMedMarg - mad_max * madSigma)
+        med_logNzMarg = np.median(logNzMarg)
+        dev_logNzMarg = mad(logNzMarg)
+        cutoff = np.exp(med_logNzMarg - mad_max * dev_logNzMarg)
         bias[marg < cutoff] = 0
+
+    # Filter out pre-determined bad bins
+    if blacklist is not None:
+        bias[blacklist] = 0
 
     # Do balancing
     if cis_only:
         bias, scale = _balance_cisonly(
-            bias, c, spans, base_filters, chunksize, map, tol, max_iters,
+            bias, clr, spans, base_filters, chunksize, map, tol, max_iters,
             rescale_marginals, use_lock)
     else:
         bias, scale = _balance_genomewide(
-            bias, c, spans, base_filters, chunksize, map, tol, max_iters,
+            bias, clr, spans, base_filters, chunksize, map, tol, max_iters,
             rescale_marginals, use_lock)
 
     stats = {
@@ -295,5 +299,13 @@ def iterative_correction(h5, cooler_root='/', chunksize=None, map=map, tol=1e-5,
         'ignore_diags': ignore_diags,
         'scale': scale,
     }
+
+    if store:
+        with clr.open('r+') as grp:
+            if store_name in grp['bins']:
+                del grp['bins'][store_name]
+            h5opts = dict(compression='gzip', compression_opts=6)
+            grp['bins'].create_dataset(store_name, data=bias, **h5opts)
+            grp['bins'][store_name].attrs.update(stats)
 
     return bias, stats

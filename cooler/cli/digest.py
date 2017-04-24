@@ -24,7 +24,7 @@ from .. import util
     help="Output file (defaults to stdout)")
 def digest(chromsizes, fasta, enzyme, out):
     """
-    Make fragment-delimited genomic bins.
+    Generate fragment-delimited genomic bins.
     Output a genome segmentation of restriction fragments as a BED file.
 
     CHROMSIZES_PATH : UCSC-like chromsizes file, with chromosomes in desired

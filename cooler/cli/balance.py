@@ -1,25 +1,24 @@
 # -*- coding: utf-8 -*-
 from __future__ import division, print_function
 from multiprocess import Pool
-import logging
 import sys
 
 import numpy as np
+import pandas as pd
 import h5py
 
 import click
-from . import cli
+from . import cli, logger
 from .. import ice
-
-
-logging.basicConfig(stream=sys.stderr)
-ice.logger.setLevel(logging.INFO)
+from ..io import parse_cooler_uri
+from ..api import Cooler
+from ..util import bedslice
 
 
 @cli.command()
 @click.argument(
-    "cool_path",
-    type=click.Path(exists=True))
+    "cool_uri",
+    type=str) #click.Path(exists=True))
 @click.option(
     "--nproc", "-p",
     help="Number of processes to split the work between.",
@@ -39,7 +38,7 @@ ice.logger.setLevel(logging.INFO)
          "deviations below the median log marginal sum of all the bins in the "
          "same chromosome.",
     type=int,
-    default=3,
+    default=5,
     show_default=True)
 @click.option(
     "--min-nnz",
@@ -55,6 +54,12 @@ ice.logger.setLevel(logging.INFO)
     type=int,
     default=0,
     show_default=True)
+@click.option(
+    "--blacklist",
+    help="Path to a 3-column BED file containing genomic regions to mask "
+         "out during the balancing procedure, e.g. sequence gaps or regions "
+         "of poor mappability.",
+    type=click.Path(exists=True))
 @click.option(
     "--ignore-diags",
     help="Number of diagonals of the contact matrix to ignore, including the "
@@ -83,6 +88,12 @@ ice.logger.setLevel(logging.INFO)
     is_flag=True,
     default=False)
 @click.option(
+    "--name",
+    help="Name of column to write to.",
+    type=str,
+    default='weight',
+    show_default=True)
+@click.option(
     "--force", "-f",
     help="Overwrite the target dataset, 'weight', if it already exists.",
     is_flag=True,
@@ -97,8 +108,8 @@ ice.logger.setLevel(logging.INFO)
     help="Print weight column to stdout instead of saving to file.",
     is_flag=True,
     default=False)
-def balance(cool_path, nproc, chunksize, mad_max, min_nnz, min_count,
-            ignore_diags, tol, cis_only, max_iters, force, check, stdout):
+def balance(cool_uri, nproc, chunksize, mad_max, min_nnz, min_count, blacklist,
+            ignore_diags, tol, cis_only, max_iters, name, force, check, stdout):
     """
     Out-of-core contact matrix balancing.
 
@@ -108,52 +119,82 @@ def balance(cool_path, nproc, chunksize, mad_max, min_nnz, min_count,
     COOL_PATH : Path to a COOL file.
 
     """
+    cool_path, group_path = parse_cooler_uri(cool_uri)
+
     if check:
         with h5py.File(cool_path, 'r') as h5:
-            if 'weight' not in h5['bins']:
-                click.echo("{}: No 'weight' column found.".format(cool_path))
+            grp = h5[group_path]
+            if name not in grp['bins']:
+                click.echo("{}: No '{}' column found.".format(cool_path, name))
                 sys.exit(1)
             else:
-                click.echo("{} is balanced.".format(cool_path))
+                click.echo("{}::{} is balanced.".format(cool_path, group_path))
                 sys.exit(0)
 
     with h5py.File(cool_path, 'r+') as h5:
-        if 'weight' in h5['bins'] and not stdout:
+        grp = h5[group_path]
+        if name in grp['bins'] and not stdout:
             if not force:
-                print("'weight' column already exists. "
+                print("'{}' column already exists. ".format(name) +
                       "Use --force option to overwrite.", file=sys.stderr)
                 sys.exit(1)
             else:
-                del h5['bins']['weight']
+                del grp['bins'][name]
+
+    clr = Cooler(cool_uri)
+
+    if blacklist is not None:
+        import csv
+        with open(blacklist, 'rt') as f:
+            bad_regions = pd.read_csv(
+                blacklist, 
+                sep='\t', 
+                header=0 if csv.Sniffer().has_header(f.read(1024)) else None,
+                usecols=[0, 1, 2], 
+                names=['chrom', 'start', 'end'])
+        bins_grouped = clr.bins()[:].groupby('chrom')
+        chromsizes = clr.chromsizes
+        
+        bad_bins = []
+        for _, reg in bad_regions.iterrows():
+            result = bedslice(bins_grouped, chromsizes, 
+                              (reg.chrom, reg.start, reg.end))
+            bad_bins.append(result.index.values)
+        bad_bins = np.concatenate(bad_bins)
+    else:
+        bad_bins = None
 
     try:
         pool = Pool(nproc)
-        with h5py.File(cool_path, 'a') as h5:
-
-            ice.logger.info('Balancing "{}"'.format(cool_path))
-
-            bias, stats = ice.iterative_correction(
-                h5,
-                chunksize=chunksize,
-                cis_only=cis_only,
-                tol=tol,
-                min_nnz=min_nnz,
-                min_count=min_count,
-                mad_max=mad_max,
-                max_iters=max_iters,
-                ignore_diags=ignore_diags,
-                rescale_marginals=True,
-                use_lock=False,
-                map=pool.map)
-
-            if stdout:
-                np.savetxt(getattr(sys.stdout, 'buffer', sys.stdout), 
-                           bias, fmt='%g')
-            else:
-                # add the bias column to the file
-                h5opts = dict(compression='gzip', compression_opts=6)
-                h5['bins'].create_dataset('weight', data=bias, **h5opts)
-                h5['bins']['weight'].attrs.update(stats)
-
+        bias, stats = ice.iterative_correction(
+            clr,
+            chunksize=chunksize,
+            cis_only=cis_only,
+            tol=tol,
+            min_nnz=min_nnz,
+            min_count=min_count,
+            blacklist=bad_bins,
+            mad_max=mad_max,
+            max_iters=max_iters,
+            ignore_diags=ignore_diags,
+            rescale_marginals=True,
+            use_lock=False,
+            map=pool.imap_unordered)
     finally:
         pool.close()
+
+    if stdout:
+        pd.Series(bias).to_string(
+            sys.stdout,
+            header=False,
+            index=False,
+            na_rep='',
+            float_format='%g')
+    else:
+        with h5py.File(cool_path, 'r+') as h5:
+            grp = h5[group_path]
+            # add the bias column to the file
+            h5opts = dict(compression='gzip', compression_opts=6)
+            grp['bins'].create_dataset(name, data=bias, **h5opts)
+            grp['bins'][name].attrs.update(stats)
+

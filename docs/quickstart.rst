@@ -77,7 +77,7 @@ See the :ref:`api-reference` for more information.
 The ``cooler`` library provides a thin wrapper over the excellent NumPy-aware `h5py <http://docs.h5py.org/en/latest/>`_ Python interface to HDF5. It supports creation of cooler files and the following types of **range queries** on the data:
 
 - Tabular selections are retrieved as Pandas DataFrames and Series.
-- Matrix  selections are retrieved as SciPy sparse matrices.
+- Matrix  selections are retrieved as NumPy arrays, DataFrames, or SciPy sparse matrices.
 - Metadata is retrieved as a json-serializable Python dictionary.
 - Range queries can be supplied using either integer bin indexes or genomic coordinate intervals.
 

@@ -10,6 +10,7 @@ import os
 import numpy as np
 import h5py
 
+import logging
 import nose
 from nose.tools import with_setup, set_trace
 from click.testing import CliRunner
@@ -42,8 +43,9 @@ def test_csort():
     runner = CliRunner()
     result = runner.invoke(
         csort, [
-            op.join(testdir, 'data', 'hg19-chromsizes.select.txt'),
             op.join(testdir, 'data', 'GM12878-MboI-contacts.subsample.shuffled.txt.gz'),
+            op.join(testdir, 'data', 'hg19-chromsizes.select.txt'),
+            '-i', 'tabix',
             '-c1', '1', '-p1', '2', '-s1', '3', '-c2', '4', '-p2', '5', '-s2', '6',
             '--out', testcsort_path,
         ]
@@ -77,4 +79,18 @@ def test_cload_tabix():
         assert np.all(f1['pixels/bin2_id'][:] == f2['pixels/bin2_id'][:])
         assert np.all(f1['pixels/count'][:] == f2['pixels/count'][:])
 
+    # test loading a file with long chromosome names which should raise
+    # an error
+    result = runner.invoke(
+        cload_tabix, [
+            op.join(testdir, 'data', 'UBR4_chromsize_bins.1nt.bed'),
+            op.join(testdir, 'data', 'dec2_20_pluslig_1pGene_grch38_UBR4_D_1nt.pairwise.sorted.txt.gz'),
+            testcool_path
+        ]
+    )
+
+    # the cload command should raise a ValueError because the chromosome names are too
+    # long (greater than 32 characters)
+    # UPDATE: no longer a limit
+    assert result.exit_code == 0
 

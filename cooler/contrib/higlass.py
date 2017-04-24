@@ -11,57 +11,6 @@ logger = logging.getLogger(__name__)
 TILE_SIZE = 256
 
 
-def annotate(pixels, bins, replace=True):
-    ncols = len(pixels.columns)
-
-    if 'bin1_id' in pixels:
-        if len(bins) > len(pixels):
-            bin1 = pixels['bin1_id']
-            lo = bin1.min()
-            hi = bin1.max() + 1
-            lo = 0 if np.isnan(lo) else lo
-            hi = 0 if np.isnan(hi) else hi
-            right = bins[lo:hi]
-        else:
-            right = bins[:]
-        right['chrom'] = right['chrom'].cat.codes
-
-        pixels = pixels.merge(
-            right,
-            how='left',
-            left_on='bin1_id',
-            right_index=True)
-
-    if 'bin2_id' in pixels:
-        if len(bins) > len(pixels):
-            bin2 = pixels['bin2_id']
-            lo = bin2.min()
-            hi = bin2.max() + 1
-            lo = 0 if np.isnan(lo) else lo
-            hi = 0 if np.isnan(hi) else hi
-            right = bins[lo:hi]
-        else:
-            right = bins[:]
-        right['chrom'] = right['chrom'].cat.codes
-
-        pixels = pixels.merge(
-            right,
-            how='left',
-            left_on='bin2_id',
-            right_index=True,
-            suffixes=('1', '2'))
-
-    # rearrange columns
-    pixels = pixels[list(pixels.columns[ncols:]) + list(pixels.columns[:ncols])]
-
-    # drop bin IDs
-    if replace:
-        cols_to_drop = [col for col in ('bin1_id', 'bin2_id') if col in pixels]
-        pixels = pixels.drop(cols_to_drop, axis=1)
-
-    return pixels
-
-
 def abs_coord_2_bin(c, abs_pos, chroms, chrom_cum_lengths, chrom_sizes):
     """Get bin ID from absolute coordinates.
  
@@ -82,7 +31,8 @@ def abs_coord_2_bin(c, abs_pos, chroms, chrom_cum_lengths, chrom_sizes):
     rel_pos = abs_pos - chrom_cum_lengths[chr_id]
  
     return c.offset((chrom, rel_pos, chrom_sizes[chrom]))
- 
+
+
 def get_chromosome_names_cumul_lengths(c):
     '''
     Get the chromosome names and cumulative lengths:
@@ -95,18 +45,10 @@ def get_chromosome_names_cumul_lengths(c):
  
     (names, sizes, lengths) -> (list(string), dict, np.array(int))
     '''
-    chrom_sizes = {}
-    chrom_cum_lengths = [0]
-    chroms = []
- 
-    for chrom in c.chroms():
-        (name, length) = chrom.as_matrix()[0]
- 
-        chroms += [name]
-        chrom_cum_lengths += [chrom_cum_lengths[-1] + length]
-        chrom_sizes[name] = length
- 
-    return (chroms, chrom_sizes, np.array(chrom_cum_lengths))
+    chrom_names = c.chromnames
+    chrom_sizes = dict(c.chromsizes)
+    chrom_cum_lengths = np.r_[0, np.cumsum(c.chromsizes.values)]
+    return chrom_names, chrom_sizes, chrom_cum_lengths
  
  
 def get_data(f, zoom_level, start_pos_1, end_pos_1, start_pos_2, end_pos_2):
@@ -144,6 +86,7 @@ def get_data(f, zoom_level, start_pos_1, end_pos_1, start_pos_2, end_pos_2):
         bins = c.bins()[['chrom', 'start', 'end']]
 
     pixels = annotate(pixels, bins)
+
 
     pixels['genome_start1'] = chrom_cum_lengths[pixels['chrom1']] + pixels['start1']
     pixels['genome_start2'] = chrom_cum_lengths[pixels['chrom2']] + pixels['start2']

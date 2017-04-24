@@ -9,18 +9,22 @@ This module defines and implements the Cooler schema.
 from __future__ import division, print_function
 from datetime import datetime
 import json
+import six
 
 import numpy as np
 import pandas
 import h5py
 
-from . import __version__, __format_version__
+from . import __version__, __format_version__, get_logger
 from .util import rlencode
+
+
+logger = get_logger()
 
 
 MAGIC = "HDF5::Cooler"
 URL = "https://github.com/mirnylab/cooler"
-CHROM_DTYPE = np.dtype('S32')
+CHROM_DTYPE = np.dtype('S')
 CHROMID_DTYPE = np.int32
 CHROMSIZE_DTYPE = np.int32
 COORD_DTYPE = np.int32
@@ -47,10 +51,10 @@ def write_chroms(grp, chroms, lengths, h5opts):
 
     """
     n_chroms = len(chroms)
-    names = np.array(chroms, dtype=CHROM_DTYPE)
+    names = np.array(chroms, dtype=CHROM_DTYPE)  # determines char length
     grp.create_dataset('name',
                        shape=(n_chroms,),
-                       dtype=CHROM_DTYPE,
+                       dtype=names.dtype,
                        data=names,
                        **h5opts)
     grp.create_dataset('length',
@@ -135,9 +139,8 @@ def write_pixels(filepath, grouppath, n_bins, iterator, h5opts, lock=None):
         Optional lock to synchronize concurrent HDF5 file access.
 
     """
-    n_pairs = iterator.size()
-    init_size = min(5 * n_bins, n_pairs)
-    max_size = min(n_pairs, n_bins * (n_bins - 1) // 2 + n_bins)
+    max_size = n_bins * (n_bins - 1) // 2 + n_bins
+    init_size = min(5 * n_bins, max_size)
 
     # Preallocate
     with h5py.File(filepath, 'r+') as f:
@@ -161,12 +164,17 @@ def write_pixels(filepath, grouppath, n_bins, iterator, h5opts, lock=None):
     # Store the pixels
     nnz = 0
     ncontacts = 0
-    for chunk in iterator:
+    for i, chunk in enumerate(iterator):
+        #chunk_dict = {k: v.values for k, v in six.iteritems(chunk)}
+        
         try:
             if lock is not None:
                 lock.acquire()
-            with h5py.File(filepath, 'r+') as f:
-                grp = f[grouppath]
+
+            logger.debug("writing chunk {}".format(i), flush=True)
+            
+            with h5py.File(filepath, 'r+') as fw:
+                grp = fw[grouppath]
                 bin1 = grp['bin1_id']
                 bin2 = grp['bin2_id']
                 count = grp['count']
@@ -174,14 +182,21 @@ def write_pixels(filepath, grouppath, n_bins, iterator, h5opts, lock=None):
                 n = len(chunk['bin1_id'])
                 for dset in [bin1, bin2, count]:
                     dset.resize((nnz + n,))
+
+                # store the bins that each pixel belongs to
+                # i.e. the coordinates for each "count"
                 bin1[nnz:nnz+n] = chunk['bin1_id']
                 bin2[nnz:nnz+n] = chunk['bin2_id']
                 count[nnz:nnz+n] = chunk['count']
+
                 nnz += n
                 ncontacts += chunk['count'].sum()
+                fw.flush()
+
         finally:
             if lock is not None:
                 lock.release()
+
 
     # Index the first axis (matrix row) offsets
     with h5py.File(filepath, 'r') as f:

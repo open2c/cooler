@@ -21,8 +21,11 @@ def test_balancing():
     fp = os.path.join(testdir, 'data', 'GM12878-MboI-matrix.2000kb.cool')
     tol = 1e-2
 
-    with h5py.File(fp, 'r') as h5:
-        weights, stats = cooler.ice.iterative_correction(h5, ignore_diags=1, min_nnz=10, tol=tol)
+    weights, stats = cooler.ice.iterative_correction(
+        cooler.Cooler(fp), 
+        ignore_diags=1, 
+        min_nnz=10, 
+        tol=tol)
 
     # Extract matrix and apply weights
     mat = cooler.Cooler(fp).matrix(balance=False, sparse=True)[:, :]
@@ -55,7 +58,11 @@ def test_balancing_cisonly():
     with h5py.File(fp, 'r') as h5:
         chrom_offsets = h5['indexes/chrom_offset'][:]
         weights, stats = cooler.ice.iterative_correction(
-            h5, ignore_diags=1, min_nnz=10, tol=tol, cis_only=True)
+            cooler.Cooler(h5), 
+            ignore_diags=1, 
+            min_nnz=10, 
+            tol=tol, 
+            cis_only=True)
 
     # Extract matrix and apply weights
     mat = cooler.Cooler(fp).matrix(balance=False, sparse=True)[:, :]

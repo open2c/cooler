@@ -13,7 +13,7 @@ from .. import api
 
 @cli.command()
 @click.argument(
-    "cool_path",
+    "cool_uri",
     metavar="COOL_PATH")
 @click.option(
     "--table", "-t",
@@ -48,7 +48,7 @@ from .. import api
     help="The coordinates of a genomic region shown along the column dimension. "
          "If omitted, the column range is the same as the row range.")
 @click.option(
-    "--balanced", "-b",
+    "--balanced/--no-balance", "-b",
     help="Apply balancing weights to data. This will print an extra column "
          "called `balanced`",
     is_flag=True,
@@ -72,16 +72,16 @@ from .. import api
     "--out", "-o",
     help="Output text file If .gz extension is detected, file is written "
          "using zlib. Default behavior is to stream to stdout.")
-def dump(cool_path, table, chunksize, range, range2, join,
+def dump(cool_uri, table, chunksize, range, range2, join,
          annotate, balanced, header, out):
     """
     Dump a contact matrix.
     Print the contents of a COOL file to tab-delimited text.
 
-    COOL_PATH : Path to COOL file containing a contact matrix.
+    COOL_PATH : Path to COOL file or Cooler URI.
 
     """
-    c = api.Cooler(cool_path)
+    c = api.Cooler(cool_uri)
 
     # output stream
     if out is None or out == '-':
@@ -101,18 +101,19 @@ def dump(cool_path, table, chunksize, range, range2, join,
         n = c.info['nbins']
         chunksize = n
     else:
-        if range:
-            selector = c.matrix(as_pixels=True).fetch(range, range2)
-            n = len(selector)
-        else:
-            selector = c.pixels()
-            n = c.info['nnz']
-
         # load all the bins
         bins = c.bins()[:]
         if balanced and 'weight' not in bins.columns:
             print('Balancing weights not found', file=sys.stderr)
             sys.exit(1)
+
+        if range:
+            selector = (c.matrix(as_pixels=True, balance=balanced)
+                         .fetch(range, range2))
+            n = len(selector)
+        else:
+            selector = c.pixels()
+            n = c.info['nnz']
 
         if chunksize is None:
             chunksize = len(bins)

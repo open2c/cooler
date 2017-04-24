@@ -237,8 +237,17 @@ def binnify(chromsizes, binsize):
                 'start': binedges[:-1],
                 'end': binedges[1:],
             }, columns=['chrom', 'start', 'end'])
-    bintable = pandas.concat(map(_each, chromsizes.keys()),
-                             axis=0, ignore_index=True)
+    
+    bintable = pandas.concat(
+        map(_each, chromsizes.keys()),
+        axis=0, 
+        ignore_index=True)
+    
+    bintable['chrom'] = pandas.Categorical(
+        bintable['chrom'], 
+        categories=list(chromsizes.index), 
+        ordered=True)
+
     return bintable
 
 make_bintable = binnify
@@ -303,6 +312,39 @@ def get_binsize(bins):
         return next(iter(sizes))
     else:
         return None
+
+
+def get_chromsizes(bins):
+    """
+    Infer chromsizes Series from a bin DataFrame. Assumes that the last bin of 
+    each contig is allowed to differ in size from the rest.
+
+    Returns
+    -------
+    int or None if bins are non-uniform
+
+    """
+    chromtable = (
+        bins.drop_duplicates(['chrom'], keep='last')[['chrom', 'end']]
+            .reset_index(drop=True)
+            .rename(columns={'chrom': 'name', 'end': 'length'})
+    )
+    chroms, lengths = list(chromtable['name']), list(chromtable['length'])
+    return pandas.Series(index=chroms, data=lengths)
+
+
+def bedslice(grouped, chromsizes, region):
+    """
+    Range query on a BED-like dataframe with non-overlapping intervals.
+
+    """
+    chrom, start, end = parse_region(region, chromsizes)
+    result = grouped.get_group(chrom)
+    if start > 0 or end < chromsizes[chrom]:
+        lo = result['end'].values.searchsorted(start, side='right')
+        hi = lo + result['start'].values[lo:].searchsorted(end, side='left')
+        result = result.iloc[lo:hi]
+    return result
 
 
 def lexbisect(arrays, values, side='left', lo=0, hi=None):
@@ -465,3 +507,30 @@ def open_hdf5(fp, mode='r', *args, **kwargs):
     finally:
         if own_fh:
             fh.close()
+
+
+class closing_hdf5(h5py.Group):
+    def __init__(self, grp):
+        super(closing_hdf5, self).__init__(grp.id)
+    def __enter__(self):
+        return self
+    def __exit__(self, *exc_info):
+        return self.file.close()
+
+
+def attrs_to_jsonable(attrs):
+    out = dict(attrs)
+    for k, v in attrs.items():
+        try:
+            out[k] = np.asscalar(v)
+        except ValueError:
+            out[k] = v.tolist()
+        except AttributeError:
+            out[k] = v
+    return out
+
+
+def unstar(func):
+    def unstarred(args):
+        return func(*args)
+    return unstarred

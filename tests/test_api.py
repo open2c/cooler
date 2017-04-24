@@ -60,6 +60,7 @@ mock_cooler.attrs = {
     'metadata': '{}',
 }
 
+mock_cooler.file = mock_cooler
 mock_cooler.file.mode = 'r'
 mock_cooler.file.filename = 'mock.cool'
 mock_cooler.name = '/'
