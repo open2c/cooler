@@ -23,7 +23,7 @@ if sys.version_info[0] == 3 and sys.version_info[1] == 3:
     raise nose.SkipTest
 
 
-testdir = op.realpath(op.join(op.dirname(__file__), op.pardir))
+testdir = op.realpath(op.dirname(__file__))
 tmp = tempfile.gettempdir()
 testcool_path = op.join(tmp, 'test.cool')
 testcsort_path = op.join(tmp, 'test.sorted.txt.gz')

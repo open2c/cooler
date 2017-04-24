@@ -17,14 +17,14 @@ from nose.tools import with_setup, set_trace
 from click.testing import CliRunner
 
 from cooler.cli.cload import cload, tabix as cload_tabix
-from cooler.cli.tile import coarsen, zoomify, multires_aggregate
+from cooler.cli.aggregate import coarsen, zoomify, multires_aggregate
 
 
 if sys.version_info[0] == 3 and sys.version_info[1] == 3:
     raise nose.SkipTest
 
 
-testdir = op.realpath(op.join(op.dirname(__file__), op.pardir))
+testdir = op.realpath(op.dirname(__file__))
 tmp = tempfile.gettempdir()
 
 multires_path = op.join(tmp, 'test.multires.cool')
