@@ -10,7 +10,7 @@ def is_categorical(array_like):
     return array_like.dtype.name == 'category'
 
 
-def get(h5, lo=0, hi=None, fields=None, convert_enum=True):
+def get(h5, lo=0, hi=None, fields=None, convert_enum=True, as_dict=False):
     """
     Query a range of rows from a table as a dataframe.
 
@@ -68,6 +68,9 @@ def get(h5, lo=0, hi=None, fields=None, convert_enum=True):
             data[field] = dset[lo:hi].astype('U')
         else:
             data[field] = dset[lo:hi]
+
+    if as_dict:
+        return data
 
     if data and lo is not None:
         index = np.arange(lo, lo + len(next(iter(data.values()))))
