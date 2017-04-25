@@ -140,6 +140,10 @@ def put(h5, df, lo=0, store_categories=True, h5opts=None):
                 data = data.cat.codes
                 dtype = data.dtype
                 fillvalue = -1
+        elif data.dtype in (object, str, bytes):
+            dtype = np.dtype('S')
+            data = np.array(data, dtype=dtype)
+            fillvalue = None
         else:
             dtype = data.dtype
             fillvalue = None

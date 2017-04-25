@@ -11,42 +11,36 @@ import numpy as np
 import pandas
 import h5py
 
+from .core import get
 
-# Lock prevents race condition if HDF5 file is already open before forking.
-# See discussion: <https://groups.google.com/forum/#!topic/h5py/bJVtWdFtZQM>
-# And <https://github.com/h5py/h5py/issues/591#issuecomment-116785660>.
+"""
+Two possible reasons for using a lock
+
+(1) Prevent a concurrent process from opening an HDF5 file while the same
+file is open for writing. In order for reading processes to obtain the correct
+state, make sure the writing process finishes writing (flushes its buffers and
+actually closes the file) before reading processes attempt to open it.
+This explicit synchronization shouldn't be necessary if using the file in 
+SWMR mode.
+
+See also:
+* <https://support.hdfgroup.org/HDF5/hdf5-quest.html#grdwt>
+* <https://support.hdfgroup.org/projects/SWMR> 
+
+(2) Synchronize file access when opened before a fork(). Fork-based (Unix)
+multiprocessing and concurrent reading are compatible as long as the fork
+happens before the child processes open the file. If an HDF5 file is already
+open before forking, the child processes inherit the same global HDF5 state,
+which leads to a race condition that causes simultaneous access to fail. One can
+either use a lock to prevent the race condition, or close and re-open the file 
+in the workers after the fork.
+
+See also: 
+* <https://groups.google.com/forum/#!topic/h5py/bJVtWdFtZQM> 
+* <https://github.com/h5py/h5py/issues/591#issuecomment-116785660>. 
+
+""" 
 lock = Lock()
-
-
-def get_dict(h5, lo=0, hi=None, fields=None, convert_enum=True):
-    grp = h5
-    series = False
-    if fields is None:
-        fields = list(grp.keys())
-    elif isinstance(fields, six.string_types):
-        fields = [fields]
-        series = True
-
-    data = {}
-    for field in fields:
-        dset = grp[field]
-
-        if convert_enum:
-            dt = h5py.check_dtype(enum=dset.dtype)
-        else:
-            dt = None
-
-        if dt is not None:
-            data[field] = pandas.Categorical.from_codes(
-                dset[lo:hi],
-                sorted(dt, key=dt.__getitem__),
-                ordered=True)
-        elif dset.dtype.type == np.string_:
-            data[field] = dset[lo:hi].astype('U')
-        else:
-            data[field] = dset[lo:hi]
-
-    return data
 
 
 def apply_pipeline(funcs, prepare, get, key):
@@ -153,6 +147,26 @@ class MultiplexDataPipe(object):
         return iter(self.run())
 
     def prepare(self, func):
+        """
+        Prepend a task that initializes the data for transformation.
+
+        This optional step allows one to keep the original data chunk pristine.
+        The callable ``func`` should return an initial object to pass along the 
+        pipeline for transformation. Subsequent callables in the pipeline will 
+        take two arguments instead of one:
+
+        * chunk: original data chunk
+        * data: transformed data passed along the pipeline
+
+        Parameters
+        ----------
+        func : function/callable
+
+        Returns
+        -------
+        A new datapipe with the initializer set.
+
+        """
         self._prepare = func
         return self
 
@@ -242,10 +256,10 @@ class chunkgetter(object):
                 lock.acquire()
             with self.cooler.open('r') as grp:
                 if self.include_chroms:
-                    chunk['chroms'] = get_dict(grp['chroms'])
+                    chunk['chroms'] = get(grp['chroms'], as_dict=True)
                 if self.include_bins:
-                    chunk['bins'] = get_dict(grp['bins'])
-                chunk['pixels'] = get_dict(grp['pixels'], lo, hi)
+                    chunk['bins'] = get(grp['bins'], as_dict=True)
+                chunk['pixels'] = get(grp['pixels'], lo, hi, as_dict=True)
         finally:
             if self.use_lock:
                 lock.release()
