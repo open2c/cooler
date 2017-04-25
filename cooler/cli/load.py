@@ -141,4 +141,4 @@ def load(bins_path, pixels_path, cool_path, format, metadata, assembly, chunksiz
         binner = SparseLoader(pixels_path, chunksize)
 
     # Feed to create
-    create(cool_path, chromsizes, bins, binner, metadata, assembly)
+    create(cool_path, bins, binner, metadata, assembly)

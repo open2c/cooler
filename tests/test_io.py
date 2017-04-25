@@ -79,7 +79,7 @@ def should_not_depend_on_chunksize(bintable):
     # try different chunk sizes
     reader = cooler.io.HDF5Aggregator(
         mock_reads, chromsizes, bintable, chunksize=66)
-    cooler.io.create(testfile_path, chromsizes, bintable, reader)
+    cooler.io.create(testfile_path, bintable, reader)
     with h5py.File(testfile_path, 'r') as h5:
         oc1 = h5['indexes']['chrom_offset'][:]
         ob1 = h5['indexes']['bin1_offset'][:]
@@ -87,7 +87,7 @@ def should_not_depend_on_chunksize(bintable):
 
     reader = cooler.io.HDF5Aggregator(
         mock_reads, chromsizes, bintable, chunksize=666)
-    cooler.io.create(testfile_path, chromsizes, bintable, reader)
+    cooler.io.create(testfile_path, bintable, reader)
     with h5py.File(testfile_path, 'r') as h5:
         oc2 = h5['indexes']['chrom_offset'][:]
         ob2 = h5['indexes']['bin1_offset'][:]
@@ -131,7 +131,7 @@ def should_work_with_int32_cols(bintable):
     # int64
     reader = cooler.io.HDF5Aggregator(
         mock_reads, chromsizes, bintable, chunksize=66)
-    cooler.io.create(testfile_path, chromsizes, bintable, reader)
+    cooler.io.create(testfile_path, bintable, reader)
     with h5py.File(testfile_path, 'r') as h5:
         oc1 = h5['indexes']['chrom_offset'][:]
         ob1 = h5['indexes']['bin1_offset'][:]
@@ -146,7 +146,7 @@ def should_work_with_int32_cols(bintable):
     })
     reader = cooler.io.HDF5Aggregator(
         mock_reads32, chromsizes, bintable, chunksize=66)
-    cooler.io.create(testfile_path, chromsizes, bintable, reader)
+    cooler.io.create(testfile_path, bintable, reader)
     with h5py.File(testfile_path, 'r') as h5:
         oc2 = h5['indexes']['chrom_offset'][:]
         ob2 = h5['indexes']['bin1_offset'][:]

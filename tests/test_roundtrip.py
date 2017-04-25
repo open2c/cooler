@@ -33,7 +33,7 @@ def test_roundtrip():
 
     heatmap = np.load(os.path.join(testdir, 'data', 'IMR90-MboI-matrix.2000kb.npy'))
     reader = cooler.io.ArrayLoader(bintable, heatmap, 100000)
-    cooler.io.create(testfile_path, chromsizes, bintable, reader, assembly='hg19')
+    cooler.io.create(testfile_path, bintable, reader, assembly='hg19')
 
     h5 = h5py.File(testfile_path, 'r')
     new_chromtable = cooler.chroms(h5)

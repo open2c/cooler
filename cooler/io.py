@@ -5,9 +5,12 @@ import warnings
 import six
 
 import numpy as np
+import pandas
 import h5py
+import dask.dataframe
 
-from .util import get_binsize
+from .core import put
+from .util import get_binsize, get_chromsizes
 from . import get_logger
 
 
@@ -89,25 +92,26 @@ def is_cooler(filepath, group=None):
     return group in ls(filepath)
 
 
-def create(cool_uri, chromsizes, bins, iterator, metadata=None, assembly=None,
-           h5opts=None, append=False, lock=None):
+def create(cool_uri, bins, pixels, columns=None, dtypes=None, 
+           metadata=None, assembly=None, h5opts=None, append=False, lock=None):
     """
     Create a new Cooler file.
 
     Parameters
     ----------
-    filepath : str
-        Name of output HDF5 file. If the file does not exist, it will be 
-        created.
-    chromsizes : OrderedDict, pandas.Series or sequence of pairs
-        Names of chromosomes or contigs ordered as they will appear in the
-        contact matrix mapped to their lengths in base pairs.
+    cool_uri : str
+        Path to Cooler file or URI to Cooler group. If the file does not exist, 
+        it will be created.
     bins : pandas.DataFrame
         Segmentation of the chromosomes into genomic bins as a BED-like
         DataFrame with columns ``chrom``, ``start`` and ``end``.
-    iterator : cooler.io.ContactReader
+    pixels : cooler.io.ContactReader
         An iterator that yields all the processed pixel data as sequence of 
         chunks.
+    columns : list of str, optional
+        Column names
+    dtypes : dict, optional
+        Dictionary mapping column names to dtypes
     metadata : dict, optional
         Experiment metadata to store in the file. Must be JSON compatible.
     assembly : str, optional
@@ -116,9 +120,9 @@ def create(cool_uri, chromsizes, bins, iterator, metadata=None, assembly=None,
         HDF5 dataset filter options to use (compression, shuffling,
         checksumming, etc.). Default is to use autochunking and GZIP
         compression, level 6.
-    group : str, optional
-        Target path of the Cooler group. Default is the root group "/". If the
-        group already exists it will be overwritten.
+    append : bool, optional
+        Append new Cooler to the file if it exists. If False, an existing file
+        with the same name will be truncated. Default is False.
     lock : multiprocessing.Lock, optional
         Optional lock to synchronize concurrent HDF5 file access.
 
@@ -127,63 +131,87 @@ def create(cool_uri, chromsizes, bins, iterator, metadata=None, assembly=None,
     Cooler hierarchy stored in ``filepath`` under ``group``.
 
     """
-    file_path, group = parse_cooler_uri(cool_uri)
+    file_path, group_path = parse_cooler_uri(cool_uri)
+    if columns is None:
+        columns = []
+    if dtypes is None:
+        dtypes = {}
+    columns = list(PIXEL_FIELDS) + [col for col in columns 
+                                        if col not in PIXEL_FIELDS]
+    dtypes.update(dict(PIXEL_DTYPES))
 
     mode = 'a' if append else 'w'
     if h5opts is None:
         h5opts = dict(compression='gzip', compression_opts=6)
 
+    chromsizes = get_chromsizes(bins)
     try:
         chromsizes = six.iteritems(chromsizes)
     except AttributeError:
         pass
-    chroms, lengths = zip(*chromsizes)
+    chromnames, lengths = zip(*chromsizes)
+    chroms = pandas.DataFrame(
+        {'name': chromnames, 'length': lengths}, columns=['name', 'length'])
+    
     binsize = get_binsize(bins)
     n_chroms = len(chroms)
     n_bins = len(bins)
 
     with h5py.File(file_path, mode) as f:
-        logger.info('Creating cooler at "{}::{}"'.format(file_path, group))
-        if group is '/':
+        logger.info('Creating cooler at "{}::{}"'.format(file_path, group_path))
+        if group_path is '/':
             for name in ['chroms', 'bins', 'pixels', 'indexes']:
                 if name in f:
                     del f[name]
         else:
             try:
-                f.create_group(group)
+                f.create_group(group_path)
             except ValueError:
-                del h5[group]
-                f.create_group(group)
+                del h5[group_path]
+                f.create_group(group_path)
 
     with h5py.File(file_path, 'r+') as f:
-        h5 = f[group]
+        h5 = f[group_path]
 
         logger.info('Writing chroms')
         grp = h5.create_group('chroms')
-        write_chroms(grp, chroms, lengths, h5opts)
+        write_chroms(grp, chroms, h5opts)
 
         logger.info('Writing bins')
         grp = h5.create_group('bins')
-        chrom_offset = write_bins(grp, chroms, bins, h5opts)
-        h5.create_group('pixels')
+        write_bins(grp, bins, chroms['name'], h5opts)
+        
+        grp = h5.create_group('pixels')
+        prepare_pixels(grp, n_bins, columns, dtypes, h5opts)
 
-    # Multiprocess HDF5 reading is supported only if the HDF5 file is not open 
-    # in write mode anywhere.
-    # If provided with a lock shared with HDF5-reading processes, `write_pixels` 
-    # will acquire it and open the file for writing for the duration of each
-    # write step only. After it closes the file and releases the lock, the 
-    # reading processes will have to acquire the lock and re-open the file to 
-    # obtain the correct file state for reading.
     logger.info('Writing pixels')
-    target = posixpath.join(group, 'pixels')
-    bin1_offset, nnz, ncontacts = write_pixels(
-        file_path, target, n_bins, iterator, h5opts, lock)
+    target = posixpath.join(group_path, 'pixels')
+    
+    if isinstance(pixels, pandas.DataFrame):
+        iterable = (pixels,)
+    elif isinstance(pixels, dask.dataframe.DataFrame):
+        iterable = map(lambda x: x.compute(), pixels.to_delayed())
+    else:
+        iterable = pixels
+
+    # Multiprocess HDF5 reading is supported only if the same HDF5 file is not
+    # open in write mode anywhere. To read and write to the same file, pass a
+    # lock shared with the HDF5 reading processes. `write_pixels` will acquire
+    # it and open the file for writing for the duration of each write step
+    # only. After it closes the file and releases the lock, the reading
+    # processes will have to re-acquire the lock and re-open the file to obtain
+    # the updated file state for reading.
+    nnz, ncontacts = write_pixels(
+        file_path, target, columns, iterable, h5opts, lock)
 
     with h5py.File(file_path, 'r+') as f:
-        h5 = f[group]
+        h5 = f[group_path]
 
         logger.info('Writing indexes')
         grp = h5.create_group('indexes')
+        
+        chrom_offset = index_bins(h5['bins'], n_chroms, n_bins)
+        bin1_offset = index_pixels(h5['pixels'], n_bins, nnz)
         write_indexes(grp, chrom_offset, bin1_offset, h5opts)
 
         logger.info('Writing info')
@@ -269,5 +297,6 @@ from ._binning import (ContactBinner, HDF5Aggregator, TabixAggregator,
                        PairixAggregator, CoolerAggregator, CoolerMerger,
                        SparseLoader, BedGraph2DLoader, ArrayLoader)
 
-from ._writer import (write_chroms, write_bins, write_pixels, write_indexes,
-                      write_info, MAGIC, URL)
+from ._writer import (write_chroms, write_bins, prepare_pixels, write_pixels, 
+                      write_indexes, write_info, index_bins, index_pixels, 
+                      MAGIC, URL, PIXEL_FIELDS, PIXEL_DTYPES)

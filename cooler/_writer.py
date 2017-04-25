@@ -13,6 +13,7 @@ import six
 
 import numpy as np
 import pandas
+import pandas as pd
 import h5py
 
 from . import __version__, __format_version__, get_logger
@@ -32,9 +33,13 @@ BIN_DTYPE = np.int64
 COUNT_DTYPE = np.int32
 CHROMOFFSET_DTYPE = np.int64
 BIN1OFFSET_DTYPE = np.int64
+PIXEL_FIELDS = ('bin1_id', 'bin2_id', 'count')
+PIXEL_DTYPES = (('bin1_id', BIN_DTYPE), 
+                ('bin2_id', BIN_DTYPE), 
+                ('count', COUNT_DTYPE))
 
 
-def write_chroms(grp, chroms, lengths, h5opts):
+def write_chroms(grp, chroms, h5opts):
     """
     Write the chromosome table.
 
@@ -42,16 +47,14 @@ def write_chroms(grp, chroms, lengths, h5opts):
     ----------
     grp : h5py.Group
         Group handle of an open HDF5 file with write permissions.
-    chroms : sequence of str
-        Contig names.
-    lengths : sequence of int
-        Contig lengths in base pairs.
+    chroms : DataFrame
+        Chromosome table containing at least 'chrom' and 'length' columns
     h5opts : dict
         HDF5 dataset filter options.
 
     """
     n_chroms = len(chroms)
-    names = np.array(chroms, dtype=CHROM_DTYPE)  # determines char length
+    names = np.array(chroms['name'], dtype=CHROM_DTYPE)  # auto-adjusts char length
     grp.create_dataset('name',
                        shape=(n_chroms,),
                        dtype=names.dtype,
@@ -60,11 +63,18 @@ def write_chroms(grp, chroms, lengths, h5opts):
     grp.create_dataset('length',
                        shape=(n_chroms,),
                        dtype=CHROMSIZE_DTYPE,
-                       data=lengths,
+                       data=chroms['length'],
                        **h5opts)
+    
+    # Extra columns
+    columns = list(chroms.keys())
+    for col in ['name', 'length']:
+        columns.remove(col)
+    if columns:
+        put(grp, chroms[columns])
 
 
-def write_bins(grp, chroms, bins, h5opts):
+def write_bins(grp, bins, chromnames, h5opts):
     """
     Write the genomic bin table.
 
@@ -72,20 +82,20 @@ def write_bins(grp, chroms, bins, h5opts):
     ----------
     grp : h5py.Group
         Group handle of an open HDF5 file with write permissions.
-    chroms : sequence of str
-        Contig names.
     bins : pandas.DataFrame
         BED-like data frame with at least three columns: ``chrom``, ``start``,
         ``end``, sorted by ``chrom`` then ``start``, and forming a complete
         genome segmentation. The ``chrom`` column must be sorted according to
         the ordering in ``chroms``.
+    chromnames : sequence of str
+        Contig names.
     h5opts : dict
         HDF5 dataset filter options.
 
     """
-    n_chroms = len(chroms)
+    n_chroms = len(chromnames)
     n_bins = len(bins)
-    idmap = dict(zip(chroms, range(n_chroms)))
+    idmap = dict(zip(chromnames, range(n_chroms)))
 
     # Convert chrom names to enum
     chrom_ids = [idmap[chrom] for chrom in bins['chrom']]
@@ -107,19 +117,46 @@ def write_bins(grp, chroms, bins, h5opts):
                        dtype=COORD_DTYPE,
                        data=bins['end'],
                        **h5opts)
-
-    # Index the chromosome offsets
-    chrom_offset = np.zeros(n_chroms + 1, dtype=CHROMOFFSET_DTYPE)
-    curr_val = 0
-    for start, length, value in zip(*rlencode(chrom_ids)):
-        chrom_offset[curr_val:value + 1] = start
-        curr_val = value + 1
-    chrom_offset[curr_val:] = n_bins
-
-    return chrom_offset
+    
+    # Extra columns
+    columns = list(bins.keys())
+    for col in ['chrom', 'start', 'end']:
+        columns.remove(col)
+    if columns:
+        put(grp, bins[columns])
 
 
-def write_pixels(filepath, grouppath, n_bins, iterator, h5opts, lock=None):
+def prepare_pixels(grp, n_bins, columns, dtypes, h5opts):
+    columns = list(columns)
+    max_size = n_bins * (n_bins - 1) // 2 + n_bins
+    init_size = min(5 * n_bins, max_size)
+    grp.create_dataset('bin1_id',
+                       dtype=dtypes.get('bin1_id', BIN_DTYPE),
+                       shape=(init_size,),
+                       maxshape=(max_size,),
+                       **h5opts)
+    grp.create_dataset('bin2_id',
+                       dtype=dtypes.get('bin2_id', BIN_DTYPE),
+                       shape=(init_size,),
+                       maxshape=(max_size,),
+                       **h5opts)
+    grp.create_dataset('count',
+                       dtype=dtypes.get('count', COUNT_DTYPE),
+                       shape=(init_size,),
+                       maxshape=(max_size,),
+                       **h5opts)
+    for col in ['bin1_id', 'bin2_id', 'count']:
+        columns.remove(col)
+    if columns:
+        for col in columns:
+            grp.create_dataset(col,
+                               dtype=dtypes.get(col, float),
+                               shape=(init_size,),
+                               maxshape=(max_size,),
+                               **h5opts)
+
+
+def write_pixels(filepath, grouppath, columns, iterable, h5opts, lock):
     """
     Write the non-zero pixel table.
 
@@ -139,33 +176,12 @@ def write_pixels(filepath, grouppath, n_bins, iterator, h5opts, lock=None):
         Optional lock to synchronize concurrent HDF5 file access.
 
     """
-    max_size = n_bins * (n_bins - 1) // 2 + n_bins
-    init_size = min(5 * n_bins, max_size)
-
-    # Preallocate
-    with h5py.File(filepath, 'r+') as f:
-        grp = f[grouppath]
-        bin1 = grp.create_dataset('bin1_id',
-                                  dtype=BIN_DTYPE,
-                                  shape=(init_size,),
-                                  maxshape=(max_size,),
-                                  **h5opts)
-        bin2 = grp.create_dataset('bin2_id',
-                                  dtype=BIN_DTYPE,
-                                  shape=(init_size,),
-                                  maxshape=(max_size,),
-                                  **h5opts)
-        count = grp.create_dataset('count',
-                                  dtype=COUNT_DTYPE,
-                                  shape=(init_size,),
-                                  maxshape=(max_size,),
-                                  **h5opts)
-
-    # Store the pixels
     nnz = 0
-    ncontacts = 0
-    for i, chunk in enumerate(iterator):
-        #chunk_dict = {k: v.values for k, v in six.iteritems(chunk)}
+    total = 0
+    for i, chunk in enumerate(iterable):
+        
+        if isinstance(chunk, pd.DataFrame):
+            chunk = {k: v.values for k, v in six.iteritems(chunk)}
         
         try:
             if lock is not None:
@@ -175,41 +191,44 @@ def write_pixels(filepath, grouppath, n_bins, iterator, h5opts, lock=None):
             
             with h5py.File(filepath, 'r+') as fw:
                 grp = fw[grouppath]
-                bin1 = grp['bin1_id']
-                bin2 = grp['bin2_id']
-                count = grp['count']
+                dsets = [grp[col] for col in columns]
 
-                n = len(chunk['bin1_id'])
-                for dset in [bin1, bin2, count]:
+                n = len(chunk[columns[0]])
+                for col, dset in zip(columns, dsets):
                     dset.resize((nnz + n,))
-
-                # store the bins that each pixel belongs to
-                # i.e. the coordinates for each "count"
-                bin1[nnz:nnz+n] = chunk['bin1_id']
-                bin2[nnz:nnz+n] = chunk['bin2_id']
-                count[nnz:nnz+n] = chunk['count']
-
+                    dset[nnz:nnz+n] = chunk[col]
                 nnz += n
-                ncontacts += chunk['count'].sum()
+                total += chunk['count'].sum()
+                
                 fw.flush()
 
         finally:
             if lock is not None:
                 lock.release()
 
+    return nnz, total
 
-    # Index the first axis (matrix row) offsets
-    with h5py.File(filepath, 'r') as f:
-        grp = f[grouppath]
-        bin1 = grp['bin1_id']
-        bin1_offset = np.zeros(n_bins + 1, dtype=BIN1OFFSET_DTYPE)
-        curr_val = 0
-        for start, length, value in zip(*rlencode(bin1, 1000000)):
-            bin1_offset[curr_val:value + 1] = start
-            curr_val = value + 1
-        bin1_offset[curr_val:] = nnz
 
-    return bin1_offset, nnz, ncontacts
+def index_pixels(grp, n_bins, nnz):
+    bin1 = grp['bin1_id']
+    bin1_offset = np.zeros(n_bins + 1, dtype=BIN1OFFSET_DTYPE)
+    curr_val = 0
+    for start, length, value in zip(*rlencode(bin1, 1000000)):
+        bin1_offset[curr_val:value + 1] = start
+        curr_val = value + 1
+    bin1_offset[curr_val:] = nnz
+    return bin1_offset
+
+
+def index_bins(grp, n_chroms, n_bins):
+    chrom_ids = grp['chrom']
+    chrom_offset = np.zeros(n_chroms + 1, dtype=CHROMOFFSET_DTYPE)
+    curr_val = 0
+    for start, length, value in zip(*rlencode(chrom_ids)):
+        chrom_offset[curr_val:value + 1] = start
+        curr_val = value + 1
+    chrom_offset[curr_val:] = n_bins
+    return chrom_offset
 
 
 def write_indexes(grp, chrom_offset, bin1_offset, h5opts):
@@ -228,12 +247,18 @@ def write_indexes(grp, chrom_offset, bin1_offset, h5opts):
         having that bin on the first axis.
 
     """
-    grp.create_dataset("chrom_offset",
-                       shape=(len(chrom_offset),), dtype=CHROMOFFSET_DTYPE,
-                       data=chrom_offset, **h5opts)
-    grp.create_dataset("bin1_offset",
-                       shape=(len(bin1_offset),), dtype=BIN1OFFSET_DTYPE,
-                       data=bin1_offset, **h5opts)
+    grp.create_dataset(
+        "chrom_offset",
+        shape=(len(chrom_offset),), 
+        dtype=CHROMOFFSET_DTYPE,
+        data=chrom_offset, 
+        **h5opts)
+    grp.create_dataset(
+        "bin1_offset",
+        shape=(len(bin1_offset),), 
+        dtype=BIN1OFFSET_DTYPE,
+        data=bin1_offset, 
+        **h5opts)
 
 
 def write_info(grp, info):

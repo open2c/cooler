@@ -43,4 +43,4 @@ def merge(out_path, in_paths, chunksize):
     bins = clrs[0].bins()[['chrom', 'start', 'end']][:]
     assembly = clrs[0].info.get('genome-assembly', None)
     iterator = CoolerMerger(clrs, chunksize=chunksize)
-    create(out_path, chromsizes, bins, iterator, assembly=assembly)
+    create(out_path, bins, iterator, assembly=assembly)

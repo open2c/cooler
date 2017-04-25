@@ -132,7 +132,7 @@ def hiclib(bins, pairs_path, cool_path, metadata, assembly, chunksize):
 
     with h5py.File(pairs_path, 'r') as h5pairs:
         iterator = HDF5Aggregator(h5pairs, chromsizes, bins, chunksize)
-        create(cool_path, chromsizes, bins, iterator, metadata, assembly)
+        create(cool_path, bins, iterator, metadata, assembly)
 
 
 @register_subcommand
@@ -183,7 +183,7 @@ def tabix(bins, pairs_path, cool_path, metadata, assembly, nproc, **kwargs):
         if 'pos2' in kwargs:
             opts['P2'] = kwargs['pos2'] - 1
         iterator = TabixAggregator(pairs_path, chromsizes, bins, map=map, **opts)
-        create(cool_path, chromsizes, bins, iterator, metadata, assembly)
+        create(cool_path, bins, iterator, metadata, assembly)
     finally:
         if nproc > 1:
             pool.close() 
@@ -222,7 +222,7 @@ def pairix(bins, pairs_path, cool_path, metadata, assembly, nproc):
         else:
             map = six.moves.map
         iterator = PairixAggregator(pairs_path, chromsizes, bins, map=map)
-        create(cool_path, chromsizes, bins, iterator, metadata, assembly)
+        create(cool_path, bins, iterator, metadata, assembly)
     finally:
         if nproc > 1:
             pool.close() 

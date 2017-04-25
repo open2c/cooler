@@ -45,7 +45,6 @@ def aggregate(input_uri, output_uri, factor, nproc, chunksize, lock):
 
         create(
             output_uri,
-            chromsizes,
             new_bins,
             iterator,
             lock=lock,
