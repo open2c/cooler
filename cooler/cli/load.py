@@ -73,9 +73,9 @@ def _parse_bins(arg):
     metavar="COOL_PATH")
 @click.option(
     "--format", "-f",
-    help="COO refers to a tab-delimited sparse triple file (bin1, bin2, count). "
-         "BG2 refers to a 2D bedGraph-like file (chrom1, start1, end1, chrom2, start2, end2, count).",
-    type=click.Choice(['COO', 'BG2']),
+    help="'coo' refers to a tab-delimited sparse triple file (bin1, bin2, count). "
+         "'bg2' refers to a 2D bedGraph-like file (chrom1, start1, end1, chrom2, start2, end2, count).",
+    type=click.Choice(['coo', 'bg2']),
     required=True)
 @click.option(
     "--chunksize", "-c",
@@ -100,16 +100,27 @@ def load(bins_path, pixels_path, cool_path, format, metadata, assembly, chunksiz
     \b
     - columns: "bin1_id, bin2_id, count",
     - lexicographically sorted by bin1_id, bin2_id
+    - optionally compressed
 
     * BG2: 2D version of the bedGraph format. 7 columns.
 
     \b
     - columns: "chrom1, start1, end1, chrom2, start2, end2, count"
-    - sorted, compressed and indexed with Pairix
+    - sorted by chrom1, chrom2, start1, start2
+    - bgzip compressed and indexed with Pairix (see cooler csort)
+
+    Example:
+
+    \b
+    cooler csort -c1 1 -p1 2 -c2 4 -p2 5 <in.bg2> <chrom.sizes>
+    cooler load <chrom.sizes>:<binsize> <in.bg2.srt.gz> <out.cool>
 
     \b\bArguments:
 
-    BINS_PATH : BED-like file containing genomic bin segmentation
+    BINS_PATH : One of the following
+
+        <TEXT:INTEGER> : 1. Path to a chromsizes file, 2. Bin size in bp
+        <TEXT> : Path to BED file defining the genomic bin segmentation.
 
     PIXELS_PATH : Text file containing nonzero pixel values. May be gzipped.
 
@@ -123,9 +134,11 @@ def load(bins_path, pixels_path, cool_path, format, metadata, assembly, chunksiz
         with open(metadata, 'r') as f:
             metadata = json.load(f)
 
-    # Load the binned contacts
-    if format == 'BG2':
+    # Set up the appropriate binned contacts loader
+    if format == 'bg2':
         binner = BedGraph2DLoader(pixels_path, chromsizes, bins)
-    else:
+    elif format == 'coo':
         binner = SparseLoader(pixels_path, chunksize)
+
+    # Feed to create
     create(cool_path, chromsizes, bins, binner, metadata, assembly)

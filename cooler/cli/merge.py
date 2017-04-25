@@ -27,12 +27,12 @@ def merge(out_path, in_paths, chunksize):
 
     Data columns merged:
 
-        /pixels/bin1_id, /pixels/bin2_id, /pixels/count
+        pixels/bin1_id, pixels/bin2_id, pixels/count
 
     Data columns preserved:
 
-        /chroms/name, /chroms/length
-        /bins/chrom, /bins/start, /bins/end
+        chroms/name, chroms/length
+        bins/chrom, bins/start, bins/end
 
     Additional columns in the the input files are not preserved in the output.
 

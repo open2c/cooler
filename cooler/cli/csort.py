@@ -221,10 +221,17 @@ def csort(pairs_path, chromosomes_path, index, chrom1, chrom2, pos1, pos2,
     """
     Sort and index a contact list.
 
-    Order the ends of each pair so that all contacts are upper triangular
-    with respect to the chromosome ordering given by the chromsizes file,
-    sort contacts by position, and index the resulting file. Requires Unix
-    tools: sort, bgzip + tabix or pairix.
+    Order the mates of each pair record so that all contacts are upper 
+    triangular with respect to the chromosome ordering given by the chromosomes
+    file, sort contacts by genomic location, and index the resulting file. 
+
+    Notes:
+
+    \b
+    - csort can also be used to sort and index a text representation of 
+      a contact _matrix_ in bedGraph-like format. In this case, substitute 
+      `pos1` and `pos2` with `start1` and `start2`, respectively.
+    - Requires Unix tools: sort, bgzip + tabix or pairix.
 
     If indexing with Tabix, the output file will have the following properties:
 
@@ -280,9 +287,9 @@ def csort(pairs_path, chromosomes_path, index, chrom1, chrom2, pos1, pos2,
             prefix = op.splitext(prefix)[0]
             ext = '.txt.gz'
         if index == 'pairix':
-            sort_style = '.sortblk'
+            sort_style = '.blksrt'
         else: 
-            sort_style = '.sortpos'
+            sort_style = '.possrt'
         outfile = prefix + sort_style + ext
     else:
         outfile = out

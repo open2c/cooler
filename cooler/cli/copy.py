@@ -54,6 +54,10 @@ def copy(src_uri, dst_uri, overwrite, link, rename, soft_link):
     src_path, src_group = parse_cooler_uri(src_uri)
     dst_path, dst_group = parse_cooler_uri(dst_uri)
 
+    if sum([link, rename, soft_link]) > 1:
+        raise click.BadParameter(
+            'Must provide at most one of: --link, --rename, --soft-link')
+
     if overwrite:
         write_mode = 'w'
     else:
