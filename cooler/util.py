@@ -516,6 +516,8 @@ class closing_hdf5(h5py.Group):
         return self
     def __exit__(self, *exc_info):
         return self.file.close()
+    def close(self):
+        self.file.close()
 
 
 def attrs_to_jsonable(attrs):
