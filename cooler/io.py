@@ -7,6 +7,7 @@ import six
 import numpy as np
 import pandas
 import h5py
+from dask.dataframe.utils import make_meta
 import dask.dataframe
 
 from .core import put
@@ -92,10 +93,10 @@ def is_cooler(filepath, group=None):
     return group in ls(filepath)
 
 
-def create(cool_uri, bins, pixels, columns=None, dtypes=None, 
-           metadata=None, assembly=None, h5opts=None, append=False, lock=None):
+def create(cool_uri, bins, pixels, dtypes=None, metadata=None, assembly=None, 
+           h5opts=None, append=False, lock=None, chromsizes='<deprecated>'):
     """
-    Create a new Cooler file.
+    Create a new Cooler.
 
     Parameters
     ----------
@@ -104,14 +105,21 @@ def create(cool_uri, bins, pixels, columns=None, dtypes=None,
         it will be created.
     bins : pandas.DataFrame
         Segmentation of the chromosomes into genomic bins as a BED-like
-        DataFrame with columns ``chrom``, ``start`` and ``end``.
-    pixels : cooler.io.ContactReader
-        An iterator that yields all the processed pixel data as sequence of 
-        chunks.
-    columns : list of str, optional
-        Column names
+        DataFrame with columns ``chrom``, ``start`` and ``end``. May contain 
+        additional columns.
+    pixels : DataFrame, dictionary, or iterable of either
+        A table (represented as a data frame or a column-oriented dict) 
+        containing columns labeled 'bin1_id', 'bin2_id' and 'count', sorted 
+        by ('bin1_id', 'bin2_id'). If additional columns are included in the 
+        pixel table, their names and dtypes must be specified in the ``dtypes`` 
+        argument. Alternatively, for larger data, an iterable can be provided 
+        that yields the pixel data as a sequence of "chunks". If the input is a
+        dask DataFrame, it will also be processed one chunk at a time.
     dtypes : dict, optional
-        Dictionary mapping column names to dtypes
+        Dictionary or sequence of pairs mapping column names in the pixel table 
+        to dtypes. Can be used to override the default dtypes of 'bin1_id', 
+        'bin2_id' or 'count'. Any additional non-default column dtypes must be 
+        specified here.
     metadata : dict, optional
         Experiment metadata to store in the file. Must be JSON compatible.
     assembly : str, optional
@@ -124,25 +132,43 @@ def create(cool_uri, bins, pixels, columns=None, dtypes=None,
         Append new Cooler to the file if it exists. If False, an existing file
         with the same name will be truncated. Default is False.
     lock : multiprocessing.Lock, optional
-        Optional lock to synchronize concurrent HDF5 file access.
+        Optional lock to control concurrent access to the output file.
 
     Result
     ------
-    Cooler hierarchy stored in ``filepath`` under ``group``.
+    Cooler data hierarchy stored in at the specified Cooler URI (HDF5 file and 
+    group path).
 
     """
     file_path, group_path = parse_cooler_uri(cool_uri)
-    if columns is None:
-        columns = []
-    if dtypes is None:
-        dtypes = {}
-    columns = list(PIXEL_FIELDS) + [col for col in columns 
-                                        if col not in PIXEL_FIELDS]
-    dtypes.update(dict(PIXEL_DTYPES))
-
     mode = 'a' if append else 'w'
     if h5opts is None:
         h5opts = dict(compression='gzip', compression_opts=6)
+
+    for col in ['chrom', 'start', 'end']:
+        if col not in bins.columns:
+            raise ValueError("Missing column from bin table: '{}'.".format(col))
+
+    if isinstance(pixels, dask.dataframe.DataFrame):
+        iterable = map(lambda x: x.compute(), pixels.to_delayed())
+        meta = make_meta(pixels.dtypes)
+    elif isinstance(pixels, pandas.DataFrame):
+        iterable = (pixels,)
+        meta = make_meta(pixels.dtypes)
+    elif isinstance(pixels, dict):
+        iterable = (pixels,)
+        meta = make_meta(
+            zip(pixels.keys(), 
+                [v.dtype for v in pixels.values()]))
+    else:
+        iterable = pixels
+        if dtypes is None:
+            dtypes = PIXEL_DTYPES
+        meta = make_meta(dtypes)
+
+    for col in PIXEL_FIELDS:
+        if col not in meta.columns:
+            raise ValueError("Missing column from pixel table: '{}'".format(col))
 
     chromsizes = get_chromsizes(bins)
     try:
@@ -151,12 +177,13 @@ def create(cool_uri, bins, pixels, columns=None, dtypes=None,
         pass
     chromnames, lengths = zip(*chromsizes)
     chroms = pandas.DataFrame(
-        {'name': chromnames, 'length': lengths}, columns=['name', 'length'])
-    
+        {'name': chromnames, 'length': lengths}, 
+        columns=['name', 'length'])
     binsize = get_binsize(bins)
     n_chroms = len(chroms)
     n_bins = len(bins)
 
+    # Create root group
     with h5py.File(file_path, mode) as f:
         logger.info('Creating cooler at "{}::{}"'.format(file_path, group_path))
         if group_path is '/':
@@ -170,6 +197,7 @@ def create(cool_uri, bins, pixels, columns=None, dtypes=None,
                 del h5[group_path]
                 f.create_group(group_path)
 
+    # Write chroms, bins and pixels
     with h5py.File(file_path, 'r+') as f:
         h5 = f[group_path]
 
@@ -182,17 +210,7 @@ def create(cool_uri, bins, pixels, columns=None, dtypes=None,
         write_bins(grp, bins, chroms['name'], h5opts)
         
         grp = h5.create_group('pixels')
-        prepare_pixels(grp, n_bins, columns, dtypes, h5opts)
-
-    logger.info('Writing pixels')
-    target = posixpath.join(group_path, 'pixels')
-    
-    if isinstance(pixels, pandas.DataFrame):
-        iterable = (pixels,)
-    elif isinstance(pixels, dask.dataframe.DataFrame):
-        iterable = map(lambda x: x.compute(), pixels.to_delayed())
-    else:
-        iterable = pixels
+        prepare_pixels(grp, n_bins, meta, h5opts)
 
     # Multiprocess HDF5 reading is supported only if the same HDF5 file is not
     # open in write mode anywhere. To read and write to the same file, pass a
@@ -201,9 +219,12 @@ def create(cool_uri, bins, pixels, columns=None, dtypes=None,
     # only. After it closes the file and releases the lock, the reading
     # processes will have to re-acquire the lock and re-open the file to obtain
     # the updated file state for reading.
+    logger.info('Writing pixels')
+    target = posixpath.join(group_path, 'pixels')
     nnz, ncontacts = write_pixels(
-        file_path, target, columns, iterable, h5opts, lock)
+        file_path, target, meta.columns, iterable, h5opts, lock)
 
+    # Write indexes
     with h5py.File(file_path, 'r+') as f:
         h5 = f[group_path]
 
@@ -231,7 +252,8 @@ def create(cool_uri, bins, pixels, columns=None, dtypes=None,
     logger.info('Done')
 
 
-def append(cool_uri, table, data, chunked=False, force=False, h5opts=None, lock=None):
+def append(cool_uri, table, data, chunked=False, force=False, h5opts=None, 
+           lock=None):
     """
     Append one or more data columns to an existing table.
 
@@ -240,11 +262,13 @@ def append(cool_uri, table, data, chunked=False, force=False, h5opts=None, lock=
     cool_uri : str
         Path to Cooler file or URI to Cooler group.
     table : str
-        Name of table (HDF5 group)
+        Name of table (HDF5 group).
     data : dict-like
-        Pandas DataFrame or mapping of column names to data.
+        DataFrame, Series or mapping of column names to data. If the input is a
+        dask DataFrame or Series, the data is written in chunks.
     chunked : bool, optional
-        If True, the values of the data dict are treated as chunk iterators.
+        If True, the values of the data dict are treated as separate chunk 
+        iterators of column data.
     force : bool, optional
         If True, replace existing columns with the same name as the input.
     h5opts : dict, optional
@@ -260,9 +284,17 @@ def append(cool_uri, table, data, chunked=False, force=False, h5opts=None, lock=
 
     file_path, group_path = parse_cooler_uri(cool_uri)
 
+    if isinstance(data, (pandas.Series, dask.dataframe.Series)):
+        data = data.to_frame()
+
+    try:
+        names = data.keys()
+    except AttributeError:
+        names = data.columns
+
     with h5py.File(file_path, 'r+') as f:
         h5 = f[group_path]
-        for name in data.keys():
+        for name in names:
             if name in h5[table]:
                 if not force:
                     raise ValueError(
@@ -270,10 +302,13 @@ def append(cool_uri, table, data, chunked=False, force=False, h5opts=None, lock=
                         "Use --force option to overwrite.")
                 else:
                     del h5[table][name]
-        if chunked:
-            for key in data.keys():
+
+        if isinstance(data, (dask.dataframe.DataFrame)):
+            # iterate over dataframe chunks
+            for chunk in data.to_delayed():
                 i = 0
-                for chunk in data:
+                for chunk in data.to_delayed():
+                    chunk = chunk.compute()
                     try:
                         if lock is not None:
                             lock.acquire()
@@ -282,11 +317,25 @@ def append(cool_uri, table, data, chunked=False, force=False, h5opts=None, lock=
                         if lock is not None:
                             lock.release()
                     i += len(chunk)
+        elif chunked:
+            # iterate over chunks from each column
+            for key in data.keys():
+                i = 0
+                for chunk in data[key]:
+                    try:
+                        if lock is not None:
+                            lock.acquire()
+                        put(h5[table], {key: chunk}, lo=i, h5opts=h5opts)
+                    finally:
+                        if lock is not None:
+                            lock.release()
+                    i += len(chunk)
         else:
+            # write all the data
             try:
                 if lock is not None:
                     lock.acquire()
-                put(h5[table], data, h5opts=h5opts)
+                put(h5[table], data, lo=i, h5opts=h5opts)
             finally:
                 if lock is not None:
                     lock.release()

@@ -17,6 +17,7 @@ import pandas as pd
 import h5py
 
 from . import __version__, __format_version__, get_logger
+from .core import put
 from .util import rlencode
 
 
