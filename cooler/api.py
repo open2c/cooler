@@ -17,19 +17,7 @@ from .io import parse_cooler_uri
 
 class Cooler(object):
     """
-    Convenient interface to a cooler HDF5 file.
-
-    Parameters
-    ----------
-    store : str, h5py.File or h5py.Group
-        File path or open handle to the root HDF5 group of a cooler.
-    root : str, optional
-        HDF5 path to root of cooler group. If not provided, the root is assumed
-        to be '/' if ``store`` is a file path or is inferred if ``store`` is a 
-        HDF5 File or Group object.
-    kwargs : optional
-        Options to be passed to h5py.File() upon every access. By default, the
-        file is opened with the default driver and mode='r'.
+    Convenient interface to a COOL (Cooler HDF5) file.
 
     Notes
     -----
@@ -40,16 +28,31 @@ class Cooler(object):
       or Series.
 
     * Matrix range queries are provided via a matrix selector, ``matrix``,
-      which return ``scipy.sparse.coo_matrix`` arrays.
-
-    If ``store`` is a file path, the file will be opened temporarily in
-    when performing operations. Thus, ``Cooler`` objects are serializable and
-    can be used in multiprocessing, for example. See the following
-    `discussion <https://groups.google.com/forum/#!topic/h5py/bJVtWdFtZQM>`_
-    on using h5py with multiprocessing safely.
+      which return NumPy arrays or SciPy sparse ``coo_matrix``.
 
     """
     def __init__(self, store, root=None, **kwargs):
+        """
+        Parameters
+        ----------
+        store : str, h5py.File or h5py.Group
+            Path to a COOL file, Cooler URI, or open handle to the root HDF5 
+            group of a Cooler.
+        root : str, optional
+            HDF5 Group path to root of cooler group if ``store`` is a file. 
+            This option is deprecated. Instead, use a Cooler URI of the form
+            "file_path::group_path".
+        kwargs : optional
+            Options to be passed to h5py.File() upon every access. By default,
+            the file is opened with the default driver and mode='r'.
+
+        Notes
+        -----
+        If ``store`` is a file path, the file will be opened temporarily in
+        when performing operations. This allows ``Cooler`` objects to be
+        serialized for multiprocess and distributed computations.
+        
+        """
         if isinstance(store, six.string_types):
             if root is None:
                 self.filename, self.root = parse_cooler_uri(store)
@@ -89,7 +92,7 @@ class Cooler(object):
             return dict(grp[path].attrs)
 
     def open(self, mode='r', **kwargs):
-        """ Open the HDF5 group containing the Cooler using h5py
+        """ Open the HDF5 group containing the Cooler with h5py
 
         Functions as a context manager. Any ``open_kws`` passed during 
         construction are ignored.
