@@ -1,7 +1,7 @@
 Container
 =========
 
-COOL, the reference implementation of the Cooler schema uses `HDF5 <https://www.hdfgroup.org/HDF5/>`_ as a container format. HDF5 is a hierarchical data format for homongenenously typed multidimensional arrays, which supports chunking, compression, and random access. The HDF5 file specification and open source standard library is maintained by the nonprofit HDF Group.
+The reference implementation of the Cooler schema uses `HDF5 <https://www.hdfgroup.org/HDF5/>`_ as the container format and uses the extension ``.cool``. HDF5 is a hierarchical data format for homongenenously typed multidimensional arrays, which supports chunking, compression, and random access. The HDF5 file specification and open source standard library is maintained by the nonprofit HDF Group.
 
 HDF5 files consist of three fundamental entities: groups, datasets, and attibutes. The hierarchical organization of an HDF5 file is conceptually analogous to a file system: *groups* are akin to directories and *datasets* (arrays) are akin to files. Additionally, key-value metadata can be attached to groups and datasets using *attributes*. The standard library provides the ability to access and manipulate these entities. There are bindings for virtually every platform and programming environment. To learn more in detail about HDF5, I recommend the book `HDF5 and Python <https://www.safaribooksonline.com/library/view/python-and-hdf5/9781491944981/ch01.html>`_ by Andrew Collette, the author of ``h5py``.
 

@@ -32,7 +32,7 @@ logger = get_logger()
 
 class ContactBinner(object):
     """
-    Interface of a contact reader.
+    Base class for iterable contact binners.
 
     """
     def __getstate__(self):
@@ -45,7 +45,7 @@ class ContactBinner(object):
         raise NotImplementedError
 
     def __iter__(self):
-        """ Iterator over chunks of binned contacts
+        """ Iterator over chunks of binned contacts (i.e., nonzero pixels)
 
         Chunks are expected to have the following format:
 

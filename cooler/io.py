@@ -22,7 +22,7 @@ def parse_cooler_uri(s):
     """
     Parse a Cooler URI string
 
-    e.g. /path/to/mycooler.cool::/path/to/can
+    e.g. /path/to/mycoolers.cool::/path/to/cooler
 
     """
     parts = s.split('::')
@@ -39,7 +39,7 @@ def parse_cooler_uri(s):
 
 def ls(filepath):
     """
-    Traverse file hierarchy and list all cooler nodes.
+    Traverse a file's data hierarchy and list all Cooler nodes.
 
     Parameters
     ----------

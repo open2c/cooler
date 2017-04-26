@@ -166,10 +166,8 @@ def iterative_correction(clr, chunksize=None, map=map, tol=1e-5,
 
     Parameters
     ----------
-    h5 : h5py.File object
-        Cooler file
-    cooler_root : str, optional
-        Path of the root node of a cooler tree. Default is the file root, '/'.
+    clr : cooler.Cooler
+        Cooler object
     chunksize : int, optional
         Split the contact matrix pixel records into equally sized chunks to
         save memory and/or parallelize. Default is to use all the pixels at
@@ -191,9 +189,12 @@ def iterative_correction(clr, chunksize=None, map=map, tol=1e-5,
         Pre-processing bin-level filter. Drop bins whose log marginal sum is
         less than ``mad_max`` median absolute deviations below the median log
         marginal sum.
-    cis_only: bool, optional
+    cis_only : bool, optional
         Do iterative correction on intra-chromosomal data only.
         Inter-chromosomal data is ignored.
+    blacklist : list or 1D array, optional
+        An explicit list of IDs of bad bins to filter out when performing 
+        balancing.
     ignore_diags : int or False, optional
         Drop elements occurring on the first ``ignore_diags`` diagonals of the
         matrix (including the main diagonal).
@@ -203,6 +204,12 @@ def iterative_correction(clr, chunksize=None, map=map, tol=1e-5,
         Normalize the balancing weights such that the balanced matrix has rows /
         columns that sum to 1.0. The scale factor is stored in the ``stats``
         output dictionary.
+    x0 : 1D array, optional
+        Initial weight vector to use. Default is to start with ones(n_bins).
+    store : bool, optional
+        Whether to store the results in the file when finished. Default is False.
+    store_name : str, optional
+        Name of the column of the bin table to save to. Default name is 'weight'.
 
     Returns
     -------

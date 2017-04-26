@@ -187,7 +187,7 @@ def delete(grp, fields=None):
 
     Notes
     -----
-    Deleting objects leaves "holes" in HDF5 files and doesn't free space. 
+    Deleting objects leaves "holes" in HDF5 files and doesn't shrink the file. 
     You will need to repack or copy the file contents to reclaim space.
     See the h5repack tool.
 

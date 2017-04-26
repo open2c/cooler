@@ -18,7 +18,7 @@ We highly recommend using the conda package manager to install scientific packag
     $ conda install numpy scipy pandas h5py
 
 
-Install Cooler from PyPI using pip.
+Install ``cooler`` from PyPI using pip.
 
 ::
 
@@ -26,17 +26,21 @@ Install Cooler from PyPI using pip.
 
 All other Python package dependencies are automatically handled by pip.
 
-
-Additionally, the following tools are required for building ``cool`` files from contact lists:
-
-- Parallel gzip ``pigz``. Install using your system package manager.
-- Tabix/bgzf. These come with `Samtools <http://www.htslib.org/download/>`_ but are also available on system package managers like ``brew`` (Mac OS) and ``apt`` (Ubuntu). Alternatively, if you are using ``conda``, consider adding the `bioconda <https://bioconda.github.io/>`_ channel to get access to many more bioinformatics packages.
+.. Additionally, the following tools are required for building ``cool`` files from contact lists:
+.. - Parallel gzip ``pigz``. Install using your system package manager.
+.. - Tabix/bgzf. These come with `Samtools <http://www.htslib.org/download/>`_ but are also available on system package managers like ``brew`` (Mac OS) and ``apt`` (Ubuntu). Alternatively, if you are using ``conda``, consider adding the `bioconda <https://bioconda.github.io/>`_ channel to get access to many more bioinformatics packages.
 
 
 Command line interface
 ----------------------
 
-The ``cooler`` library includes utilities for creating and querying ``cool`` files and for performing out-of-core contact matrix balancing on a cooler file of any resolution.
+See:
+
+- Jupyter Notebook `CLI walkthrough <https://github.com/mirnylab/cooler-binder/blob/master/cooler_cli.ipynb>`_.
+- The `CLI Reference <http://cooler.readthedocs.io/en/latest/cli.html>`_ for more information.
+
+
+The ``cooler`` library includes utilities for creating, querying, merging and manipulating .cool files and for performing out-of-core matrix balancing on a contact matrix of any resolution.
 
 ::
 
@@ -61,18 +65,13 @@ Output:
     chr3    10000000        10010000        chr17   1800000 1810000 1       0.745982
 
 
-See also:
-
-- `CLI Reference <http://cooler.readthedocs.io/en/latest/cli.html>`_ for more information.
-- Jupyter Notebook `walkthrough <https://github.com/mirnylab/cooler-binder>`_.
-
-
 Python API
 ----------
 
-See the interactive `Jupyter notebook <https://github.com/mirnylab/cooler-binder>`_ walkthrough.
+See: 
 
-See the :ref:`api-reference` for more information.
+- Jupyter Notebook `API walkthrough <https://github.com/mirnylab/cooler-binder/blob/master/cooler_api.ipynb>`_.
+- The :ref:`api-reference` for more information.
 
 The ``cooler`` library provides a thin wrapper over the excellent NumPy-aware `h5py <http://docs.h5py.org/en/latest/>`_ Python interface to HDF5. It supports creation of cooler files and the following types of **range queries** on the data:
 
@@ -98,10 +97,3 @@ The ``cooler`` library provides a thin wrapper over the excellent NumPy-aware `h
     >>> resolution = c.info['bin-size']
     >>> mat = c.matrix(balance=True).fetch('chr5:10,000,000-15,000,000')
     >>> plt.matshow(np.log10(mat), cmap='YlOrRd')
-
-
-See also:
-
-- `API Reference <http://cooler.readthedocs.io/en/latest/api.html>`_ for more information.
-- Jupyter Notebook `walkthrough <https://github.com/mirnylab/cooler-binder>`_.
-

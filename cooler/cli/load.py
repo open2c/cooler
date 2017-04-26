@@ -113,7 +113,7 @@ def load(bins_path, pixels_path, cool_path, format, metadata, assembly, chunksiz
 
     \b
     cooler csort -c1 1 -p1 2 -c2 4 -p2 5 <in.bg2> <chrom.sizes>
-    cooler load <chrom.sizes>:<binsize> <in.bg2.srt.gz> <out.cool>
+    cooler load -f bg2 <chrom.sizes>:<binsize> <in.bg2.srt.gz> <out.cool>
 
     \b\bArguments:
 

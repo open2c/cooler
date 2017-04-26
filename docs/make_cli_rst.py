@@ -12,11 +12,16 @@ COMMANDS = [
     'digest',
     'csort',
     'cload',
-    'balance',
-    'coarsegrain',
+    'load',
+    'list',
     'info',
+    'copy',
     'dump',
-    'show'
+    'show',
+    'balance',
+    'merge',
+    'coarsen',
+    'zoomify',
 ]
 
 SUBCOMMANDS = {
@@ -32,6 +37,58 @@ CLI Reference
 
 .. toctree::
    :maxdepth: 1
+
+
+Quick reference
+---------------
+
++------------------------+
+| Helper commands        |
++========================+
+| `cooler makebins`_     |
++------------------------+
+| `cooler digest`_       |
++------------------------+
+| `cooler csort`_        |
++------------------------+
+
++------------------------+
+| Ingesting data         |
++========================+
+| `cooler cload`_        |
++------------------------+
+| `cooler load`_         |
++------------------------+
+
++------------------------+
+| File manipulation/info |
++========================+
+| `cooler list`_         |
++------------------------+
+| `cooler info`_         |
++------------------------+
+| `cooler copy`_         |
++------------------------+
+
++------------------------+
+| Export/visualization   |
++========================+
+| `cooler dump`_         |
++------------------------+
+| `cooler show`_         |
++------------------------+
+
++------------------------+
+| Operations             |
++========================+
+| `cooler balance`_      |
++------------------------+
+| `cooler merge`_        |
++------------------------+
+| `cooler coarsen`_      |
++------------------------+
+| `cooler zoomify`_      |
++------------------------+
 
 
 cooler

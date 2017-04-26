@@ -6,8 +6,20 @@ This schema describes a `compressed sparse row <https://en.wikipedia.org/wiki/Sp
 
 Notes:
 
-- Any number of additional optional columns can be added to each table. (e.g. normalization vectors, quality masks).
+- Any number of additional optional data columns can be added to each table.
 - Genomic coordinates are assumed to be 0-based and intervals half-open (1-based ends).
+
+
+Cooler
+~~~~~~
+
+We refer to the data representation of a single contact matrix as a "Cooler".
+
+Following the convention of the `odo <http://odo.pydata.org/en/latest/uri.html>`_ package, we identify a Cooler using a Cooler URI string, separating the path to the container file from the data path within the container by ``::``:
+
+::
+  
+  /path/to/container.cool::/path/to/cooler/group
 
 
 Contact matrix
@@ -56,10 +68,10 @@ Essential key-value properties are stored as root-level HDF5 attributes. A speci
     bin-type        : {"fixed" or "variable"}
     bin-size        : <int or null> Size of bins in base pairs if bin-type is "fixed"
     genome-assembly : <string> Name of genome assembly
-    library-version : <string> Version of cooler library that created the file
-    format-version  : <string> The version of the current format
-    format-url      : <url> URL to page providing format details
+    generated-by    : <string> Agent that created the file (e.g. 'cooler-x.y.z')
     creation-date   : <datetime> Date the file was built
+    format-version  : <string> The version of the format used
+    format-url      : <url> URL to page providing format details
     metadata        : <json> custom user metadata about the experiment
 
 
@@ -70,4 +82,3 @@ Indexes are stored as 1D datasets in a separate group. The current indexes can b
 
 - ``chrom_offset`` : indicates what row in the bin table each chromosome first appears.
 - ``bin1_offset`` : indicates what row in the pixel table each bin1 ID appears. This is often called *indptr* in CSR data structures.
-

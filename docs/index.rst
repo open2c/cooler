@@ -7,16 +7,18 @@
 Cooler
 ======
 
-Cooler is a support library for a sparse, compressed, binary persistent storage format for Hi-C contact matrices, called cool or COOL.
+*Cooler* is a Python support library for .cool files: an efficient storage format for high resolution genomic interaction matrices.
 
-Cooler aims to provide the following functionality:
+*Cooler* aims to provide the following functionality:
 
 * Generate contact matrices from contact lists at arbitrary resolutions.
-* Store contact matrices efficiently in ``cool`` format.
+* Store contact matrices efficiently in .cool format.
 * Perform out-of-core genome wide contact matrix normalization (a.k.a. balancing).
 * Perform fast range queries on a contact matrix.
 * Convert contact matrices between formats.
 * Provide a clean and well-documented Python API to work with Hi-C data.
+
+Follow *cooler* development on `GitHub <https://github.com/mirnylab/cooler>`_.
 
 
 Contents:

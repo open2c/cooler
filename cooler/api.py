@@ -17,7 +17,7 @@ from .io import parse_cooler_uri
 
 class Cooler(object):
     """
-    Convenient interface to a COOL (Cooler HDF5) file.
+    Convenient interface to a Cooler in a COOL file.
 
     Notes
     -----
@@ -269,7 +269,7 @@ class Cooler(object):
             the 'count' column is used.
         balance : bool, optional
             Whether to apply pre-calculated matrix balancing weights to the
-            selection. Default is False.
+            selection. Default is True.
         sparse: bool, optional
             Return a scipy.sparse.coo_matrix instead of a dense 2D numpy array.
         as_pixels: bool, optional
@@ -431,9 +431,11 @@ def pixels(h5, lo=0, hi=None, fields=None, join=True, **kwargs):
 
 def annotate(pixels, bins, replace=True):
     """
-    Add bin annotations to a selection of pixels by performing a "left join"
-    from the bin IDs onto a table that describes properties of the genomic
-    bins. New columns will be appended on the left of the output data frame.
+    Add bin annotations to a data frame of pixels.
+
+    This is done by performing a relational "join" against the bin IDs of a 
+    table that describes properties of the genomic bins. New columns will be 
+    appended on the left of the output data frame.
 
     Parameters
     ----------
@@ -522,7 +524,7 @@ def matrix(h5, i0, i1, j0, j1, field=None, balance=True, sparse=False,
         the 'count' column is used.
     balance : bool, optional
         Whether to apply pre-calculated matrix balancing weights to the
-        selection. Default is False.
+        selection. Default is True.
     sparse: bool, optional
         Return a scipy.sparse.coo_matrix instead of a dense 2D numpy array.
     as_pixels: bool, optional

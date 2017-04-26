@@ -7,6 +7,58 @@ CLI Reference
    :maxdepth: 1
 
 
+Quick reference
+---------------
+
++------------------------+
+| Helper commands        |
++========================+
+| `cooler makebins`_     |
++------------------------+
+| `cooler digest`_       |
++------------------------+
+| `cooler csort`_        |
++------------------------+
+
++------------------------+
+| Ingesting data         |
++========================+
+| `cooler cload`_        |
++------------------------+
+| `cooler load`_         |
++------------------------+
+
++------------------------+
+| File manipulation/info |
++========================+
+| `cooler list`_         |
++------------------------+
+| `cooler info`_         |
++------------------------+
+| `cooler copy`_         |
++------------------------+
+
++------------------------+
+| Export/visualization   |
++========================+
+| `cooler dump`_         |
++------------------------+
+| `cooler show`_         |
++------------------------+
+
++------------------------+
+| Operations             |
++========================+
+| `cooler balance`_      |
++------------------------+
+| `cooler merge`_        |
++------------------------+
+| `cooler coarsen`_      |
++------------------------+
+| `cooler zoomify`_      |
++------------------------+
+
+
 cooler
 ------
 
@@ -21,15 +73,20 @@ cooler
     
     Commands:
       balance      Out-of-core contact matrix balancing.
-      cload        Create a COOL file from a sorted list of...
-      coarsegrain  Aggregation to multi-res cooler file.
+      cload        Create a Cooler from a sorted list of...
+      coarsegrain  Deprecated in favor of separate "coarsen" and...
+      coarsen      Coarsen a contact matrix by uniformly...
+      copy         Copy a Cooler from one file to another or...
       csort        Sort and index a contact list.
-      digest       Make fragment-delimited genomic bins.
+      digest       Generate fragment-delimited genomic bins.
       dump         Dump a contact matrix.
       info         Display file info and metadata.
+      list         List all Coolers inside a COOL file.
       load         Load a contact matrix.
-      makebins     Make fixed-width genomic bins.
+      makebins     Generate fixed-width genomic bins.
+      merge        Merge multiple contact matrices with...
       show         Display a contact matrix.
+      zoomify      Generate zoom levels for HiGlass by...
 
 
 cooler makebins
@@ -39,7 +96,7 @@ cooler makebins
 
     Usage: cooler makebins [OPTIONS] CHROMSIZES_PATH BINSIZE
     
-      Make fixed-width genomic bins. Output a genome segmentation at a fixed
+      Generate fixed-width genomic bins. Output a genome segmentation at a fixed
       resolution as a BED file.
     
       CHROMSIZES_PATH : UCSC-like chromsizes file, with chromosomes in desired
@@ -59,7 +116,7 @@ cooler digest
 
     Usage: cooler digest [OPTIONS] CHROMSIZES_PATH FASTA_PATH ENZYME
     
-      Make fragment-delimited genomic bins. Output a genome segmentation of
+      Generate fragment-delimited genomic bins. Output a genome segmentation of
       restriction fragments as a BED file.
     
       CHROMSIZES_PATH : UCSC-like chromsizes file, with chromosomes in desired
@@ -80,44 +137,72 @@ cooler csort
 
 ::
 
-    Usage: cooler csort [OPTIONS] CHROMSIZES_PATH PAIRS_PATH
+    Usage: cooler csort [OPTIONS] PAIRS_PATH CHROMOSOMES_PATH
     
-      Sort and index a contact list. Arrange the reads of each pair so that all
-      contacts are upper triangular with respect to the chromosome ordering
-      given by the chromsizes file, and sort contacts by position.
+      Sort and index a contact list.
     
-      Requires Unix tools: pigz, sort, bgzip, tabix
+      Order the mates of each pair record so that all contacts are upper
+      triangular with respect to the chromosome ordering given by the
+      chromosomes file, sort contacts by genomic location, and index the
+      resulting file.
     
-      CHROMSIZES_PATH : UCSC-like chromsizes file, with chromosomes in desired
-      order.
+      Notes:
     
-      PAIRS_PATH : Contacts (i.e. read pairs) text file.
+      - csort can also be used to sort and index a text representation of 
+        a contact _matrix_ in bedGraph-like format. In this case, substitute 
+        `pos1` and `pos2` with `start1` and `start2`, respectively.
+      - Requires Unix tools: sort, bgzip + tabix or pairix.
     
-      The output file will have the following properties:
+      If indexing with Tabix, the output file will have the following
+      properties:
     
       - Upper triangular: the read pairs on each row are assigned to side 1 or 2
-        in such a way that (chrom1, pos1) is always "less than" (chrom2, pos2),
-        according to the desired chromosome order as given by the chromsizes
-        file.
-      - Rows are lexically sorted by chrom1, pos1, chrom2, pos2. Here, the way
-        chromosomes are sorted does not need to respect the desired order.
+        in such a way that (chrom1, pos1) is always "less than" (chrom2, pos2)
+      - Rows are lexicographically sorted by chrom1, pos1, chrom2, pos2; 
+        i.e. "positionally sorted"
       - Compressed with bgzip [*]
-      - Indexed using Tabix [*] on chrom1 and pos1: `tabix -0 -s1 -b2 -e2`
+      - Indexed using Tabix [*] on chrom1 and pos1.
+    
+      If indexing with Pairix, the output file will have the following
+      properties:
+    
+      - Upper triangular: the read pairs on each row are assigned to side 1 or 2
+        in such a way that (chrom1, pos1) is always "less than" (chrom2, pos2)
+      - Rows are lexicographically sorted by chrom1, chrom2, pos1, pos2; i.e. 
+        "block sorted"
+      - Compressed with bgzip [*]
+      - Indexed using Pairix [+] on chrom1, chrom2 and pos1.
     
       [*] Tabix manpage: <http://www.htslib.org/doc/tabix.html>.
+      [+] Pairix on Github: <https://github.com/4dn-dcic/pairix>
+    
+      Arguments:
+    
+      PAIRS_PATH : Contacts (i.e. read pairs) text file, optionally compressed.
+    
+      CHROMOSOMES_PATH : File listing desired chromosomes in the desired order.
+      May be tab-delimited, e.g. a UCSC-like chromsizes file. Contacts mapping
+      to other chromosomes will be discarded.
     
     Options:
-      -c1, --chrom1 INTEGER   chrom1 field number in the input file (starting from
-                              1)
-      -p1, --pos1 INTEGER     pos1 field number
-      -s1, --strand1 INTEGER  strand1 field number
-      -c2, --chrom2 INTEGER   chrom2 field number
-      -p2, --pos2 INTEGER     pos2 field number
-      -s2, --strand2 INTEGER  strand2 field number
-      -p, --nproc INTEGER     number of processors
-      --sort-options TEXT     quoted list of options to `sort`
-      -o, --out TEXT          Output gzip file
-      --help                  Show this message and exit.
+      -c1, --chrom1 INTEGER       chrom1 field number in the input file (starting
+                                  from 1)  [required]
+      -c2, --chrom2 INTEGER       chrom2 field number  [required]
+      -p1, --pos1 INTEGER         pos1 field number  [required]
+      -p2, --pos2 INTEGER         pos2 field number  [required]
+      -i, --index [tabix|pairix]  Select the preset sort and indexing options
+                                  [default: pairix]
+      --flip-only                 Only flip mates; no sorting or indexing. Write
+                                  to stdout.  [default: False]
+      -p, --nproc INTEGER         Number of processors  [default: 8]
+      -0, --zero-based            Read positions are zero-based  [default: False]
+      --comment-char TEXT         Comment character to skip header  [default: #]
+      --sort-options TEXT         Quoted list of additional options to `sort`
+                                  command
+      -o, --out TEXT              Output gzip file
+      -s1, --strand1 INTEGER      strand1 field number (deprecated)
+      -s2, --strand2 INTEGER      strand2 field number (deprecated)
+      --help                      Show this message and exit.
 
 
 cooler cload
@@ -127,8 +212,8 @@ cooler cload
 
     Usage: cooler cload [OPTIONS] COMMAND [ARGS]...
     
-      Create a COOL file from a sorted list of contacts and a list of genomic
-      bins. Choose a subcommand based on the format of the input contact list.
+      Create a Cooler from a sorted list of contacts and a list of genomic bins.
+      Choose a subcommand based on the format of the input contact list.
     
     Options:
       --help  Show this message and exit.
@@ -220,78 +305,69 @@ cooler cload
         
 
 
-cooler balance
+cooler load
 ----------------
 
 ::
 
-    Usage: cooler balance [OPTIONS] COOL_PATH
+    Usage: cooler load [OPTIONS] BINS_PATH PIXELS_PATH COOL_PATH
     
-      Out-of-core contact matrix balancing.
+      Load a contact matrix. Load a sparse-formatted text dump of a contact
+      matrix into a COOL file.
     
-      Assumes uniform binning. See the help for various filtering options to
-      ignore poorly mapped bins.
+      Two input format options (tab-delimited):
     
-      COOL_PATH : Path to a COOL file.
+      * COO: COO-rdinate matrix format (i.e. ijv triple). 3 columns.
+    
+      - columns: "bin1_id, bin2_id, count",
+      - lexicographically sorted by bin1_id, bin2_id
+      - optionally compressed
+    
+      * BG2: 2D version of the bedGraph format. 7 columns.
+    
+      - columns: "chrom1, start1, end1, chrom2, start2, end2, count"
+      - sorted by chrom1, chrom2, start1, start2
+      - bgzip compressed and indexed with Pairix (see cooler csort)
+    
+      Example:
+    
+      cooler csort -c1 1 -p1 2 -c2 4 -p2 5 <in.bg2> <chrom.sizes>
+      cooler load -f bg2 <chrom.sizes>:<binsize> <in.bg2.srt.gz> <out.cool>
+    
+      Arguments:
+    
+      BINS_PATH : One of the following
+    
+          <TEXT:INTEGER> : 1. Path to a chromsizes file, 2. Bin size in bp
+          <TEXT> : Path to BED file defining the genomic bin segmentation.
+    
+      PIXELS_PATH : Text file containing nonzero pixel values. May be gzipped.
+    
+      COOL_PATH : Output COOL file path
     
     Options:
-      -p, --nproc INTEGER      Number of processes to split the work between.
-                               [default: 8]
-      -c, --chunksize INTEGER  Control the number of pixels handled by each worker
-                               process at a time.  [default: 10000000]
-      --mad-max INTEGER        Ignore bins from the contact matrix using the 'MAD-
-                               max' filter: bins whose log marginal sum is less
-                               than ``mad-max`` mean absolute deviations below the
-                               median log marginal sum of all the bins in the same
-                               chromosome.  [default: 3]
-      --min-nnz INTEGER        Ignore bins from the contact matrix whose marginal
-                               number of nonzeros is less than this number.
-                               [default: 10]
-      --min-count INTEGER      Ignore bins from the contact matrix whose marginal
-                               count is less than this number.  [default: 0]
-      --ignore-diags INTEGER   Number of diagonals of the contact matrix to
-                               ignore, including the main diagonal. Examples: 0
-                               ignores nothing, 1 ignores the main diagonal, 2
-                               ignores diagonals (-1, 0, 1), etc.  [default: 2]
-      --tol FLOAT              Threshold value of variance of the marginals for
-                               the algorithm to converge.  [default: 1e-05]
-      --max-iters INTEGER      Maximum number of iterations to perform if
-                               convergence is not achieved.  [default: 200]
-      --cis-only               Calculate weights against intra-chromosomal data
-                               only instead of genome-wide.
-      -f, --force              Overwrite the target dataset, 'weight', if it
-                               already exists.
-      --check                  Check whether a data column 'weight' already
-                               exists.
-      --stdout                 Print weight column to stdout instead of saving to
-                               file.
+      -f, --format [coo|bg2]   'coo' refers to a tab-delimited sparse triple file
+                               (bin1, bin2, count). 'bg2' refers to a 2D bedGraph-
+                               like file (chrom1, start1, end1, chrom2, start2,
+                               end2, count).  [required]
+      -c, --chunksize INTEGER
+      --metadata TEXT          Path to JSON file containing user metadata.
+      --assembly TEXT          Name of genome assembly (e.g. hg19, mm10)
       --help                   Show this message and exit.
 
 
-cooler coarsegrain
+cooler list
 ----------------
 
 ::
 
-    Usage: cooler coarsegrain [OPTIONS] COOLER_PATH
+    Usage: cooler list [OPTIONS] COOL_PATH
     
-      Aggregation to multi-res cooler file.
-    
-      Converts a single resolution cooler file to a multi-resolution
-      representation by recursively aggregating (summing) adjacent bins.
-    
-      COOL_PATH : Path to a COOL file
+      List all Coolers inside a COOL file.
     
     Options:
-      -n, -p, --n_cpus CHECK_NCPUS  Number of cpus to use in process pool
-                                    (Default=1, i.e. no pool)
-      -c, --chunk-size INTEGER      Chunk size
-      --too-close INTEGER           remove diagonals for distances less than this
-                                    number (bp)
-      --mad-max INTEGER             MAD-max filter
-      --balance / --no-balance      Don't balance each level while recursing
-      -o, --output-file TEXT        Output multires file
-      --help                        Show this message and exit.
+      -l, --long  Long listing format
+      --help      Show this message and exit.
 
 
 cooler info
@@ -299,17 +375,48 @@ cooler info
 
 ::
 
-    Usage: cooler info [OPTIONS] COOL_PATH
+    Usage: cooler info [OPTIONS] COOL_URI
     
       Display file info and metadata.
     
-      COOL_PATH : Path to a COOL file.
+      COOL_PATH : Path to a COOL file or Cooler URI.
     
     Options:
       -f, --field TEXT  Print the value of a specific info field.
       -m, --metadata    Print the user metadata in JSON format.
       -o, --out TEXT    Output file (defaults to stdout)
       --help            Show this message and exit.
+
+
+cooler copy
+----------------
+
+::
+
+    Usage: cooler copy [OPTIONS] SRC_URI DST_URI
+    
+      Copy a Cooler from one file to another or within the same file.
+    
+      See also: h5copy, h5repack tools from HDF5 suite
+    
+      Arguments:
+    
+      SRC_URI : Path to source file or URI to source Cooler group
+    
+      DST_URI : Path to destination file or URI to destination Cooler group
+    
+    Options:
+      -w, --overwrite  Truncate and replace destination file if it already exists.
+      -l, --link       If the source and destination file are the same, create a
+                       hard link to the source group instead of a true copy.
+      -m, --rename     If the source and destination file are the same, create a
+                       hard link to the source group and remove the original
+                       reference.
+      -s, --soft-link  If the source and destination file are the same, create a
+                       soft link. If the destination file is different, create an
+                       external link. This type of link uses a path rather than a
+                       pointer.
+      --help           Show this message and exit.
 
 
 cooler dump
@@ -322,7 +429,7 @@ cooler dump
       Dump a contact matrix. Print the contents of a COOL file to tab-delimited
       text.
     
-      COOL_PATH : Path to COOL file containing a contact matrix.
+      COOL_PATH : Path to COOL file or Cooler URI.
     
     Options:
       -t, --table [chroms|bins|pixels]
@@ -347,7 +454,7 @@ cooler dump
       -r2, --range2 TEXT              The coordinates of a genomic region shown
                                       along the column dimension. If omitted, the
                                       column range is the same as the row range.
-      -b, --balanced                  Apply balancing weights to data. This will
+      -b, --balanced / --no-balance   Apply balancing weights to data. This will
                                       print an extra column called `balanced`
                                       [default: False]
       --join                          Print the full chromosome bin coordinates
@@ -372,12 +479,14 @@ cooler show
 
 ::
 
-    Usage: cooler show [OPTIONS] COOLER_PATH RANGE
+    Usage: cooler show [OPTIONS] COOL_PATH RANGE
     
       Display a contact matrix. Display a region of a contact matrix stored in a
       COOL file.
     
-      COOLER_PATH : Path to a COOL file
+      Arguments:
+    
+      COOL_PATH : Path to a COOL file or Cooler URI.
     
       RANGE : The coordinates of the genomic region to display, in UCSC
       notation. Example: chr1:10,000,000-11,000,000
@@ -416,5 +525,136 @@ cooler show
                                       ib.org/examples/color/colormaps_reference.ht
                                       ml
       --help                          Show this message and exit.
+
+
+cooler balance
+----------------
+
+::
+
+    Usage: cooler balance [OPTIONS] COOL_URI
+    
+      Out-of-core contact matrix balancing.
+    
+      Assumes uniform binning. See the help for various filtering options to
+      ignore poorly mapped bins.
+    
+      COOL_PATH : Path to a COOL file.
+    
+    Options:
+      -p, --nproc INTEGER      Number of processes to split the work between.
+                               [default: 8]
+      -c, --chunksize INTEGER  Control the number of pixels handled by each worker
+                               process at a time.  [default: 10000000]
+      --mad-max INTEGER        Ignore bins from the contact matrix using the 'MAD-
+                               max' filter: bins whose log marginal sum is less
+                               than ``mad-max`` mean absolute deviations below the
+                               median log marginal sum of all the bins in the same
+                               chromosome.  [default: 5]
+      --min-nnz INTEGER        Ignore bins from the contact matrix whose marginal
+                               number of nonzeros is less than this number.
+                               [default: 10]
+      --min-count INTEGER      Ignore bins from the contact matrix whose marginal
+                               count is less than this number.  [default: 0]
+      --blacklist PATH         Path to a 3-column BED file containing genomic
+                               regions to mask out during the balancing procedure,
+                               e.g. sequence gaps or regions of poor mappability.
+      --ignore-diags INTEGER   Number of diagonals of the contact matrix to
+                               ignore, including the main diagonal. Examples: 0
+                               ignores nothing, 1 ignores the main diagonal, 2
+                               ignores diagonals (-1, 0, 1), etc.  [default: 2]
+      --tol FLOAT              Threshold value of variance of the marginals for
+                               the algorithm to converge.  [default: 1e-05]
+      --max-iters INTEGER      Maximum number of iterations to perform if
+                               convergence is not achieved.  [default: 200]
+      --cis-only               Calculate weights against intra-chromosomal data
+                               only instead of genome-wide.
+      --name TEXT              Name of column to write to.  [default: weight]
+      -f, --force              Overwrite the target dataset, 'weight', if it
+                               already exists.
+      --check                  Check whether a data column 'weight' already
+                               exists.
+      --stdout                 Print weight column to stdout instead of saving to
+                               file.
+      --help                   Show this message and exit.
+
+
+cooler merge
+----------------
+
+::
+
+    Usage: cooler merge [OPTIONS] OUT_PATH [IN_PATHS]...
+    
+      Merge multiple contact matrices with identical axes.
+    
+      Data columns merged:
+    
+          pixels/bin1_id, pixels/bin2_id, pixels/count
+    
+      Data columns preserved:
+    
+          chroms/name, chroms/length     bins/chrom, bins/start, bins/end
+    
+      Additional columns in the the input files are not preserved in the output.
+    
+    Options:
+      -c, --chunksize INTEGER  [default: 10000000]
+      --help                   Show this message and exit.
+
+
+cooler coarsen
+----------------
+
+::
+
+    Usage: cooler coarsen [OPTIONS] COOL_PATH
+    
+      Coarsen a contact matrix by uniformly gridding the elements of each
+      chromosomal block and summing the elements inside the grid tiles, i.e. a
+      2-D histogram.
+    
+      Arguments:
+    
+      COOL_PATH : Path to a COOL file or Cooler URI.
+    
+    Options:
+      -k, --factor INTEGER     Gridding factor. The contact matrix is
+                               coarsegrained by grouping each chromosomal contact
+                               block into k-by-k element tiles  [default: 2]
+      -n, -p, --nproc INTEGER  Number of processes to use for batch processing
+                               chunks of pixels [default: 1, i.e. no process pool]
+      -c, --chunksize INTEGER  Number of pixels allocated to each process
+                               [default: 10000000]
+      -o, --out TEXT           Output file or URI  [required]
+      --help                   Show this message and exit.
+
+
+cooler zoomify
+----------------
+
+::
+
+    Usage: cooler zoomify [OPTIONS] COOL_PATH
+    
+      Generate zoom levels for HiGlass by recursively generating 2-by-2 element
+      tiled aggregations of the contact matrix until reaching a minimum
+      dimension. The aggregations are stored in a multi-resolution file.
+    
+      Arguments:
+    
+      COOL_PATH : Path to a COOL file or Cooler URI.
+    
+    Options:
+      -n, -p, --nproc INTEGER   Number of processes to use for batch processing
+                                chunks of pixels [default: 1, i.e. no process
+                                pool]
+      -c, --chunksize INTEGER   Number of pixels allocated to each process
+                                [default: 10000000]
+      --balance / --no-balance  Apply balancing to each zoom level  [default:
+                                False]
+      --balance-args TEXT       Additional arguments to pass to cooler balance
+      -o, --out TEXT            Output file or URI
+      --help                    Show this message and exit.
 
 

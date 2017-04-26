@@ -70,8 +70,9 @@ def restore_categories(data, categorical_columns):
 def daskify(filepath, grouppath, keys=None, chunksize=int(10e6), index=None, 
             lock=None):
     """
-    Create a dask dataframe around an HDF5 group containing equal-length 1D 
-    datasets serving as columns.
+    Create a dask dataframe around a column-oriented table in HDF5 
+
+    A table is a group containing equal-length 1D datasets.
 
     Parameters
     ----------
@@ -86,11 +87,15 @@ def daskify(filepath, grouppath, keys=None, chunksize=int(10e6), index=None,
     index : str, optional
         Sorted column to use as index
     lock : multiprocessing.Lock, optional
-        Lock to synchronize HDF5 read/write access. Default is no lock.
+        Lock to serialize HDF5 read/write access. Default is no lock.
 
     Returns
     -------
     dask.dataframe.DataFrame
+
+    Notes
+    -----
+    Learn more about dask: <https://github.com/dask/dask-tutorial>.
 
     """
     nrows, keys, meta, categoricals = get_group_info(filepath, grouppath, keys)

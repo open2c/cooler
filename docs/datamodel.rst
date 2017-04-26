@@ -6,10 +6,10 @@ We model a contact matrix using three tables.
 chroms
 ~~~~~~
 
-+ Required columns: ``name``
++ Required columns: ``name[, length]``
 + Order: *enumeration*
 
-An enumeration of the chromosomes, scaffolds or contigs of the assembly that the data is mapped to. This information can be extracted from the bin table below, but is included separately for convenience. This enumeration is the intended ordering of the chromosomes as they would appear in a global contact matrix. Additional columns can provide metadata on the chromosomes, such as their length.
+An semantic ordering of the chromosomes, scaffolds or contigs of the assembly that the data is mapped to. This information can be extracted from the bin table below, but is included separately for convenience. This enumeration is the intended ordering of the chromosomes as they would appear in a global contact matrix. Additional columns can provide metadata on the chromosomes, such as their length.
 
 bins
 ~~~~
@@ -22,8 +22,8 @@ An enumeration of the concatenated genomic bins that make up a single dimension 
 pixels
 ~~~~~~
 
-+ Required columns: ``bin1ID, bin2ID, count``
-+ Order: ``bin1ID, bin2ID``
++ Required columns: ``bin1_id, bin2_id, count``
++ Order: ``bin1_id, bin2_id``
 
 The contact matrix is stored as a single table containing only the nonzero upper triangle elements, assuming the ordering of the bins given by the bin table. Each row defines a non-zero element of the contact matrix. Additional columns can be appended to store pixel-associated properties such as pixel-level masks or filtered and transformed versions of the data. Currently, the pixels are sorted lexicographically by the bin ID of the 1st axis (matrix row) then the bin ID of the 2nd axis (matrix column).
 
@@ -37,7 +37,9 @@ To balance the tradeoff between simplicity, terseness and flexibility in an atte
 + For one, it makes the data much easier to stream and process in chunks, which ideal for many types of out-of-core algorithms on very large contact matrices.
 + Separating bins (annotations of the axis labels) from pixels (the matrix data) allows for easy inclusion of bin-level properties without introducing redundancy.
 
-+ The same schema [bin + pixel table combination] also defines a plain text format, a simple serialization of the binary format, that doesn’t require splitting a contact matrix into a separate file for every contig-contig submatrix. One of two forms are possible:
 
-    - Two-file: The bin table and pixel table are stored as separate tab-delimited files (BED file + sparse triple file). See the output format from `Hi-C Pro <http://nservant.github.io/HiC-Pro/RESULTS.html#intra-and-inter-chromosomal-contact-maps>`_.
-    - Single-file ("tidy"): The ``bin1_id`` and ``bin2_id`` columns of the pixel table are replaced with annotations from the bin table, suffixed with `1` or `2` accordingly. There is an increased storage cost from the redudundacy of using a single file. The result is a `BEDPE <http://bedtools.readthedocs.io/en/latest/content/general-usage.html#bedpe-format>`_-like file.
+Note that this flat structure [combination of bin + pixel tables] also defines a companion plain text format, a simple serialization of the binary format. Two forms are possible:
+
+- Two-file: The bin table and pixel table are stored as separate tab-delimited files (BED file + sparse triple file). See the output format from `Hi-C Pro <http://nservant.github.io/HiC-Pro/RESULTS.html#intra-and-inter-chromosomal-contact-maps>`_.
+
+- Single-file ("merged"): The ``bin1_id`` and ``bin2_id`` columns of the pixel table are replaced with annotations from the bin table, suffixed with `1` or `2` accordingly (e.g. ``chrom1``, ``start1``, ``end1``, ``weight1``, etc.). The result is a 2D extension of the `bedGraph <https://genome.ucsc.edu/goldenpath/help/bedgraph.html>`_ track format.
