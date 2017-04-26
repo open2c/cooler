@@ -12,7 +12,6 @@ import json
 import six
 
 import numpy as np
-import pandas
 import pandas as pd
 import h5py
 
@@ -127,8 +126,9 @@ def write_bins(grp, bins, chromnames, h5opts):
         put(grp, bins[columns])
 
 
-def prepare_pixels(grp, n_bins, columns, dtypes, h5opts):
-    columns = list(columns)
+def prepare_pixels(grp, n_bins, meta, h5opts):
+    columns = list(meta.columns)
+    dtypes = meta.dtypes
     max_size = n_bins * (n_bins - 1) // 2 + n_bins
     init_size = min(5 * n_bins, max_size)
     grp.create_dataset('bin1_id',
@@ -163,14 +163,16 @@ def write_pixels(filepath, grouppath, columns, iterable, h5opts, lock):
 
     Parameters
     ----------
-    grp : h5py.Group
-        Group handle of an open HDF5 file with write permissions.
-    n_bins : int
-        Number of genomic bins.
-    reader : object
-        Reader object that reads and/or aggregates contacts from
-        the input file(s). A reader returns chunks of binned contacts (bin1_id,
-        bin2_id, count) sorted by ``bin1_id`` then ``bin2_id``.
+    filepath : str
+        Path to HDF5 output file.
+    grouppath : str
+        Qualified path to destination HDF5 group.
+    columns : sequence
+        Sequence of column names
+    iterable : an iterable object
+        An object that processes and yields binned contacts from some input 
+        source as a stream of chunks. The chunks must be either pandas 
+        DataFrames or mappings of column names to arrays.
     h5opts : dict
         HDF5 filter options.
     lock : multiprocessing.Lock, optional

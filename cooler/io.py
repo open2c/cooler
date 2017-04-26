@@ -145,6 +145,12 @@ def create(cool_uri, bins, pixels, dtypes=None, metadata=None, assembly=None,
     if h5opts is None:
         h5opts = dict(compression='gzip', compression_opts=6)
 
+    if not isinstance(bins, pandas.DataFrame):
+        raise ValueError(
+            "Second positional argument must be a pandas DataFrame. "
+            "Note that the `chromsizes` argument is now deprecated: "
+            "see documentation for `create`.")
+
     for col in ['chrom', 'start', 'end']:
         if col not in bins.columns:
             raise ValueError("Missing column from bin table: '{}'.".format(col))

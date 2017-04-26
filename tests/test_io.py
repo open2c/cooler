@@ -124,7 +124,7 @@ def should_raise_if_input_not_sorted(bintable):
     reader = cooler.io.HDF5Aggregator(
         bad_reads, chromsizes, bintable, chunksize=66)
     assert_raises(ValueError, cooler.io.create,
-        testfile_path, chromsizes, bintable, reader)
+        testfile_path, bintable, reader)
 
 
 def should_work_with_int32_cols(bintable):
