@@ -7,10 +7,10 @@ import six
 
 
 def is_categorical(array_like):
-    return array_like.dtype.name == 'category'
+    return hasattr(array_like, 'dtype') and array_like.dtype.name == 'category'
 
 
-def get(h5, lo=0, hi=None, fields=None, convert_enum=True, as_dict=False):
+def get(grp, lo=0, hi=None, fields=None, convert_enum=True, as_dict=False):
     """
     Query a range of rows from a table as a dataframe.
 
@@ -19,7 +19,7 @@ def get(h5, lo=0, hi=None, fields=None, convert_enum=True, as_dict=False):
 
     Parameters
     ----------
-    h5 : ``h5py.Group`` or any dict-like of array-likes
+    grp : ``h5py.Group`` or any dict-like of array-likes
         Handle to an HDF5 group containing only 1D datasets or any similar
         collection of 1D datasets or arrays
     lo, hi : int, optional
@@ -42,7 +42,6 @@ def get(h5, lo=0, hi=None, fields=None, convert_enum=True, as_dict=False):
     HDF5 ASCII datasets are converted to Unicode.
 
     """
-    grp = h5
     series = False
     if fields is None:
         fields = list(grp.keys())
@@ -89,7 +88,7 @@ def get(h5, lo=0, hi=None, fields=None, convert_enum=True, as_dict=False):
             index=index)
 
 
-def put(h5, df, lo=0, store_categories=True, h5opts=None):
+def put(grp, df, lo=0, store_categories=True, h5opts=None):
     """
     Store a dataframe into a column-oriented table store.
     
@@ -98,7 +97,7 @@ def put(h5, df, lo=0, store_categories=True, h5opts=None):
 
     Parameters
     ----------
-    h5 : ``h5py.Group`` or any dict-like of array-likes
+    h5 : ``h5py.Group``
         Handle to an HDF5 group containing only 1D datasets or any similar
         collection of 1D datasets or arrays
     df : DataFrame or Series
@@ -115,10 +114,9 @@ def put(h5, df, lo=0, store_categories=True, h5opts=None):
 
     Notes
     -----
-    Categories must be ASCII compatible.
+    Categorical data must be ASCII compatible.
     
     """
-    grp = h5
     if h5opts is None:
         h5opts = dict(compression='gzip', compression_opts=6)
     
@@ -128,7 +126,11 @@ def put(h5, df, lo=0, store_categories=True, h5opts=None):
     fields = df.keys()
     for field, data in six.iteritems(df):
         
-        if is_categorical(data):
+        if np.isscalar(data):
+            data = np.array([data])
+            dtype = data.dtype
+            fillvalue = None
+        elif is_categorical(data):
             if store_categories:
                 cats = data.cat.categories
                 enum = (data.cat.codes.dtype, 
@@ -140,13 +142,15 @@ def put(h5, df, lo=0, store_categories=True, h5opts=None):
                 data = data.cat.codes
                 dtype = data.dtype
                 fillvalue = -1
-        elif data.dtype in (object, str, bytes):
-            dtype = np.dtype('S')
-            data = np.array(data, dtype=dtype)
-            fillvalue = None
         else:
-            dtype = data.dtype
-            fillvalue = None
+            data = np.asarray(data)
+            if data.dtype in (object, str, bytes):
+                dtype = np.dtype('S')
+                data = np.array(data, dtype=dtype)
+                fillvalue = None
+            else:
+                dtype = data.dtype
+                fillvalue = None
         
         hi = lo + len(data)
         try:
@@ -162,10 +166,10 @@ def put(h5, df, lo=0, store_categories=True, h5opts=None):
         if hi > len(dset):
             dset.resize((hi,))
         
-        dset[lo:hi] = data.values
+        dset[lo:hi] = data
 
 
-def delete(h5, fields=None):
+def delete(grp, fields=None):
     """
     Delete columns from a table.
 
@@ -174,15 +178,20 @@ def delete(h5, fields=None):
 
     Parameters
     ----------
-    h5 : ``h5py.Group`` or any dict-like of array-likes
+    grp : ``h5py.Group``
         Handle to an HDF5 group containing only 1D datasets or any similar
         collection of 1D datasets or arrays
     fields : str or sequence of str, optional
         Column or list of columns to query. Defaults to all available columns.
         A single string returns a Series instead of a DataFrame.
 
+    Notes
+    -----
+    Deleting objects leaves "holes" in HDF5 files and doesn't free space. 
+    You will need to repack or copy the file contents to reclaim space.
+    See the h5repack tool.
+
     """
-    grp = h5
     if fields is None:
         fields = list(grp.keys())
     elif isinstance(fields, six.string_types):
@@ -217,7 +226,7 @@ def region_to_extent(h5, chrom_ids, region, binsize=None):
 
 class TriuReader(object):
     """
-    Retrieves data from a 2D range query on the pixel table of a cooler tree.
+    Retrieves data from a 2D range query on the pixel table of a Cooler.
 
     Parameters
     ----------
