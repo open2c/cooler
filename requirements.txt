@@ -9,3 +9,4 @@ click==6.6
 biopython==1.66
 pyfaidx==0.4.7.1
 multiprocess==0.70.4
+dask==0.14.1
