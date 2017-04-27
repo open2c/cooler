@@ -8,23 +8,28 @@
 
 ## A cool place to store your Hi-C
 
-Cooler is a support library for a **sparse, compressed, binary** persistent storage format for Hi-C contact matrices, called `cool`, which is based on HDF5.
+Cooler is a support library for a **sparse, compressed, binary** persistent storage format, called _cool_, used to store genomic interaction data, such as Hi-C contact matrices. 
 
-Cooler aims to provide the following functionality:
+The _cool_ file format is a reference implementation of a genomic matrix data model using [HDF5](https://en.wikipedia.org/wiki/Hierarchical_Data_Format) as the container format.
 
-- Generate contact matrices from contact lists at arbitrary resolutions.
-- Store contact matrices efficiently in `cool` format based on the widely used [HDF5](https://en.wikipedia.org/wiki/Hierarchical_Data_Format) container format.
-- Perform out-of-core genome wide contact matrix normalization (a.k.a. balancing)
-- Perform fast range queries on a contact matrix.
-- Convert contact matrices between formats.
-- Provide a clean and well-documented Python API to work with Hi-C data.
+The `cooler` package aims to provide the following functionality:
 
+- Build contact matrices at any resolution from a [list of contacts](https://github.com/4dn-dcic/pairix).
+- Query a contact matrix.
+- Export and visualize the data.
+- Perform efficient out-of-core operations, such as aggregation and contact matrix normalization (a.k.a. balancing).
+- Provide a clean and well-documented Python API to facilitate working with potentially larger-than-memory data.
 
 To get started:
 
-- Documentation is available [here](http://cooler.readthedocs.org/en/latest/).
-- [Walkthrough](https://github.com/mirnylab/cooler-binder) with a Jupyter notebook.
-- `cool` files from published Hi-C data sets are available at `ftp://cooler.csail.mit.edu/coolers`.
+- Read the [documentation](http://cooler.readthedocs.org/en/latest/).
+- See the Jupyter Notebook [walkthrough](https://github.com/mirnylab/cooler-binder).
+- _cool_ files from published Hi-C data sets are available at `ftp://cooler.csail.mit.edu/coolers`.
+
+Related projects:
+- Process Hi-C data with [distiller](https://github.com/mirnylab/distiller).
+- Downstream analysis with [cooltools](https://github.com/mirnylab/cooltools) (WIP).
+- Visualize your Cooler data with [HiGlass](http://higlass.io)!
 
 
 ### Installation
@@ -44,7 +49,7 @@ See the [docs](http://cooler.readthedocs.org/en/latest/) for more information.
 
 ### Command line interface
 
-The `cooler` library includes utilities for creating and querying `cool` files and for performing contact matrix balancing on a `cool` file of any resolution.
+The `cooler` package includes command line tools for creating, querying and manipulating _cool_ files.
 
 ```bash
 $ cooler makebins $CHROMSIZES_FILE $BINSIZE > bins.10kb.bed
@@ -69,7 +74,7 @@ chr3    10000000        10010000        chr17   1800000 1810000 1       0.745982
 See also:
 
 - [CLI Reference](http://cooler.readthedocs.io/en/latest/cli.html).
-- Jupyter Notebook [walkthrough](https://github.com/mirnylab/cooler-binder).
+- Jupyter Notebook [walkthrough](https://github.com/mirnylab/cooler-binder/blob/master/cooler_cli.ipynb).
 
 ### Python API
 
@@ -101,13 +106,13 @@ The `cooler` library provides a thin wrapper over the excellent [h5py](http://do
 See also:
 
 - [API Reference](http://cooler.readthedocs.io/en/latest/api.html).
-- Jupyter Notebook [walkthrough](https://github.com/mirnylab/cooler-binder).
+- Jupyter Notebook [walkthrough](https://github.com/mirnylab/cooler-binder/blob/master/cooler_api.ipynb).
 
 ### Schema
 
-The `cool` [format](http://cooler.readthedocs.io/en/latest/datamodel.html) implements a simple schema that stores a contact matrix in a sparse representation, crucial for developing robust tools for use on increasingly high resolution Hi-C data sets, including streaming and [out-of-core](https://en.wikipedia.org/wiki/Out-of-core_algorithm) algorithms.
+The _cool_ format implements a simple [data model](http://cooler.readthedocs.io/en/latest/datamodel.html) that stores a genomic matrix in a sparse representation, crucial for developing robust tools for use on increasingly high resolution Hi-C data sets, including streaming and [out-of-core](https://en.wikipedia.org/wiki/Out-of-core_algorithm) algorithms.
 
-The data tables in a `cool` file are stored in a **columnar** representation as HDF5 groups of 1D array datasets of equal length. The contact matrix itself is stored as a single table containing only the **nonzero upper triangle** pixels.
+The data tables in a _cool_ file are stored in a **columnar** representation as HDF5 groups of 1D array datasets of equal length. The contact matrix itself is stored as a single table containing only the **nonzero upper triangle** pixels.
 
 
 ### Contributing
