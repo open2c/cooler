@@ -1,3 +1,32 @@
+### 0.7.0 (2017-04-27) ###
+
+New features
+
+* New Cooler URIs: Full support for Cooler objects anywhere in the data hierarchy of a .cool file
+* Experimental dask support via `cooler.contrib.dask`
+* New explicit bin blacklist option for `cooler balance`
+* Various new CLI tools:
+    * `cooler list`
+    * `cooler copy`
+    * `cooler merge`
+* `cooler csort` now produces Pairix files by default
+* `cooler load` now accepts two types of matrix text input formats
+    * 3-column sparse matrix
+    * 7-column bg2.gz (2D bedGraph) indexed with Pairix (e.g. using csort)
+* `cooler coarsegrain` renamed `cooler coarsen`
+* Multi-resolution HiGlass input files can now be generated with the `cooler zoomify` command
+* More flexible API functions to create and append columns to Coolers in `cooler.io`
+
+Backwards-incompatible changes
+
+* `cooler.io.create` signature changed; `chromsizes` argument is deprecated.
+* `cooler csort` argument order changed
+
+Bug fixes
+
+* Chromosome name length restriction removed
+* `Cooler.open` function now correctly opens the specific root group of the Cooler and behaves like a proper context manager in all cases
+
 ### 0.6.6 (2017-03-21) ###
 
 * Chromosome names longer than 32 chars are forbidden for now
