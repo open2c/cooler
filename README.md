@@ -4,7 +4,7 @@
 [![Documentation Status](https://readthedocs.org/projects/cooler/badge/?version=latest)](http://cooler.readthedocs.org/en/latest/)
 [![Binder](http://mybinder.org/badge.svg)](https://github.com/mirnylab/cooler-binder)
 [![Join the chat at https://gitter.im/mirnylab/cooler](https://badges.gitter.im/mirnylab/cooler.svg)](https://gitter.im/mirnylab/cooler?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
-
+[![DOI](https://zenodo.org/badge/49553222.svg)](https://zenodo.org/badge/latestdoi/49553222)
 
 ## A cool place to store your Hi-C
 
@@ -27,6 +27,7 @@ To get started:
 - _cool_ files from published Hi-C data sets are available at `ftp://cooler.csail.mit.edu/coolers`.
 
 Related projects:
+
 - Process Hi-C data with [distiller](https://github.com/mirnylab/distiller).
 - Downstream analysis with [cooltools](https://github.com/mirnylab/cooltools) (WIP).
 - Visualize your Cooler data with [HiGlass](http://higlass.io)!
