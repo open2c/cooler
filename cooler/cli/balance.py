@@ -34,7 +34,7 @@ from ..util import bedslice
 @click.option(
     "--mad-max",
     help="Ignore bins from the contact matrix using the 'MAD-max' filter: "
-         "bins whose log marginal sum is less than ``mad-max`` mean absolute "
+         "bins whose log marginal sum is less than ``mad-max`` median absolute "
          "deviations below the median log marginal sum of all the bins in the "
          "same chromosome.",
     type=int,
