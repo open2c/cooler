@@ -45,7 +45,7 @@ with open("{chromosomes_path}", "rb") as f:
 for line in instream:
     if line.startswith(b"{comment_char}"):
         continue
-    parts = line.split(b"\\t")
+    parts = line.split(b"{sep}")
     chrom1, chrom2 = parts[{c1}], parts[{c2}]
     if chrom1 in chrIDs and chrom2 in chrIDs:
         cid1, cid2 = chrIDs[chrom1], chrIDs[chrom2]
@@ -97,7 +97,7 @@ def make_read_command(infile):
     return read_cmd
 
 
-def make_flip_command(chromosomes_path, comment_char, fields):
+def make_flip_command(chromosomes_path, sep, comment_char, fields):
     with open(chromosomes_path, 'rt') as f:
         logger.info("Enumerating requested chromosomes...")
         for i, line in enumerate(f, 1):
@@ -111,6 +111,7 @@ def make_flip_command(chromosomes_path, comment_char, fields):
     p2 = fields['P2'] - 1
     flip_code = FLIP_TEMPLATE.format(
         chromosomes_path=chromosomes_path,
+        sep=sep,
         comment_char=comment_char,
         c1=c1, c2=c2, p1=p1, p2=p2)
 
@@ -195,6 +196,12 @@ def make_index_command(index, fields, zero_based, outfile):
     default=False,
     show_default=True)
 @click.option(
+    "--sep",
+    help="Data delimiter in the input file",
+    type=str,
+    default=r"\t",
+    show_default=True)
+@click.option(
     "--comment-char",
     help="Comment character to skip header",
     type=str,
@@ -216,7 +223,7 @@ def make_index_command(index, fields, zero_based, outfile):
     help="strand2 field number (deprecated)",
     type=int)
 def csort(pairs_path, chromosomes_path, index, chrom1, chrom2, pos1, pos2,
-          flip_only, nproc, zero_based, comment_char, sort_options, out, 
+          flip_only, nproc, zero_based, sep, comment_char, sort_options, out, 
           **kwargs):
     """
     Sort and index a contact list.
@@ -315,7 +322,7 @@ def csort(pairs_path, chromosomes_path, index, chrom1, chrom2, pos1, pos2,
 
     # build commands
     read_cmd = make_read_command(infile)
-    flip_cmd = make_flip_command(chromosomes_path, comment_char, fields)
+    flip_cmd = make_flip_command(chromosomes_path, sep, comment_char, fields)
 
     if flip_only:
         # run pipeline
@@ -348,17 +355,6 @@ def csort(pairs_path, chromosomes_path, index, chrom1, chrom2, pos1, pos2,
         index_cmd = make_index_command(index, fields, zero_based, outfile)
 
         # run pipeline
-        logger.info("Reordering pair mates and sorting pair records...")
-        if index == 'pairix':
-            logger.info("Sort order: block (chrom1, chrom2, pos1, pos2)")
-            logger.info(' '.join(sort_cmd))
-            logger.info("Indexer: pairix")
-            logger.info(' '.join(index_cmd))
-        else:
-            logger.info("Sort order: positional (chrom1, pos1, chrom2, pos2)")
-            logger.info(' '.join(sort_cmd))
-            logger.info("Indexer: tabix")
-            logger.info(' '.join(index_cmd))
         logger.info("Input: '{}'".format(infile))
         logger.info("Output: '{}'".format(outfile))
         assert infile != outfile
@@ -375,6 +371,7 @@ def csort(pairs_path, chromosomes_path, index, chrom1, chrom2, pos1, pos2,
                     stdout=subprocess.PIPE)
             )
 
+            logger.info("Reordering pair mates and sorting pair records...")
             logger.debug(' '.join(flip_cmd))
             pipeline.append(
                 subprocess.Popen(
@@ -383,7 +380,11 @@ def csort(pairs_path, chromosomes_path, index, chrom1, chrom2, pos1, pos2,
                     stdout=subprocess.PIPE)
             )
 
-            logger.debug(' '.join(sort_cmd))
+            if index == 'pairix':
+                logger.info("Sort order: block (chrom1, chrom2, pos1, pos2)")
+            else:
+                logger.info("Sort order: positional (chrom1, pos1, chrom2, pos2)")
+            logger.info(' '.join(sort_cmd))
             pipeline.append(
                 subprocess.Popen(
                     sort_cmd,
@@ -401,12 +402,15 @@ def csort(pairs_path, chromosomes_path, index, chrom1, chrom2, pos1, pos2,
 
             for p in pipeline[::-1]:
                 p.communicate()
+
                 if p.returncode != 0:
+                    logger.error(' '.join(p.args))
                     sys.exit(1)
 
         # Create index file
-        logger.info("Indexing...")
-        logger.debug(' '.join(index_cmd))
+        logger.info("Indexing...")        
+        logger.info("Indexer: {}".format(index))
+        logger.info(' '.join(index_cmd))
         p = subprocess.Popen(index_cmd)
         p.communicate()
         if p.returncode != 0:
