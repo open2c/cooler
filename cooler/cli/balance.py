@@ -18,7 +18,8 @@ from ..util import bedslice
 @cli.command()
 @click.argument(
     "cool_uri",
-    type=str) #click.Path(exists=True))
+    type=str,
+    metavar='COOL_PATH') #click.Path(exists=True))
 @click.option(
     "--nproc", "-p",
     help="Number of processes to split the work between.",

@@ -13,7 +13,7 @@ from ..util import attrs_to_jsonable
 @click.argument(
     "cool_uri",
     type=str,
-    metavar="COOL_URI")
+    metavar="COOL_PATH")
 @click.option(
     "--field", "-f",
     help="Print the value of a specific info field.",
