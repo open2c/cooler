@@ -1,3 +1,9 @@
+### 0.7.1 (2017-04-29) ###
+
+* `cooler load` command can now accept supplemental pixel fields and custom field numbers
+* Fix parsing errors with unused pixel fields
+* Eliminate hard dependence on dask to make pip installs simpler. Conda package will retain dask as a run time requirement.
+
 ### 0.7.0 (2017-04-27) ###
 
 New features
