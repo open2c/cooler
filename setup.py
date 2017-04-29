@@ -55,7 +55,6 @@ install_requires = [
     'click>=6.6',
     'pysam>0.8',
     'multiprocess',
-    'dask[complete]',
     'biopython',
     'pyfaidx',
     'pypairix',
