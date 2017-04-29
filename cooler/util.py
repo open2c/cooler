@@ -7,7 +7,7 @@ import re
 import os
 
 import numpy as np
-import pandas
+import pandas as pd
 import h5py
 
 
@@ -161,10 +161,15 @@ def read_chromsizes(filepath_or,
     -------
     Series of integer bp lengths indexed by sequence name.
 
+    See also
+    --------
+    * UCSC assembly terminology: <http://genome.ucsc.edu/FAQ/FAQdownloads.html#download9>
+    * NCBI assembly terminology: <https://www.ncbi.nlm.nih.gov/grc/help/definitions
+
     """
     if isinstance(filepath_or, six.string_types) and filepath_or.endswith('.gz'):
         kwargs.setdefault('compression', 'gzip')
-    chromtable = pandas.read_csv(
+    chromtable = pd.read_csv(
         filepath_or, sep='\t', usecols=[0, 1],
         names=['name', 'length'], dtype={'name':str}, **kwargs)
     if not all_names:
@@ -173,9 +178,20 @@ def read_chromsizes(filepath_or,
             part = chromtable[chromtable['name'].str.contains(pattern)]
             part = part.iloc[argnatsort(part['name'])]
             parts.append(part)
-        chromtable = pandas.concat(parts, axis=0)
+        chromtable = pd.concat(parts, axis=0)
     chromtable.index = chromtable['name'].values
     return chromtable['length']
+
+
+def fetch_chromsizes(db, **kwargs):
+    """
+    Download chromosome sizes from UCSC as a ``pandas.Series``, indexed by
+    chromosome label.
+
+    """
+    return read_chromsizes(
+        'http://hgdownload.cse.ucsc.edu/goldenPath/{}/database/chromInfo.txt.gz'.format(db), 
+        **kwargs)
 
 
 def load_fasta(names, *filepaths):
@@ -232,18 +248,18 @@ def binnify(chromsizes, binsize):
         n_bins = int(np.ceil(clen / binsize))
         binedges = np.arange(0, (n_bins+1)) * binsize
         binedges[-1] = clen
-        return pandas.DataFrame({
+        return pd.DataFrame({
                 'chrom': [chrom]*n_bins,
                 'start': binedges[:-1],
                 'end': binedges[1:],
             }, columns=['chrom', 'start', 'end'])
     
-    bintable = pandas.concat(
+    bintable = pd.concat(
         map(_each, chromsizes.keys()),
         axis=0, 
         ignore_index=True)
     
-    bintable['chrom'] = pandas.Categorical(
+    bintable['chrom'] = pd.Categorical(
         bintable['chrom'], 
         categories=list(chromsizes.index), 
         ordered=True)
@@ -283,14 +299,14 @@ def digest(fasta_records, enzyme):
         cuts = np.r_[0, np.array(cut_finder(seq)) + 1, len(seq)].astype(int)
         n_frags = len(cuts) - 1
 
-        frags = pandas.DataFrame({
+        frags = pd.DataFrame({
             'chrom': [chrom] * n_frags,
             'start': cuts[:-1],
             'end': cuts[1:]},
             columns=['chrom', 'start', 'end'])
         return frags
 
-    return pandas.concat(map(_each, chroms), axis=0, ignore_index=True)
+    return pd.concat(map(_each, chroms), axis=0, ignore_index=True)
 
 
 def get_binsize(bins):
@@ -330,7 +346,7 @@ def get_chromsizes(bins):
             .rename(columns={'chrom': 'name', 'end': 'length'})
     )
     chroms, lengths = list(chromtable['name']), list(chromtable['length'])
-    return pandas.Series(index=chroms, data=lengths)
+    return pd.Series(index=chroms, data=lengths)
 
 
 def bedslice(grouped, chromsizes, region):
@@ -536,3 +552,99 @@ def unstar(func):
     def unstarred(args):
         return func(*args)
     return unstarred
+
+
+def make_meta(x, index=None):
+    """
+    Extracted from dask/dataframe/utils.py
+
+    Create an empty pandas object containing the desired metadata.
+
+    Parameters
+    ----------
+    x : dict, tuple, list, pd.Series, pd.DataFrame, pd.Index, dtype, scalar
+        To create a DataFrame, provide a `dict` mapping of `{name: dtype}`, or
+        an iterable of `(name, dtype)` tuples. To create a `Series`, provide a
+        tuple of `(name, dtype)`. If a pandas object, names, dtypes, and index
+        should match the desired output. If a dtype or scalar, a scalar of the
+        same dtype is returned.
+    index :  pd.Index, optional
+        Any pandas index to use in the metadata. If none provided, a
+        `RangeIndex` will be used.
+
+    Examples
+    --------
+    >>> make_meta([('a', 'i8'), ('b', 'O')])
+    Empty DataFrame
+    Columns: [a, b]
+    Index: []
+    >>> make_meta(('a', 'f8'))
+    Series([], Name: a, dtype: float64)
+    >>> make_meta('i8')
+    1
+
+    """
+
+    UNKNOWN_CATEGORIES = '__UNKNOWN_CATEGORIES__'
+
+    def _scalar_from_dtype(dtype):
+        if dtype.kind in ('i', 'f', 'u'):
+            return dtype.type(1)
+        elif dtype.kind == 'c':
+            return dtype.type(complex(1, 0))
+        elif dtype.kind in _simple_fake_mapping:
+            o = _simple_fake_mapping[dtype.kind]
+            return o.astype(dtype) if dtype.kind in ('m', 'M') else o
+        else:
+            raise TypeError("Can't handle dtype: {0}".format(dtype))
+
+    def _nonempty_scalar(x):
+        if isinstance(x, (pd.Timestamp, pd.Timedelta, pd.Period)):
+            return x
+        elif np.isscalar(x):
+            dtype = x.dtype if hasattr(x, 'dtype') else np.dtype(type(x))
+            return _scalar_from_dtype(dtype)
+        else:
+            raise TypeError("Can't handle meta of type "
+                            "'{0}'".format(type(x).__name__))
+
+    def _empty_series(name, dtype, index=None):
+        if isinstance(dtype, str) and dtype == 'category':
+            return pd.Series(pd.Categorical([UNKNOWN_CATEGORIES]),
+                             name=name, index=index).iloc[:0]
+        return pd.Series([], dtype=dtype, name=name, index=index)
+
+    if hasattr(x, '_meta'):
+        return x._meta
+    if isinstance(x, (pd.Series, pd.DataFrame)):
+        return x.iloc[0:0]
+    elif isinstance(x, pd.Index):
+        return x[0:0]
+    index = index if index is None else index[0:0]
+
+    if isinstance(x, dict):
+        return pd.DataFrame({c: _empty_series(c, d, index=index)
+                             for (c, d) in x.items()}, index=index)
+    if isinstance(x, tuple) and len(x) == 2:
+        return _empty_series(x[0], x[1], index=index)
+    elif isinstance(x, (list, tuple)):
+        if not all(isinstance(i, tuple) and len(i) == 2 for i in x):
+            raise ValueError("Expected iterable of tuples of (name, dtype), "
+                             "got {0}".format(x))
+        return pd.DataFrame({c: _empty_series(c, d, index=index) for (c, d) in x},
+                            columns=[c for c, d in x], index=index)
+    elif not hasattr(x, 'dtype') and x is not None:
+        # could be a string, a dtype object, or a python type. Skip `None`,
+        # because it is implictly converted to `dtype('f8')`, which we don't
+        # want here.
+        try:
+            dtype = np.dtype(x)
+            return _scalar_from_dtype(dtype)
+        except:
+            # Continue on to next check
+            pass
+
+    if is_scalar(x):
+        return _nonempty_scalar(x)
+
+    raise TypeError("Don't know how to create metadata from {0}".format(x))

@@ -6,6 +6,7 @@ import pandas as pd
 import h5py
 import cooler
 
+import dask
 from dask.dataframe.core import new_dd_object
 from dask.base import tokenize
 import dask.dataframe as dd

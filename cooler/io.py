@@ -7,11 +7,9 @@ import six
 import numpy as np
 import pandas
 import h5py
-from dask.dataframe.utils import make_meta
-import dask.dataframe
 
 from .core import put
-from .util import get_binsize, get_chromsizes
+from .util import get_binsize, get_chromsizes, make_meta
 from . import get_logger
 
 
@@ -93,7 +91,7 @@ def is_cooler(filepath, group=None):
     return group in ls(filepath)
 
 
-def create(cool_uri, bins, pixels, dtypes=None, metadata=None, assembly=None, 
+def create(cool_uri, bins, pixels, metadata=None, assembly=None, dtypes=None,
            h5opts=None, append=False, lock=None, chromsizes='<deprecated>'):
     """
     Create a new Cooler.
@@ -155,7 +153,12 @@ def create(cool_uri, bins, pixels, dtypes=None, metadata=None, assembly=None,
         if col not in bins.columns:
             raise ValueError("Missing column from bin table: '{}'.".format(col))
 
-    if isinstance(pixels, dask.dataframe.DataFrame):
+    try:
+        from dask.dataframe import DataFrame as dask_df
+    except ImportError:
+        dask_df = ()
+
+    if isinstance(pixels, dask_df):
         iterable = map(lambda x: x.compute(), pixels.to_delayed())
         meta = make_meta(pixels.dtypes)
     elif isinstance(pixels, pandas.DataFrame):
@@ -169,13 +172,18 @@ def create(cool_uri, bins, pixels, dtypes=None, metadata=None, assembly=None,
     else:
         iterable = pixels
         if dtypes is None:
-            dtypes = PIXEL_DTYPES
-        meta = make_meta(dtypes)
+            meta = make_meta(PIXEL_DTYPES)
+        else:
+            dtypes_ = dict(PIXEL_DTYPES).copy()
+            dtypes_.update(dict(dtypes))
+            meta = make_meta(dtypes_)
 
     for col in PIXEL_FIELDS:
         if col not in meta.columns:
             raise ValueError("Missing column from pixel table: '{}'".format(col))
 
+    bins = bins.copy()
+    bins['chrom'] = bins['chrom'].astype(object)
     chromsizes = get_chromsizes(bins)
     try:
         chromsizes = six.iteritems(chromsizes)
@@ -290,7 +298,16 @@ def append(cool_uri, table, data, chunked=False, force=False, h5opts=None,
 
     file_path, group_path = parse_cooler_uri(cool_uri)
 
-    if isinstance(data, (pandas.Series, dask.dataframe.Series)):
+    try:
+        from dask.dataframe import (
+            DataFrame as dask_df,
+            Series as dask_series
+        )
+    except ImportError:
+        dask_df = ()
+        dask_series = ()
+
+    if isinstance(data, dask_series):
         data = data.to_frame()
 
     try:
@@ -309,7 +326,7 @@ def append(cool_uri, table, data, chunked=False, force=False, h5opts=None,
                 else:
                     del h5[table][name]
 
-        if isinstance(data, (dask.dataframe.DataFrame)):
+        if isinstance(data, dask_df):
             # iterate over dataframe chunks
             for chunk in data.to_delayed():
                 i = 0
