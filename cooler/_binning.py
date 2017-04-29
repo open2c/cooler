@@ -579,7 +579,28 @@ class BedGraph2DLoader(ContactBinner):
         "chrom1, start1, end1, chrom2, start2, end2, count"
 
     """
-    def __init__(self, filepath, chromsizes, bins):
+    FIELD_NUMBERS = OrderedDict([
+        ('chrom1', 0),
+        ('start1', 1),
+        ('end1', 2),
+        ('chrom2', 3),
+        ('start2', 4),
+        ('end2', 5),
+        ('count', 6),
+    ])
+
+    FIELD_DTYPES = {
+        'chrom1': object,
+        'start1': int,
+        'end1': int,
+        'chrom2': object,
+        'start2': int,
+        'end2': int,
+        'count': int,
+    }
+
+    def __init__(self, filepath, chromsizes, bins, field_numbers=None, 
+                 field_dtypes=None):
         try:
             import pypairix
         except ImportError:
@@ -605,6 +626,25 @@ class BedGraph2DLoader(ContactBinner):
                 warnings.warn(
                     "Did not find contig " +
                     " '{}' in bg2 file.".format(chrom))
+
+        # Assign the column numbers
+        self.field_numbers = self.FIELD_NUMBERS.copy()
+        if field_numbers is not None:
+            self.field_numbers.update(field_numbers)
+        self.columns = list(self.field_numbers.keys())
+        self.usecols = list(self.field_numbers.values())
+        
+        # Assign the column dtypes. Assume additional value fields are float.
+        self.out_columns = ['bin1_id', 'bin2_id', 'count']
+        self.dtypes = self.FIELD_DTYPES.copy()
+        for col in self.columns:
+            if col not in self.dtypes:
+                self.out_columns.append(col)
+                self.dtypes[col] = float
+
+        # Override defaults
+        if field_dtypes is not None:
+            self.dtypes.update(field_dtypes)
     
     def aggregate(self, chrom1):
         import pypairix
@@ -614,27 +654,39 @@ class BedGraph2DLoader(ContactBinner):
         chromsizes = self.gs.chromsizes
         these_bins = self.gs.fetch(chrom1)
         remaining_chroms = self.gs.idmap[chrom1:]
-        
+        c1 = self.field_numbers['chrom1']
+        c2 = self.field_numbers['chrom2']
+        s1 = self.field_numbers['start1']
+        s2 = self.field_numbers['start2']
+        e1 = self.field_numbers['end1']
+        e2 = self.field_numbers['end2']
+
         # read contact matrix one row at a time
+        logger.info(chrom1)
         lines = []
         for bin1_id, bin1 in these_bins.iterrows():
             for chrom2, cid2 in six.iteritems(remaining_chroms):
                 chrom2_size = chromsizes[chrom2]
                 if chrom1 != chrom2 and f.exists2(chrom2, chrom1):  # flipped block
-                    q = [line[3:6] + line[0:3] + line[6:] for line in 
-                            f.query2D(chrom2, 0, chrom2_size, 
-                                      chrom1, bin1.start, bin1.end)]
+                    q = []
+                    for line in f.query2D(
+                                    chrom2, 0, chrom2_size, 
+                                    chrom1, bin1.start, bin1.end):
+                        line[c1], line[c2] = line[c2], line[c1]
+                        line[s1], line[s2] = line[s2], line[s1]
+                        line[e1], line[e2] = line[e2], line[e1]
+                        q.append(line)
                 else:
-                    q = list(f.query2D(chrom1, bin1.start, bin1.end,
+                    q = list(line for line in 
+                             f.query2D(chrom1, bin1.start, bin1.end,
                                        chrom2, 0, chrom2_size))
                 lines.extend(q)
 
-        df = pandas.DataFrame(
-            lines,
-            columns=['chrom1', 'start1', 'end1', 
-                     'chrom2', 'start2', 'end2', 'count'])
-        for col in ['start1', 'end1', 'start2', 'end2', 'count']:
-            df[col] = df[col].astype(int)
+        df = pandas.DataFrame(lines)
+        df = df[self.usecols]
+        df.columns = self.columns
+        for col, dtype in self.dtypes.items():
+            df[col] = df[col].astype(dtype)
 
         # assign bin IDs from bin table
         df = (df.merge(self.bins, 
@@ -643,11 +695,10 @@ class BedGraph2DLoader(ContactBinner):
                 .merge(self.bins, 
                        left_on=['chrom2', 'start2', 'end2'], 
                        right_on=['chrom', 'start', 'end'], 
-                       suffixes=('1', '2')))
-        
-        df = (df[['bin1', 'bin2', 'count']]
+                       suffixes=('1', '2'))
                 .rename(columns={'bin1': 'bin1_id', 
-                                 'bin2': 'bin2_id'})
+                                 'bin2': 'bin2_id'}))
+        df = (df[self.out_columns]
                 .sort_values(['bin1_id', 'bin2_id']))
         return df
     
@@ -665,7 +716,20 @@ class SparseLoader(ContactBinner):
     Load binned contacts from a single 3-column sparse matrix text file.
 
     """
-    def __init__(self, filepath, chunksize):
+    FIELD_NUMBERS = OrderedDict([
+        ('bin1_id', 0),
+        ('bin2_id', 1),
+        ('count', 2),
+    ])
+
+    FIELD_DTYPES = OrderedDict([
+        ('bin1_id', int),
+        ('bin2_id', int),
+        ('count', int),
+    ])
+
+    def __init__(self, filepath, bins, chunksize, field_numbers=None, 
+                 field_dtypes=None):
         """
         Parameters
         ----------
@@ -674,15 +738,51 @@ class SparseLoader(ContactBinner):
         chunksize : number of rows of the matrix file to read at a time
 
         """
-        self.iterator = pandas.read_csv(
-            filepath, 
-            sep='\t', 
-            iterator=True,
-            chunksize=chunksize,
-            names=['bin1_id', 'bin2_id', 'count'])
+        self._map = map
+        self.filepath = filepath
+        self.chunksize = chunksize
+        self.n_bins = len(bins)
+
+        # Assign the column numbers
+        self.field_numbers = self.FIELD_NUMBERS.copy()
+        if field_numbers is not None:
+            self.field_numbers.update(field_numbers)
+        self.columns = list(self.field_numbers.keys())
+        self.usecols = list(self.field_numbers.values())
+        
+        # Assign the column dtypes. Assume additional value fields are float.
+        self.out_columns = ['bin1_id', 'bin2_id', 'count']
+        self.dtypes = self.FIELD_DTYPES.copy()
+        for col in self.columns:
+            if col not in self.dtypes:
+                self.out_columns.append(col)
+                self.dtypes[col] = float
+
+        # Override defaults
+        if field_dtypes is not None:
+            self.dtypes.update(field_dtypes)
 
     def __iter__(self):
-        for chunk in self.iterator:
+        n_bins = self.n_bins
+        
+        iterator = pandas.read_csv(
+            self.filepath, 
+            sep='\t', 
+            iterator=True,
+            comment='#',
+            chunksize=self.chunksize,
+            usecols=self.usecols,
+            names=self.columns,
+            dtype=self.dtypes)
+
+        for chunk in iterator:
+            if np.any(chunk['bin1_id'] > chunk['bin2_id']):
+                raise ValueError("Found bin1_id greater than bin2_id")
+            if (np.any(chunk['bin1_id'] >= n_bins) or 
+                np.any(chunk['bin2_id'] >= n_bins)):
+                raise ValueError(
+                    "Found a bin ID that exceeds the declared number of bins. " 
+                    "Check whether your bin table is correct.")
             yield {k: v.values for k,v in six.iteritems(chunk)}
 
 

@@ -77,17 +77,17 @@ def teardown_func():
 
 def should_not_depend_on_chunksize(bintable):
     # try different chunk sizes
-    reader = cooler.io.HDF5Aggregator(
+    binner = cooler.io.HDF5Aggregator(
         mock_reads, chromsizes, bintable, chunksize=66)
-    cooler.io.create(testfile_path, bintable, reader)
+    cooler.io.create(testfile_path, bintable, binner)
     with h5py.File(testfile_path, 'r') as h5:
         oc1 = h5['indexes']['chrom_offset'][:]
         ob1 = h5['indexes']['bin1_offset'][:]
         p1 = cooler.pixels(h5, join=False)
 
-    reader = cooler.io.HDF5Aggregator(
+    binner = cooler.io.HDF5Aggregator(
         mock_reads, chromsizes, bintable, chunksize=666)
-    cooler.io.create(testfile_path, bintable, reader)
+    cooler.io.create(testfile_path, bintable, binner)
     with h5py.File(testfile_path, 'r') as h5:
         oc2 = h5['indexes']['chrom_offset'][:]
         ob2 = h5['indexes']['bin1_offset'][:]
@@ -121,17 +121,17 @@ def should_raise_if_input_not_sorted(bintable):
     bad_reads['chrms2'][0] = 0
     bad_reads['cuts1'][0] = 10
     bad_reads['cuts2'][0] = 9
-    reader = cooler.io.HDF5Aggregator(
+    binner = cooler.io.HDF5Aggregator(
         bad_reads, chromsizes, bintable, chunksize=66)
     assert_raises(ValueError, cooler.io.create,
-        testfile_path, bintable, reader)
+        testfile_path, bintable, binner)
 
 
 def should_work_with_int32_cols(bintable):
     # int64
-    reader = cooler.io.HDF5Aggregator(
+    binner = cooler.io.HDF5Aggregator(
         mock_reads, chromsizes, bintable, chunksize=66)
-    cooler.io.create(testfile_path, bintable, reader)
+    cooler.io.create(testfile_path, bintable, binner)
     with h5py.File(testfile_path, 'r') as h5:
         oc1 = h5['indexes']['chrom_offset'][:]
         ob1 = h5['indexes']['bin1_offset'][:]
@@ -144,9 +144,9 @@ def should_work_with_int32_cols(bintable):
         'chrms2': mock_reads['chrms2'].astype(np.int32),
         'cuts2':  mock_reads['cuts2'].astype(np.int32),
     })
-    reader = cooler.io.HDF5Aggregator(
+    binner = cooler.io.HDF5Aggregator(
         mock_reads32, chromsizes, bintable, chunksize=66)
-    cooler.io.create(testfile_path, bintable, reader)
+    cooler.io.create(testfile_path, bintable, binner)
     with h5py.File(testfile_path, 'r') as h5:
         oc2 = h5['indexes']['chrom_offset'][:]
         ob2 = h5['indexes']['bin1_offset'][:]

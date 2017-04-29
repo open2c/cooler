@@ -14,8 +14,12 @@ from .. import util
 from ..io import create, parse_cooler_uri, SparseLoader, BedGraph2DLoader
 
 
-# TODO: support positional and block sorted pixel data
-# dense text or binary memmapped?
+# TODO: support dense text or memmapped binary/npy?
+
+def _validate_fieldnum(ctx, param, value):
+    if value <= 0:
+        raise click.BadParameter('Field numbers are one-based')
+    return value
 
 
 def _parse_bins(arg):
@@ -78,16 +82,25 @@ def _parse_bins(arg):
     type=click.Choice(['coo', 'bg2']),
     required=True)
 @click.option(
-    "--chunksize", "-c",
-    type=int,
-    default=int(10e6))
-@click.option(
     "--metadata",
     help="Path to JSON file containing user metadata.")
 @click.option(
     "--assembly",
     help="Name of genome assembly (e.g. hg19, mm10)")
-def load(bins_path, pixels_path, cool_path, format, metadata, assembly, chunksize):
+@click.option(
+    "--field",
+    help="Add supplemental pixel fields or override default pixel field numbers. "
+         "Specify as '<name> <number>'. Field numbers are 1-based. "
+         "Supplemental data columns are assumed to be floating point. "
+         "Repeat for each additional field.",
+    nargs=2,
+    type=(str, int),
+    multiple=True)
+@click.option(
+    "--chunksize", "-c",
+    type=int,
+    default=int(10e6))
+def load(bins_path, pixels_path, cool_path, format, metadata, assembly, chunksize, field):
     """
     Load a contact matrix.
     Load a sparse-formatted text dump of a contact matrix into a COOL file.
@@ -135,10 +148,20 @@ def load(bins_path, pixels_path, cool_path, format, metadata, assembly, chunksiz
             metadata = json.load(f)
 
     # Set up the appropriate binned contacts loader
-    if format == 'bg2':
-        binner = BedGraph2DLoader(pixels_path, chromsizes, bins)
-    elif format == 'coo':
-        binner = SparseLoader(pixels_path, chunksize)
+    if field is not None:
+        if not all(v > 0 for k, v in field):
+            raise click.BadParameter("Field numbers are assumed to be 1-based.")
+        field_numbers = {k: v-1 for k, v in field}
+        field_dtypes = {k: float for k, v in field}
+    else:
+        field_numbers = None
+        field_dtypes = None
 
-    # Feed to create
-    create(cool_path, bins, binner, metadata, assembly)
+    if format == 'bg2':
+        binner = BedGraph2DLoader(pixels_path, chromsizes, bins, 
+                                  field_numbers, field_dtypes)
+    elif format == 'coo':
+        binner = SparseLoader(pixels_path, bins, chunksize, 
+                              field_numbers, field_dtypes)
+
+    create(cool_path, bins, binner, metadata, assembly, dtypes=field_dtypes)
