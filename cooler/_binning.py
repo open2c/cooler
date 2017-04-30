@@ -354,7 +354,7 @@ class PairixAggregator(ContactBinner):
         P1 = self.P1
         P2 = self.P2
         
-        logger.info('{} started'.format(chrom1))
+        logger.info('Begin {}:{}-{}'.format(chrom1, start, end))
 
         f = pypairix.open(filepath, 'r')
         these_bins = self.gs.fetch((chrom1, start, end))
@@ -408,7 +408,7 @@ class PairixAggregator(ContactBinner):
             
             accumulator.clear()
         
-        logger.info(chrom1)
+        logger.info('Finished {}:{}-{}'.format(chrom1, start, end))
 
         return pandas.concat(rows, axis=0) if len(rows) else None
     
