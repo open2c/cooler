@@ -308,7 +308,7 @@ class PairixAggregator(ContactBinner):
     tab-delimited text file.
 
     """
-    def __init__(self, filepath, chromsizes, bins, map=map, **kwargs):
+    def __init__(self, filepath, chromsizes, bins, map=map, n_chunks=40, **kwargs):
         try:
             import pypairix
         except ImportError:
@@ -316,6 +316,7 @@ class PairixAggregator(ContactBinner):
                 "pypairix is required to read pairix-indexed files")
         
         self._map = map
+        self.n_chunks = n_chunks
         f = pypairix.open(filepath, 'r')
         self.C1 = f.get_chr1_col()
         self.C2 = f.get_chr2_col()
@@ -339,7 +340,8 @@ class PairixAggregator(ContactBinner):
                     "Did not find contig " +
                     " '{}' in contact list file.".format(chrom))
 
-    def aggregate(self, chrom1):
+    def aggregate(self, gspan):
+        chrom1, start, end = gspan
         import pypairix
         filepath = self.filepath
         binsize = self.gs.binsize
@@ -352,8 +354,10 @@ class PairixAggregator(ContactBinner):
         P1 = self.P1
         P2 = self.P2
         
+        logger.info('{} started'.format(chrom1))
+
         f = pypairix.open(filepath, 'r')
-        these_bins = self.gs.fetch(chrom1)
+        these_bins = self.gs.fetch(chrom1, start, end)
         remaining_chroms = self.gs.idmap[chrom1:]
         cid1 = self.gs.idmap[chrom1]
 
@@ -409,8 +413,27 @@ class PairixAggregator(ContactBinner):
         return pandas.concat(rows, axis=0) if len(rows) else None
     
     def __iter__(self):
-        chroms = [ctg for ctg in self.gs.contigs if ctg in self.file_contigs]
-        for df in self._map(self.aggregate, chroms):
+        n_bins = len(self.gs.bins)
+        n_chunks = self.n_chunks
+        step = int(np.ceil(n_bins / n_chunks))
+
+        gspans = []
+        for chrom, group in self.gs.bins.groupby('chrom', sort=False):
+            if chrom not in self.file_contigs:
+                continue
+            cs = self.gs.chromsizes[chrom]
+
+            start = 0
+            end = 0
+            for ix, b in group.iterrows():
+                if ix % step == 0:
+                    end = b.end
+                    gspans.append( (chrom, start, end) )
+                    start = end
+            if end == 0 or end < cs:
+                gspans.append( (chrom, start, cs) )
+
+        for df in self._map(self.aggregate, gspans):
             if df is not None:
                 yield {k: v.values for k, v in six.iteritems(df)}
 
