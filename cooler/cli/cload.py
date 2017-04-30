@@ -197,7 +197,13 @@ def tabix(bins, pairs_path, cool_path, metadata, assembly, nproc, **kwargs):
     type=int,
     default=8,
     show_default=True)
-def pairix(bins, pairs_path, cool_path, metadata, assembly, nproc):
+@click.option(
+    "--nchunks",
+    help="Number of chunks",
+    type=int,
+    default=40,
+    show_default=True)
+def pairix(bins, pairs_path, cool_path, metadata, assembly, nproc, nchunks):
     """
     Bin a pairix-indexed contact list file.
 
@@ -221,7 +227,7 @@ def pairix(bins, pairs_path, cool_path, metadata, assembly, nproc):
             map = pool.imap
         else:
             map = six.moves.map
-        iterator = PairixAggregator(pairs_path, chromsizes, bins, map=map)
+        iterator = PairixAggregator(pairs_path, chromsizes, bins, map=map, n_chunks=nchunks)
         create(cool_path, bins, iterator, metadata, assembly)
     finally:
         if nproc > 1:

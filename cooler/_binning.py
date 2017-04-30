@@ -357,7 +357,7 @@ class PairixAggregator(ContactBinner):
         logger.info('{} started'.format(chrom1))
 
         f = pypairix.open(filepath, 'r')
-        these_bins = self.gs.fetch(chrom1, start, end)
+        these_bins = self.gs.fetch((chrom1, start, end))
         remaining_chroms = self.gs.idmap[chrom1:]
         cid1 = self.gs.idmap[chrom1]
 
