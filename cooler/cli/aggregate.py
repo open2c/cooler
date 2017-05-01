@@ -129,11 +129,9 @@ def multires_aggregate(input_uri, outfile, nproc, chunksize, lock=None):
 
     with h5py.File(outfile, 'r+') as fw:
         fw.attrs.update({'max-zoom': n_zooms})
-        # grp = fw.require_group('.zooms')
-        # grp.attrs.update({'max-zoom': n_zooms})
-        # # hard links
-        # for level, res in zoom_levels.items():
-        #     fw['.zooms'][level] = fw[str(res)]
+        #grp = fw.require_group('.zooms')
+        fw.attrs['max-zooms'] = n_zooms
+        fw.attrs.update(zoom_levels)
 
     return n_zooms, zoom_levels
 
