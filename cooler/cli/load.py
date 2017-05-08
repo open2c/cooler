@@ -77,8 +77,10 @@ def _parse_bins(arg):
     metavar="COOL_PATH")
 @click.option(
     "--format", "-f",
-    help="'coo' refers to a tab-delimited sparse triple file (bin1, bin2, count). "
-         "'bg2' refers to a 2D bedGraph-like file (chrom1, start1, end1, chrom2, start2, end2, count).",
+    help="'coo' refers to a tab-delimited sparse triplet file "
+         "(bin1, bin2, count). "
+         "'bg2' refers to a 2D bedGraph-like file "
+         "(chrom1, start1, end1, chrom2, start2, end2, count).",
     type=click.Choice(['coo', 'bg2']),
     required=True)
 @click.option(
@@ -100,7 +102,14 @@ def _parse_bins(arg):
     "--chunksize", "-c",
     type=int,
     default=int(10e6))
-def load(bins_path, pixels_path, cool_path, format, metadata, assembly, chunksize, field):
+@click.option(
+    "--count-as-float",
+    is_flag=True,
+    default=False,
+    help="Store the 'count' column as floating point values instead of as "
+         "integers (default).")
+def load(bins_path, pixels_path, cool_path, format, metadata, assembly,
+         chunksize, field, count_as_float):
     """
     Load a contact matrix.
     Load a sparse-formatted text dump of a contact matrix into a COOL file.
@@ -152,10 +161,13 @@ def load(bins_path, pixels_path, cool_path, format, metadata, assembly, chunksiz
         if not all(v > 0 for k, v in field):
             raise click.BadParameter("Field numbers are assumed to be 1-based.")
         field_numbers = {k: v-1 for k, v in field}
-        field_dtypes = {k: float for k, v in field}
+        field_dtypes = {k: float for k, v in field if k not in ('bin1_id', 'bin2_id', 'count')}
     else:
         field_numbers = None
         field_dtypes = None
+
+    if count_as_float:
+        field_dtypes['count'] = float
 
     if format == 'bg2':
         binner = BedGraph2DLoader(pixels_path, chromsizes, bins, 
