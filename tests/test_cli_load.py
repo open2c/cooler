@@ -11,6 +11,7 @@ import h5py
 import nose
 from nose.tools import with_setup, set_trace
 from click.testing import CliRunner
+import traceback
 
 from cooler.cli.load import load
 
@@ -40,7 +41,7 @@ def test_load_bg2_vs_coo():
             out_path1
         ]
     )
-    assert result.exit_code == 0
+    assert result.exit_code == 0, ''.join(traceback.format_exception(*result.exc_info))
 
     result = runner.invoke(
         load, [
@@ -50,7 +51,7 @@ def test_load_bg2_vs_coo():
             out_path2
         ]
     )
-    assert result.exit_code == 0
+    assert result.exit_code == 0, ''.join(traceback.format_exception(*result.exc_info))
 
     with h5py.File(out_path1, 'r') as f1, \
          h5py.File(out_path2, 'r') as f2:
