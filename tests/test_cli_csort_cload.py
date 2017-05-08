@@ -2,6 +2,7 @@
 from functools import partial
 import os.path as op
 import subprocess
+import traceback
 import tempfile
 import filecmp
 import sys
@@ -50,7 +51,7 @@ def test_csort():
             '--out', testcsort_path,
         ]
     )
-    assert result.exit_code == 0
+    assert result.exit_code == 0, ''.join(traceback.format_exception(*result.exc_info))
 
     ref_path = op.join(testdir, 'data', 'GM12878-MboI-contacts.subsample.sorted.txt.gz')
     retcode = subprocess.call(['zcmp', ref_path, testcsort_path])
@@ -70,7 +71,7 @@ def test_cload_tabix():
     # set_trace()
     # import traceback
     # traceback.print_tb(result.exc_info[2])
-    assert result.exit_code == 0
+    assert result.exit_code == 0, ''.join(traceback.format_exception(*result.exc_info))
 
     ref_path = op.join(testdir, 'data', 'GM12878-MboI-matrix.2000kb.cool')
     with h5py.File(testcool_path, 'r') as f1, \
@@ -92,5 +93,5 @@ def test_cload_tabix():
     # the cload command should raise a ValueError because the chromosome names are too
     # long (greater than 32 characters)
     # UPDATE: no longer a limit
-    assert result.exit_code == 0
+    assert result.exit_code == 0, ''.join(traceback.format_exception(*result.exc_info))
 

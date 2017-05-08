@@ -153,7 +153,14 @@ def hiclib(bins, pairs_path, cool_path, metadata, assembly, chunksize):
     help="pos2 field number (one-based)",
     type=int,
     default=5)
-def tabix(bins, pairs_path, cool_path, metadata, assembly, nproc, **kwargs):
+@click.option(
+    "--splitmax",
+    help="Approximate number of chunks to divide the reads mapping to the largest chromosomes. "
+         "Smaller chromosomes will be split less frequently or not at all.",
+    type=int,
+    default=2,
+    show_default=True)
+def tabix(bins, pairs_path, cool_path, metadata, assembly, nproc, splitmax, **kwargs):
     """
     Bin a tabix-indexed contact list file.
 
@@ -182,7 +189,7 @@ def tabix(bins, pairs_path, cool_path, metadata, assembly, nproc, **kwargs):
             opts['C2'] = kwargs['chrom2'] - 1
         if 'pos2' in kwargs:
             opts['P2'] = kwargs['pos2'] - 1
-        iterator = TabixAggregator(pairs_path, chromsizes, bins, map=map, **opts)
+        iterator = TabixAggregator(pairs_path, chromsizes, bins, map=map, n_chunks=splitmax, **opts)
         create(cool_path, bins, iterator, metadata, assembly)
     finally:
         if nproc > 1:
@@ -198,12 +205,13 @@ def tabix(bins, pairs_path, cool_path, metadata, assembly, nproc, **kwargs):
     default=8,
     show_default=True)
 @click.option(
-    "--nchunks",
-    help="Number of chunks",
+    "--splitmax",
+    help="Approximate number of chunks to divide the reads mapping to the largest chromosomes. "
+         "Smaller chromosomes will be split less frequently or not at all.",
     type=int,
-    default=40,
+    default=2,
     show_default=True)
-def pairix(bins, pairs_path, cool_path, metadata, assembly, nproc, nchunks):
+def pairix(bins, pairs_path, cool_path, metadata, assembly, nproc, splitmax):
     """
     Bin a pairix-indexed contact list file.
 
@@ -227,7 +235,7 @@ def pairix(bins, pairs_path, cool_path, metadata, assembly, nproc, nchunks):
             map = pool.imap
         else:
             map = six.moves.map
-        iterator = PairixAggregator(pairs_path, chromsizes, bins, map=map, n_chunks=nchunks)
+        iterator = PairixAggregator(pairs_path, chromsizes, bins, map=map, n_chunks=splitmax)
         create(cool_path, bins, iterator, metadata, assembly)
     finally:
         if nproc > 1:

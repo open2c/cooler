@@ -69,6 +69,31 @@ def check_bins(bins, chromsizes):
     return bins
 
 
+def balanced_partition(gs, n_chunk_max, file_contigs, loadings=None):
+    n_bins = len(gs.bins)
+    grouped = gs.bins.groupby('chrom', sort=False)
+    
+    chrom_nbins = grouped.size()
+    if loadings is None:
+        loadings = chrom_nbins
+    chrmax = loadings.argmax()
+    loadings = loadings / loadings.loc[chrmax]
+    const = chrom_nbins.loc[chrmax] / n_chunk_max
+
+    granges = []
+    for chrom, group in grouped:
+        if chrom not in file_contigs:
+            continue
+        clen = gs.chromsizes[chrom]
+        step = int(np.ceil(const / loadings.loc[chrom]))        
+        anchors = group.start.values[::step]
+        if anchors[-1] != clen:
+            anchors = np.r_[anchors, clen]
+        granges.extend( (chrom, start, end) 
+            for start, end in zip(anchors[:-1], anchors[1:]))
+    return granges
+
+
 class GenomeSegmentation(object):
     def __init__(self, chromsizes, bins):
         bins = check_bins(bins, chromsizes)
@@ -203,13 +228,14 @@ class TabixAggregator(ContactBinner):
     tab-delimited text file.
 
     """
-    def __init__(self, filepath, chromsizes, bins, map=map, **kwargs):
+    def __init__(self, filepath, chromsizes, bins, map=map, n_chunks=1, **kwargs):
         try:
             import pysam
         except ImportError:
             raise ImportError("pysam is required to read tabix files")
         
         self._map = map
+        self.n_chunks = n_chunks
         self.C2 = kwargs.pop('C2', 3)
         self.P2 = kwargs.pop('P2', 4)
         
@@ -237,7 +263,8 @@ class TabixAggregator(ContactBinner):
             "chromosomes in the provided chromsizes agrees with the chromosome "
             "ordering of read ends in the contact list file.")
 
-    def aggregate(self, chrom):
+    def aggregate(self, grange):
+        chrom1, start, end = grange
         import pysam
         filepath = self.filepath
         binsize = self.gs.binsize
@@ -246,16 +273,19 @@ class TabixAggregator(ContactBinner):
         chrom_binoffset = self.gs.chrom_binoffset
         chrom_abspos = self.gs.chrom_abspos
         start_abspos = self.gs.start_abspos
-        C2, P2 = self.C2, self.P2
+        C2 = self.C2
+        P2 = self.P2
+
+        logger.info('Binning {}:{}-{}|*'.format(chrom1, start, end))
         
-        these_bins = self.gs.fetch(chrom)
+        these_bins = self.gs.fetch((chrom1, start, end))
         rows = []
         with pysam.TabixFile(filepath, 'r', encoding='ascii') as f:
             parser = pysam.asTuple()
             accumulator = Counter()
             
             for bin1_id, bin1 in these_bins.iterrows():
-                for line in f.fetch(chrom, bin1.start, bin1.end,
+                for line in f.fetch(chrom1, bin1.start, bin1.end,
                                     parser=parser):
                     chrom2 = line[C2]
                     pos2 = int(line[P2])
@@ -292,12 +322,13 @@ class TabixAggregator(ContactBinner):
                 
                 accumulator.clear()
         
-        logger.info(chrom)
+        logger.info('Finished {}:{}-{}|*'.format(chrom1, start, end))
+
         return pandas.concat(rows, axis=0) if len(rows) else None
     
     def __iter__(self):
-        chroms = [ctg for ctg in self.gs.contigs if ctg in self.file_contigs]
-        for df in self._map(self.aggregate, chroms):
+        granges = balanced_partition(self.gs, self.n_chunks, self.file_contigs)
+        for df in self._map(self.aggregate, granges):
             if df is not None:
                 yield {k: v.values for k, v in six.iteritems(df)}
 
@@ -308,7 +339,7 @@ class PairixAggregator(ContactBinner):
     tab-delimited text file.
 
     """
-    def __init__(self, filepath, chromsizes, bins, map=map, n_chunks=40, **kwargs):
+    def __init__(self, filepath, chromsizes, bins, map=map, n_chunks=1, **kwargs):
         try:
             import pypairix
         except ImportError:
@@ -340,8 +371,8 @@ class PairixAggregator(ContactBinner):
                     "Did not find contig " +
                     " '{}' in contact list file.".format(chrom))
 
-    def aggregate(self, gspan):
-        chrom1, start, end = gspan
+    def aggregate(self, grange):
+        chrom1, start, end = grange
         import pypairix
         filepath = self.filepath
         binsize = self.gs.binsize
@@ -354,7 +385,7 @@ class PairixAggregator(ContactBinner):
         P1 = self.P1
         P2 = self.P2
         
-        logger.info('Begin {}:{}-{}'.format(chrom1, start, end))
+        logger.info('Binning {}:{}-{}|*'.format(chrom1, start, end))
 
         f = pypairix.open(filepath, 'r')
         these_bins = self.gs.fetch((chrom1, start, end))
@@ -408,32 +439,13 @@ class PairixAggregator(ContactBinner):
             
             accumulator.clear()
         
-        logger.info('Finished {}:{}-{}'.format(chrom1, start, end))
+        logger.info('Finished {}:{}-{}|*'.format(chrom1, start, end))
 
         return pandas.concat(rows, axis=0) if len(rows) else None
     
     def __iter__(self):
-        n_bins = len(self.gs.bins)
-        n_chunks = self.n_chunks
-        step = int(np.ceil(n_bins / n_chunks))
-
-        gspans = []
-        for chrom, group in self.gs.bins.groupby('chrom', sort=False):
-            if chrom not in self.file_contigs:
-                continue
-            cs = self.gs.chromsizes[chrom]
-
-            start = 0
-            end = 0
-            for ix, b in group.iterrows():
-                if ix % step == 0:
-                    end = b.end
-                    gspans.append( (chrom, start, end) )
-                    start = end
-            if end == 0 or end < cs:
-                gspans.append( (chrom, start, cs) )
-
-        for df in self._map(self.aggregate, gspans):
+        granges = balanced_partition(self.gs, self.n_chunks, self.file_contigs)
+        for df in self._map(self.aggregate, granges):
             if df is not None:
                 yield {k: v.values for k, v in six.iteritems(df)}
 
