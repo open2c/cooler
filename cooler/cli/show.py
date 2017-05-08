@@ -21,8 +21,8 @@ def get_matrix_size(c, row_region, col_region):
     return ncols * nrows
 
 
-def load_matrix(c, row_region, col_region, balanced, scale):
-    mat = (c.matrix(balance=balanced)
+def load_matrix(c, row_region, col_region, field, balanced, scale):
+    mat = (c.matrix(balance=balanced, field=field)
             .fetch(row_region, col_region))
 
     if scale == 'log2':
@@ -33,7 +33,7 @@ def load_matrix(c, row_region, col_region, balanced, scale):
     return mat
 
 
-def interactive(ax, c, row_chrom, col_chrom, balanced, scale):
+def interactive(ax, c, row_chrom, col_chrom, field, balanced, scale):
     import matplotlib.pyplot as plt
     # The code is heavily insired by 
     # https://gist.github.com/mdboom/048aa35df685fe694330764894f0e40a
@@ -97,7 +97,7 @@ def interactive(ax, c, row_chrom, col_chrom, balanced, scale):
                 plotstate['placeholders'].pop().remove()
             
             im.set_data(
-                load_matrix(c, new_row_region, new_col_region, balanced, scale))
+                load_matrix(c, new_row_region, new_col_region, field, balanced, scale))
 
         im.set_extent(extent)
         ax.figure.canvas.draw_idle()
@@ -168,7 +168,12 @@ def interactive(ax, c, row_chrom, col_chrom, balanced, scale):
     default="YlOrRd",
     help="The colormap used to display the contact matrix. "
          "See the full list at http://matplotlib.org/examples/color/colormaps_reference.html")
-def show(cool_uri, range, range2, balanced, out, dpi, scale, force, zmin, zmax, cmap):
+@click.option(
+    "--field",
+    default='count',
+    show_default=True,
+    help="Pixel values to display.")
+def show(cool_uri, range, range2, balanced, out, dpi, scale, force, zmin, zmax, cmap, field):
     """
     Display a contact matrix.
     Display a region of a contact matrix stored in a COOL file.
@@ -211,7 +216,7 @@ def show(cool_uri, range, range2, balanced, out, dpi, scale, force, zmin, zmax, 
     plt.gcf().canvas.set_window_title('Contact matrix'.format())
     plt.title('')
     plt.imshow(
-        load_matrix(c, row_region, col_region, balanced, scale),
+        load_matrix(c, row_region, col_region, field, balanced, scale),
         interpolation='none',
         extent=[col_lo, col_hi, row_hi, row_lo],
         vmin=zmin,
@@ -230,4 +235,4 @@ def show(cool_uri, range, range2, balanced, out, dpi, scale, force, zmin, zmax, 
     if out:
         plt.savefig(out, dpi=dpi)
     else:
-        interactive(plt.gca(), c, row_chrom, col_chrom, balanced, scale)
+        interactive(plt.gca(), c, row_chrom, col_chrom, field, balanced, scale)
