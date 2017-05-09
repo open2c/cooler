@@ -7,7 +7,6 @@ import h5py
 import cooler
 
 import dask
-from dask.dataframe.core import new_dd_object
 from dask.base import tokenize
 import dask.dataframe as dd
 import dask.array as da
@@ -21,7 +20,6 @@ def get_group_info(path, grouppath, keys):
             keys = list(grp.keys())
         
         nrows = len(grp[keys[0]])
-        dtypes = {key: grp[key].dtype for key in keys}
         
         categoricals = {}
         for key in keys:
@@ -33,6 +31,10 @@ def get_group_info(path, grouppath, keys):
         meta = pd.DataFrame(
             {key: np.array([], dtype=grp[key].dtype) for key in keys}, 
             columns=keys)
+
+        for key in categoricals:
+            meta[key] = pd.Categorical([], 
+                categories=categoricals[key], ordered=True)
         
     return nrows, keys, meta, categoricals
 
@@ -63,7 +65,7 @@ def restore_categories(data, categorical_columns):
     for key, category_dict in categorical_columns.items():
         data[key] = pd.Categorical.from_codes(
                 data[key], 
-                categories, 
+                category_dict, 
                 ordered=True)
     return data
 
@@ -103,7 +105,7 @@ def daskify(filepath, grouppath, keys=None, chunksize=int(10e6), index=None,
     
     # Make a unique task name
     token = tokenize(filepath, grouppath, chunksize, keys)
-    task_name = 'daskify-h5py-table' + token
+    task_name = 'daskify-h5py-table-' + token
 
     # Partition the table
     divisions = (0,) + tuple(range(-1, nrows, chunksize))[1:]             
@@ -120,7 +122,7 @@ def daskify(filepath, grouppath, keys=None, chunksize=int(10e6), index=None,
         dsk[task_name, i] = (pd.DataFrame, data_dict, None, meta.columns)
 
     # Generate ddf from dask graph
-    df = new_dd_object(dsk, task_name, meta, divisions)
+    df = dd.DataFrame(dsk, task_name, meta, divisions)
     if index is not None:
         df = df.set_index(index, sorted=True, drop=False)
     return df

@@ -556,7 +556,7 @@ def unstar(func):
 
 def make_meta(x, index=None):
     """
-    Extracted from dask/dataframe/utils.py
+    Extracted from dask/dataframe/utils.py (BSD licensed)
 
     Create an empty pandas object containing the desired metadata.
 
