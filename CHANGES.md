@@ -1,3 +1,8 @@
+### 0.7.2 (2017-05-09) ###
+
+* Improve chunking and fix pickling issue with aggregating very large text datasets
+* Restore zoom binsize metadata to higlass files
+
 ### 0.7.1 (2017-04-29) ###
 
 * `cooler load` command can now accept supplemental pixel fields and custom field numbers
