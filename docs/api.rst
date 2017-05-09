@@ -279,7 +279,6 @@ cooler.util
 
 .. automodule:: cooler.util
     :members:
-    :show-inheritance:
 
 cooler.contrib
 --------------

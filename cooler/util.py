@@ -161,10 +161,10 @@ def read_chromsizes(filepath_or,
     -------
     Series of integer bp lengths indexed by sequence name.
 
-    See also
-    --------
-    * UCSC assembly terminology: <http://genome.ucsc.edu/FAQ/FAQdownloads.html#download9>
-    * NCBI assembly terminology: <https://www.ncbi.nlm.nih.gov/grc/help/definitions
+    Notes
+    -----
+    UCSC assembly terminology: <http://genome.ucsc.edu/FAQ/FAQdownloads.html#download9>
+    NCBI assembly terminology: <https://www.ncbi.nlm.nih.gov/grc/help/definitions
 
     """
     if isinstance(filepath_or, six.string_types) and filepath_or.endswith('.gz'):

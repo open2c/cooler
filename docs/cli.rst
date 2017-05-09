@@ -196,6 +196,7 @@ cooler csort
                                   to stdout.  [default: False]
       -p, --nproc INTEGER         Number of processors  [default: 8]
       -0, --zero-based            Read positions are zero-based  [default: False]
+      --sep TEXT                  Data delimiter in the input file  [default: \t]
       --comment-char TEXT         Comment character to skip header  [default: #]
       --sort-options TEXT         Quoted list of additional options to `sort`
                                   command
@@ -268,11 +269,16 @@ cooler cload
           Pairix on GitHub: <https://github.com/4dn-dcic/pairix>.
         
         Options:
-          --metadata TEXT      Path to JSON file containing user metadata.
-          --assembly TEXT      Name of genome assembly (e.g. hg19, mm10)
-          -p, --nproc INTEGER  Number of processes to split the work between.
-                               [default: 8]
-          --help               Show this message and exit.
+          --metadata TEXT          Path to JSON file containing user metadata.
+          --assembly TEXT          Name of genome assembly (e.g. hg19, mm10)
+          -p, --nproc INTEGER      Number of processes to split the work between.
+                                   [default: 8]
+          -s, --max-split INTEGER  Divide the pairs from each chromosome into at most
+                                   this many chunks. Smaller chromosomes will be split
+                                   less frequently or not at all. Increase ths value
+                                   if large chromosomes dominate the workload on
+                                   multiple processors.  [default: 2]
+          --help                   Show this message and exit.
                 
         
         cooler cload tabix
@@ -295,13 +301,18 @@ cooler cload
           Tabix manpage: <http://www.htslib.org/doc/tabix.html>.
         
         Options:
-          --metadata TEXT        Path to JSON file containing user metadata.
-          --assembly TEXT        Name of genome assembly (e.g. hg19, mm10)
-          -p, --nproc INTEGER    Number of processes to split the work between.
-                                 [default: 8]
-          -c2, --chrom2 INTEGER  chrom2 field number (one-based)
-          -p2, --pos2 INTEGER    pos2 field number (one-based)
-          --help                 Show this message and exit.
+          --metadata TEXT          Path to JSON file containing user metadata.
+          --assembly TEXT          Name of genome assembly (e.g. hg19, mm10)
+          -p, --nproc INTEGER      Number of processes to split the work between.
+                                   [default: 8]
+          -c2, --chrom2 INTEGER    chrom2 field number (one-based)
+          -p2, --pos2 INTEGER      pos2 field number (one-based)
+          -s, --max-split INTEGER  Divide the pairs from each chromosome into at most
+                                   this many chunks. Smaller chromosomes will be split
+                                   less frequently or not at all. Increase ths value
+                                   if large chromosomes dominate the workload on
+                                   multiple processors.  [default: 2]
+          --help                   Show this message and exit.
         
 
 
@@ -346,14 +357,21 @@ cooler load
       COOL_PATH : Output COOL file path
     
     Options:
-      -f, --format [coo|bg2]   'coo' refers to a tab-delimited sparse triple file
-                               (bin1, bin2, count). 'bg2' refers to a 2D bedGraph-
-                               like file (chrom1, start1, end1, chrom2, start2,
-                               end2, count).  [required]
+      -f, --format [coo|bg2]     'coo' refers to a tab-delimited sparse triplet
+                                 file (bin1, bin2, count). 'bg2' refers to a 2D
+                                 bedGraph-like file (chrom1, start1, end1, chrom2,
+                                 start2, end2, count).  [required]
+      --metadata TEXT            Path to JSON file containing user metadata.
+      --assembly TEXT            Name of genome assembly (e.g. hg19, mm10)
+      --field <TEXT INTEGER>...  Add supplemental pixel fields or override default
+                                 pixel field numbers. Specify as '<name>
+                                 <number>'. Field numbers are 1-based.
+                                 Supplemental data columns are assumed to be
+                                 floating point. Repeat for each additional field.
       -c, --chunksize INTEGER
-      --metadata TEXT          Path to JSON file containing user metadata.
-      --assembly TEXT          Name of genome assembly (e.g. hg19, mm10)
-      --help                   Show this message and exit.
+      --count-as-float           Store the 'count' column as floating point values
+                                 instead of as integers (default).
+      --help                     Show this message and exit.
 
 
 cooler list
@@ -375,7 +393,7 @@ cooler info
 
 ::
 
-    Usage: cooler info [OPTIONS] COOL_URI
+    Usage: cooler info [OPTIONS] COOL_PATH
     
       Display file info and metadata.
     
@@ -524,6 +542,7 @@ cooler show
                                       matrix. See the full list at http://matplotl
                                       ib.org/examples/color/colormaps_reference.ht
                                       ml
+      --field TEXT                    Pixel values to display.  [default: count]
       --help                          Show this message and exit.
 
 
@@ -532,7 +551,7 @@ cooler balance
 
 ::
 
-    Usage: cooler balance [OPTIONS] COOL_URI
+    Usage: cooler balance [OPTIONS] COOL_PATH
     
       Out-of-core contact matrix balancing.
     
@@ -548,9 +567,9 @@ cooler balance
                                process at a time.  [default: 10000000]
       --mad-max INTEGER        Ignore bins from the contact matrix using the 'MAD-
                                max' filter: bins whose log marginal sum is less
-                               than ``mad-max`` mean absolute deviations below the
-                               median log marginal sum of all the bins in the same
-                               chromosome.  [default: 5]
+                               than ``mad-max`` median absolute deviations below
+                               the median log marginal sum of all the bins in the
+                               same chromosome.  [default: 5]
       --min-nnz INTEGER        Ignore bins from the contact matrix whose marginal
                                number of nonzeros is less than this number.
                                [default: 10]
