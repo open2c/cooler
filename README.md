@@ -52,10 +52,22 @@ See the [docs](http://cooler.readthedocs.org/en/latest/) for more information.
 
 The `cooler` package includes command line tools for creating, querying and manipulating _cool_ files.
 
+#### Loading contacts from a BEDPE file
+
 ```bash
+CHROMSIZES_FILE=hg19.chrom.sizes; BINSIZE=10000; CONTACTS_FILE=contacts.bedpe;
 $ cooler makebins $CHROMSIZES_FILE $BINSIZE > bins.10kb.bed
-$ cooler cload bins.10kb.bed $CONTACTS_FILE out.cool
+$ cooler csort --nproc 4 -c1 1 -p1 2 -s1 9 -c2 4 -p2 5 -s2 10 $CHROMSIZES_FILE $CONTACTS -o $CONTACTS_FILE.sorted
+$ cooler cload bins.10kb.bed $CONTACTS_FILE.sorted out.cool
+```
+
+#### Balancing contacts
+```
 $ cooler balance -p 10 out.cool
+```
+
+#### Outputing contacts to text
+```
 $ cooler dump -b -t pixels --header --join -r chr3:10,000,000-12,000,000 -r2 chr17 out.cool | head
 ```
 
