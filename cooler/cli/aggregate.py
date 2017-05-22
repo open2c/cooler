@@ -12,7 +12,7 @@ import h5py
 
 from ..io import CoolerAggregator, create, parse_cooler_uri
 from ..ice import iterative_correction
-from ..util import binnify
+from ..util import binnify, read_chromsizes
 from ..tools import lock
 from .. import api
 
@@ -181,6 +181,31 @@ def coarsen(cool_uri, factor, nproc, chunksize, out):
               lock=lock if same_file else None)
 
 
+@cli.command()
+@click.argument(
+    'base_res',
+    metavar="BASE_RES")
+@click.option(
+    '--chromsize', '-c',
+    help="chromsize file",
+    type=str)
+@click.pass_context
+def zoomify_levels(ctx, base_res, chromsize):
+    """
+    Generate zoom levels for HiGlass by recursively generating 2-by-2 element 
+    tiled aggregations of the contact matrix until reaching a minimum
+    dimension. The aggregations are printed out.
+
+    \b\bArguments:
+
+    BASE_RES : Base resolution.
+
+    """
+    chrsizes = cooler.util.read_chromsizes(chromsize)
+    resolutions = [args.base_resolution * 2**x for x in range(cca.get_quadtree_depth(chrsizes, args.base_resolution)+1)]
+    print(str(resolutions))
+    
+    
 @cli.command()
 @click.argument(
     'cool_uri',
