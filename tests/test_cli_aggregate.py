@@ -48,6 +48,20 @@ def test_recursive_agg():
     #ccc.multires_balance(outfile, n_zooms, chunksize, n_cpus)
 
 
+def test_zoomify_levels():
+    chromsizefile = op.join(testdir, 'data', 'b37-chromsizes.txt')
+    base_res = 5000
+    runner = CliRunner()
+    result = runner.invoke(
+        zoomify_levels, [
+            '--chromsize', chromsizefile,
+            base_res
+        ]
+    )
+    assert(result.exit_code == 0)
+    assert(result == "[5000, 10000, 20000, 40000, 80000, 160000, 320000, 640000, 1280000, 2560000, 5120000, 10240000, 20480000]")
+
+
 @with_setup(teardown=partial(teardown_func, multires_path))
 def test_zoomify():
     runner = CliRunner()

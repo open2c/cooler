@@ -183,12 +183,11 @@ def coarsen(cool_uri, factor, nproc, chunksize, out):
 
 @cli.command()
 @click.argument(
+    'chromsize',
+    metavar="CHROMSIZE_FILE")
+@click.argument(
     'base_res',
     metavar="BASE_RES")
-@click.option(
-    '--chromsize', '-c',
-    help="chromsize file",
-    type=str)
 @click.pass_context
 def zoomify_levels(ctx, base_res, chromsize):
     """
@@ -198,11 +197,13 @@ def zoomify_levels(ctx, base_res, chromsize):
 
     \b\bArguments:
 
+    CHROMSIZE_FILE : chromsize file
+
     BASE_RES : Base resolution.
 
     """
-    chrsizes = cooler.util.read_chromsizes(chromsize)
-    resolutions = [args.base_resolution * 2**x for x in range(cca.get_quadtree_depth(chrsizes, args.base_resolution)+1)]
+    chrsizes = read_chromsizes(chromsize)
+    resolutions = [base_res * 2**x for x in range(get_quadtree_depth(chrsizes, base_res)+1)]
     print(str(resolutions))
     
     
