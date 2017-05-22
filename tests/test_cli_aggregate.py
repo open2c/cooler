@@ -58,7 +58,6 @@ def test_zoomify_levels():
             base_res
         ]
     )
-    assert(result.exit_code == 0)
     assert(result == "[5000, 10000, 20000, 40000, 80000, 160000, 320000, 640000, 1280000, 2560000, 5120000, 10240000, 20480000]\n")
 
 @with_setup(teardown=partial(teardown_func, multires_path))
