@@ -187,7 +187,8 @@ def coarsen(cool_uri, factor, nproc, chunksize, out):
     metavar="CHROMSIZE_FILE")
 @click.argument(
     'base_res',
-    metavar="BASE_RES")
+    metavar="BASE_RES",
+    type=int)
 @click.pass_context
 def zoomify_levels(ctx, base_res, chromsize):
     """
@@ -202,7 +203,7 @@ def zoomify_levels(ctx, base_res, chromsize):
     BASE_RES : Base resolution.
 
     """
-    chrsizes = read_chromsizes(chromsize)
+    chrsizes = read_chromsizes(chromsize, all_names=True)
     resolutions = [base_res * 2**x for x in range(get_quadtree_depth(chrsizes, base_res)+1)]
     print(str(resolutions))
     
