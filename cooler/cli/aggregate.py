@@ -205,7 +205,7 @@ def zoomify_levels(ctx, base_res, chromsize):
     """
     chrsizes = read_chromsizes(chromsize, all_names=True)
     resolutions = [base_res * 2**x for x in range(get_quadtree_depth(chrsizes, base_res)+1)]
-    print(str(resolutions))
+    print(','.join(str(res) for res in resolutions))
     
     
 @cli.command()
