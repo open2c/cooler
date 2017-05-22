@@ -17,7 +17,7 @@ from nose.tools import with_setup, set_trace
 from click.testing import CliRunner
 
 from cooler.cli.cload import cload, tabix as cload_tabix
-from cooler.cli.aggregate import coarsen, zoomify, multires_aggregate
+from cooler.cli.aggregate import coarsen, zoomify, zoomify_levels, multires_aggregate
 
 
 if sys.version_info[0] == 3 and sys.version_info[1] == 3:
@@ -54,7 +54,7 @@ def test_zoomify_levels():
     runner = CliRunner()
     result = runner.invoke(
         zoomify_levels, [
-            '--chromsize', chromsizefile,
+            chromsizefile,
             base_res
         ]
     )
