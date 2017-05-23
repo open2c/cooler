@@ -17,7 +17,7 @@ from nose.tools import with_setup, set_trace
 from click.testing import CliRunner
 
 from cooler.cli.cload import cload, tabix as cload_tabix
-from cooler.cli.aggregate import coarsen, zoomify, multires_aggregate
+from cooler.cli.aggregate import coarsen, zoomify, zoomify_levels, multires_aggregate
 
 
 if sys.version_info[0] == 3 and sys.version_info[1] == 3:
@@ -46,6 +46,19 @@ def test_recursive_agg():
     n_cpus = 8
     multires_aggregate(infile, outfile, n_cpus, chunksize)
     #ccc.multires_balance(outfile, n_zooms, chunksize, n_cpus)
+
+
+def test_zoomify_levels():
+    chromsizefile = op.join(testdir, 'data', 'b37-chromsizes.txt')
+    base_res = 5000
+    runner = CliRunner()
+    result = runner.invoke(
+        zoomify_levels, [
+            chromsizefile,
+            base_res
+        ]
+    )
+    assert(result == "5000,10000,20000,40000,80000,160000,320000,640000,1280000,2560000,5120000,10240000,20480000\n")
 
 
 @with_setup(teardown=partial(teardown_func, multires_path))
