@@ -1,3 +1,6 @@
+### 0.7.3 (2017-05-22) ###
+* Added function to print higlass zoom resolutions for a given genome and base resolution.
+
 ### 0.7.2 (2017-05-09) ###
 
 * Improve chunking and fix pickling issue with aggregating very large text datasets
