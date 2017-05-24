@@ -142,6 +142,7 @@ def balance(cool_uri, nproc, chunksize, mad_max, min_nnz, min_count, blacklist,
             else:
                 del grp['bins'][name]
 
+    logger.info('Balancing "{}"'.format(cool_uri))
     clr = Cooler(cool_uri)
 
     if blacklist is not None:
