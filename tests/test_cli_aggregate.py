@@ -2,6 +2,7 @@
 from functools import partial
 import os.path as op
 import subprocess
+import traceback
 import tempfile
 import filecmp
 import sys
@@ -56,12 +57,12 @@ def test_zoomify():
             op.join(testdir, 'data', 
                 'dec2_20_pluslig_1pGene_grch38_UBR4_D_1nt.pairwise.sorted.cool'),
             '--out', multires_path,
-            '--no-balance',
+            '--balance', '--balance-args', '--mad-max 3 --min-nnz 100'
         ]
     )
 
     #sys.stdout.write(result.output)
-    assert(result.exit_code == 0)
+    assert result.exit_code == 0 , ''.join(traceback.format_exception(*result.exc_info))
 
     # this file should have base + 6 zoom levels
     assert(len(cooler.io.ls(multires_path)) == 7)

@@ -4,6 +4,7 @@ from collections import OrderedDict
 from six.moves import map
 import multiprocess as mp
 import os.path as op
+import shlex
 import math
 import sys
 
@@ -237,9 +238,12 @@ def zoomify(ctx, cool_uri, nproc, chunksize, balance, balance_args, out):
 
         if balance_args is None: 
             balance_args = []
+        else:
+            balance_args = shlex.split(balance_args)
+        logger.debug('Balancing args: {}'.format(balance_args))
 
         for level, res in reversed(zoom_levels.items()):
-            uri = outfile + '::' + str(res)
+            uri = outfile + '::' + str(level)
             if level == str(n_zooms):
                 if 'weight' in api.Cooler(uri).bins():
                     continue
