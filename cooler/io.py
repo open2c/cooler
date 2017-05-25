@@ -166,7 +166,7 @@ def create(cool_uri, bins, pixels, metadata=None, assembly=None, dtypes=None,
         meta = make_meta(pixels)
     elif isinstance(pixels, dict):
         iterable = (pixels,)
-        meta = make_meta(pixels)
+        meta = make_meta([(k, v.dtype) for (k, v) in pixels.items()])
     else:
         iterable = pixels
         if dtypes is None:

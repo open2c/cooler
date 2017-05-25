@@ -184,9 +184,9 @@ def test_create_append():
     pixels = c.pixels()[:]
 
     cooler.io.create(op.join(tmp, 'test.df.2000kb.cool'), bins, pixels)
-    cooler.io.create(op.join(tmp, 'test.dict.2000kb.cool'), bins, {k:v for k,v in pixels.items()})
+    cooler.io.create(op.join(tmp, 'test.dict.2000kb.cool'), bins, {k:v for k,v in iteritems(pixels)})
     cooler.io.create(op.join(tmp, 'test.iter_df.2000kb.cool'), bins, [pixels])
-    cooler.io.create(op.join(tmp, 'test.iter_dict.2000kb.cool'), bins, [{k:v for k,v in pixels.items()}])
+    cooler.io.create(op.join(tmp, 'test.iter_dict.2000kb.cool'), bins, [{k:v for k,v in iteritems(pixels)}])
     ddf = dd.from_pandas(pixels, npartitions=3)
     cooler.io.create('test.ddf.2000kb.cool', bins, ddf)
 
