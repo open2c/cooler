@@ -1,3 +1,7 @@
+### 0.7.4 (2017-05-25) ###
+* Fix regression in automatic --balance option in cooler zoomify
+* Fix special cases where cooler.io.create and append would not work with certain inputs
+
 ### 0.7.3 (2017-05-22) ###
 * Added function to print higlass zoom resolutions for a given genome and base resolution.
 
