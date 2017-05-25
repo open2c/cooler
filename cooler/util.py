@@ -6,6 +6,7 @@ import six
 import re
 import os
 
+from pandas.api.types import is_scalar
 import numpy as np
 import pandas as pd
 import h5py

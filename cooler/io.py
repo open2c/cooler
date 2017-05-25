@@ -155,20 +155,18 @@ def create(cool_uri, bins, pixels, metadata=None, assembly=None, dtypes=None,
 
     try:
         from dask.dataframe import DataFrame as dask_df
-    except ImportError:
+    except (ImportError, AttributeError):
         dask_df = ()
 
     if isinstance(pixels, dask_df):
         iterable = map(lambda x: x.compute(), pixels.to_delayed())
-        meta = make_meta(pixels.dtypes)
+        meta = make_meta(pixels)
     elif isinstance(pixels, pandas.DataFrame):
         iterable = (pixels,)
-        meta = make_meta(pixels.dtypes)
+        meta = make_meta(pixels)
     elif isinstance(pixels, dict):
         iterable = (pixels,)
-        meta = make_meta(
-            zip(pixels.keys(), 
-                [v.dtype for v in pixels.values()]))
+        meta = make_meta(pixels)
     else:
         iterable = pixels
         if dtypes is None:
@@ -303,7 +301,7 @@ def append(cool_uri, table, data, chunked=False, force=False, h5opts=None,
             DataFrame as dask_df,
             Series as dask_series
         )
-    except ImportError:
+    except (ImportError, AttributeError):
         dask_df = ()
         dask_series = ()
 
@@ -358,7 +356,7 @@ def append(cool_uri, table, data, chunked=False, force=False, h5opts=None,
             try:
                 if lock is not None:
                     lock.acquire()
-                put(h5[table], data, lo=i, h5opts=h5opts)
+                put(h5[table], data, lo=0, h5opts=h5opts)
             finally:
                 if lock is not None:
                     lock.release()
