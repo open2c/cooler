@@ -242,7 +242,7 @@ def zoomify(ctx, cool_uri, nproc, chunksize, balance, balance_args, out):
             balance_args = shlex.split(balance_args)
         logger.debug('Balancing args: {}'.format(balance_args))
 
-        for level, res in reversed(zoom_levels.items()):
+        for level, res in reversed(list(zoom_levels.items())):
             uri = outfile + '::' + str(level)
             if level == str(n_zooms):
                 if 'weight' in api.Cooler(uri).bins():
