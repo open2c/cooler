@@ -3,7 +3,6 @@
 import io
 import os
 import re
-
 from setuptools import setup, find_packages
 
 
@@ -47,11 +46,11 @@ def get_long_description():
 
 
 install_requires = [
-    'six', 
-    'numpy>=1.9', 
-    'scipy>=0.16', 
+    'six',
+    'numpy>=1.9',
+    'scipy>=0.16',
     'pandas>=0.17',
-    'h5py>=2.5', 
+    'h5py>=2.5',
     'click>=6.6',
     'pysam>0.8',
     'multiprocess',
@@ -69,7 +68,7 @@ tests_require = [
 
 extras_require = {
     'docs': [
-        'Sphinx>=1.1', 
+        'Sphinx>=1.1',
         'numpydoc>=0.5'
     ]
 }
@@ -84,7 +83,7 @@ setup(
     description='Sparse binary format for genomic interaction matrices',
     long_description=get_long_description(),
     keywords=['genomics', 'bioinformatics', 'Hi-C', 'contact', 'matrix', 'format', 'hdf5'],
-    url='https://github.com/mirnylab/cooler',
+    url='https://github.com/scottx611x/cooler',
     packages=find_packages(),
     zip_safe=False,
     classifiers=[s.strip() for s in classifiers.split('\n') if s],
