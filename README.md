@@ -2,6 +2,7 @@
 
 [![Build Status](https://travis-ci.org/mirnylab/cooler.svg?branch=master)](https://travis-ci.org/mirnylab/cooler)
 [![Documentation Status](https://readthedocs.org/projects/cooler/badge/?version=latest)](http://cooler.readthedocs.org/en/latest/)
+[![install with bioconda](https://img.shields.io/badge/install%20with-bioconda-brightgreen.svg?style=flat-square)](http://bioconda.github.io/recipes/cooler/README.html)
 [![Binder](http://mybinder.org/badge.svg)](https://github.com/mirnylab/cooler-binder)
 [![Join the chat at https://gitter.im/mirnylab/cooler](https://badges.gitter.im/mirnylab/cooler.svg)](https://gitter.im/mirnylab/cooler?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 [![DOI](https://zenodo.org/badge/49553222.svg)](https://zenodo.org/badge/latestdoi/49553222)
@@ -43,6 +44,11 @@ Requirements:
 Install from PyPI using pip.
 ```sh
 $ pip install cooler
+```
+
+If you are using `conda`, you can alternatively install `cooler` from the [bioconda](https://bioconda.github.io/index.html) channel.
+```sh
+$ conda install -c conda-forge -c bioconda cooler
 ```
 
 See the [docs](http://cooler.readthedocs.org/en/latest/) for more information.
