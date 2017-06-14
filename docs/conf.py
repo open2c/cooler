@@ -35,6 +35,8 @@ MOCK_MODULES = [
     'scipy.sparse', 
     'pandas', 
     'pandas.algos', 
+    'pandas.api',
+    'pandas.api.types',
     'h5py', 
     'dask', 
     'dask.base', 
