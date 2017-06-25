@@ -190,7 +190,7 @@ def write_pixels(filepath, grouppath, columns, iterable, h5opts, lock):
             if lock is not None:
                 lock.acquire()
 
-            logger.debug("writing chunk {}".format(i), flush=True)
+            logger.debug("writing chunk {}".format(i))
             
             with h5py.File(filepath, 'r+') as fw:
                 grp = fw[grouppath]
