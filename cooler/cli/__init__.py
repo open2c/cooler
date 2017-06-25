@@ -26,9 +26,26 @@ CONTEXT_SETTINGS = {
     '--debug/--no-debug', 
     help="Verbose logging", 
     default=False)
-def cli(debug):
+@click.option(
+    '-pm', '--post-mortem', 
+    help="Post mortem debugging", 
+    is_flag=True,
+    default=False)
+def cli(debug, post_mortem):
     if debug:
         logger.setLevel(logging.DEBUG)
+
+    if post_mortem:
+        import traceback
+        try:
+            import ipdb as pdb
+        except ImportError:
+            import pdb
+        def _excepthook(exc_type, value, tb):
+            traceback.print_exception(exc_type, value, tb)
+            print()
+            pdb.pm()
+        sys.excepthook = _excepthook
 
 
 from . import (
