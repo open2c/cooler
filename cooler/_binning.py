@@ -58,7 +58,9 @@ class ContactBinner(object):
 
 
 def check_bins(bins, chromsizes):
-    if bins['chrom'].dtype.name != 'category':
+    is_cat = pandas.api.types.is_categorical(bins['chrom'])
+    bins = bins.copy()
+    if not is_cat:
         bins['chrom'] = pandas.Categorical(
             bins.chrom, 
             categories=list(chromsizes.index), 
@@ -71,7 +73,7 @@ def check_bins(bins, chromsizes):
 
 def balanced_partition(gs, n_chunk_max, file_contigs, loadings=None):
     n_bins = len(gs.bins)
-    grouped = gs.bins.groupby('chrom', sort=False)
+    grouped = gs._bins_grouped
     
     chrom_nbins = grouped.size()
     if loadings is None:
@@ -99,7 +101,7 @@ class GenomeSegmentation(object):
         bins = check_bins(bins, chromsizes)
         self._bins_grouped = bins.groupby('chrom', sort=False)
         nbins_per_chrom = self._bins_grouped.size().values
-        
+
         self.chromsizes = chromsizes
         self.binsize = get_binsize(bins)
         self.contigs = list(chromsizes.keys())
