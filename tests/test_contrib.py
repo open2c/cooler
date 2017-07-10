@@ -23,4 +23,9 @@ def test_data_retrieval():
     assert(data['genome_start1'].iloc[-1] < 256000000)
     #print("ge1", data['genome_end1'])
 
+def test_get_info():
+    data_file = op.join(testdir, 'data', 'dixon2012-h1hesc-hindiii-allreps-filtered.1000kb.multires.cool')
 
+    info = cch.get_info(data_file)
+    print("info:", info)
+    assert('transforms' in info)
