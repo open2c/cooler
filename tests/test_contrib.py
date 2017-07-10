@@ -23,6 +23,12 @@ def test_data_retrieval():
     assert(data['genome_start1'].iloc[-1] < 256000000)
     #print("ge1", data['genome_end1'])
 
+    data = cch.get_data(f, 4, 0, 256000000, 0, 256000000, transform='weight')
+    assert 'balanced' in data
+    data = cch.get_data(f, 4, 0, 256000000, 0, 256000000, transform='none')
+    assert 'count' in data
+
+
 def test_get_info():
     data_file = op.join(testdir, 'data', 'dixon2012-h1hesc-hindiii-allreps-filtered.1000kb.multires.cool')
 

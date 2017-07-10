@@ -82,10 +82,9 @@ def get_data(f, zoom_level, start_pos_1, end_pos_1, start_pos_2, end_pos_2, tran
  
     # select bin columns to extract
     cols = ['chrom', 'start', 'end']
-    if transform == 'default':
-        if 'weight' in c.bins():
-            cols.append('weight')
-    elif transform is not None:
+    if (transform == 'default' and 'weight' in c.bins()) or transform == 'weight':
+        cols.append('weight')
+    elif transform in ('KR', 'VC', 'VC_SQRT'):
         cols.append(transform)
 
     bins = c.bins(convert_enum=False)[cols]    
@@ -101,7 +100,7 @@ def get_data(f, zoom_level, start_pos_1, end_pos_1, start_pos_2, end_pos_2, tran
         return pixels[['genome_start1', 'genome_start2', 'balanced']]
     elif transform in ('KR', 'VC', 'VC_SQRT'):
         pixels['balanced'] = (
-            pixels['count'] / pixels[transform] / pixels[transform]
+            pixels['count'] / pixels[transform+'1'] / pixels[transform+'2']
         )
         return pixels[['genome_start1', 'genome_start2', 'balanced']]
     else:
