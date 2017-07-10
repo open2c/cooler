@@ -128,18 +128,18 @@ def get_info(file_path):
         max_width = bin_size * TILE_SIZE * 2**max_zoom
         
         # the list of available data transforms
-        transforms = []
+        transforms = {}
         
         for i in range(max_zoom):
-            f_for_zoom = f[str(i)]
+            f_for_zoom = f[str(i)]['bins']
             if 'weight' in f_for_zoom:
-                transforms += [{'name': 'ICE', 'value': 'weight'}]
+                transforms['weight'] = {'name': 'ICE', 'value': 'weight'}
             elif 'KR' in f_for_zoom:
-                transforms += [{'name': 'KR', 'value': 'KR'}]
+                transforms['KR'] = {'name': 'KR', 'value': 'KR'}
             elif 'VC' in f_for_zoom:
-                transforms += [{'name': 'VC', 'value': 'VC'}]
+                transforms['VC'] = {'name': 'VC', 'value': 'VC'}
             elif 'VC_SQRT' in f_for_zoom:
-                transforms += [{'name': 'VC_SQRT', 'value': 'VC_SQRT'}]
+                transforms['VC_SQRT'] += {'name': 'VC_SQRT', 'value': 'VC_SQRT'}
 
         info = {
             'min_pos': [0.0, 0.0],
@@ -147,7 +147,7 @@ def get_info(file_path):
             'max_zoom': max_zoom,
             'max_width': max_width,
             'bins_per_dimension': TILE_SIZE,
-            'transforms': transforms
+            'transforms': transforms.values()
         }
  
     return info
