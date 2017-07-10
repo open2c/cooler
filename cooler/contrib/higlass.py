@@ -51,7 +51,7 @@ def get_chromosome_names_cumul_lengths(c):
     return chrom_names, chrom_sizes, chrom_cum_lengths
  
  
-def get_data(f, zoom_level, start_pos_1, end_pos_1, start_pos_2, end_pos_2):
+def get_data(f, zoom_level, start_pos_1, end_pos_1, start_pos_2, end_pos_2, transform='default'):
     """Get balanced pixel data.
  
     Args:
@@ -80,23 +80,33 @@ def get_data(f, zoom_level, start_pos_1, end_pos_1, start_pos_2, end_pos_2):
     if not len(pixels):
         return pd.DataFrame(columns=['genome_start1', 'genome_start2', 'balanced'])
  
-    if 'weight' in c.bins():
-        bins = c.bins(convert_enum=False)[['chrom', 'start', 'end', 'weight']]
-    else:
-        bins = c.bins(convert_enum=False)[['chrom', 'start', 'end']]
-    
+    # select bin columns to extract
+    cols = ['chrom', 'start', 'end']
+    if transform == 'default':
+        if 'weight' in c.bins():
+            cols.append('weight')
+    elif transform is not None:
+        cols.append(transform)
+
+    bins = c.bins(convert_enum=False)[cols]    
     pixels = cooler.annotate(pixels, bins)
     pixels['genome_start1'] = chrom_cum_lengths[pixels['chrom1']] + pixels['start1']
     pixels['genome_start2'] = chrom_cum_lengths[pixels['chrom2']] + pixels['start2']
 
-    if 'weight' in c.bins():
+    # apply transform
+    if (transform == 'default' and 'weight' in c.bins()) or transform == 'weight':
         pixels['balanced'] = (
             pixels['count'] * pixels['weight1'] * pixels['weight2']
         )
         return pixels[['genome_start1', 'genome_start2', 'balanced']]
+    elif transform in ('KR', 'VC', 'VC_SQRT'):
+        pixels['balanced'] = (
+            pixels['count'] / pixels[transform] / pixels[transform]
+        )
+        return pixels[['genome_start1', 'genome_start2', 'balanced']]
     else:
         return pixels[['genome_start1', 'genome_start2', 'count']]
- 
+
  
 def get_info(file_path):
     """Get information of a cooler file.
