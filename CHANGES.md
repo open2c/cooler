@@ -1,3 +1,7 @@
+### 0.7.5 (2017-07-13) ###
+* Fix pandas issue affecting cases when loading single chromosomes
+* Add transform options to higlass API
+
 ### 0.7.4 (2017-05-25) ###
 * Fix regression in automatic --balance option in cooler zoomify
 * Fix special cases where cooler.io.create and append would not work with certain inputs
