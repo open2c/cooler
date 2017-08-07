@@ -23,8 +23,8 @@ from .util import rlencode
 logger = get_logger()
 
 
-MAGIC = "HDF5::Cooler"
-URL = "https://github.com/mirnylab/cooler"
+MAGIC = u"HDF5::Cooler"
+URL = u"https://github.com/mirnylab/cooler"
 CHROM_DTYPE = np.dtype('S')
 CHROMID_DTYPE = np.int32
 CHROMSIZE_DTYPE = np.int32
