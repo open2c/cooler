@@ -5,6 +5,7 @@
 *.py[cod]
 __pycache__
 .cache
+.coverage
 
 # setup and build
 docs/_*
