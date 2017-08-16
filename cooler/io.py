@@ -194,7 +194,7 @@ def create(cool_uri, bins, pixels, metadata=None, assembly=None, dtypes=None,
     binsize = get_binsize(bins)
     n_chroms = len(chroms)
     n_bins = len(bins)
-    chrom_as_enum = (n_chroms < 4000)
+    chrom_as_enum = (n_chroms < 500)
 
     # Create root group
     with h5py.File(file_path, mode) as f:
