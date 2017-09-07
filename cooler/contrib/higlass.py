@@ -51,12 +51,12 @@ def get_chromosome_names_cumul_lengths(c):
     return chrom_names, chrom_sizes, chrom_cum_lengths
  
  
-def get_data(f, zoom_level, start_pos_1, end_pos_1, start_pos_2, end_pos_2, transform='default'):
+def get_data(f, start_pos_1, end_pos_1, start_pos_2, end_pos_2, transform='default'):
     """Get balanced pixel data.
  
     Args:
-        f (File): File pointer to a .cool filer.
-        zoom_level (int): Test.
+        f: h5py.File
+            An HDF5 Group that contains the cooler for this resolution
         start_pos_1 (int): Test.
         end_pos_1 (int): Test.
         start_pos_2 (int): Test.
@@ -66,16 +66,34 @@ def get_data(f, zoom_level, start_pos_1, end_pos_1, start_pos_2, end_pos_2, tran
         DataFrame: Annotated cooler pixels.
     """
  
-    c = cooler.Cooler(f[str(zoom_level)])
+    c = cooler.Cooler(f)
  
     (chroms, chrom_sizes, chrom_cum_lengths) = get_chromosome_names_cumul_lengths(c)
  
     i0 = abs_coord_2_bin(c, start_pos_1, chroms, chrom_cum_lengths, chrom_sizes)
     i1 = abs_coord_2_bin(c, end_pos_1, chroms, chrom_cum_lengths, chrom_sizes)
+
     j0 = abs_coord_2_bin(c, start_pos_2, chroms, chrom_cum_lengths, chrom_sizes)
     j1 = abs_coord_2_bin(c, end_pos_2, chroms, chrom_cum_lengths, chrom_sizes)
- 
-    pixels = c.matrix(as_pixels=True, balance=False, max_chunk=np.inf)[i0:i1+1, j0:j1+1]
+
+    '''
+    print('i', i0, i1)
+    print('j', j0, j1)
+    '''
+    matrix = c.matrix(as_pixels=True, balance=False, max_chunk=np.inf)
+
+    if i0 >= matrix.shape[0] or j0 >= matrix.shape[1]:
+        # query beyond the bounds of the matrix
+        # return an empty matrix
+        i0,i1,i1,j1 = 0,0,0,0
+    else:
+        # limit the range of the query to be within bounds
+        i1 = min(i1, matrix.shape[0]-1)
+        j1 = min(j1, matrix.shape[1]-1)
+
+    #print("size", matrix.shape)
+
+    pixels = matrix[i0:i1+1, j0:j1+1]
 
     if not len(pixels):
         return pd.DataFrame(columns=['genome_start1', 'genome_start2', 'balanced'])
