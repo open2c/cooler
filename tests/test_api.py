@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import division, print_function
+import os.path as op
+
 from scipy import sparse
 import numpy as np
 import pandas
@@ -8,6 +10,8 @@ import h5py
 from nose.tools import assert_raises
 import cooler.api
 import mock
+
+testdir = op.realpath(op.dirname(__file__))
 
 
 class MockHDF5(dict):
@@ -138,3 +142,15 @@ def test_annotate():
     df4 = cooler.annotate(df[0:0], c.bins()[:])
     assert np.all(df4.columns == df3.columns)
     assert len(df4) == 0
+
+
+def test_matrix_as_pixels():
+    c = cooler.Cooler(op.join(
+        testdir,
+        'data',
+        'dixon2012-h1hesc-hindiii-allreps-filtered.1000kb.multires.cool::4'))
+    df = c.matrix(as_pixels=True, join=True, balance=True).fetch(
+        "chr10:6052652-6104288", 
+        "chr10:7052652-8104288")
+    print(df)
+    assert len(df.dropna()) == 2

@@ -572,13 +572,12 @@ def matrix(h5, i0, i1, j0, j1, field=None, balance=True, sparse=False,
                               columns=cols, index=index)
 
         if balance:
-            weights = get(h5['bins'], min(i0, j0), max(i1, j1), [name])
+            weights = Cooler(h5).bins()[[name]]
             df2 = annotate(df, weights)
             df['balanced'] = df2[name+'1'] * df2[name+'2'] * df2[field]
 
         if join:
-            bins = get(h5['bins'], min(i0, j0), max(i1, j1), 
-                       ['chrom', 'start', 'end'])
+            bins = Cooler(h5).bins()[['chrom', 'start', 'end']]
             df = annotate(df, bins)
 
         return df
