@@ -14,7 +14,6 @@ import click
 from . import cli, logger
 from .. import util
 from ..io import create, TabixAggregator, HDF5Aggregator, PairixAggregator
-from ..aggregate import TabixIterator, PairixIterator, aggregate
 
 
 @cli.group()
@@ -180,14 +179,23 @@ def tabix(bins, pairs_path, cool_path, metadata, assembly, nproc, max_split, **k
         with open(metadata, 'r') as f:
             metadata = json.load(f)
 
-    opts = {}
-    if 'chrom2' in kwargs:
-        opts['C2'] = kwargs['chrom2'] - 1
-    if 'pos2' in kwargs:
-        opts['P2'] = kwargs['pos2'] - 1
-    iterator = TabixIterator(pairs_path, chromsizes, bins, **opts)
-    binner = aggregate(iterator, bins, nproc)
-    create(cool_path, bins, binner, metadata, assembly)
+    try:
+        if nproc > 1:
+            pool = Pool(nproc)
+            logger.info("Using {} cores".format(nproc))
+            map = pool.imap
+        else:
+            map = six.moves.map
+        opts = {}
+        if 'chrom2' in kwargs:
+            opts['C2'] = kwargs['chrom2'] - 1
+        if 'pos2' in kwargs:
+            opts['P2'] = kwargs['pos2'] - 1
+        iterator = TabixAggregator(pairs_path, chromsizes, bins, map=map, n_chunks=max_split, **opts)
+        create(cool_path, bins, iterator, metadata, assembly)
+    finally:
+        if nproc > 1:
+            pool.close() 
 
 
 @register_subcommand
@@ -224,6 +232,15 @@ def pairix(bins, pairs_path, cool_path, metadata, assembly, nproc, max_split):
         with open(metadata, 'r') as f:
             metadata = json.load(f)
 
-    iterator = PairixIterator(pairs_path, chromsizes, bins)
-    binner = aggregate(iterator, bins, nproc)
-    create(cool_path, bins, binner, metadata, assembly)
+    try:
+        if nproc > 1:
+            pool = Pool(nproc)
+            logger.info("Using {} cores".format(nproc))
+            map = pool.imap
+        else:
+            map = six.moves.map
+        iterator = PairixAggregator(pairs_path, chromsizes, bins, map=map, n_chunks=max_split)
+        create(cool_path, bins, iterator, metadata, assembly)
+    finally:
+        if nproc > 1:
+            pool.close() 
