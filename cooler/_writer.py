@@ -74,7 +74,7 @@ def write_chroms(grp, chroms, h5opts):
         put(grp, chroms[columns])
 
 
-def write_bins(grp, bins, chromnames, h5opts):
+def write_bins(grp, bins, chromnames, h5opts, chrom_as_enum):
     """
     Write the genomic bin table.
 
@@ -99,14 +99,19 @@ def write_bins(grp, bins, chromnames, h5opts):
 
     # Convert chrom names to enum
     chrom_ids = [idmap[chrom] for chrom in bins['chrom']]
-    enum_dtype = h5py.special_dtype(enum=(CHROMID_DTYPE, idmap))
+    if chrom_as_enum:
+        chrom_dtype = h5py.special_dtype(enum=(CHROMID_DTYPE, idmap))
+    else:
+        chrom_dtype = CHROMID_DTYPE
 
     # Store bins
-    grp.create_dataset('chrom',
+    chrom_dset = grp.create_dataset('chrom',
                        shape=(n_bins,),
-                       dtype=enum_dtype,
+                       dtype=chrom_dtype,
                        data=chrom_ids,
                        **h5opts)
+    if not chrom_as_enum:
+        chrom_dset.attrs['enum_path'] = u'/chroms/name'
     grp.create_dataset('start',
                        shape=(n_bins,),
                        dtype=COORD_DTYPE,
