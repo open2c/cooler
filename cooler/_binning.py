@@ -726,6 +726,8 @@ class BedGraph2DLoader(ContactBinner):
                              f.query2D(chrom1, bin1.start, bin1.end,
                                        chrom2, 0, chrom2_size))
                 lines.extend(q)
+        if not lines:
+            return None
 
         df = pandas.DataFrame(lines)
         df = df[self.usecols]
@@ -774,7 +776,7 @@ class SparseLoader(ContactBinner):
     ])
 
     def __init__(self, filepath, bins, chunksize, field_numbers=None, 
-                 field_dtypes=None):
+                 field_dtypes=None, one_based=False):
         """
         Parameters
         ----------
@@ -786,6 +788,7 @@ class SparseLoader(ContactBinner):
         self._map = map
         self.filepath = filepath
         self.chunksize = chunksize
+        self.one_based_bin_ids = one_based
         self.n_bins = len(bins)
 
         # Assign the column numbers
@@ -823,6 +826,13 @@ class SparseLoader(ContactBinner):
         for chunk in iterator:
             if np.any(chunk['bin1_id'] > chunk['bin2_id']):
                 raise ValueError("Found bin1_id greater than bin2_id")
+            if self.one_based_bin_ids:
+                # convert to zero-based
+                if np.any(chunk['bin1_id'] <= 0) or np.any(chunk['bin2_id'] <= 0):
+                    raise ValueError(
+                        "Found bin ID <= 0. Are you sure bin IDs are one-based?")
+                chunk['bin1_id'] -= 1
+                chunk['bin2_id'] -= 1
             if (np.any(chunk['bin1_id'] >= n_bins) or 
                 np.any(chunk['bin2_id'] >= n_bins)):
                 raise ValueError(

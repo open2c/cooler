@@ -390,7 +390,15 @@ def bins(h5, lo=0, hi=None, fields=None, **kwargs):
         fields = (pandas.Index(['chrom', 'start', 'end'])
                         .append(pandas.Index(h5['bins'].keys()))
                         .drop_duplicates())
-    return get(h5['bins'], lo, hi, fields, **kwargs)
+    out = get(h5['bins'], lo, hi, fields, **kwargs)
+
+    import numbers
+    if ('convert_enum' in kwargs and kwargs['convert_enum'] and
+            issubclass(out['chrom'].dtype.type, numbers.Integral)):
+        chromnames = chroms(h5, fields='name')
+        out['chrom'] = pandas.Categorical.from_codes(
+            out['chrom'], chromnames, ordered=True)
+    return out
 
 
 def pixels(h5, lo=0, hi=None, fields=None, join=True, **kwargs):
@@ -572,13 +580,12 @@ def matrix(h5, i0, i1, j0, j1, field=None, balance=True, sparse=False,
                               columns=cols, index=index)
 
         if balance:
-            weights = get(h5['bins'], min(i0, j0), max(i1, j1), [name])
+            weights = Cooler(h5).bins()[[name]]
             df2 = annotate(df, weights)
             df['balanced'] = df2[name+'1'] * df2[name+'2'] * df2[field]
 
         if join:
-            bins = get(h5['bins'], min(i0, j0), max(i1, j1), 
-                       ['chrom', 'start', 'end'])
+            bins = Cooler(h5).bins()[['chrom', 'start', 'end']]
             df = annotate(df, bins)
 
         return df
