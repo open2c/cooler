@@ -1,0 +1,67 @@
+{
+    "creators": [
+        {
+            "name": "Nezar Abdennur",
+            "affiliation": "MIT, Cambridge, MA, USA",
+            "orcid": "0000-0001-5814-0864"
+        }, 
+        {
+            "name": "Anton Goloborodko",
+            "affiliation": "MIT, Cambridge, MA, USA"
+        }, 
+        {
+            "name": "Maxim Imakaev",
+            "affiliation": "MIT, Cambridge, MA, USA"
+        }, 
+        {
+            "name": "Leonid Mirny",
+            "affiliation": "MIT, Cambridge, MA, USA"
+        }
+    ], 
+    "contributors": [
+      {
+        "name": "Peter Kerpedjiev", 
+        "affiliation": "Harvard Medical School", 
+        "type": "Other"
+      }, 
+      {
+        "name": "Geoffrey Fudenberg", 
+        "affiliation": "UCSF", 
+        "type": "Other"
+      }, 
+      {
+        "name": "Scott Oullette", 
+        "affiliation": "Harvard Medical School", 
+        "type": "Other"
+      }, 
+      {
+        "name": "Soo Lee", 
+        "affiliation": "Harvard Medical School", 
+        "type": "Other"
+      }, 
+      {
+        "name": "Hendrik Strobelt", 
+        "affiliation": "Harvard", 
+        "type": "Other"
+      }, 
+      {
+        "name": "Nils Gehlenborg", 
+        "affiliation": "Harvard Medical School", 
+        "type": "Other"
+      }
+    ], 
+    "keywords": [
+        "bioinformatics",
+        "genomics",
+        "Hi-C",
+        "sparse",
+        "matrix",
+        "format",
+        "Python",
+        "out-of-core"
+    ],
+    "description": "<p>Cooler is a Python support library for .cool files: an efficient storage format for high resolution genomic interaction matrices.</p>\n\n<p>The cooler package aims to provide the following functionality:</p>\n\n<ul>\n\t<li>Build contact matrices at any genomic resolution.</li>\n\t<li>Query contact matrices.</li>\n\t<li>Export and visualize the data.</li>\n\t<li>Perform scalable out-of-core operations on the data.</li>\n\t<li>Provide a clean and well-documented Python API to interact with the data.</li>\n</ul>\n\n<p>Follow cooler development on GitHub.</p>",
+    "access_right": "open",
+    "license": "BSD-3-Clause",
+    "upload_type": "software"
+}
