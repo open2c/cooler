@@ -108,8 +108,14 @@ def _parse_bins(arg):
     default=False,
     help="Store the 'count' column as floating point values instead of as "
          "integers (default).")
+@click.option(
+    "--one-based",
+    is_flag=True,
+    default=False,
+    help="Pass this flag if the bin IDs listed in a COO file are one-based " 
+         "instead of zero-based.")
 def load(bins_path, pixels_path, cool_path, format, metadata, assembly,
-         chunksize, field, count_as_float):
+         chunksize, field, count_as_float, one_based):
     """
     Load a contact matrix.
     Load a sparse-formatted text dump of a contact matrix into a COOL file.
@@ -174,6 +180,6 @@ def load(bins_path, pixels_path, cool_path, format, metadata, assembly,
                                   field_numbers, field_dtypes)
     elif format == 'coo':
         binner = SparseLoader(pixels_path, bins, chunksize, 
-                              field_numbers, field_dtypes)
+                              field_numbers, field_dtypes, one_based)
 
     create(cool_path, bins, binner, metadata, assembly, dtypes=field_dtypes)
