@@ -137,6 +137,110 @@ def multires_aggregate(input_uri, outfile, nproc, chunksize, lock=None):
     return n_zooms, zoom_levels
 
 
+def get_multiplier_sequence(resolutions, bases=None):
+    """
+    From a set of target resolutions and one or more base resolutions
+    deduce the most efficient sequence of integer multiple aggregations
+    to satisfy all targets starting from the base resolution(s).
+    
+    Parameters
+    ----------
+    resolutions: sequence of int
+        The target resolutions
+    bases: sequence of int, optional
+        The base resolutions for which data already exists.
+        If not provided, the smallest resolution is assumed to be the base.
+    
+    Returns
+    -------
+    resn: 1D array
+        Resolutions, sorted in ascending order.
+    pred: 1D array
+        Index of the predecessor resolution in `resn`. A value of -1 implies
+        that the resolution is a base resolution.
+    mult: 1D array
+        Multiplier to go from predecessor to target resolution.
+    
+    """
+    if bases is None:
+        # assume the base resolution is the smallest one
+        bases = {min(resolutions)}
+    else:
+        bases = set(bases)
+
+    resn = np.array(sorted(bases.union(resolutions)))
+    pred = -np.ones(len(resn), dtype=int)
+    mult = -np.ones(len(resn), dtype=int)
+  
+    for i, target in list(enumerate(resn))[::-1]:
+        p = i - 1
+        while p >= 0:
+            if target % resn[p] == 0:
+                pred[i] = p
+                mult[i] = target // resn[p]
+                break
+            else:
+                p -= 1
+    
+    for i, p in enumerate(pred):
+        if p == -1 and resn[i] not in bases:
+            raise ValueError(
+                "Resolution {} cannot be derived from "
+                "the base resolutions: {}.".format(resn[i], bases))
+            
+    return resn, pred, mult
+
+
+def new_multires_aggregate(input_uris, outfile, resolutions, nproc, chunksize, 
+                           lock=None):
+    uris = {}
+    bases = set()
+    for input_uri in input_uris:
+        infile, ingroup = parse_cooler_uri(input_uri)
+        base_binsize = api.Cooler(infile, ingroup).binsize
+        uris[base_binsize] = (infile, ingroup)
+        bases.add(base_binsize)
+
+    resn, pred, mult = get_multiplier_sequence(resolutions, bases)
+    n_zooms = len(resn)
+
+    logger.info(
+        "Copying base matrices and producing {} new zoom levels.".format(n_zooms)
+    )
+    
+    # Copy base matrix
+    for base_binsize in bases:
+        logger.info("Bin size: " + str(base_binsize))
+        infile, ingroup = uris[base_binsize]
+        with h5py.File(infile, 'r') as src, \
+            h5py.File(outfile, 'w') as dest:
+            src.copy(ingroup, dest, '/resolutions/{}'.format(base_binsize))
+
+    # Aggregate
+    # Use lock to sync read/write ops on same file
+    for i in range(n_zooms):
+        if pred[i] == -1:
+            continue
+        prev_binsize = resn[pred[i]]
+        binsize = prev_binsize * mult[i]
+        logger.info(
+            "Aggregating from {} to {}.".format(prev_binsize, binsize))
+        aggregate(
+            outfile + '::resolutions/{}'.format(prev_binsize), 
+            outfile + '::resolutions/{}'.format(binsize),
+            mult[i], 
+            nproc, 
+            chunksize,
+            lock
+        )
+
+    with h5py.File(outfile, 'r+') as fw:
+        fw.attrs.update({
+            'format': u'HDF5::MCOOL',
+            'format-version': 2,
+        })
+
+
 @cli.command()
 @click.argument(
     'cool_uri',
@@ -210,8 +314,12 @@ def coarsen(cool_uri, factor, nproc, chunksize, out):
 @click.option(
     '--out', '-o',
     help="Output file or URI")
+@click.option(
+    '--resolutions', '-r',
+    help="Comma-separated list of target resolutions")
 @click.pass_context
-def zoomify(ctx, cool_uri, nproc, chunksize, balance, balance_args, out):
+def zoomify(ctx, cool_uri, nproc, chunksize, balance, balance_args, out,
+            resolutions):
     """
     Generate zoom levels for HiGlass by recursively generating 2-by-2 element 
     tiled aggregations of the contact matrix until reaching a minimum
@@ -225,32 +333,59 @@ def zoomify(ctx, cool_uri, nproc, chunksize, balance, balance_args, out):
     infile, _ = parse_cooler_uri(cool_uri)
 
     if out is None:
-        outfile = infile.replace('.cool', '.multi.cool')
+        outfile = infile.replace('.cool', '.mcool')
     else:
         outfile, _ = parse_cooler_uri(out)
 
     logger.info('Recursively aggregating "{}"'.format(cool_uri))
     logger.info('Writing to "{}"'.format(outfile))
-    n_zooms, zoom_levels = multires_aggregate(cool_uri, outfile, nproc, chunksize, lock=lock)
 
-    if balance:
-        runner = CliRunner()
+    if resolutions is not None:
+        resolutions = [int(s.strip()) for s in resolutions.split(',')]
+        new_multires_aggregate([cool_uri], outfile, resolutions, nproc, 
+            chunksize, lock=lock)
 
-        if balance_args is None: 
-            balance_args = []
-        else:
-            balance_args = shlex.split(balance_args)
-        logger.debug('Balancing args: {}'.format(balance_args))
+        if balance:
+            runner = CliRunner()
 
-        for level, res in reversed(list(zoom_levels.items())):
-            uri = outfile + '::' + str(level)
-            if level == str(n_zooms):
+            if balance_args is None: 
+                balance_args = []
+            else:
+                balance_args = shlex.split(balance_args)
+            logger.debug('Balancing args: {}'.format(balance_args))
+
+            for res in resolutions:
+                uri = outfile + '::resolutions/' + str(res)
                 if 'weight' in api.Cooler(uri).bins():
                     continue
-            logger.info('Balancing zoom level {}, bin size {}'.format(level, res))
-            result = runner.invoke(balance_cmd, args=[uri] + balance_args)
-            if result.exit_code != 0:
-                raise result.exception
+                logger.info('Balancing zoom level with bin size {}'.format(res))
+                result = runner.invoke(balance_cmd, args=[uri] + balance_args)
+                if result.exit_code != 0:
+                    raise result.exception
+
+    else:
+        n_zooms, zoom_levels = multires_aggregate(cool_uri, outfile, nproc, 
+            chunksize, lock=lock)
+
+        if balance:
+            runner = CliRunner()
+
+            if balance_args is None: 
+                balance_args = []
+            else:
+                balance_args = shlex.split(balance_args)
+            logger.debug('Balancing args: {}'.format(balance_args))
+
+            for level, res in reversed(list(zoom_levels.items())):
+                uri = outfile + '::' + str(level)
+                if level == str(n_zooms):
+                    if 'weight' in api.Cooler(uri).bins():
+                        continue
+                logger.info(
+                    'Balancing zoom level {}, bin size {}'.format(level, res))
+                result = runner.invoke(balance_cmd, args=[uri] + balance_args)
+                if result.exit_code != 0:
+                    raise result.exception
 
 
 @cli.command(context_settings={

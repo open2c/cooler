@@ -390,7 +390,15 @@ def bins(h5, lo=0, hi=None, fields=None, **kwargs):
         fields = (pandas.Index(['chrom', 'start', 'end'])
                         .append(pandas.Index(h5['bins'].keys()))
                         .drop_duplicates())
-    return get(h5['bins'], lo, hi, fields, **kwargs)
+    out = get(h5['bins'], lo, hi, fields, **kwargs)
+
+    import numbers
+    if ('convert_enum' in kwargs and kwargs['convert_enum'] and
+            issubclass(out['chrom'].dtype.type, numbers.Integral)):
+        chromnames = chroms(h5, fields='name')
+        out['chrom'] = pandas.Categorical.from_codes(
+            out['chrom'], chromnames, ordered=True)
+    return out
 
 
 def pixels(h5, lo=0, hi=None, fields=None, join=True, **kwargs):

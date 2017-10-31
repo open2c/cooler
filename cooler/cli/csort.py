@@ -40,7 +40,7 @@ outstream = getattr(sys.stdout, "buffer", sys.stdout)
 with open("{chromosomes_path}", "rb") as f:
     chrIDs = {{}}
     for i, line in enumerate(f, 1):
-        chrom = line.split(b"\\t")[0]
+        chrom = line.split(b"\\t")[0].strip()
         if chrom:
             chrIDs[chrom] = i
 
@@ -103,7 +103,7 @@ def make_flip_command(chromosomes_path, sep, comment_char, fields):
     with open(chromosomes_path, 'rt') as f:
         logger.info("Enumerating requested chromosomes...")
         for i, line in enumerate(f, 1):
-            chrom = line.split('\t')[0]
+            chrom = line.split('\t')[0].strip()
             if chrom:
                 logger.info(chrom + '\t' + str(i))
 
