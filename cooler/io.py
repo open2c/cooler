@@ -194,7 +194,6 @@ def create(cool_uri, bins, pixels, metadata=None, assembly=None, dtypes=None,
     binsize = get_binsize(bins)
     n_chroms = len(chroms)
     n_bins = len(bins)
-    chrom_as_enum = (n_chroms < 500)
 
     # Create root group
     with h5py.File(file_path, mode) as f:
@@ -220,7 +219,7 @@ def create(cool_uri, bins, pixels, metadata=None, assembly=None, dtypes=None,
 
         logger.info('Writing bins')
         grp = h5.create_group('bins')
-        write_bins(grp, bins, chroms['name'], h5opts, chrom_as_enum)
+        write_bins(grp, bins, chroms['name'], h5opts)
         
         grp = h5.create_group('pixels')
         prepare_pixels(grp, n_bins, meta, h5opts)
