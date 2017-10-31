@@ -317,8 +317,7 @@ def coarsen(cool_uri, factor, nproc, chunksize, out):
 @click.option(
     '--resolutions', '-r',
     help="Comma-separated list of target resolutions")
-@click.pass_context
-def zoomify(ctx, cool_uri, nproc, chunksize, balance, balance_args, out,
+def zoomify(cool_uri, nproc, chunksize, balance, balance_args, out,
             resolutions):
     """
     Generate zoom levels for HiGlass by recursively generating 2-by-2 element 
