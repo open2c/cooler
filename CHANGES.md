@@ -1,3 +1,18 @@
+### 0.7.6 (2017-10-31) ###
+New features
+
+* Cooler zoomify with explicit resolutions
+* Towards standardization of multicooler structure
+* Support for loading 1-based COO triplet input files
+
+Bug fixes
+
+* Fixed issue of exceeding header limit with too many scaffolds. If header size is exceeded, chrom IDs are stored as raw integers instead of HDF5 enums. There should be no effect at the API level.
+* Fixed issue of single-column chromosomes files not working in `cload`.
+* Fixed edge case in performing joins when using both `as_pixels` and `join` options in the matrix selector.
+
+Happy Halloween!
+
 ### 0.7.5 (2017-07-13) ###
 * Fix pandas issue affecting cases when loading single chromosomes
 * Add transform options to higlass API
