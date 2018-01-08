@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import division, print_function
+import os
 import h5py
 
 import click
@@ -58,7 +59,7 @@ def copy(src_uri, dst_uri, overwrite, link, rename, soft_link):
         raise click.BadParameter(
             'Must provide at most one of: --link, --rename, --soft-link')
 
-    if overwrite:
+    if not os.path.isfile(dst_path) or overwrite:
         write_mode = 'w'
     else:
         write_mode = 'r+'
@@ -66,7 +67,7 @@ def copy(src_uri, dst_uri, overwrite, link, rename, soft_link):
     with h5py.File(src_path, 'r+') as src, \
          h5py.File(dst_path, write_mode) as dst:
 
-        if dst_group in dst:
+        if dst_group in dst and dst_group != '/':
             click.confirm(
                 "A group named '{}' already exists in '{}'. Overwrite?".format(
                     dst_group, dst_path), 
@@ -87,5 +88,11 @@ def copy(src_uri, dst_uri, overwrite, link, rename, soft_link):
             elif soft_link:
                 dst[dst_group] = h5py.ExternalLink(src_path, src_group)
             else:
-                src.copy(src_group, dst, 
-                         dst_group if dst_group != '/' else None)
+                if dst_group == '/':
+                    for subgrp in src[src_group].keys():
+                        src.copy(src_group + '/' + subgrp, dst, subgrp)
+                    dst[dst_group].attrs.update(src[src_group].attrs)
+                else:
+                    src.copy(
+                        src_group, dst, 
+                        dst_group if dst_group != '/' else None)
