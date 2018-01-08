@@ -153,7 +153,8 @@ def balance(cool_uri, nproc, chunksize, mad_max, min_nnz, min_count, blacklist,
                 sep='\t', 
                 header=0 if csv.Sniffer().has_header(f.read(1024)) else None,
                 usecols=[0, 1, 2], 
-                names=['chrom', 'start', 'end'])
+                names=['chrom', 'start', 'end'],
+                dtype={'chrom': str})
         bins_grouped = clr.bins()[:].groupby('chrom')
         chromsizes = clr.chromsizes
         
@@ -167,7 +168,11 @@ def balance(cool_uri, nproc, chunksize, mad_max, min_nnz, min_count, blacklist,
         bad_bins = None
 
     try:
-        pool = Pool(nproc)
+        if nproc > 1:
+            pool = Pool(nproc)
+            map_ = pool.imap_unordered
+        else:
+            map_ = map
         bias, stats = ice.iterative_correction(
             clr,
             chunksize=chunksize,
@@ -181,9 +186,10 @@ def balance(cool_uri, nproc, chunksize, mad_max, min_nnz, min_count, blacklist,
             ignore_diags=ignore_diags,
             rescale_marginals=True,
             use_lock=False,
-            map=pool.imap_unordered)
+            map=map_)
     finally:
-        pool.close()
+        if nproc > 1:
+            pool.close()
 
     if stdout:
         pd.Series(bias).to_string(
