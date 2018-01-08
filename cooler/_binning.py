@@ -78,7 +78,7 @@ def balanced_partition(gs, n_chunk_max, file_contigs, loadings=None):
     chrom_nbins = grouped.size()
     if loadings is None:
         loadings = chrom_nbins
-    chrmax = loadings.argmax()
+    chrmax = loadings.idxmax()
     loadings = loadings / loadings.loc[chrmax]
     const = chrom_nbins.loc[chrmax] / n_chunk_max
 
