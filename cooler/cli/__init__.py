@@ -7,6 +7,7 @@ import click
 from .. import __version__, get_logger
 
 logging.basicConfig(stream=sys.stderr)
+logging.captureWarnings(True)
 logger = get_logger()
 logger.setLevel(logging.INFO)
 

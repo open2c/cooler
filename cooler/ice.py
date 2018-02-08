@@ -19,6 +19,10 @@ from .util import mad
 logger = get_logger()
 
 
+class ConvergenceWarning(UserWarning):
+    pass
+
+
 def _init(chunk):
     return np.copy(chunk['pixels']['count'])
 
@@ -65,6 +69,7 @@ def _balance_genomewide(bias, clr, spans, filters, chunksize, map, tol, max_iter
                         rescale_marginals, use_lock):
     scale = 1.0
     n_bins = len(bias)
+    
     for _ in range(max_iters):
         marg = (
             split(clr, spans=spans, map=map, use_lock=use_lock)
@@ -88,16 +93,18 @@ def _balance_genomewide(bias, clr, spans, filters, chunksize, map, tol, max_iter
         var = nzmarg.var()
         logger.info("variance is {}".format(var))
         if var < tol:
-            scale = nzmarg.mean()
-            bias[bias == 0] = np.nan
             break
     else:
-        raise RuntimeError('Iteration limit reached without convergence.')
+        warnings.warn(
+            'Iteration limit reached without convergence.',
+            ConvergenceWarning)
 
+    scale = nzmarg.mean()
+    bias[bias == 0] = np.nan
     if rescale_marginals:
         bias /= np.sqrt(scale)
 
-    return bias, scale
+    return bias, scale, var
 
 
 def _balance_cisonly(bias, clr, spans, filters, chunksize, map, tol, max_iters,
@@ -139,19 +146,22 @@ def _balance_cisonly(bias, clr, spans, filters, chunksize, map, tol, max_iters,
             var = nzmarg.var()
             logger.info("variance is {}".format(var))
             if var < tol:
-                scale = nzmarg.mean()
-                b = bias[lo:hi]
-                b[b == 0] = np.nan
                 break
 
         else:
-            raise RuntimeError('Iteration limit reached without convergence.')
+            warnings.warn(
+                'Iteration limit reached without convergence on {}.'.format(
+                    chroms[cid]),
+                ConvergenceWarning)
         
+        scale = nzmarg.mean()
+        b = bias[lo:hi]
+        b[b == 0] = np.nan
         scales[cid] = scale
         if rescale_marginals:
             bias[lo:hi] /= np.sqrt(scale)
         
-    return bias, scales
+    return bias, scales, var
 
 
 def iterative_correction(clr, chunksize=None, map=map, tol=1e-5,
@@ -289,11 +299,11 @@ def iterative_correction(clr, chunksize=None, map=map, tol=1e-5,
 
     # Do balancing
     if cis_only:
-        bias, scale = _balance_cisonly(
+        bias, scale, var = _balance_cisonly(
             bias, clr, spans, base_filters, chunksize, map, tol, max_iters,
             rescale_marginals, use_lock)
     else:
-        bias, scale = _balance_genomewide(
+        bias, scale, var = _balance_genomewide(
             bias, clr, spans, base_filters, chunksize, map, tol, max_iters,
             rescale_marginals, use_lock)
 
@@ -305,6 +315,8 @@ def iterative_correction(clr, chunksize=None, map=map, tol=1e-5,
         'cis_only': cis_only,
         'ignore_diags': ignore_diags,
         'scale': scale,
+        'converged': var < tol,
+        'var': var,
     }
 
     if store:

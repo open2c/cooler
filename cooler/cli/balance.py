@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 from __future__ import division, print_function
 from multiprocess import Pool
+import warnings
 import sys
+import six
 
 import numpy as np
 import pandas as pd
@@ -109,8 +111,14 @@ from ..util import bedslice
     help="Print weight column to stdout instead of saving to file.",
     is_flag=True,
     default=False)
+@click.option(
+    "--convergence-policy",
+    help="What to do when balancing doesn't converge in max_iters",
+    type=click.Choice(['final', 'nan', 'abort']),
+    default='final')
 def balance(cool_uri, nproc, chunksize, mad_max, min_nnz, min_count, blacklist,
-            ignore_diags, tol, cis_only, max_iters, name, force, check, stdout):
+            ignore_diags, tol, cis_only, max_iters, name, force, check, stdout,
+            convergence_policy):
     """
     Out-of-core contact matrix balancing.
 
@@ -173,6 +181,7 @@ def balance(cool_uri, nproc, chunksize, mad_max, min_nnz, min_count, blacklist,
             map_ = pool.imap_unordered
         else:
             map_ = map
+
         bias, stats = ice.iterative_correction(
             clr,
             chunksize=chunksize,
@@ -187,9 +196,19 @@ def balance(cool_uri, nproc, chunksize, mad_max, min_nnz, min_count, blacklist,
             rescale_marginals=True,
             use_lock=False,
             map=map_)
+
     finally:
         if nproc > 1:
             pool.close()
+
+    if not stats['converged']:
+        logger.error('Iteration limit reached without convergence')
+        if convergence_policy == 'nan':
+            logger.error('Assigning NaN')
+            bias[:] = np.nan
+        elif convergence_policy == 'abort':
+            logger.error('Aborting operation')
+            sys.exit(1)
 
     if stdout:
         pd.Series(bias).to_string(
