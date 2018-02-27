@@ -47,6 +47,14 @@ def _zero_trans(chunk, data):
     return data
 
 
+def _zero_cis(chunk, data):
+    chrom_ids = chunk['bins']['chrom']
+    pixels = chunk['pixels']
+    mask = chrom_ids[pixels['bin1_id']] == chrom_ids[pixels['bin2_id']]
+    data[mask] = 0
+    return data
+
+
 def _timesouterproduct(vec, chunk, data):
     pixels = chunk['pixels']
     data = (vec[pixels['bin1_id']]
@@ -166,9 +174,60 @@ def _balance_cisonly(bias, clr, spans, filters, chunksize, map, tol, max_iters,
     return bias, scales, var
 
 
+def _balance_transonly(bias, clr, spans, filters, chunksize, map, tol, max_iters,
+                        rescale_marginals, use_lock):
+    scale = 1.0
+    n_bins = len(bias)
+
+    chrom_offsets = clr._load_dset('indexes/chrom_offset')
+    cweights = 1. / np.concatenate([
+        [(1 - (hi - lo)/n_bins)] * (hi - lo) for lo, hi in 
+            zip(chrom_offsets[:-1], chrom_offsets[1:])
+    ])
+
+    for _ in range(max_iters):
+        marg = (
+            split(clr, spans=spans, map=map, use_lock=use_lock)
+                .prepare(_init)
+                .pipe(filters)
+                .pipe(_zero_cis)
+                .pipe(_timesouterproduct, bias * cweights)
+                .pipe(_marginalize)
+                .reduce(add, np.zeros(n_bins))
+        )
+        
+        nzmarg = marg[marg != 0]
+        if not len(nzmarg):
+            scale = np.nan
+            bias[:] = np.nan
+            var = 0.0
+            break
+
+        marg = marg / nzmarg.mean()
+        marg[marg == 0] = 1
+        bias /= marg
+
+        var = nzmarg.var()
+        logger.info("variance is {}".format(var))
+        if var < tol:
+            break
+    else:
+        warnings.warn(
+            'Iteration limit reached without convergence.',
+            ConvergenceWarning)
+
+    scale = nzmarg.mean()
+    bias[bias == 0] = np.nan
+    if rescale_marginals:
+        bias /= np.sqrt(scale)
+
+    return bias, scale, var
+
+
+
 def iterative_correction(clr, chunksize=None, map=map, tol=1e-5,
                          min_nnz=0, min_count=0, mad_max=0,
-                         cis_only=False, ignore_diags=False,
+                         cis_only=False, trans_only=False, ignore_diags=False,
                          max_iters=200, rescale_marginals=True,
                          use_lock=False, blacklist=None, x0=None,
                          store=False, store_name='weight'):
@@ -204,6 +263,9 @@ def iterative_correction(clr, chunksize=None, map=map, tol=1e-5,
     cis_only : bool, optional
         Do iterative correction on intra-chromosomal data only.
         Inter-chromosomal data is ignored.
+    trans_only : bool, optional
+        Do iterative correction on inter-chromosomal data only.
+        Intra-chromosomal data is ignored.
     blacklist : list or 1D array, optional
         An explicit list of IDs of bad bins to filter out when performing 
         balancing.
@@ -302,6 +364,10 @@ def iterative_correction(clr, chunksize=None, map=map, tol=1e-5,
     # Do balancing
     if cis_only:
         bias, scale, var = _balance_cisonly(
+            bias, clr, spans, base_filters, chunksize, map, tol, max_iters,
+            rescale_marginals, use_lock)
+    elif trans_only:
+        bias, scale, var = _balance_transonly(
             bias, clr, spans, base_filters, chunksize, map, tol, max_iters,
             rescale_marginals, use_lock)
     else:
