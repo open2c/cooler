@@ -69,7 +69,7 @@ def _balance_genomewide(bias, clr, spans, filters, chunksize, map, tol, max_iter
                         rescale_marginals, use_lock):
     scale = 1.0
     n_bins = len(bias)
-    
+
     for _ in range(max_iters):
         marg = (
             split(clr, spans=spans, map=map, use_lock=use_lock)
@@ -84,6 +84,7 @@ def _balance_genomewide(bias, clr, spans, filters, chunksize, map, tol, max_iter
         if not len(nzmarg):
             scale = np.nan
             bias[:] = np.nan
+            var = 0.0
             break
 
         marg = marg / nzmarg.mean()
@@ -137,6 +138,7 @@ def _balance_cisonly(bias, clr, spans, filters, chunksize, map, tol, max_iters,
             if not len(nzmarg):
                 scale = np.nan
                 bias[lo:hi] = np.nan
+                var = 0.0
                 break
 
             marg = marg / nzmarg.mean()
