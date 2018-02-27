@@ -91,6 +91,12 @@ from ..util import bedslice
     is_flag=True,
     default=False)
 @click.option(
+    "--trans-only",
+    help="Calculate weights against inter-chromosomal data only instead of "
+         "genome-wide.",
+    is_flag=True,
+    default=False)
+@click.option(
     "--name",
     help="Name of column to write to.",
     type=str,
@@ -117,8 +123,8 @@ from ..util import bedslice
     type=click.Choice(['final', 'nan', 'abort']),
     default='final')
 def balance(cool_uri, nproc, chunksize, mad_max, min_nnz, min_count, blacklist,
-            ignore_diags, tol, cis_only, max_iters, name, force, check, stdout,
-            convergence_policy):
+            ignore_diags, tol, cis_only, trans_only, max_iters, name, force, 
+            check, stdout, convergence_policy):
     """
     Out-of-core contact matrix balancing.
 
@@ -139,6 +145,10 @@ def balance(cool_uri, nproc, chunksize, mad_max, min_nnz, min_count, blacklist,
             else:
                 click.echo("{}::{} is balanced.".format(cool_path, group_path))
                 sys.exit(0)
+
+    if cis_only and trans_only:
+        raise click.UsageError(
+            'Provide at most one of --cis-only and --trans-only flags')
 
     with h5py.File(cool_path, 'r+') as h5:
         grp = h5[group_path]
@@ -186,6 +196,7 @@ def balance(cool_uri, nproc, chunksize, mad_max, min_nnz, min_count, blacklist,
             clr,
             chunksize=chunksize,
             cis_only=cis_only,
+            trans_only=trans_only,
             tol=tol,
             min_nnz=min_nnz,
             min_count=min_count,
