@@ -9,7 +9,7 @@ properly sorted, chunked stream of binned contacts.
 """
 from __future__ import division, print_function
 from collections import OrderedDict, Counter
-from bisect import bisect_left
+from bisect import bisect_left, bisect_right
 from multiprocess import Pool
 import itertools
 import warnings
@@ -18,7 +18,7 @@ import six
 
 #from pandas.algos import is_lexsorted
 import numpy as np
-import pandas
+import pandas as pd
 import h5py
 
 from . import get_logger
@@ -58,10 +58,10 @@ class ContactBinner(object):
 
 
 def check_bins(bins, chromsizes):
-    is_cat = pandas.api.types.is_categorical(bins['chrom'])
+    is_cat = pd.api.types.is_categorical(bins['chrom'])
     bins = bins.copy()
     if not is_cat:
-        bins['chrom'] = pandas.Categorical(
+        bins['chrom'] = pd.Categorical(
             bins.chrom, 
             categories=list(chromsizes.index), 
             ordered=True)
@@ -106,7 +106,7 @@ class GenomeSegmentation(object):
         self.binsize = get_binsize(bins)
         self.contigs = list(chromsizes.keys())
         self.bins = bins
-        self.idmap = pandas.Series(
+        self.idmap = pd.Series(
             index=chromsizes.keys(), 
             data=range(len(chromsizes)))
         self.chrom_binoffset = np.r_[0, np.cumsum(nbins_per_chrom)]
@@ -154,7 +154,7 @@ class HDF5Aggregator(ContactBinner):
             ('chrom_id2', self.h5[self.C2][lo:hi]),
             ('cut2', self.h5[self.P2][lo:hi]),
         ])
-        return pandas.DataFrame(data)
+        return pd.DataFrame(data)
 
     def aggregate(self, chrom):
         h5pairs = self.h5
@@ -318,7 +318,7 @@ class TabixAggregator(ContactBinner):
                     continue
 
                 rows.append(
-                    pandas.DataFrame({
+                    pd.DataFrame({
                         'bin1_id': bin1_id,
                         'bin2_id': list(accumulator.keys()),
                         'count':   list(accumulator.values())},
@@ -330,7 +330,7 @@ class TabixAggregator(ContactBinner):
         
         logger.info('Finished {}:{}-{}|*'.format(chrom1, start, end))
 
-        return pandas.concat(rows, axis=0) if len(rows) else None
+        return pd.concat(rows, axis=0) if len(rows) else None
     
     def __iter__(self):
         granges = balanced_partition(self.gs, self.n_chunks, self.file_contigs)
@@ -439,7 +439,7 @@ class PairixAggregator(ContactBinner):
                 continue
             
             rows.append(
-                pandas.DataFrame({
+                pd.DataFrame({
                     'bin1_id': bin1_id,
                     'bin2_id': list(accumulator.keys()),
                     'count':   list(accumulator.values())},
@@ -451,7 +451,7 @@ class PairixAggregator(ContactBinner):
         
         logger.info('Finished {}:{}-{}|*'.format(chrom1, start, end))
 
-        return pandas.concat(rows, axis=0) if len(rows) else None
+        return pd.concat(rows, axis=0) if len(rows) else None
     
     def __iter__(self):
         granges = balanced_partition(self.gs, self.n_chunks, self.file_contigs)
@@ -563,15 +563,78 @@ class CoolerAggregator(ContactBinner):
                 yield {k: v.values for k, v in six.iteritems(df)}
 
 
+def merge_breakpoints(indexes, maxbuf):
+    """
+    Partition k offset arrays for performing a k-way external merge, such that 
+    no single merge pass loads more than ``maxbuf`` records  into memory, with 
+    one exception (see Notes).
+    
+    Parameters
+    ----------
+    indexes : sequence of 1D arrays of equal length
+        These offset-array indexes map non-negative integers to their offset 
+        locations in a corresponding data table
+    maxbuf : int
+        Maximum cumulative number of records loaded into memory for a single 
+        merge pass
+        
+    Returns
+    -------
+    breakpoints : 1D array
+        breakpoint locations to segment all the offset arrays
+    cum_offset : 1D array
+        cumulative number of records that will be processed at each breakpoint
+        
+    Notes
+    -----
+    The one exception to the post-condition is if any single increment of the 
+    indexes maps to more than ``maxbuf`` records, these will produce 
+    oversized chunks.
+    
+    """
+    k = len(indexes)
+    
+    # the virtual cumulative index if no pixels were merged
+    cumindex = np.vstack(indexes).sum(axis=0)
+    cum_start = 0
+    cum_nnz = cumindex[-1]
+    n = len(cumindex)
+    
+    breakpoints = [0]
+    cum_offsets = [0]
+    lo = 0
+    while True:
+        # find the next mark
+        hi = bisect_right(cumindex, min(cum_start + maxbuf, cum_nnz), lo=lo) - 1  
+        if hi == lo:
+            # number of records to nearest mark exceeds `maxbuf`
+            # check for oversized chunks afterwards
+            hi += 1
+
+        breakpoints.append(hi)
+        cum_offsets.append(cumindex[hi])
+        
+        if cumindex[hi] == cum_nnz:
+            break
+        
+        lo = hi
+        cum_start = cumindex[hi]
+    
+    breakpoints = np.array(breakpoints)
+    cum_offsets = np.array(cum_offsets)
+    return breakpoints, cum_offsets
+
+
 class CoolerMerger(ContactBinner):
     """
-    Merge (i.e. sum) multiple cooler matrices with identical axes.
+    Merge (i.e. sum) multiple cooler matrices having identical axes.
 
     """
-    def __init__(self, coolers, chunksize, **kwargs):
+    def __init__(self, coolers, maxbuf, **kwargs):
         self.coolers = list(coolers)
-        self.chunksize = chunksize
-
+        self.maxbuf = maxbuf
+        
+        # check compatibility between input coolers
         binsize = coolers[0].binsize
         if binsize is not None:
             if len(set(c.binsize for c in coolers)) > 1:
@@ -588,33 +651,36 @@ class CoolerMerger(ContactBinner):
                     raise ValueError("Coolers must have same bin structure")
 
     def __iter__(self):
-        chunksize = self.chunksize
         indexes = [c._load_dset('indexes/bin1_offset') for c in self.coolers]
+        breakpoints, cum_offsets = merge_breakpoints(indexes, self.maxbuf)
+        chunksizes = np.diff(cum_offsets)
+        if chunksizes.max() > self.maxbuf:
+            warnings.warn(
+                'Some merge passes will use more than {} pixels'.format(
+                    self.maxbuf))
         nnzs = [len(c.pixels()) for c in self.coolers]
         logger.info('nnzs: {}'.format(nnzs))
 
-        lo = 0
         starts = [0] * len(self.coolers)
-        while True:
-            hi = max(bisect_left(o[:-1], min(start + chunksize, nnz), lo=lo) 
-                                 for start, nnz, o in zip(starts, nnzs, indexes))
-            if hi == lo:
-                break
-            stops = [o[hi] for o in indexes]
+        for bp in breakpoints[1:]:
+            stops = [index[bp] for index in indexes]
             logger.info('current: {}'.format(stops))
-            
-            combined = pandas.concat(
+
+            # extract, concat
+            combined = pd.concat(
                 [c.pixels()[start:stop] 
-                    for c, start, stop in zip(self.coolers, starts, stops)],
+                    for c, start, stop in zip(self.coolers, starts, stops)
+                        if (stop - start) > 0],
                 axis=0,
                 ignore_index=True)
-
+            
+            # sort and aggregate
             df = (combined.groupby(['bin1_id', 'bin2_id'], sort=True)
                           .aggregate({'count': np.sum})
                           .reset_index())
+            
             yield {k: v.values for k, v in six.iteritems(df)}
-
-            lo = hi
+            
             starts = stops
 
 
@@ -729,7 +795,7 @@ class BedGraph2DLoader(ContactBinner):
         if not lines:
             return None
 
-        df = pandas.DataFrame(lines)
+        df = pd.DataFrame(lines)
         df = df[self.usecols]
         df.columns = self.columns
         for col, dtype in self.dtypes.items():
@@ -813,7 +879,7 @@ class SparseLoader(ContactBinner):
     def __iter__(self):
         n_bins = self.n_bins
         
-        iterator = pandas.read_csv(
+        iterator = pd.read_csv(
             self.filepath, 
             sep='\t', 
             iterator=True,

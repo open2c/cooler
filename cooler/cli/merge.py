@@ -19,7 +19,7 @@ from ..io import create, CoolerMerger
 @click.option(
     "--chunksize", "-c",
     type=int,
-    default=int(10e6),
+    default=int(20e6),
     show_default=True)
 def merge(out_path, in_paths, chunksize):
     """
@@ -42,5 +42,5 @@ def merge(out_path, in_paths, chunksize):
     chromsizes = clrs[0].chromsizes
     bins = clrs[0].bins()[['chrom', 'start', 'end']][:]
     assembly = clrs[0].info.get('genome-assembly', None)
-    iterator = CoolerMerger(clrs, chunksize=chunksize)
+    iterator = CoolerMerger(clrs, maxbuf=chunksize)
     create(out_path, bins, iterator, assembly=assembly)
