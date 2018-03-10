@@ -5,21 +5,51 @@ import json
 import sys
 
 import numpy as np
+from pandas.api.types import is_float_dtype
 import pandas as pd
 import h5py
 
 import click
-from . import cli
+from . import cli, logger
 from .. import util
-from ..io import create, parse_cooler_uri, SparseLoader, BedGraph2DLoader
+from ..io import (
+    parse_cooler_uri, create_from_unsorted, sanitize_records, sanitize_pixels
+)
 
 
 # TODO: support dense text or memmapped binary/npy?
+def _parse_field_params(args):
+    extra_fields = []
+    bad_param = False
+    for arg in args:
 
-def _validate_fieldnum(ctx, param, value):
-    if value <= 0:
-        raise click.BadParameter('Field numbers are one-based')
-    return value
+        parts = arg.split(',')
+        if len(parts) == 1 or len(parts) > 3:
+            bad_param = True
+        else:
+            name = parts[0]
+            try:
+                number = int(parts[1]) - 1
+            except ValueError:
+                bad_param = True
+
+            if number < 0:
+                raise click.BadParameter(
+                    "Field numbers are assumed to be 1-based.")
+
+            if len(parts) == 3:
+                dtype = np.dtype(parts[2])
+            else:
+                dtype = None
+
+        if bad_param:
+            raise click.BadParameter(
+                "Expected '--field {{name}},{{number}}' "
+                "or '--field {{name}},{{number}},{{dtype}}'; "
+                "got '{}'".format(arg))
+        extra_fields.append((name, number, dtype))
+
+    return extra_fields
 
 
 def _parse_bins(arg):
@@ -91,23 +121,28 @@ def _parse_bins(arg):
     help="Name of genome assembly (e.g. hg19, mm10)")
 @click.option(
     "--field",
-    help="Add supplemental pixel fields or override default pixel field numbers. "
-         "Specify as '<name> <number>'. Field numbers are 1-based. "
-         "Supplemental data columns are assumed to be floating point. "
-         "Repeat for each additional field.",
-    nargs=2,
-    type=(str, int),
+    help="Add supplemental value fields or override default field numbers for "
+         "the specified format. Specify as '<name>,<number>' or as "
+         "'<name>,<number>,<dtype>' to enforce a dtype other than `float` or "
+         "the default for a standard column. Field numbers are 1-based. "
+         "Repeat the `--field` option for each additional field. "
+         "[Changed in v0.7.7: use a comma separator, rather than a space.]",
+    type=str,
     multiple=True)
 @click.option(
     "--chunksize", "-c",
+    help="Size (in number of lines/records) of data chunks to read and process "
+         "from the input file at a time. These chunks will be saved as "
+         "temporary partial Coolers and merged at the end. Also specifies the "
+         "size of the buffer during the merge step.",
     type=int,
-    default=int(10e6))
+    default=int(20e6))
 @click.option(
     "--count-as-float",
     is_flag=True,
     default=False,
     help="Store the 'count' column as floating point values instead of as "
-         "integers (default).")
+         "integers. Can also be specified using the `--field` option.")
 @click.option(
     "--one-based",
     is_flag=True,
@@ -117,31 +152,29 @@ def _parse_bins(arg):
 def load(bins_path, pixels_path, cool_path, format, metadata, assembly,
          chunksize, field, count_as_float, one_based):
     """
-    Load a contact matrix.
-    Load a sparse-formatted text dump of a contact matrix into a COOL file.
+    Load a pre-binned contact matrix into a COOL file.
 
     \b
     Two input format options (tab-delimited):
 
-    * COO: COO-rdinate matrix format (i.e. ijv triple). 3 columns.
+    * COO: COO-rdinate sparse matrix format (a.k.a. ijv triple). 3 columns.
 
     \b
     - columns: "bin1_id, bin2_id, count",
-    - lexicographically sorted by bin1_id, bin2_id
-    - optionally compressed
 
     * BG2: 2D version of the bedGraph format. 7 columns.
 
     \b
     - columns: "chrom1, start1, end1, chrom2, start2, end2, count"
-    - sorted by chrom1, chrom2, start1, start2
-    - bgzip compressed and indexed with Pairix (see cooler csort)
+
+    Input pixel file may be compressed.
+
+    **New in v0.7.7: Input files no longer need to be sorted or indexed!**
 
     Example:
 
     \b
-    cooler csort -c1 1 -p1 2 -c2 4 -p2 5 <in.bg2> <chrom.sizes>
-    cooler load -f bg2 <chrom.sizes>:<binsize> <in.bg2.srt.gz> <out.cool>
+    cooler load -f bg2 <chrom.sizes>:<binsize> in.bg2.gz out.cool
 
     \b\bArguments:
 
@@ -162,24 +195,87 @@ def load(bins_path, pixels_path, cool_path, format, metadata, assembly,
         with open(metadata, 'r') as f:
             metadata = json.load(f)
 
-    # Set up the appropriate binned contacts loader
-    if field is not None:
-        if not all(v > 0 for k, v in field):
-            raise click.BadParameter("Field numbers are assumed to be 1-based.")
-        field_numbers = {k: v-1 for k, v in field}
-        field_dtypes = {k: float for k, v in field if k not in ('bin1_id', 'bin2_id', 'count')}
-    else:
-        field_numbers = None
-        field_dtypes = None
-
-    if count_as_float:
-        field_dtypes['count'] = float
+    output_field_names = ['bin1_id', 'bin2_id', 'count']
+    output_field_dtypes = {
+        'bin1_id': int,
+        'bin2_id': int,
+        'count': float if count_as_float else int,
+    }
 
     if format == 'bg2':
-        binner = BedGraph2DLoader(pixels_path, chromsizes, bins, 
-                                  field_numbers, field_dtypes)
-    elif format == 'coo':
-        binner = SparseLoader(pixels_path, bins, chunksize, 
-                              field_numbers, field_dtypes, one_based)
+        input_field_names = [
+            'chrom1', 'start1', 'end1', 
+            'chrom2', 'start2', 'end2', 
+            'count'
+        ]
+        input_field_dtypes = {
+            'chrom1': str, 'start1': int, 'end1': int,
+            'chrom2': str, 'start2': int, 'end2': int,
+            'count': float if count_as_float else int,
+        }
+        input_field_numbers = {
+            'chrom1': 0, 'start1': 1, 'end1': 2,
+            'chrom2': 3, 'start2': 4, 'end2': 5,
+            'count': 6,
+        }
+        pipeline = sanitize_records(bins, schema='bg2', is_one_based=one_based)
 
-    create(cool_path, bins, binner, metadata, assembly, dtypes=field_dtypes)
+    elif format == 'coo':
+        input_field_names = [
+            'bin1_id', 'bin2_id', 'count'
+        ]
+        input_field_dtypes = {
+            'bin1_id': int, 
+            'bin2_id': int,
+            'count': float if count_as_float else int,
+        }
+        input_field_numbers = {
+            'bin1_id': 0, 
+            'bin2_id': 1, 
+            'count': 2,
+        }
+        pipeline = sanitize_pixels(bins, is_one_based=one_based)
+
+    # include any additional value columns
+    if len(field):
+        extra_fields = _parse_field_params(field)
+        for name, number, dtype in extra_fields:
+            if name == 'count' and count_as_float and not is_float_dtype(dtype):
+                raise ValueError(
+                    "Mismatch between --count-as-float and 'count' dtype "
+                    "'{}' provided via the --field option".format(dtype))
+
+            if name not in input_field_names:
+                input_field_names.append(name)
+                output_field_names.append(name)
+            
+            input_field_numbers[name] = number
+
+            if dtype is not None:
+                input_field_dtypes[name] = dtype
+                output_field_dtypes[name] = dtype
+
+    reader = pd.read_table(
+        pixels_path, 
+        usecols=[input_field_numbers[name] for name in input_field_names],
+        names=input_field_names,
+        dtype=input_field_dtypes,
+        comment='#',
+        iterator=True,
+        chunksize=chunksize)
+
+    logger.info('fields: {}'.format(input_field_numbers))
+    logger.info('dtypes: {}'.format(input_field_dtypes))
+
+    create_from_unsorted(
+        cool_path, 
+        bins, 
+        map(pipeline, reader), 
+        columns=output_field_names,
+        dtypes=output_field_dtypes,
+        metadata=metadata, 
+        assembly=assembly,
+        mergebuf=chunksize
+    )
+
+
