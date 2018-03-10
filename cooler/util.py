@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 from __future__ import division, print_function
+from collections import OrderedDict, defaultdict
 from contextlib import contextmanager
-from collections import OrderedDict
 import six
 import re
 import os
 
-from pandas.api.types import is_scalar
+from pandas.api.types import is_scalar, is_integer
 import numpy as np
 import pandas as pd
 import h5py
@@ -555,9 +555,10 @@ def unstar(func):
     return unstarred
 
 
-def make_meta(x, index=None):
+def infer_meta(x, index=None):
     """
-    Extracted from dask/dataframe/utils.py (BSD licensed)
+    Extracted and modified from dask/dataframe/utils.py : 
+        make_meta (BSD licensed)
 
     Create an empty pandas object containing the desired metadata.
 
@@ -649,3 +650,46 @@ def make_meta(x, index=None):
         return _nonempty_scalar(x)
 
     raise TypeError("Don't know how to create metadata from {0}".format(x))
+
+
+def get_meta(columns, dtype=None, index_columns=None, index_names=None,
+             default_dtype=np.object):
+    """
+    Extracted and modified from pandas/io/parsers.py : 
+        _get_empty_meta (BSD licensed).
+
+    """
+    columns = list(columns)
+
+    # Convert `dtype` to a defaultdict of some kind.
+    # This will enable us to write `dtype[col_name]`
+    # without worrying about KeyError issues later on.
+    if not isinstance(dtype, dict):
+        # if dtype == None, default will be default_dtype.
+        dtype = defaultdict(lambda: dtype or default_dtype)
+    else:
+        # Save a copy of the dictionary.
+        _dtype = dtype.copy()
+        dtype = defaultdict(lambda: default_dtype)
+
+        # Convert column indexes to column names.
+        for k, v in six.iteritems(_dtype):
+            col = columns[k] if is_integer(k) else k
+            dtype[col] = v
+
+    if index_columns is None or index_columns is False:
+        index = pd.Index([])
+    else:
+        data = [pd.Series([], dtype=dtype[name]) for name in index_names]
+        if len(data) == 1:
+            index = pd.Index(data[0], name=index_names[0])
+        else:
+            index = pd.MultiIndex.from_arrays(data, names=index_names)
+        index_columns.sort()
+        for i, n in enumerate(index_columns):
+            columns.pop(n - i)
+
+    col_dict = {col_name: pd.Series([], dtype=dtype[col_name])
+                for col_name in columns}
+
+    return pd.DataFrame(col_dict, columns=columns, index=index)
