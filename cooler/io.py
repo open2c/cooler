@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import division, print_function
 import posixpath
+import tempfile
 import warnings
 import six
 
@@ -9,7 +10,7 @@ import pandas
 import h5py
 
 from .core import put
-from .util import get_binsize, get_chromsizes, make_meta
+from .util import get_binsize, get_chromsizes, infer_meta, get_meta
 from . import get_logger
 
 
@@ -91,8 +92,9 @@ def is_cooler(filepath, group=None):
     return group in ls(filepath)
 
 
-def create(cool_uri, bins, pixels, metadata=None, assembly=None, dtypes=None,
-           h5opts=None, append=False, lock=None, chromsizes='<deprecated>'):
+def create(cool_uri, bins, pixels, metadata=None, assembly=None, dtypes='<deprecated>',
+           h5opts=None, append=False, lock=None, columns=None, dtype=None,
+           chromsizes='<deprecated>'):
     """
     Create a new Cooler.
 
@@ -114,10 +116,7 @@ def create(cool_uri, bins, pixels, metadata=None, assembly=None, dtypes=None,
         that yields the pixel data as a sequence of "chunks". If the input is a
         dask DataFrame, it will also be processed one chunk at a time.
     dtypes : dict, optional
-        Dictionary or sequence of pairs mapping column names in the pixel table 
-        to dtypes. Can be used to override the default dtypes of 'bin1_id', 
-        'bin2_id' or 'count'. Any additional non-default column dtypes must be 
-        specified here.
+        Deprecated in favor of `dtype` to mirror the pandas constructor.
     metadata : dict, optional
         Experiment metadata to store in the file. Must be JSON compatible.
     assembly : str, optional
@@ -131,6 +130,17 @@ def create(cool_uri, bins, pixels, metadata=None, assembly=None, dtypes=None,
         with the same name will be truncated. Default is False.
     lock : multiprocessing.Lock, optional
         Optional lock to control concurrent access to the output file.
+    columns : sequence of str, optional
+        Specify here the names of any additional value columns from the input 
+        besides 'count' to store in the Cooler. The standard columns ['bin1_id', 
+        'bin2_id', 'count'] can be provided, but are already assumed and don't 
+        need to be given explicitly. Additional value columns provided here will 
+        be stored as np.float64 unless otherwised specified using `dtype`.
+    dtype : dict, optional
+        Dictionary mapping column names in the pixel table to dtypes. Can be 
+        used to override the default dtypes of 'bin1_id', 'bin2_id' or 'count'. 
+        Any additional value column dtypes must also be provided in the
+        `columns` argument, or will be ignored.
 
     Result
     ------
@@ -149,10 +159,36 @@ def create(cool_uri, bins, pixels, metadata=None, assembly=None, dtypes=None,
             "Note that the `chromsizes` argument is now deprecated: "
             "see documentation for `create`.")
 
+    if dtypes != '<deprecated>':
+        warnings.warn("Use dtype= instead of dtypes=", FutureWarning)
+        dtype = dtypes
+
     for col in ['chrom', 'start', 'end']:
         if col not in bins.columns:
             raise ValueError("Missing column from bin table: '{}'.".format(col))
 
+    # Populate expected pixel column names. Include user-provided value columns.
+    if columns is None:
+        columns = ['bin1_id', 'bin2_id', 'count']
+    else:
+        columns = list(columns)
+        for col in ['bin1_id', 'bin2_id', 'count']:
+            if col not in columns:
+                columns.insert(0, col)
+
+    # Populate dtypes for expected pixel columns, and apply user overrides.
+    if dtype is None:
+        dtype = dict(PIXEL_DTYPES)
+    else:
+        dtype_ = dict(dtype)
+        dtype = dict(PIXEL_DTYPES)
+        dtype.update(dtype_)
+
+    # Get empty "meta" header frame (assigns the undeclared dtypes).
+    # Any columns from the input not in meta will be ignored.
+    meta = get_meta(columns, dtype, default_dtype=float)
+
+    # Determine the appropriate iterable
     try:
         from dask.dataframe import DataFrame as dask_df
     except (ImportError, AttributeError):
@@ -160,26 +196,27 @@ def create(cool_uri, bins, pixels, metadata=None, assembly=None, dtypes=None,
 
     if isinstance(pixels, dask_df):
         iterable = map(lambda x: x.compute(), pixels.to_delayed())
-        meta = make_meta(pixels)
+        input_columns = infer_meta(pixels).columns
     elif isinstance(pixels, pandas.DataFrame):
         iterable = (pixels,)
-        meta = make_meta(pixels)
+        input_columns = infer_meta(pixels).columns
     elif isinstance(pixels, dict):
         iterable = (pixels,)
-        meta = make_meta([(k, v.dtype) for (k, v) in pixels.items()])
+        input_columns = infer_meta(
+            [(k, v.dtype) for (k, v) in pixels.items()]).columns
     else:
         iterable = pixels
-        if dtypes is None:
-            meta = make_meta(PIXEL_DTYPES)
-        else:
-            dtypes_ = dict(PIXEL_DTYPES).copy()
-            dtypes_.update(dict(dtypes))
-            meta = make_meta(dtypes_)
+        input_columns = None
 
-    for col in PIXEL_FIELDS:
-        if col not in meta.columns:
-            raise ValueError("Missing column from pixel table: '{}'".format(col))
+    # If possible, ensure all expected columns are available
+    if input_columns is not None:
+        for col in columns:
+            if col not in input_columns:
+                col_type = 'Standard' if col in PIXEL_FIELDS else 'User'
+                raise ValueError(
+                    "{} column not found in input: '{}'".format(col_type, col))
 
+    # Prepare chroms and bins
     bins = bins.copy()
     bins['chrom'] = bins['chrom'].astype(object)
     chromsizes = get_chromsizes(bins)
@@ -222,7 +259,7 @@ def create(cool_uri, bins, pixels, metadata=None, assembly=None, dtypes=None,
         write_bins(grp, bins, chroms['name'], h5opts)
         
         grp = h5.create_group('pixels')
-        prepare_pixels(grp, n_bins, meta, h5opts)
+        prepare_pixels(grp, n_bins, meta.columns, dict(meta.dtypes), h5opts)
 
     # Multiprocess HDF5 reading is supported only if the same HDF5 file is not
     # open in write mode anywhere. To read and write to the same file, pass a
@@ -365,8 +402,86 @@ def append(cool_uri, table, data, chunked=False, force=False, h5opts=None,
 # Exports
 from ._binning import (ContactBinner, HDF5Aggregator, TabixAggregator,
                        PairixAggregator, CoolerAggregator, CoolerMerger,
-                       SparseLoader, BedGraph2DLoader, ArrayLoader)
+                       SparseLoader, BedGraph2DLoader, ArrayLoader,
+                       sanitize_pixels, sanitize_records)
 
 from ._writer import (write_chroms, write_bins, prepare_pixels, write_pixels, 
                       write_indexes, write_info, index_bins, index_pixels, 
                       MAGIC, URL, PIXEL_FIELDS, PIXEL_DTYPES)
+
+
+def create_from_unsorted(cool_uri, bins, chunks, columns=None, dtype=None, 
+                         mergebuf=int(20e6), delete_temp=True, temp_dir=None, 
+                         **kwargs):
+    """
+    Create a Cooler in two passes via an external sort mechanism. In the first 
+    pass, a sequence of data chunks are processed and sorted in memory and saved
+    to temporary Coolers. In the second pass, the temporary Coolers are merged 
+    into the output.
+    
+    Parameters
+    ----------
+    cool_uri : str
+        Path to Cooler file or URI to Cooler group. If the file does not exist,
+        it will be created.
+    bins : DataFrame
+        Segmentation of the chromosomes into genomic bins. May contain 
+        additional columns.
+    chunks : iterable of DataFrames
+        Sequence of chunks that get processed and written to separate Coolers 
+        and then subsequently merged.
+    columns : sequence of str, optional
+        Specify here the names of any additional value columns from the input 
+        besides 'count' to store in the Cooler. The standard columns ['bin1_id', 
+        'bin2_id', 'count'] can be provided, but are already assumed and don't 
+        need to be given explicitly. Additional value columns provided here will 
+        be stored as np.float64 unless otherwised specified using `dtype`.
+    dtype : dict, optional
+        Dictionary mapping column names in the pixel table to dtypes. Can be 
+        used to override the default dtypes of 'bin1_id', 'bin2_id' or 'count'. 
+        Any additional value column dtypes must also be provided in the
+        `columns` argument, or will be ignored.
+    mergebuf : int, optional
+        Maximum number of records to buffer in memory at any give time during 
+        the merge step.
+    delete_temp : bool, optional
+        Whether to delete temporary files when finished. 
+        Useful for debugging. Default is False.
+    temp_dir : str, optional
+        Create temporary files in this directory.
+    metadata : dict, optional
+        Experiment metadata to store in the file. Must be JSON compatible.
+    assembly : str, optional
+        Name of genome assembly.
+    h5opts : dict, optional
+        HDF5 dataset filter options to use (compression, shuffling,
+        checksumming, etc.). Default is to use autochunking and GZIP
+        compression, level 6.
+    append : bool, optional
+        Append new Cooler to the file if it exists. If False, an existing file
+        with the same name will be truncated. Default is False.
+    lock : multiprocessing.Lock, optional
+        Optional lock to control concurrent access to the output file.
+    
+    """
+    from .api import Cooler
+    chromsizes = get_chromsizes(bins)
+    bins = bins.copy()
+    bins['chrom'] = bins['chrom'].astype(object)
+    
+    temp_files = []
+    for i, chunk in enumerate(chunks):
+        tf = tempfile.NamedTemporaryFile(
+            suffix='.cool', 
+            delete=delete_temp,
+            dir=temp_dir)
+        temp_files.append(tf)
+
+        logger.info('Writing chunk {}: {}'.format(i, tf.name))
+        create(tf.name, bins, chunk, columns=columns, dtype=dtype)
+
+    ipixels = CoolerMerger([Cooler(tf.name) for tf in temp_files], mergebuf)
+    logger.info('Merging into {}'.format(cool_uri))
+    create(cool_uri, bins, ipixels, columns=columns, dtype=dtype, **kwargs)
+
+    del temp_files
