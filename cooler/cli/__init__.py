@@ -33,6 +33,10 @@ CONTEXT_SETTINGS = {
     is_flag=True,
     default=False)
 def cli(debug, post_mortem):
+    """
+    Type -h or --help after any subcommand for more information.
+
+    """
     if debug:
         logger.setLevel(logging.DEBUG)
 
