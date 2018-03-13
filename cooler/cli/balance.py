@@ -119,9 +119,10 @@ from ..util import bedslice
     default=False)
 @click.option(
     "--convergence-policy",
-    help="What to do when balancing doesn't converge in max_iters",
-    type=click.Choice(['final', 'nan', 'abort']),
-    default='final')
+    help="What to do with weights when balancing doesn't converge in max_iters.",
+    type=click.Choice(['store_final', 'store_nan', 'discard', 'error']),
+    default='store_final',
+    show_default=True)
 def balance(cool_uri, nproc, chunksize, mad_max, min_nnz, min_count, blacklist,
             ignore_diags, tol, cis_only, trans_only, max_iters, name, force, 
             check, stdout, convergence_policy):
@@ -214,11 +215,16 @@ def balance(cool_uri, nproc, chunksize, mad_max, min_nnz, min_count, blacklist,
 
     if not stats['converged']:
         logger.error('Iteration limit reached without convergence')
-        if convergence_policy == 'nan':
-            logger.error('Assigning NaN')
+        if convergence_policy == 'store_final':
+            logger.error('Storing final result. Check log to assess convergence.')
+        elif convergence_policy == 'store_nan':
+            logger.error('Saving weights as NaN.')
             bias[:] = np.nan
-        elif convergence_policy == 'abort':
-            logger.error('Aborting operation')
+        elif convergence_policy == 'discard':
+            logger.error('Discarding result and aborting.')
+            sys.exit(0)
+        elif convergence_policy == 'error':
+            logger.error('Discarding result and aborting.')
             sys.exit(1)
 
     if stdout:
