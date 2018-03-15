@@ -243,7 +243,7 @@ def create(cool_uri, bins, pixels, metadata=None, assembly=None, dtypes='<deprec
             try:
                 f.create_group(group_path)
             except ValueError:
-                del h5[group_path]
+                del f[group_path]
                 f.create_group(group_path)
 
     # Write chroms, bins and pixels
