@@ -1071,15 +1071,20 @@ class ArrayBlockLoader(ContactBinner):
                 }
 
 
+class BadInputError(ValueError):
+    pass
+
+
 def _sanitize_records(chunk, gs, decode_chroms, is_one_based, tril_action, 
                       chrom_field, anchor_field, sided_fields, suffixes, 
-                      validate):
+                      sort, validate):    
+    # Get integer contig IDs
     if decode_chroms:
         # Unspecified chroms get assigned category = NaN and integer code = -1
-        chrom1_ids = pd.Categorical(
-            chunk['chrom1'], gs.contigs, ordered=True).codes
-        chrom2_ids = pd.Categorical(
-            chunk['chrom2'], gs.contigs, ordered=True).codes
+        chrom1_ids = np.array(pd.Categorical(
+            chunk['chrom1'], gs.contigs, ordered=True).codes)
+        chrom2_ids = np.array(pd.Categorical(
+            chunk['chrom2'], gs.contigs, ordered=True).codes)
     else:
         chrom1_ids = chunk['chrom1'].values
         chrom2_ids = chunk['chrom2'].values
@@ -1087,33 +1092,54 @@ def _sanitize_records(chunk, gs, decode_chroms, is_one_based, tril_action,
             for col, dt in [('chrom1', chrom1_ids.dtype), 
                             ('chrom2', chrom2_ids.dtype)]:
                 if not is_integer_dtype(dt):
-                    raise ValueError(
+                    raise BadInputError(
                         "`{}` column is non-integer. ".format(col) + 
                         "If string, use `decode_chroms=True` to convert to enum")    
 
     # Drop records from non-requested chromosomes
-    is_ok = (chrom1_ids > -1) | (chrom2_ids > -1)
-    chunk = chunk[is_ok]
-    chrom1_ids = chrom1_ids[is_ok]
-    chrom2_ids = chrom2_ids[is_ok]
+    to_drop = (chrom1_ids < 0) | (chrom2_ids < 0)
+    if np.any(to_drop):
+        mask = ~to_drop
+        chrom1_ids = chrom1_ids[mask]
+        chrom2_ids = chrom2_ids[mask]
+        chunk = chunk[mask].copy()
 
+    # Handle empty case
+    if not len(chunk):
+        chunk['bin1_id'] = []
+        chunk['bin2_id'] = []
+        return chunk
+
+    # Find positional anchor columns, convert to zero-based if needed
     anchor1 = chunk[anchor_field + suffixes[0]].values
     anchor2 = chunk[anchor_field + suffixes[1]].values
     if is_one_based:
         anchor1 -= 1
         anchor2 -= 1
     
+    # Check types and bounds
     if validate:
         for dt in [anchor1.dtype, anchor2.dtype]:
             if not is_integer_dtype(dt):
-                raise ValueError("Found non-integer anchor column")
-        if np.any(anchor1 < 0) or np.any(anchor2 < 0):
-            raise ValueError("Found an anchor position with negative value")
-        chromsizes1 = gs.chromsizes[chrom1_ids]
-        chromsizes2 = gs.chromsizes[chrom2_ids]
-        if np.any(anchor1 > chromsizes1) or np.any(anchor2 > chromsizes2):
-            raise ValueError("Found an anchor position exceeding chromosome length")
+                raise BadInputError("Found a non-integer anchor column")
+        
+        is_neg = (anchor1 < 0) | (anchor2 < 0)
+        if np.any(is_neg):
+            err = chunk[is_neg]
+            raise BadInputError(
+                "Found an anchor position with negative value:\n{}".format(
+                err.to_csv(sep='\t')))
+        
+        chromsizes1 = gs.chromsizes[chrom1_ids].values
+        chromsizes2 = gs.chromsizes[chrom2_ids].values
+        is_excess = (anchor1 > chromsizes1) | (anchor2 > chromsizes2)
+        if np.any(is_excess):
+            err = chunk[is_excess]
+            raise BadInputError(
+                "Found an anchor position exceeding chromosome length:\n{}".format(
+                err.to_csv(sep='\t')))
 
+    # Handle lower triangle records
     if tril_action is not None:
         is_tril = (
             (chrom1_ids > chrom2_ids) | 
@@ -1121,15 +1147,31 @@ def _sanitize_records(chunk, gs, decode_chroms, is_one_based, tril_action,
         )
         if np.any(is_tril):
             if tril_action == 'reflect':
+                chrom1_ids[is_tril], chrom2_ids[is_tril] = \
+                    chrom2_ids[is_tril], chrom1_ids[is_tril]
+                anchor1[is_tril], anchor2[is_tril] = \
+                    anchor2[is_tril], anchor1[is_tril]
                 for field in sided_fields:                
                     chunk.loc[is_tril, field + suffixes[0]], \
                     chunk.loc[is_tril, field + suffixes[1]] = \
                         chunk.loc[is_tril, field + suffixes[1]], \
                         chunk.loc[is_tril, field + suffixes[0]]
             elif tril_action == 'drop':
-                chunk = chunk[~is_tril]
+                mask = ~is_tril
+                chrom1_ids = chrom1_ids[mask]
+                chrom2_ids = chrom2_ids[mask]
+                anchor1 = anchor1[mask]
+                anchor2 = anchor2[mask]
+                chunk = chunk[mask].copy()
+            elif tril_action == 'raise':
+                err = chunk[is_tril]
+                raise BadInputError("Found lower triangle pairs:\n{}".format(
+                    err.to_csv(sep='\t')))
+            else:
+                raise ValueError("Unknown tril_action value: '{}'".format(
+                    tril_action))
 
-    # assign bin IDs from bin table
+    # Assign bin IDs from bin table
     chrom_binoffset = gs.chrom_binoffset
     binsize = gs.binsize
     if binsize is None:
@@ -1154,22 +1196,102 @@ def _sanitize_records(chunk, gs, decode_chroms, is_one_based, tril_action,
         chunk['bin1_id'] = bin1_ids
         chunk['bin2_id'] = bin2_ids  
     else:
-        chunk['bin1_id'] = gs.chrom_binoffset[chrom1_ids] + anchor1 // binsize
-        chunk['bin2_id'] = gs.chrom_binoffset[chrom2_ids] + anchor2 // binsize
+        chunk['bin1_id'] = chrom_binoffset[chrom1_ids] + anchor1 // binsize
+        chunk['bin2_id'] = chrom_binoffset[chrom2_ids] + anchor2 // binsize
 
-    return chunk.sort_values(['bin1_id', 'bin2_id'])
+    # Sort by bin IDs
+    if sort:
+        chunk = chunk.sort_values(['bin1_id', 'bin2_id'])
+    
+    return chunk
+
+
+_sanitize_presets = {
+    'bg2': dict(decode_chroms=True, is_one_based=False,  tril_action='reflect', 
+                chrom_field='chrom', anchor_field='start', 
+                sided_fields=('chrom', 'start', 'end'), suffixes=('1', '2'), 
+                sort=True, validate=True),
+
+    'pairs': dict(decode_chroms=True, is_one_based=False, tril_action='reflect', 
+                  chrom_field='chrom', anchor_field='pos', 
+                  sided_fields=('chrom', 'pos'), suffixes=('1', '2'),
+                  sort=False, validate=True)
+}
+
+
+def sanitize_records(bins, schema=None, **kwargs):
+    """
+    Generates a funtion to sanitize and assign bin IDs to a data frame of 
+    paired genomic positions based on a provided genomic bin segmentation.
+    
+    Parameters
+    ----------
+    bins : DataFrame
+        Bin table to compare records against.
+    schema : str, optional
+        Use pre-defined parameters for a particular format. Any options can be 
+        overriden via kwargs. If not provided, values for all the options below 
+        must be given.
+    
+    Options
+    -------
+    decode_chroms : bool
+        Convert string chromosome names to integer IDs based on the order given 
+        in the bin table. Set to False if the chromosomes are already given as 
+        an enumeration, starting at 0. Records with either chrom ID < 0 are 
+        dropped.
+    is_one_based : bool
+        Whether the input anchor coordinates are one-based, rather than 
+        zero-based. They will be converted to zero-based.
+    tril_action : 'reflect', 'drop', 'raise' or None
+        How to handle lower triangle ("tril") records.
+        If set to 'reflect', tril records will be flipped or "reflected"
+        to their mirror image: "sided" column pairs will have their values
+        swapped.
+        If set to 'drop', tril records will be discarded. This is useful if 
+        your input data is symmetric, i.e. contains mirror duplicates of every 
+        record.
+        If set to 'raise', an exception will be raised if any tril record is
+        encountered.
+    chrom_field : str
+        Base name of the two chromosome/scaffold/contig columns.
+    anchor_field : str
+        Base name of the positional anchor columns.
+    sided_fields : sequence of str
+        Base names of column pairs to swap values between when 
+        mirror-reflecting records.
+    suffixes : pair of str
+        Suffixes used to identify pairs of sided columns. e.g.: ('1', '2'),
+        ('_x', '_y'), etc.
+    sort : bool
+        Whether to sort the output dataframe by bin_id and bin2_id.
+    validate : bool
+        Whether to do type- and bounds-checking on the anchor position
+        columns. Raises BadInputError.
+        
+    Returns
+    -------
+    Function of one argument that takes a raw dataframe and returns a sanitized 
+    dataframe with bin IDs assigned.
+    
+    """
+    if schema is not None:
+        try:
+            options = _sanitize_presets[schema].copy()
+        except KeyError:
+            raise ValueError("Unknown schema: '{}'".format(schema))
+    else:
+        options = {}
+    options.update(**kwargs)
+    chromsizes = get_chromsizes(bins)
+    options['gs'] = GenomeSegmentation(chromsizes, bins)
+    return partial(_sanitize_records, **options)
 
 
 def _sanitize_pixels(chunk, gs, is_one_based=False, tril_action='reflect', 
                     bin1_field='bin1_id', bin2_field='bin2_id', sided_fields=(), 
-                    suffixes=('1', '2')):
-    if np.any(chunk['bin1_id'] > chunk['bin2_id']):
-        raise ValueError("Found bin1_id greater than bin2_id")
+                    suffixes=('1', '2'), validate=True, sort=True):        
     if is_one_based:
-        # convert to zero-based
-        if np.any(chunk['bin1_id'] <= 0) or np.any(chunk['bin2_id'] <= 0):
-            raise ValueError(
-                "Found bin ID <= 0. Are you sure bin IDs are one-based?")
         chunk['bin1_id'] -= 1
         chunk['bin2_id'] -= 1
 
@@ -1187,45 +1309,79 @@ def _sanitize_pixels(chunk, gs, is_one_based=False, tril_action='reflect',
                         chunk.loc[is_tril, field + suffixes[0]]
             elif tril_action == 'drop':
                 chunk = chunk[~is_tril]
+            elif tril_action == 'raise':
+                raise BadInputError("Found bin1_id greater than bin2_id")
+            else:
+                raise ValueError("Unknown tril_action value: '{}'".format(
+                    tril_action))
 
-    n_bins = len(gs.bins)
-    if (np.any(chunk['bin1_id'] >= n_bins) or 
-        np.any(chunk['bin2_id'] >= n_bins)):
-        raise ValueError(
-            "Found a bin ID that exceeds the declared number of bins. " 
-            "Check whether your bin table is correct.")
+    if validate:
+        is_neg = (chunk['bin1_id'] < 0) | (chunk['bin2_id'] < 0)
+        if np.any(is_neg):
+            if is_one_based:
+                msg = "Found bin ID <= 0. Are you sure bin IDs are one-based?"
+            else:
+                msg = "Found bin ID < 0"
+            raise BadInputError(msg)
+        n_bins = len(gs.bins)
+        is_excess = (chunk['bin1_id'] >= n_bins) | (chunk['bin2_id'] >= n_bins)
+        if np.any(is_excess): 
+            raise BadInputError(
+                "Found a bin ID that exceeds the declared number of bins. " 
+                "Check whether your bin table is correct.")
 
-    return chunk.sort_values(['bin1_id', 'bin2_id'])
-
-
-_sanitize_presets = {
-    'bg2': dict(decode_chroms=True, is_one_based=False,  tril_action='reflect', 
-                chrom_field='chrom', anchor_field='start', 
-                sided_fields=('chrom', 'start', 'end'), suffixes=('1', '2'), 
-                validate=True),
-
-    'pairs': dict(decode_chroms=True, is_one_based=False, tril_action='reflect', 
-                  chrom_field='chrom', anchor_field='pos', 
-                  sided_fields=('chrom', 'pos'), suffixes=('1', '2'),
-                  validate=True)
-}
-
-
-def sanitize_records(bins, schema=None, **kwargs):
-    if schema is not None:
-        try:
-            options = _sanitize_presets[schema].copy()
-        except KeyError:
-            raise ValueError("Unknown schema: '{}'".format(schema))
-    else:
-        options = {}
-    options.update(**kwargs)
-    chromsizes = get_chromsizes(bins)
-    options['gs'] = GenomeSegmentation(chromsizes, bins)
-    return partial(_sanitize_records, **options)
+    return chunk.sort_values(['bin1_id', 'bin2_id']) if sort else chunk
 
 
 def sanitize_pixels(bins, **kwargs):
+    """
+    Generates a function to sanitize pre-binned genomic data with assigned
+    bin IDs
+
+    Parameters
+    ----------
+    bins : DataFrame
+        Bin table to compare pixel records against.
+    
+    Options
+    -------
+    is_one_based : bool, optional
+        Whether the input bin IDs are one-based, rather than zero-based. 
+        They will be converted to zero-based.
+    tril_action : 'reflect', 'drop', 'raise' or None
+        How to handle lower triangle ("tril") pixels.
+        If set to 'reflect' [default], tril pixels will be flipped or 
+        "reflected" to their mirror image: "sided" column pairs will have their 
+        values swapped.
+        If set to 'drop', tril pixels will be discarded. This is useful if 
+        your input data is symmetric, i.e. contains mirror duplicates of every 
+        record.
+        If set to 'raise', an exception will be raised if any tril record is
+        encountered.
+    bin1_field : str
+        Name of the column representing ith (row) axis of the matrix. 
+        Default is 'bin1_id'.
+    bin2_field : str
+        Name of the column representing jth (col) axis of the matrix. 
+        Default is 'bin2_id'.
+    sided_fields : sequence of str
+        Base names of column pairs to swap values between when mirror-reflecting 
+        pixels.
+    suffixes : pair of str
+        Suffixes used to identify pairs of sided columns. e.g.: ('1', '2'),
+        ('_x', '_y'), etc.
+    sort : bool
+        Whether to sort the output dataframe by bin_id and bin2_id.
+    validate : bool
+        Whether to do type- and bounds-checking on the bin IDs. 
+        Raises BadInputError.
+        
+    Returns
+    -------
+    Function of one argument that takes a raw dataframe and returns a sanitized 
+    dataframe.
+
+    """
     chromsizes = get_chromsizes(bins)
     kwargs['gs'] = GenomeSegmentation(chromsizes, bins)
     return partial(_sanitize_pixels, **kwargs)
