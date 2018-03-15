@@ -149,8 +149,19 @@ def _parse_bins(arg):
     default=False,
     help="Pass this flag if the bin IDs listed in a COO file are one-based " 
          "instead of zero-based.")
+@click.option(
+    "--tril-action",
+    type=click.Choice(['reflect', 'drop']),
+    default='reflect',
+    show_default=True,
+    help="How to handle lower triangle pixels. " 
+         "'reflect': make lower triangle pixels upper triangular. "
+         "Use this if your input data comes only from a unique half of a "
+         "symmetric matrix (but may not respect the specified chromosome order)."
+         "'drop': discard all lower triangle pixels. Use this if your input "
+         "data is derived from a complete symmetric matrix.")
 def load(bins_path, pixels_path, cool_path, format, metadata, assembly,
-         chunksize, field, count_as_float, one_based):
+         chunksize, field, count_as_float, one_based, tril_action):
     """
     Load a pre-binned contact matrix into a COOL file.
 
@@ -218,7 +229,10 @@ def load(bins_path, pixels_path, cool_path, format, metadata, assembly,
             'chrom2': 3, 'start2': 4, 'end2': 5,
             'count': 6,
         }
-        pipeline = sanitize_records(bins, schema='bg2', is_one_based=one_based)
+        pipeline = sanitize_records(bins, 
+            schema='bg2', 
+            is_one_based=one_based,
+            tril_action=tril_action)
 
     elif format == 'coo':
         input_field_names = [
@@ -234,7 +248,9 @@ def load(bins_path, pixels_path, cool_path, format, metadata, assembly,
             'bin2_id': 1, 
             'count': 2,
         }
-        pipeline = sanitize_pixels(bins, is_one_based=one_based)
+        pipeline = sanitize_pixels(bins, 
+            is_one_based=one_based,
+            tril_action=tril_action)
 
     # include any additional value columns
     if len(field):
