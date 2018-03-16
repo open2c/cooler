@@ -399,20 +399,9 @@ def append(cool_uri, table, data, chunked=False, force=False, h5opts=None,
                     lock.release()
 
 
-# Exports
-from ._binning import (ContactBinner, HDF5Aggregator, TabixAggregator,
-                       PairixAggregator, CoolerAggregator, CoolerMerger,
-                       SparseLoader, BedGraph2DLoader, ArrayLoader,
-                       sanitize_pixels, sanitize_records)
-
-from ._writer import (write_chroms, write_bins, prepare_pixels, write_pixels, 
-                      write_indexes, write_info, index_bins, index_pixels, 
-                      MAGIC, URL, PIXEL_FIELDS, PIXEL_DTYPES)
-
-
 def create_from_unsorted(cool_uri, bins, chunks, columns=None, dtype=None, 
                          mergebuf=int(20e6), delete_temp=True, temp_dir=None, 
-                         **kwargs):
+                         multifile_merge=False, **kwargs):
     """
     Create a Cooler in two passes via an external sort mechanism. In the first 
     pass, a sequence of data chunks are processed and sorted in memory and saved
@@ -449,6 +438,9 @@ def create_from_unsorted(cool_uri, bins, chunks, columns=None, dtype=None,
         Useful for debugging. Default is False.
     temp_dir : str, optional
         Create temporary files in this directory.
+    multifile_merge : bool, optional
+        Store temporary merge chunks as separate .cool files rather than in 
+        a single multi-cooler file. Default is False.
     metadata : dict, optional
         Experiment metadata to store in the file. Must be JSON compatible.
     assembly : str, optional
@@ -470,18 +462,44 @@ def create_from_unsorted(cool_uri, bins, chunks, columns=None, dtype=None,
     bins['chrom'] = bins['chrom'].astype(object)
     
     temp_files = []
-    for i, chunk in enumerate(chunks):
+
+    if multifile_merge:
+        for i, chunk in enumerate(chunks):
+            tf = tempfile.NamedTemporaryFile(
+                suffix='.cool', 
+                delete=delete_temp,
+                dir=temp_dir)
+            temp_files.append(tf)
+            logger.info('Writing chunk {}: {}'.format(i, tf.name))
+            create(tf.name, bins, chunk, columns=columns, dtype=dtype)
+        chunks = CoolerMerger([Cooler(tf.name) for tf in temp_files], mergebuf)
+    else:
         tf = tempfile.NamedTemporaryFile(
-            suffix='.cool', 
-            delete=delete_temp,
-            dir=temp_dir)
+                suffix='.multi.cool', 
+                delete=delete_temp,
+                dir=temp_dir)
         temp_files.append(tf)
+        
+        uris = []
+        for i, chunk in enumerate(chunks):
+            uri = tf.name + '::' + str(i)
+            uris.append(uri)
+            logger.info('Writing chunk {}: {}'.format(i, uri))
+            create(uri, bins, chunk, columns=columns, dtype=dtype)
+        chunks = CoolerMerger([Cooler(uri) for uri in uris], mergebuf)
 
-        logger.info('Writing chunk {}: {}'.format(i, tf.name))
-        create(tf.name, bins, chunk, columns=columns, dtype=dtype)
-
-    ipixels = CoolerMerger([Cooler(tf.name) for tf in temp_files], mergebuf)
     logger.info('Merging into {}'.format(cool_uri))
-    create(cool_uri, bins, ipixels, columns=columns, dtype=dtype, **kwargs)
+    create(cool_uri, bins, chunks, columns=columns, dtype=dtype, **kwargs)
 
     del temp_files
+
+
+# Exports
+from ._binning import (ContactBinner, HDF5Aggregator, TabixAggregator,
+                       PairixAggregator, CoolerAggregator, CoolerMerger,
+                       SparseLoader, BedGraph2DLoader, ArrayLoader,
+                       sanitize_pixels, sanitize_records)
+
+from ._writer import (write_chroms, write_bins, prepare_pixels, write_pixels, 
+                      write_indexes, write_info, index_bins, index_pixels, 
+                      MAGIC, URL, PIXEL_FIELDS, PIXEL_DTYPES)
