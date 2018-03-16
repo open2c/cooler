@@ -101,6 +101,7 @@ def _parse_bins(arg):
     metavar="BINS_PATH")
 @click.argument(
     "pixels_path",
+    type=click.Path(exists=True, allow_dash=True),
     metavar="PIXELS_PATH")
 @click.argument(
     "cool_path",
@@ -150,6 +151,12 @@ def _parse_bins(arg):
     help="Pass this flag if the bin IDs listed in a COO file are one-based " 
          "instead of zero-based.")
 @click.option(
+    "--comment-char",
+    type=str,
+    default='#',
+    show_default=True,
+    help="Comment character that indicates lines to ignore.")
+@click.option(
     "--tril-action",
     type=click.Choice(['reflect', 'drop']),
     default='reflect',
@@ -161,7 +168,7 @@ def _parse_bins(arg):
          "'drop': discard all lower triangle pixels. Use this if your input "
          "data is derived from a complete symmetric matrix.")
 def load(bins_path, pixels_path, cool_path, format, metadata, assembly,
-         chunksize, field, count_as_float, one_based, tril_action):
+         chunksize, field, count_as_float, one_based, comment_char, tril_action):
     """
     Load a pre-binned contact matrix into a COOL file.
 
@@ -195,6 +202,7 @@ def load(bins_path, pixels_path, cool_path, format, metadata, assembly,
         <TEXT> : Path to BED file defining the genomic bin segmentation.
 
     PIXELS_PATH : Text file containing nonzero pixel values. May be gzipped.
+                  Pass '-' to use stdin.
 
     COOL_PATH : Output COOL file path
 
@@ -271,12 +279,17 @@ def load(bins_path, pixels_path, cool_path, format, metadata, assembly,
                 input_field_dtypes[name] = dtype
                 output_field_dtypes[name] = dtype
 
+    if pixels_path == '-':
+        f_in = sys.stdin
+    else:
+        f_in = pixels_path
+
     reader = pd.read_table(
-        pixels_path, 
+        f_in, 
         usecols=[input_field_numbers[name] for name in input_field_names],
         names=input_field_names,
         dtype=input_field_dtypes,
-        comment='#',
+        comment=comment_char,
         iterator=True,
         chunksize=chunksize)
 
