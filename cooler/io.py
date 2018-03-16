@@ -454,7 +454,12 @@ def create_from_unsorted(cool_uri, bins, chunks, columns=None, dtype=None,
         with the same name will be truncated. Default is False.
     lock : multiprocessing.Lock, optional
         Optional lock to control concurrent access to the output file.
-    
+
+    See also
+    --------
+    sanitize_records
+    sanitize_pixels
+
     """
     from .api import Cooler
     chromsizes = get_chromsizes(bins)

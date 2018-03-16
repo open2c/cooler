@@ -1,6 +1,6 @@
 mock
 six
 multiprocess
-Sphinx
+Sphinx==1.5.5
 sphinx-rtd-theme
-numpydoc==0.5
+numpydoc

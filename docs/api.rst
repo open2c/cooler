@@ -27,7 +27,10 @@ Quick reference
     cooler.io.ls
     cooler.io.is_cooler
     cooler.io.create
+    cooler.io.create_from_unsorted
     cooler.io.append
+    cooler.io.sanitize_records
+    cooler.io.sanitize_pixels
 
 .. autosummary:: 
     cooler.ice.iterative_correction
@@ -265,8 +268,9 @@ cooler.io
     :members:
     :undoc-members:
     :show-inheritance:
-.. autoclass:: cooler.io.ContactBinner
-    :members: __iter__
+.. autofunction:: cooler.io.sanitize_pixels
+.. autofunction:: cooler.io.sanitize_records
+
 
 cooler.ice
 ----------

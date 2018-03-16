@@ -1233,8 +1233,6 @@ def sanitize_records(bins, schema=None, **kwargs):
         overriden via kwargs. If not provided, values for all the options below 
         must be given.
     
-    Options
-    -------
     decode_chroms : bool
         Convert string chromosome names to integer IDs based on the order given 
         in the bin table. Set to False if the chromosomes are already given as 
@@ -1343,8 +1341,6 @@ def sanitize_pixels(bins, **kwargs):
     bins : DataFrame
         Bin table to compare pixel records against.
     
-    Options
-    -------
     is_one_based : bool, optional
         Whether the input bin IDs are one-based, rather than zero-based. 
         They will be converted to zero-based.

@@ -66,8 +66,11 @@ cooler
 
     Usage: cooler [OPTIONS] COMMAND [ARGS]...
     
+      Type -h or --help after any subcommand for more information.
+    
     Options:
       --debug / --no-debug  Verbose logging
+      -pm, --post-mortem    Post mortem debugging
       --version             Show the version and exit.
       --help                Show this message and exit.
     
@@ -82,7 +85,7 @@ cooler
       dump         Dump a contact matrix.
       info         Display file info and metadata.
       list         List all Coolers inside a COOL file.
-      load         Load a contact matrix.
+      load         Load a pre-binned contact matrix into a COOL...
       makebins     Generate fixed-width genomic bins.
       merge        Merge multiple contact matrices with...
       show         Display a contact matrix.
@@ -176,7 +179,7 @@ cooler csort
       [*] Tabix manpage: <http://www.htslib.org/doc/tabix.html>.
       [+] Pairix on Github: <https://github.com/4dn-dcic/pairix>
     
-      Arguments:
+      Arguments:
     
       PAIRS_PATH : Contacts (i.e. read pairs) text file, optionally compressed.
     
@@ -323,29 +326,27 @@ cooler load
 
     Usage: cooler load [OPTIONS] BINS_PATH PIXELS_PATH COOL_PATH
     
-      Load a contact matrix. Load a sparse-formatted text dump of a contact
-      matrix into a COOL file.
+      Load a pre-binned contact matrix into a COOL file.
     
       Two input format options (tab-delimited):
     
-      * COO: COO-rdinate matrix format (i.e. ijv triple). 3 columns.
+      * COO: COO-rdinate sparse matrix format (a.k.a. ijv triple). 3 columns.
     
       - columns: "bin1_id, bin2_id, count",
-      - lexicographically sorted by bin1_id, bin2_id
-      - optionally compressed
     
       * BG2: 2D version of the bedGraph format. 7 columns.
     
       - columns: "chrom1, start1, end1, chrom2, start2, end2, count"
-      - sorted by chrom1, chrom2, start1, start2
-      - bgzip compressed and indexed with Pairix (see cooler csort)
+    
+      Input pixel file may be compressed.
+    
+      **New in v0.7.7: Input files no longer need to be sorted or indexed!**
     
       Example:
     
-      cooler csort -c1 1 -p1 2 -c2 4 -p2 5 <in.bg2> <chrom.sizes>
-      cooler load -f bg2 <chrom.sizes>:<binsize> <in.bg2.srt.gz> <out.cool>
+      cooler load -f bg2 <chrom.sizes>:<binsize> in.bg2.gz out.cool
     
-      Arguments:
+      Arguments:
     
       BINS_PATH : One of the following
     
@@ -353,25 +354,49 @@ cooler load
           <TEXT> : Path to BED file defining the genomic bin segmentation.
     
       PIXELS_PATH : Text file containing nonzero pixel values. May be gzipped.
+      Pass '-' to use stdin.
     
       COOL_PATH : Output COOL file path
     
     Options:
-      -f, --format [coo|bg2]     'coo' refers to a tab-delimited sparse triplet
-                                 file (bin1, bin2, count). 'bg2' refers to a 2D
-                                 bedGraph-like file (chrom1, start1, end1, chrom2,
-                                 start2, end2, count).  [required]
-      --metadata TEXT            Path to JSON file containing user metadata.
-      --assembly TEXT            Name of genome assembly (e.g. hg19, mm10)
-      --field <TEXT INTEGER>...  Add supplemental pixel fields or override default
-                                 pixel field numbers. Specify as '<name>
-                                 <number>'. Field numbers are 1-based.
-                                 Supplemental data columns are assumed to be
-                                 floating point. Repeat for each additional field.
-      -c, --chunksize INTEGER
-      --count-as-float           Store the 'count' column as floating point values
-                                 instead of as integers (default).
-      --help                     Show this message and exit.
+      -f, --format [coo|bg2]        'coo' refers to a tab-delimited sparse triplet
+                                    file (bin1, bin2, count). 'bg2' refers to a 2D
+                                    bedGraph-like file (chrom1, start1, end1,
+                                    chrom2, start2, end2, count).  [required]
+      --metadata TEXT               Path to JSON file containing user metadata.
+      --assembly TEXT               Name of genome assembly (e.g. hg19, mm10)
+      --field TEXT                  Add supplemental value fields or override
+                                    default field numbers for the specified
+                                    format. Specify as '<name>,<number>' or as
+                                    '<name>,<number>,<dtype>' to enforce a dtype
+                                    other than `float` or the default for a
+                                    standard column. Field numbers are 1-based.
+                                    Repeat the `--field` option for each
+                                    additional field. [Changed in v0.7.7: use a
+                                    comma separator, rather than a space.]
+      -c, --chunksize INTEGER       Size (in number of lines/records) of data
+                                    chunks to read and process from the input file
+                                    at a time. These chunks will be saved as
+                                    temporary partial Coolers and merged at the
+                                    end. Also specifies the size of the buffer
+                                    during the merge step.
+      --count-as-float              Store the 'count' column as floating point
+                                    values instead of as integers. Can also be
+                                    specified using the `--field` option.
+      --one-based                   Pass this flag if the bin IDs listed in a COO
+                                    file are one-based instead of zero-based.
+      --comment-char TEXT           Comment character that indicates lines to
+                                    ignore.  [default: #]
+      --tril-action [reflect|drop]  How to handle lower triangle pixels.
+                                    'reflect': make lower triangle pixels upper
+                                    triangular. Use this if your input data comes
+                                    only from a unique half of a symmetric matrix
+                                    (but may not respect the specified chromosome
+                                    order).'drop': discard all lower triangle
+                                    pixels. Use this if your input data is derived
+                                    from a complete symmetric matrix.  [default:
+                                    reflect]
+      --help                        Show this message and exit.
 
 
 cooler list
@@ -417,7 +442,7 @@ cooler copy
     
       See also: h5copy, h5repack tools from HDF5 suite
     
-      Arguments:
+      Arguments:
     
       SRC_URI : Path to source file or URI to source Cooler group
     
@@ -502,7 +527,7 @@ cooler show
       Display a contact matrix. Display a region of a contact matrix stored in a
       COOL file.
     
-      Arguments:
+      Arguments:
     
       COOL_PATH : Path to a COOL file or Cooler URI.
     
@@ -561,41 +586,54 @@ cooler balance
       COOL_PATH : Path to a COOL file.
     
     Options:
-      -p, --nproc INTEGER      Number of processes to split the work between.
-                               [default: 8]
-      -c, --chunksize INTEGER  Control the number of pixels handled by each worker
-                               process at a time.  [default: 10000000]
-      --mad-max INTEGER        Ignore bins from the contact matrix using the 'MAD-
-                               max' filter: bins whose log marginal sum is less
-                               than ``mad-max`` median absolute deviations below
-                               the median log marginal sum of all the bins in the
-                               same chromosome.  [default: 5]
-      --min-nnz INTEGER        Ignore bins from the contact matrix whose marginal
-                               number of nonzeros is less than this number.
-                               [default: 10]
-      --min-count INTEGER      Ignore bins from the contact matrix whose marginal
-                               count is less than this number.  [default: 0]
-      --blacklist PATH         Path to a 3-column BED file containing genomic
-                               regions to mask out during the balancing procedure,
-                               e.g. sequence gaps or regions of poor mappability.
-      --ignore-diags INTEGER   Number of diagonals of the contact matrix to
-                               ignore, including the main diagonal. Examples: 0
-                               ignores nothing, 1 ignores the main diagonal, 2
-                               ignores diagonals (-1, 0, 1), etc.  [default: 2]
-      --tol FLOAT              Threshold value of variance of the marginals for
-                               the algorithm to converge.  [default: 1e-05]
-      --max-iters INTEGER      Maximum number of iterations to perform if
-                               convergence is not achieved.  [default: 200]
-      --cis-only               Calculate weights against intra-chromosomal data
-                               only instead of genome-wide.
-      --name TEXT              Name of column to write to.  [default: weight]
-      -f, --force              Overwrite the target dataset, 'weight', if it
-                               already exists.
-      --check                  Check whether a data column 'weight' already
-                               exists.
-      --stdout                 Print weight column to stdout instead of saving to
-                               file.
-      --help                   Show this message and exit.
+      -p, --nproc INTEGER             Number of processes to split the work
+                                      between.  [default: 8]
+      -c, --chunksize INTEGER         Control the number of pixels handled by each
+                                      worker process at a time.  [default:
+                                      10000000]
+      --mad-max INTEGER               Ignore bins from the contact matrix using
+                                      the 'MAD-max' filter: bins whose log
+                                      marginal sum is less than ``mad-max`` median
+                                      absolute deviations below the median log
+                                      marginal sum of all the bins in the same
+                                      chromosome.  [default: 5]
+      --min-nnz INTEGER               Ignore bins from the contact matrix whose
+                                      marginal number of nonzeros is less than
+                                      this number.  [default: 10]
+      --min-count INTEGER             Ignore bins from the contact matrix whose
+                                      marginal count is less than this number.
+                                      [default: 0]
+      --blacklist PATH                Path to a 3-column BED file containing
+                                      genomic regions to mask out during the
+                                      balancing procedure, e.g. sequence gaps or
+                                      regions of poor mappability.
+      --ignore-diags INTEGER          Number of diagonals of the contact matrix to
+                                      ignore, including the main diagonal.
+                                      Examples: 0 ignores nothing, 1 ignores the
+                                      main diagonal, 2 ignores diagonals (-1, 0,
+                                      1), etc.  [default: 2]
+      --tol FLOAT                     Threshold value of variance of the marginals
+                                      for the algorithm to converge.  [default:
+                                      1e-05]
+      --max-iters INTEGER             Maximum number of iterations to perform if
+                                      convergence is not achieved.  [default: 200]
+      --cis-only                      Calculate weights against intra-chromosomal
+                                      data only instead of genome-wide.
+      --trans-only                    Calculate weights against inter-chromosomal
+                                      data only instead of genome-wide.
+      --name TEXT                     Name of column to write to.  [default:
+                                      weight]
+      -f, --force                     Overwrite the target dataset, 'weight', if
+                                      it already exists.
+      --check                         Check whether a data column 'weight' already
+                                      exists.
+      --stdout                        Print weight column to stdout instead of
+                                      saving to file.
+      --convergence-policy [store_final|store_nan|discard|error]
+                                      What to do with weights when balancing
+                                      doesn't converge in max_iters.  [default:
+                                      store_final]
+      --help                          Show this message and exit.
 
 
 cooler merge
@@ -618,7 +656,7 @@ cooler merge
       Additional columns in the the input files are not preserved in the output.
     
     Options:
-      -c, --chunksize INTEGER  [default: 10000000]
+      -c, --chunksize INTEGER  [default: 20000000]
       --help                   Show this message and exit.
 
 
@@ -633,7 +671,7 @@ cooler coarsen
       chromosomal block and summing the elements inside the grid tiles, i.e. a
       2-D histogram.
     
-      Arguments:
+      Arguments:
     
       COOL_PATH : Path to a COOL file or Cooler URI.
     
@@ -660,7 +698,7 @@ cooler zoomify
       tiled aggregations of the contact matrix until reaching a minimum
       dimension. The aggregations are stored in a multi-resolution file.
     
-      Arguments:
+      Arguments:
     
       COOL_PATH : Path to a COOL file or Cooler URI.
     
@@ -674,6 +712,7 @@ cooler zoomify
                                 False]
       --balance-args TEXT       Additional arguments to pass to cooler balance
       -o, --out TEXT            Output file or URI
+      -r, --resolutions TEXT    Comma-separated list of target resolutions
       --help                    Show this message and exit.
 
 
