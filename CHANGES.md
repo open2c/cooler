@@ -1,3 +1,20 @@
+### 0.7.7 (2018-03-16) ###
+
+New features
+
+* Implementation of unsorted (index-free) loading
+    * `cooler.io.create_from_unsorted` takes an iterable of pixel dataframe chunks that need not be properly sorted.
+    * Use input sanitization procedures for pairs `sanitize_records` and binned data `sanitize_pixels` to feed data to `create_from_unsorted`. #87 #108 #109
+    * The `cooler load` command is now index-free: unsorted `COO` and `BG2` input data can be streamed in. #90. This will soon be implemented as an option for loading pairs as well.
+* Prevent `cooler balance` command from exiting with non-zero status upon failed convergence using convergence error policies. #93
+* Improve the `create` API to support pandas read_csv-style `columns` and `dtype` kwargs to add extra value columns or override default dtypes. #108
+* Experimental implementation of trans-only balancing. #56
+
+Bug fixes
+
+* Fix argmax deprecation. #99
+
+
 ### 0.7.6 (2017-10-31) ###
 New features
 
