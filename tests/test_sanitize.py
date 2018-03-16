@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from io import StringIO
+from six import StringIO
 import numpy as np
 import pandas as pd
 import cooler
