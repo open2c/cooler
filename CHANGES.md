@@ -1,3 +1,15 @@
+### 0.7.8 (2018-03-18) ###
+
+* New `cooler cload pairs` command provides index-free loading of pairs.
+* Changed name of `create_from_unsorted` to more correct `create_from_unordered`.
+
+Bug fixes
+
+* Fixed broken use of single-file temporary store in `create_from_unordered`.
+* Added heuristic in pairix cload to prevent excessively large chunks. #92
+* Added extra checks in `cload pairix` and `cload tabix`. #62, #75
+
+
 ### 0.7.7 (2018-03-16) ###
 
 New features
