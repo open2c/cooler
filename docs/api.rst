@@ -27,7 +27,7 @@ Quick reference
     cooler.io.ls
     cooler.io.is_cooler
     cooler.io.create
-    cooler.io.create_from_unsorted
+    cooler.io.create_from_unordered
     cooler.io.append
     cooler.io.sanitize_records
     cooler.io.sanitize_pixels

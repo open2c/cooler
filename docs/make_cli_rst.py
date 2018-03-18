@@ -25,7 +25,7 @@ COMMANDS = [
 ]
 
 SUBCOMMANDS = {
-    'cload': ['hiclib', 'pairix', 'tabix']
+    'cload': ['hiclib', 'pairix', 'tabix', 'pairs']
 }
 
 

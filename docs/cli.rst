@@ -179,7 +179,7 @@ cooler csort
       [*] Tabix manpage: <http://www.htslib.org/doc/tabix.html>.
       [+] Pairix on Github: <https://github.com/4dn-dcic/pairix>
     
-      Arguments:
+      Arguments:
     
       PAIRS_PATH : Contacts (i.e. read pairs) text file, optionally compressed.
     
@@ -225,6 +225,7 @@ cooler cload
     Commands:
       hiclib  Bin a hiclib HDF5 contact list (frag) file.
       pairix  Bin a pairix-indexed contact list file.
+      pairs   Bin any text file or stream of pairs.
       tabix   Bin a tabix-indexed contact list file.        
         
         cooler cload hiclib
@@ -240,7 +241,7 @@ cooler cload
         
           PAIRS_PATH : Path to contacts (i.e. read pairs) file.
         
-          COOL_PATH : Output COOL file path.
+          COOL_PATH : Output COOL file path or URI.
         
           hiclib on BitBucket: <https://bitbucket.org/mirnylab/hiclib>.
         
@@ -265,7 +266,7 @@ cooler cload
         
           PAIRS_PATH : Path to contacts (i.e. read pairs) file.
         
-          COOL_PATH : Output COOL file path.
+          COOL_PATH : Output COOL file path or URI.
         
           See also: 'cooler csort' to sort and index a contact list file
         
@@ -297,7 +298,7 @@ cooler cload
         
           PAIRS_PATH : Path to contacts (i.e. read pairs) file.
         
-          COOL_PATH : Output COOL file path.
+          COOL_PATH : Output COOL file path or URI.
         
           See also: 'cooler csort' to sort and index a contact list file
         
@@ -316,6 +317,47 @@ cooler cload
                                    if large chromosomes dominate the workload on
                                    multiple processors.  [default: 2]
           --help                   Show this message and exit.
+                
+        
+        cooler cload pairs
+        ~~~~~~~~~~~~~~~~~~
+        Usage: cooler cload pairs [OPTIONS] BINS PAIRS_PATH COOL_PATH
+        
+          Bin any text file or stream of pairs.
+        
+          Pairs data need not be sorted. Accepts compressed files. To pipe input
+          from stdin, set PAIRS_PATH to '-'.
+        
+          BINS : One of the following
+        
+              <TEXT:INTEGER> : 1. Path to a chromsizes file, 2. Bin size in bp
+              <TEXT> : Path to BED file defining the genomic bin segmentation.
+        
+          PAIRS_PATH : Path to contacts (i.e. read pairs) file.
+        
+          COOL_PATH : Output COOL file path or URI.
+        
+        Options:
+          --metadata TEXT               Path to JSON file containing user metadata.
+          --assembly TEXT               Name of genome assembly (e.g. hg19, mm10)
+          -c1, --chrom1 INTEGER         chrom1 field number (one-based)  [required]
+          -p1, --pos1 INTEGER           pos1 field number (one-based)  [required]
+          -c2, --chrom2 INTEGER         chrom2 field number (one-based)  [required]
+          -p2, --pos2 INTEGER           pos2 field number (one-based)  [required]
+          --chunksize INTEGER           Number of input lines to load at a time
+          -0, --zero-based              Positions are zero-based  [default: False]
+          --comment-char TEXT           Comment character that indicates lines to
+                                        ignore.  [default: #]
+          --tril-action [reflect|drop]  How to handle lower triangle records.
+                                        'reflect': make lower triangle records upper
+                                        triangular. Use this if your input data comes
+                                        only from a unique half of a symmetric matrix
+                                        (but may not respect the specified chromosome
+                                        order). 'drop': discard all lower triangle
+                                        records. Use this if your input data has
+                                        mirror duplicates, i.e. is derived from a
+                                        complete symmetric matrix.  [default: reflect]
+          --help                        Show this message and exit.
         
 
 
@@ -346,7 +388,7 @@ cooler load
     
       cooler load -f bg2 <chrom.sizes>:<binsize> in.bg2.gz out.cool
     
-      Arguments:
+      Arguments:
     
       BINS_PATH : One of the following
     
@@ -356,7 +398,7 @@ cooler load
       PIXELS_PATH : Text file containing nonzero pixel values. May be gzipped.
       Pass '-' to use stdin.
     
-      COOL_PATH : Output COOL file path
+      COOL_PATH : Output COOL file path or URI.
     
     Options:
       -f, --format [coo|bg2]        'coo' refers to a tab-delimited sparse triplet
@@ -442,7 +484,7 @@ cooler copy
     
       See also: h5copy, h5repack tools from HDF5 suite
     
-      Arguments:
+      Arguments:
     
       SRC_URI : Path to source file or URI to source Cooler group
     
@@ -527,7 +569,7 @@ cooler show
       Display a contact matrix. Display a region of a contact matrix stored in a
       COOL file.
     
-      Arguments:
+      Arguments:
     
       COOL_PATH : Path to a COOL file or Cooler URI.
     
@@ -671,7 +713,7 @@ cooler coarsen
       chromosomal block and summing the elements inside the grid tiles, i.e. a
       2-D histogram.
     
-      Arguments:
+      Arguments:
     
       COOL_PATH : Path to a COOL file or Cooler URI.
     
@@ -698,7 +740,7 @@ cooler zoomify
       tiled aggregations of the contact matrix until reaching a minimum
       dimension. The aggregations are stored in a multi-resolution file.
     
-      Arguments:
+      Arguments:
     
       COOL_PATH : Path to a COOL file or Cooler URI.
     
