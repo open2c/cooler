@@ -1313,22 +1313,47 @@ def _sanitize_pixels(chunk, gs, is_one_based=False, tril_action='reflect',
                 raise ValueError("Unknown tril_action value: '{}'".format(
                     tril_action))
 
-    if validate:
+    return chunk.sort_values(['bin1_id', 'bin2_id']) if sort else chunk
+
+
+def _validate_pixels(chunk, n_bins, boundscheck, triucheck, dupcheck, ensure_sorted):
+    if boundscheck:
         is_neg = (chunk['bin1_id'] < 0) | (chunk['bin2_id'] < 0)
         if np.any(is_neg):
-            if is_one_based:
-                msg = "Found bin ID <= 0. Are you sure bin IDs are one-based?"
-            else:
-                msg = "Found bin ID < 0"
-            raise BadInputError(msg)
-        n_bins = len(gs.bins)
+            raise BadInputError("Found bin ID < 0")
         is_excess = (chunk['bin1_id'] >= n_bins) | (chunk['bin2_id'] >= n_bins)
         if np.any(is_excess): 
             raise BadInputError(
                 "Found a bin ID that exceeds the declared number of bins. " 
                 "Check whether your bin table is correct.")
+    
+    if triucheck:
+        is_tril = chunk['bin1_id'] > chunk['bin2_id']
+        if np.any(is_tril):
+            raise BadInputError("Found bin1_id greater than bin2_id")
+    
+    if not isinstance(chunk, pd.DataFrame):
+        chunk = pd.DataFrame(chunk)
 
-    return chunk.sort_values(['bin1_id', 'bin2_id']) if sort else chunk
+    if dupcheck:
+        is_dup = chunk.duplicated(['bin1_id', 'bin2_id'])
+        if is_dup.any():
+            raise BadInputError("Found duplicate pixels:\n{}".format(dups.to_csv(sep='\t')))
+
+    if ensure_sorted:
+        chunk = chunk.sort_values(['bin1_id', 'bin2_id'])
+    
+    return chunk
+
+
+def validate_pixels(n_bins, boundscheck, triucheck, dupcheck, ensure_sorted):
+    return partial(
+        _validate_pixels, 
+        n_bins=n_bins, 
+        boundscheck=boundscheck, 
+        triucheck=triucheck, 
+        dupcheck=dupcheck,
+        ensure_sorted=ensure_sorted)
 
 
 def sanitize_pixels(bins, **kwargs):
@@ -1381,3 +1406,22 @@ def sanitize_pixels(bins, **kwargs):
     chromsizes = get_chromsizes(bins)
     kwargs['gs'] = GenomeSegmentation(chromsizes, bins)
     return partial(_sanitize_pixels, **kwargs)
+
+
+def _aggregate_records(chunk, sort, agg, rename):
+    return (chunk.groupby(['bin1_id', 'bin2_id'], sort=sort)
+                 .aggregate(agg)
+                 .rename(columns=rename)
+                 .reset_index())
+
+
+def aggregate_records(sort=True, agg=None, rename=None):
+    if agg is None:
+        agg = {}
+    agg['bin1_id'] = 'count'  # count ignores NaN for that column
+
+    if rename is None:
+        rename = {}
+    rename['bin1_id'] = 'count'
+
+    return partial(_aggregate_records, sort=sort, agg=agg, rename=rename)

@@ -1,11 +1,13 @@
 # -*- coding: utf-8 -*-
 from __future__ import division, print_function
 from multiprocess import Pool
+from functools import partial
 import os.path as op
 import json
 import six
 import sys
 
+from cytoolz import compose
 import numpy as np
 import pandas as pd
 import h5py
@@ -13,7 +15,11 @@ import h5py
 import click
 from . import cli, logger
 from .. import util
-from ..io import create, TabixAggregator, HDF5Aggregator, PairixAggregator
+from ..io import (
+    create, create_from_unordered,
+    sanitize_records, aggregate_records,
+    TabixAggregator, HDF5Aggregator, PairixAggregator
+)
 
 
 @cli.group()
@@ -78,7 +84,7 @@ def register_subcommand(func):
             metavar="BINS")(
         click.argument(
             "pairs_path",
-            type=click.Path(exists=True),
+            type=click.Path(exists=True, allow_dash=True),
             metavar="PAIRS_PATH")(
         click.argument(
             "cool_path",
@@ -102,7 +108,7 @@ def add_arg_help(func):
 
     PAIRS_PATH : Path to contacts (i.e. read pairs) file.
 
-    COOL_PATH : Output COOL file path.""")
+    COOL_PATH : Output COOL file path or URI.""")
     return func
 
 
@@ -244,3 +250,150 @@ def pairix(bins, pairs_path, cool_path, metadata, assembly, nproc, max_split):
     finally:
         if nproc > 1:
             pool.close() 
+
+
+@register_subcommand
+@add_arg_help
+@click.option(
+    "--chrom1", "-c1",
+    help="chrom1 field number (one-based)",
+    type=int,
+    required=True)  #default=1)
+@click.option(
+    "--pos1", "-p1",
+    help="pos1 field number (one-based)",
+    type=int,
+    required=True)  #default=2)
+@click.option(
+    "--chrom2", "-c2",
+    help="chrom2 field number (one-based)",
+    type=int,
+    required=True)  #default=4)
+@click.option(
+    "--pos2", "-p2",
+    help="pos2 field number (one-based)",
+    type=int,
+    required=True)  #default=5)
+# @click.option(
+#     "--format", "-f",
+#     help="Preset data format.",
+#     type=click.Choice(['4DN', 'BEDPE']))
+@click.option(
+    "--chunksize",
+    help="Number of input lines to load at a time",
+    type=int,
+    default=int(15e6))
+@click.option(
+    "--zero-based", "-0",
+    help="Positions are zero-based",
+    is_flag=True,
+    default=False,
+    show_default=True)
+@click.option(
+    "--comment-char",
+    type=str,
+    default='#',
+    show_default=True,
+    help="Comment character that indicates lines to ignore.")
+@click.option(
+    "--tril-action",
+    type=click.Choice(['reflect', 'drop']),
+    default='reflect',
+    show_default=True,
+    help="How to handle lower triangle records. " 
+         "'reflect': make lower triangle records upper triangular. "
+         "Use this if your input data comes only from a unique half of a "
+         "symmetric matrix (but may not respect the specified chromosome order). "
+         "'drop': discard all lower triangle records. Use this if your input "
+         "data has mirror duplicates, i.e. is derived from a complete symmetric "
+         "matrix.")
+# @click.option(
+#     "--field",
+#     help="Add supplemental value fields or override default field numbers for "
+#          "the specified format. Specify as '<name>,<number>' or as "
+#          "'<name>,<number>,<dtype>' or '<name>,<number>,<dtype>,<agg>' to enforce a dtype other than `float` or "
+#          "the default for a standard column. Field numbers are 1-based. "
+#          "Repeat the `--field` option for each additional field. ",
+#     type=str,
+#     multiple=True)
+# --sep
+# --count-as-float
+def pairs(bins, pairs_path, cool_path, metadata, assembly, chunksize, zero_based, comment_char, tril_action, **kwargs):
+    """
+    Bin any text file or stream of pairs.
+    
+    Pairs data need not be sorted. Accepts compressed files.
+    To pipe input from stdin, set PAIRS_PATH to '-'.
+
+    {}
+
+    """
+    chromsizes, bins = _parse_bins(bins)
+
+    if metadata is not None:
+        with open(metadata, 'r') as f:
+            metadata = json.load(f)
+
+    input_field_names = [
+        'chrom1', 'pos1', 'chrom2', 'pos2' 
+    ]
+    input_field_dtypes = {
+        'chrom1': str, 'pos1': int,
+        'chrom2': str, 'pos2': int,
+    }
+    # input_field_numbers = {
+    #     'chrom1': 0, 'pos1': 1, 
+    #     'chrom2': 3, 'pos2': 4,
+    # }
+    input_field_numbers = {}
+    for name in ['chrom1', 'pos1', 'chrom2', 'pos2']:
+        if kwargs[name] == 0:
+            raise click.BadParameter("Field numbers start at 1", 
+                param_hint=name)
+        input_field_numbers[name] = kwargs[name] - 1
+
+    output_field_names = None
+    output_field_dtypes = None
+
+    if pairs_path == '-':
+        f_in = sys.stdin
+    else:
+        f_in = pairs_path
+
+    reader = pd.read_table(
+        f_in, 
+        usecols=[input_field_numbers[name] for name in input_field_names],
+        names=input_field_names,
+        dtype=input_field_dtypes,
+        comment=comment_char,
+        iterator=True,
+        chunksize=chunksize)
+
+    sanitize = sanitize_records(
+        bins,
+        schema='pairs',  
+        decode_chroms=True, 
+        is_one_based=not zero_based, 
+        tril_action=tril_action, 
+        sort=True,
+        validate=True)
+    aggregate = aggregate_records(agg=None, sort=False)
+    pipeline = compose(aggregate, sanitize)
+
+    create_from_unordered(
+        cool_path, 
+        bins, 
+        map(pipeline, reader), 
+        columns=output_field_names,
+        dtypes=output_field_dtypes,
+        metadata=metadata, 
+        assembly=assembly,
+        mergebuf=chunksize,
+        boundscheck=False,
+        triucheck=False,
+        dupcheck=False,
+        ensure_sorted=False
+    )
+
+
+

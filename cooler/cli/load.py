@@ -13,7 +13,7 @@ import click
 from . import cli, logger
 from .. import util
 from ..io import (
-    parse_cooler_uri, create_from_unsorted, sanitize_records, sanitize_pixels
+    parse_cooler_uri, create_from_unordered, sanitize_records, sanitize_pixels
 )
 
 
@@ -204,7 +204,7 @@ def load(bins_path, pixels_path, cool_path, format, metadata, assembly,
     PIXELS_PATH : Text file containing nonzero pixel values. May be gzipped.
                   Pass '-' to use stdin.
 
-    COOL_PATH : Output COOL file path
+    COOL_PATH : Output COOL file path or URI.
 
     """
     chromsizes, bins = _parse_bins(bins_path)
@@ -240,7 +240,8 @@ def load(bins_path, pixels_path, cool_path, format, metadata, assembly,
         pipeline = sanitize_records(bins, 
             schema='bg2', 
             is_one_based=one_based,
-            tril_action=tril_action)
+            tril_action=tril_action,
+            sort=True)
 
     elif format == 'coo':
         input_field_names = [
@@ -258,7 +259,8 @@ def load(bins_path, pixels_path, cool_path, format, metadata, assembly,
         }
         pipeline = sanitize_pixels(bins, 
             is_one_based=one_based,
-            tril_action=tril_action)
+            tril_action=tril_action,
+            sort=True)
 
     # include any additional value columns
     if len(field):
@@ -296,7 +298,7 @@ def load(bins_path, pixels_path, cool_path, format, metadata, assembly,
     logger.info('fields: {}'.format(input_field_numbers))
     logger.info('dtypes: {}'.format(input_field_dtypes))
 
-    create_from_unsorted(
+    create_from_unordered(
         cool_path, 
         bins, 
         map(pipeline, reader), 
@@ -304,7 +306,8 @@ def load(bins_path, pixels_path, cool_path, format, metadata, assembly,
         dtypes=output_field_dtypes,
         metadata=metadata, 
         assembly=assembly,
-        mergebuf=chunksize
+        mergebuf=chunksize,
+        ensure_sorted=False,
     )
 
 

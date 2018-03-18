@@ -3,6 +3,7 @@ from __future__ import division, print_function
 import posixpath
 import tempfile
 import warnings
+from six.moves import map
 import six
 
 import numpy as np
@@ -92,8 +93,13 @@ def is_cooler(filepath, group=None):
     return group in ls(filepath)
 
 
+# def create(cool_uri, bins, pixels, columns, dtype, metadata, assembly, mode, h5opts, boundscheck, triucheck, dupcheck, ensure_sorted):
+#     pass
+
+
 def create(cool_uri, bins, pixels, metadata=None, assembly=None, dtypes='<deprecated>',
            h5opts=None, append=False, lock=None, columns=None, dtype=None,
+           boundscheck=True, triucheck=True, dupcheck=True, ensure_sorted=False, 
            chromsizes='<deprecated>'):
     """
     Create a new Cooler.
@@ -159,7 +165,7 @@ def create(cool_uri, bins, pixels, metadata=None, assembly=None, dtypes='<deprec
             "Note that the `chromsizes` argument is now deprecated: "
             "see documentation for `create`.")
 
-    if dtypes != '<deprecated>':
+    if dtypes not in (None, '<deprecated>'):
         warnings.warn("Use dtype= instead of dtypes=", FutureWarning)
         dtype = dtypes
 
@@ -232,6 +238,12 @@ def create(cool_uri, bins, pixels, metadata=None, assembly=None, dtypes='<deprec
     n_chroms = len(chroms)
     n_bins = len(bins)
 
+    # Chain input validation to the end of the pipeline
+    if boundscheck or triucheck or dupcheck or ensure_sorted:
+        validator = validate_pixels(
+            n_bins, boundscheck, triucheck, dupcheck, ensure_sorted)
+        iterable = map(validator, iterable)
+    
     # Create root group
     with h5py.File(file_path, mode) as f:
         logger.info('Creating cooler at "{}::{}"'.format(file_path, group_path))
@@ -399,14 +411,15 @@ def append(cool_uri, table, data, chunked=False, force=False, h5opts=None,
                     lock.release()
 
 
-def create_from_unsorted(cool_uri, bins, chunks, columns=None, dtype=None, 
+def create_from_unordered(cool_uri, bins, chunks, columns=None, dtype=None, 
                          mergebuf=int(20e6), delete_temp=True, temp_dir=None, 
                          multifile_merge=False, **kwargs):
     """
     Create a Cooler in two passes via an external sort mechanism. In the first 
     pass, a sequence of data chunks are processed and sorted in memory and saved
     to temporary Coolers. In the second pass, the temporary Coolers are merged 
-    into the output.
+    into the output. This way the individual chunks do not need to be provided
+    in any particular order.
     
     Parameters
     ----------
@@ -503,7 +516,7 @@ def create_from_unsorted(cool_uri, bins, chunks, columns=None, dtype=None,
 from ._binning import (ContactBinner, HDF5Aggregator, TabixAggregator,
                        PairixAggregator, CoolerAggregator, CoolerMerger,
                        SparseLoader, BedGraph2DLoader, ArrayLoader,
-                       sanitize_pixels, sanitize_records)
+                       sanitize_pixels, validate_pixels, sanitize_records, aggregate_records)
 
 from ._writer import (write_chroms, write_bins, prepare_pixels, write_pixels, 
                       write_indexes, write_info, index_bins, index_pixels, 
