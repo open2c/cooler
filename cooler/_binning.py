@@ -257,6 +257,8 @@ class TabixAggregator(ContactBinner):
                 self.file_contigs = [c.decode('ascii') for c in f.contigs]
             except AttributeError:
                 self.file_contigs = f.contigs
+            if not len(self.file_contigs):
+                raise RuntimeError("No reference sequences found.")
         
         # warn about requested contigs not seen in the contact list
         for chrom in self.gs.contigs:
@@ -367,6 +369,14 @@ class PairixAggregator(ContactBinner):
         self.file_contigs = set(
             itertools.chain.from_iterable(
                 [b.split('|') for b in f.get_blocknames()]))
+        
+        if not len(self.file_contigs):
+            raise RuntimeError("No reference sequences found.")
+        for c1, c2 in itertools.combinations(self.file_contigs):
+            if f.exists2(c1, c2) and f.exists2(c2, c1):
+                raise RuntimeError(
+                    "Pairs are not triangular: found blocks " +
+                    "'{0}|{1}'' and '{1}|{0}'".format(c1, c2))
 
         # dumb heuristic to prevent excessively large chunks on one worker
         if hasattr(f, 'get_linecount'):
