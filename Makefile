@@ -34,4 +34,4 @@ docs-init:
 	conda install --file docs/requirements.txt
 
 docs:
-	cd docs && make html
+	cd docs && python make_cli_rst.py && make html
