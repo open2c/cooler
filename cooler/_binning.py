@@ -367,6 +367,15 @@ class PairixAggregator(ContactBinner):
         self.file_contigs = set(
             itertools.chain.from_iterable(
                 [b.split('|') for b in f.get_blocknames()]))
+
+        # dumb heuristic to prevent excessively large chunks on one worker
+        if hasattr(f, 'get_linecount'):
+            n_lines = f.get_linecount()
+            max_chunk = int(100e6)
+            n_chunks = n_lines // 2 // max_chunk
+            self.n_chunks = max(self.n_chunks, n_chunks)
+            logger.info("Pairs file has {} lines. Increasing max-split to {}.".format(
+                n_lines, self.n_chunks))
         
         # all requested contigs will be placed in the output matrix
         self.gs = GenomeSegmentation(chromsizes, bins)
