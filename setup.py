@@ -54,6 +54,7 @@ install_requires = [
     'h5py>=2.5', 
     'click>=6.6',
     'pysam>0.8',
+    'cytoolz',
     'multiprocess',
     'biopython',
     'pyfaidx',
