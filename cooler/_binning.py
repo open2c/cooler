@@ -231,7 +231,7 @@ class TabixAggregator(ContactBinner):
     tab-delimited text file.
 
     """
-    def __init__(self, filepath, chromsizes, bins, map=map, n_chunks=1, **kwargs):
+    def __init__(self, filepath, chromsizes, bins, map=map, n_chunks=1, is_one_based=False, **kwargs):
         try:
             import pysam
         except ImportError:
@@ -243,6 +243,7 @@ class TabixAggregator(ContactBinner):
         
         self._map = map
         self.n_chunks = n_chunks
+        self.is_one_based = bool(is_one_based)
         self.C2 = kwargs.pop('C2', 3)
         self.P2 = kwargs.pop('P2', 4)
         
@@ -282,6 +283,7 @@ class TabixAggregator(ContactBinner):
         chrom_binoffset = self.gs.chrom_binoffset
         chrom_abspos = self.gs.chrom_abspos
         start_abspos = self.gs.start_abspos
+        decr = int(self.is_one_based)
         C2 = self.C2
         P2 = self.P2
 
@@ -297,7 +299,7 @@ class TabixAggregator(ContactBinner):
                 for line in f.fetch(chrom1, bin1.start, bin1.end,
                                     parser=parser):
                     chrom2 = line[C2]
-                    pos2 = int(line[P2])
+                    pos2 = int(line[P2]) - decr
                     
                     try:
                         cid2 = idmap[chrom2]
@@ -348,7 +350,7 @@ class PairixAggregator(ContactBinner):
     tab-delimited text file.
 
     """
-    def __init__(self, filepath, chromsizes, bins, map=map, n_chunks=1, **kwargs):
+    def __init__(self, filepath, chromsizes, bins, map=map, n_chunks=1, is_one_based=False, **kwargs):
         try:
             import pypairix
         except ImportError:
@@ -361,6 +363,7 @@ class PairixAggregator(ContactBinner):
         
         self._map = map
         self.n_chunks = n_chunks
+        self.is_one_based = bool(is_one_based)
         f = pypairix.open(filepath, 'r')
         self.C1 = f.get_chr1_col()
         self.C2 = f.get_chr2_col()
@@ -372,7 +375,7 @@ class PairixAggregator(ContactBinner):
         
         if not len(self.file_contigs):
             raise RuntimeError("No reference sequences found.")
-        for c1, c2 in itertools.combinations(self.file_contigs):
+        for c1, c2 in itertools.combinations(self.file_contigs, 2):
             if f.exists2(c1, c2) and f.exists2(c2, c1):
                 raise RuntimeError(
                     "Pairs are not triangular: found blocks " +
@@ -410,6 +413,7 @@ class PairixAggregator(ContactBinner):
         chrom_binoffset = self.gs.chrom_binoffset
         chrom_abspos = self.gs.chrom_abspos
         start_abspos = self.gs.start_abspos
+        decr = int(self.is_one_based)
         C1 = self.C1
         C2 = self.C2
         P1 = self.P1
@@ -441,7 +445,7 @@ class PairixAggregator(ContactBinner):
 
                 for line in iterator:
                     
-                    pos2 = int(line[pos2_col])
+                    pos2 = int(line[pos2_col]) - decr
 
                     if binsize is None:
                         lo = chrom_binoffset[cid2]

@@ -160,6 +160,12 @@ def hiclib(bins, pairs_path, cool_path, metadata, assembly, chunksize):
     type=int,
     default=5)
 @click.option(
+    "--zero-based", "-0",
+    help="Positions are zero-based",
+    is_flag=True,
+    default=False,
+    show_default=True)
+@click.option(
     "--max-split", "-s",
     help="Divide the pairs from each chromosome into at most this many chunks. "
          "Smaller chromosomes will be split less frequently or not at all. "
@@ -168,7 +174,7 @@ def hiclib(bins, pairs_path, cool_path, metadata, assembly, chunksize):
     type=int,
     default=2,
     show_default=True)
-def tabix(bins, pairs_path, cool_path, metadata, assembly, nproc, max_split, **kwargs):
+def tabix(bins, pairs_path, cool_path, metadata, assembly, nproc, zero_based, max_split, **kwargs):
     """
     Bin a tabix-indexed contact list file.
 
@@ -213,6 +219,12 @@ def tabix(bins, pairs_path, cool_path, metadata, assembly, nproc, max_split, **k
     default=8,
     show_default=True)
 @click.option(
+    "--zero-based", "-0",
+    help="Positions are zero-based",
+    is_flag=True,
+    default=False,
+    show_default=True)
+@click.option(
     "--max-split", "-s",
     help="Divide the pairs from each chromosome into at most this many chunks. "
          "Smaller chromosomes will be split less frequently or not at all. "
@@ -221,7 +233,7 @@ def tabix(bins, pairs_path, cool_path, metadata, assembly, nproc, max_split, **k
     type=int,
     default=2,
     show_default=True)
-def pairix(bins, pairs_path, cool_path, metadata, assembly, nproc, max_split):
+def pairix(bins, pairs_path, cool_path, metadata, assembly, nproc, zero_based, max_split):
     """
     Bin a pairix-indexed contact list file.
 
