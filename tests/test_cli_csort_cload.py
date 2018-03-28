@@ -16,7 +16,7 @@ import nose
 from nose.tools import with_setup, set_trace
 from click.testing import CliRunner
 
-from cooler.cli.cload import cload, tabix as cload_tabix
+from cooler.cli.cload import cload, tabix as cload_tabix, pairix as cload_pairix
 from cooler.cli.csort import csort
 
 
@@ -94,4 +94,27 @@ def test_cload_tabix():
     # long (greater than 32 characters)
     # UPDATE: no longer a limit
     assert result.exit_code == 0, ''.join(traceback.format_exception(*result.exc_info))
+
+
+@with_setup(teardown=partial(teardown_func, testcool_path))
+def test_cload_pairix():
+    runner = CliRunner()
+    result = runner.invoke(
+        cload_pairix, [
+            op.join(testdir, 'data', 'hg19-bins.2000kb.bed.gz'),
+            op.join(testdir, 'data', 'GM12878-MboI-contacts.subsample.blksrt.txt.gz'),
+            testcool_path
+        ]
+    )
+    # set_trace()
+    # import traceback
+    # traceback.print_tb(result.exc_info[2])
+    assert result.exit_code == 0, ''.join(traceback.format_exception(*result.exc_info))
+
+    ref_path = op.join(testdir, 'data', 'GM12878-MboI-matrix.2000kb.cool')
+    with h5py.File(testcool_path, 'r') as f1, \
+         h5py.File(ref_path, 'r') as f2:
+        assert np.all(f1['pixels/bin1_id'][:] == f2['pixels/bin1_id'][:])
+        assert np.all(f1['pixels/bin2_id'][:] == f2['pixels/bin2_id'][:])
+        assert np.all(f1['pixels/count'][:] == f2['pixels/count'][:])
 
