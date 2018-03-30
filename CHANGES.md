@@ -1,3 +1,8 @@
+### 0.7.9 (2018-03-30) ###
+
+* Indexed pairs loading commands now provide option for 0- or 1-based positions (1-based by default). #115
+* Fixed error introduced into cload pairix in last release.
+
 ### 0.7.8 (2018-03-18) ###
 
 * New `cooler cload pairs` command provides index-free loading of pairs.
