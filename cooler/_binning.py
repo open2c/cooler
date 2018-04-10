@@ -1136,8 +1136,8 @@ def _sanitize_records(chunk, gs, decode_chroms, is_one_based, tril_action,
         return chunk
 
     # Find positional anchor columns, convert to zero-based if needed
-    anchor1 = chunk[anchor_field + suffixes[0]].values
-    anchor2 = chunk[anchor_field + suffixes[1]].values
+    anchor1 = np.array(chunk[anchor_field + suffixes[0]])
+    anchor2 = np.array(chunk[anchor_field + suffixes[1]])
     if is_one_based:
         anchor1 -= 1
         anchor2 -= 1
