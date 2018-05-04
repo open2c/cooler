@@ -1363,7 +1363,8 @@ def _validate_pixels(chunk, n_bins, boundscheck, triucheck, dupcheck, ensure_sor
     if dupcheck:
         is_dup = chunk.duplicated(['bin1_id', 'bin2_id'])
         if is_dup.any():
-            raise BadInputError("Found duplicate pixels:\n{}".format(dups.to_csv(sep='\t')))
+            err = chunk[is_dup]
+            raise BadInputError("Found duplicate pixels:\n{}".format(err.to_csv(sep='\t')))
 
     if ensure_sorted:
         chunk = chunk.sort_values(['bin1_id', 'bin2_id'])
