@@ -157,7 +157,7 @@ def create(cool_uri, bins, pixels, metadata=None, assembly=None, dtypes='<deprec
     file_path, group_path = parse_cooler_uri(cool_uri)
     mode = 'a' if append else 'w'
     if h5opts is None:
-        h5opts = dict(compression='gzip', compression_opts=6)
+        h5opts = dict(compression='gzip', compression_opts=6, shuffle=True)
 
     if not isinstance(bins, pandas.DataFrame):
         raise ValueError(
