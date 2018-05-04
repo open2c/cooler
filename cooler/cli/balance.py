@@ -72,6 +72,10 @@ from ..util import bedslice
     default=2,
     show_default=True)
 @click.option(
+    "--ignore-dist",
+    help="Distance in bp to ignore.",
+    type=int)
+@click.option(
     "--tol",
     help="Threshold value of variance of the marginals for the algorithm to "
          "converge.",
@@ -125,7 +129,7 @@ from ..util import bedslice
     show_default=True)
 def balance(cool_uri, nproc, chunksize, mad_max, min_nnz, min_count, blacklist,
             ignore_diags, tol, cis_only, trans_only, max_iters, name, force, 
-            check, stdout, convergence_policy):
+            check, stdout, convergence_policy, ignore_dist):
     """
     Out-of-core contact matrix balancing.
 
@@ -185,6 +189,12 @@ def balance(cool_uri, nproc, chunksize, mad_max, min_nnz, min_count, blacklist,
         bad_bins = np.concatenate(bad_bins)
     else:
         bad_bins = None
+
+    if ignore_dist is not None:
+        ignore_diags = max(
+            ignore_diags,
+            int(np.ceil(ignore_dist / clr.binsize))
+        )
 
     try:
         if nproc > 1:
