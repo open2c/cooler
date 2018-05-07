@@ -1,3 +1,9 @@
+### 0.7.10 (2018-05-07) ###
+
+* Fix a shallow copy bug in validate pixels causing records to sometimes flip twice.
+* Add ignore distance (bp) filter to cooler balance
+* Start using shuffle filter by default
+
 ### 0.7.9 (2018-03-30) ###
 
 * Indexed pairs loading commands now provide option for 0- or 1-based positions (1-based by default). #115
