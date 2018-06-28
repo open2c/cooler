@@ -90,7 +90,7 @@ The `cooler` library provides a thin wrapper over the excellent [h5py](http://do
 - Tabular selections are retrieved as Pandas DataFrames and Series.
 - Matrix  selections are retrieved as NumPy arrays or SciPy sparse matrices.
 - Metadata is retrieved as a json-serializable Python dictionary.
-- Range queries can be supplied using either integer bin indexes or genomic coordinate intervals.
+- Range queries can be supplied using either integer bin indexes or genomic coordinate intervals. Note that queries with coordinate intervals that are not multiples of the bin size will return the range of shortest range bins that fully contains the open interval [start, end).
 
 ```python
 
