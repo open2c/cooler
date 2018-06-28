@@ -63,7 +63,7 @@ However, coolers can be stored at any level of the HDF5 hierarchy and qualified 
 
 Data selection
 --------------
-Several :class:`cooler.Cooler` methods return data selectors. They don't retrieve any data from disk until queried. There are several ways to query using selectors. Genomic intervals can be provided using UCSC-style strings ``'{chrom}:{start}-{end}'`` or chrom-start-end triples ``(str, int, int)``.
+Several :class:`cooler.Cooler` methods return data selectors. They don't retrieve any data from disk until queried. There are several ways to query using selectors. Genomic intervals can be provided using UCSC-style strings ``'{chrom}:{start}-{end}'`` or chrom-start-end triples ``(str, int, int)``. For regions with start and end that are not multiples of the resolution, selectors return the range of shortest range bins that fully contains the open interval [start, end).
 
 
 Table selectors (chroms, bins, pixels)
