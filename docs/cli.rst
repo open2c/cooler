@@ -277,6 +277,7 @@ cooler cload
           --assembly TEXT          Name of genome assembly (e.g. hg19, mm10)
           -p, --nproc INTEGER      Number of processes to split the work between.
                                    [default: 8]
+          -0, --zero-based         Positions are zero-based  [default: False]
           -s, --max-split INTEGER  Divide the pairs from each chromosome into at most
                                    this many chunks. Smaller chromosomes will be split
                                    less frequently or not at all. Increase ths value
@@ -311,6 +312,7 @@ cooler cload
                                    [default: 8]
           -c2, --chrom2 INTEGER    chrom2 field number (one-based)
           -p2, --pos2 INTEGER      pos2 field number (one-based)
+          -0, --zero-based         Positions are zero-based  [default: False]
           -s, --max-split INTEGER  Divide the pairs from each chromosome into at most
                                    this many chunks. Smaller chromosomes will be split
                                    less frequently or not at all. Increase ths value
@@ -357,6 +359,17 @@ cooler cload
                                         records. Use this if your input data has
                                         mirror duplicates, i.e. is derived from a
                                         complete symmetric matrix.  [default: reflect]
+          --field TEXT                  Add supplemental value fields or override
+                                        default field numbers for the specified
+                                        format. Specify as '<name>,<number>' or as
+                                        '<name>,<number>,<dtype>' or as
+                                        '<name>,<number>,<dtype>,<agg>' to enforce a
+                                        dtype other than `float` or the default for a
+                                        standard column. Field numbers are 1-based.
+                                        Repeat the `--field` option for each
+                                        additional field.
+          --temp-dir TEXT               Create temporary files in specified directory.
+          --no-delete-temp BOOLEAN      Do not delete temporary files when finished.
           --help                        Show this message and exit.
         
 
@@ -654,6 +667,7 @@ cooler balance
                                       Examples: 0 ignores nothing, 1 ignores the
                                       main diagonal, 2 ignores diagonals (-1, 0,
                                       1), etc.  [default: 2]
+      --ignore-dist INTEGER           Distance in bp to ignore.
       --tol FLOAT                     Threshold value of variance of the marginals
                                       for the algorithm to converge.  [default:
                                       1e-05]
@@ -745,16 +759,14 @@ cooler zoomify
       COOL_PATH : Path to a COOL file or Cooler URI.
     
     Options:
-      -n, -p, --nproc INTEGER   Number of processes to use for batch processing
-                                chunks of pixels [default: 1, i.e. no process
-                                pool]
-      -c, --chunksize INTEGER   Number of pixels allocated to each process
-                                [default: 10000000]
-      --balance / --no-balance  Apply balancing to each zoom level  [default:
-                                False]
-      --balance-args TEXT       Additional arguments to pass to cooler balance
-      -o, --out TEXT            Output file or URI
-      -r, --resolutions TEXT    Comma-separated list of target resolutions
-      --help                    Show this message and exit.
+      -n, -p, --nproc INTEGER  Number of processes to use for batch processing
+                               chunks of pixels [default: 1, i.e. no process pool]
+      -c, --chunksize INTEGER  Number of pixels allocated to each process
+                               [default: 10000000]
+      --balance                Apply balancing to each zoom level. Off by default.
+      --balance-args TEXT      Additional arguments to pass to cooler balance
+      -o, --out TEXT           Output file or URI
+      -r, --resolutions TEXT   Comma-separated list of target resolutions
+      --help                   Show this message and exit.
 
 
