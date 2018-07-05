@@ -240,7 +240,9 @@ def create(cool_uri, bins, pixels, metadata=None, assembly=None, dtypes='<deprec
 
     if not symmetric and triucheck:
         warnings.warn(
-            "Creating a non-symmetric matrix, but `triucheck` was set to True.")
+            "Creating a non-symmetric matrix, but `triucheck` was set to True. "
+            "Changing to False.")
+        triucheck = False
 
     # Chain input validation to the end of the pipeline
     if boundscheck or triucheck or dupcheck or ensure_sorted:

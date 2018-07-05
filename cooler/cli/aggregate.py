@@ -49,7 +49,8 @@ def aggregate(input_uri, output_uri, factor, nproc, chunksize, lock):
             new_bins,
             iterator,
             lock=lock,
-            append=True)
+            append=True,
+            symmetric=c.is_symmetric)
 
     finally:
         if nproc > 1:

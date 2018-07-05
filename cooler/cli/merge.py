@@ -39,8 +39,15 @@ def merge(out_path, in_paths, chunksize):
     """
     logger.info("Merging:\n{}".format('\n'.join(in_paths)))
     clrs = [Cooler(path) for path in in_paths]
+    symm = [clr.is_symmetric for clr in clrs]
+    if all(symm):
+        symmetric = True
+    elif not any(symm):
+        symmetric = False
+    else:
+        raise ValueError("Cannot merge symmetric and asymmetric coolers")
     chromsizes = clrs[0].chromsizes
     bins = clrs[0].bins()[['chrom', 'start', 'end']][:]
     assembly = clrs[0].info.get('genome-assembly', None)
     iterator = CoolerMerger(clrs, maxbuf=chunksize)
-    create(out_path, bins, iterator, assembly=assembly)
+    create(out_path, bins, iterator, assembly=assembly, symmetric=symmetric)
