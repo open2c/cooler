@@ -110,6 +110,10 @@ class Cooler(object):
         return closing_hdf5(grp)
 
     @property
+    def is_symmetric(self):
+        return self._info.get('symmetric', True)
+
+    @property
     def binsize(self):
         """ Resolution in base pairs if uniform else None """
         return self._info['bin-size']
@@ -293,7 +297,7 @@ class Cooler(object):
             with open_hdf5(self.store, **self.open_kws) as h5:
                 grp = h5[self.root]
                 return matrix(grp, i0, i1, j0, j1, field, balance, sparse,
-                    as_pixels, join, ignore_index, max_chunk)
+                    as_pixels, join, ignore_index, max_chunk, self.is_symmetric)
 
         def _fetch(region, region2=None):
             with open_hdf5(self.store, **self.open_kws) as h5:
@@ -513,7 +517,8 @@ def annotate(pixels, bins, replace=True):
 
 
 def matrix(h5, i0, i1, j0, j1, field=None, balance=True, sparse=False,
-           as_pixels=False, join=True, ignore_index=True, max_chunk=500000000):
+           as_pixels=False, join=True, ignore_index=True, max_chunk=500000000,
+           is_symmetric=True):
     """
     Two-dimensional range query on the Hi-C contact heatmap.
     Depending on the options, returns either a 2D NumPy array, a rectangular
@@ -559,7 +564,7 @@ def matrix(h5, i0, i1, j0, j1, field=None, balance=True, sparse=False,
     if field is None:
         field = 'count'
 
-    triu_reader = TriuReader(h5, field, max_chunk)
+    reader = TriuReader(h5, field, max_chunk)
 
     if isinstance(balance, str):
         name = balance
@@ -572,8 +577,8 @@ def matrix(h5, i0, i1, j0, j1, field=None, balance=True, sparse=False,
             "calculate balancing weights or set balance=False.")
 
     if as_pixels:
-        index = None if ignore_index else triu_reader.index_col(i0, i1, j0, j1)
-        i, j, v = triu_reader.query(i0, i1, j0, j1)
+        index = None if ignore_index else reader.index_col(i0, i1, j0, j1)
+        i, j, v = reader.query(i0, i1, j0, j1)
 
         cols = ['bin1_id', 'bin2_id', field]
         df = pandas.DataFrame(dict(zip(cols, [i, j, v])),
@@ -591,7 +596,10 @@ def matrix(h5, i0, i1, j0, j1, field=None, balance=True, sparse=False,
         return df
 
     elif sparse:
-        i, j, v = query_rect(triu_reader.query, i0, i1, j0, j1)
+        if is_symmetric:
+            i, j, v = query_rect(reader.query, i0, i1, j0, j1)
+        else:
+            i, j, v = reader.query(i0, i1, j0, j1)
         mat = coo_matrix((v, (i-i0, j-j0)), (i1-i0, j1-j0))
 
         if balance:
@@ -603,7 +611,10 @@ def matrix(h5, i0, i1, j0, j1, field=None, balance=True, sparse=False,
         return mat
 
     else:
-        i, j, v = query_rect(triu_reader.query, i0, i1, j0, j1)
+        if is_symmetric:
+            i, j, v = query_rect(reader.query, i0, i1, j0, j1)
+        else:
+            i, j, v = reader.query(i0, i1, j0, j1)
         arr = coo_matrix((v, (i-i0, j-j0)), (i1-i0, j1-j0)).toarray()
 
         if balance:

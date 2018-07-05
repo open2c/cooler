@@ -158,7 +158,7 @@ def _parse_bins(arg):
     help="Comment character that indicates lines to ignore.")
 @click.option(
     "--tril-action",
-    type=click.Choice(['reflect', 'drop']),
+    type=click.Choice(['reflect', 'drop', 'none']),
     default='reflect',
     show_default=True,
     help="How to handle lower triangle pixels. " 
@@ -166,9 +166,17 @@ def _parse_bins(arg):
          "Use this if your input data comes only from a unique half of a "
          "symmetric matrix (but may not respect the specified chromosome order)."
          "'drop': discard all lower triangle pixels. Use this if your input "
-         "data is derived from a complete symmetric matrix.")
+         "data is derived from a complete symmetric matrix."
+         "Default is 'reflect' when the output is symmetric, 'none' when "
+         "--asymmetric is specified.")
+@click.option(
+    "--asymmetric", "-a",
+    help="Create an asymmetric matrix. This allows for lower triangle values",
+    is_flag=True,
+    default=False)
 def load(bins_path, pixels_path, cool_path, format, metadata, assembly,
-         chunksize, field, count_as_float, one_based, comment_char, tril_action):
+         chunksize, field, count_as_float, one_based, comment_char, tril_action,
+         asymmetric):
     """
     Load a pre-binned contact matrix into a COOL file.
 
@@ -286,6 +294,12 @@ def load(bins_path, pixels_path, cool_path, format, metadata, assembly,
     else:
         f_in = pixels_path
 
+    if tril_action is None:
+        if assymetric:
+            tril_action = 'none'
+        else:
+            tril_action = 'reflect'
+
     reader = pd.read_table(
         f_in, 
         usecols=[input_field_numbers[name] for name in input_field_names],
@@ -297,6 +311,7 @@ def load(bins_path, pixels_path, cool_path, format, metadata, assembly,
 
     logger.info('fields: {}'.format(input_field_numbers))
     logger.info('dtypes: {}'.format(input_field_dtypes))
+    logger.info('symmetric: {}'.format(not asymmetric))
 
     create_from_unordered(
         cool_path, 
@@ -307,7 +322,11 @@ def load(bins_path, pixels_path, cool_path, format, metadata, assembly,
         metadata=metadata, 
         assembly=assembly,
         mergebuf=chunksize,
+        #boundscheck=True,
+        #dupcheck=True,
+        triucheck=False if asymmetric else True,
         ensure_sorted=False,
+        symmetric=not asymmetric
     )
 
 

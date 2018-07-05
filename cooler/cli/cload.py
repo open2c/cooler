@@ -348,16 +348,15 @@ def pairix(bins, pairs_path, cool_path, metadata, assembly, nproc, zero_based, m
     help="Comment character that indicates lines to ignore.")
 @click.option(
     "--tril-action",
-    type=click.Choice(['reflect', 'drop']),  # 'none'
-    default='reflect',
-    show_default=True,
+    type=click.Choice(['reflect', 'drop', 'none']),
     help="How to handle lower triangle records. " 
          "'reflect': make lower triangle records upper triangular. "
          "Use this if your input data comes only from a unique half of a "
          "symmetric matrix (but may not respect the specified chromosome order). "
          "'drop': discard all lower triangle records. Use this if your input "
          "data has mirror duplicates, i.e. is derived from a complete symmetric "
-         "matrix.")
+         "matrix. Default is 'reflect' when the output is symmetric, 'none' when "
+         "--asymmetric is specified.")
 @click.option(
     "--field",
     help="Add supplemental value fields or override default field numbers for "
@@ -377,6 +376,11 @@ def pairix(bins, pairs_path, cool_path, metadata, assembly, nproc, zero_based, m
     help="Do not delete temporary files when finished.",
     type=bool,
     default=False)
+@click.option(
+    "--asymmetric", "-a",
+    help="Create an asymmetric matrix. This allows for lower triangle values",
+    is_flag=True,
+    default=False)
 # @click.option(
 #     "--format", "-f",
 #     help="Preset data format.",
@@ -384,7 +388,7 @@ def pairix(bins, pairs_path, cool_path, metadata, assembly, nproc, zero_based, m
 # --sep
 def pairs(bins, pairs_path, cool_path, metadata, assembly, chunksize, 
           zero_based, comment_char, tril_action, field, temp_dir,
-          no_delete_temp, **kwargs):
+          no_delete_temp, asymmetric, **kwargs):
     """
     Bin any text file or stream of pairs.
     
@@ -440,6 +444,12 @@ def pairs(bins, pairs_path, cool_path, metadata, assembly, chunksize,
     else:
         f_in = pairs_path
 
+    if tril_action is None:
+        if assymetric:
+            tril_action = 'none'
+        else:
+            tril_action = 'reflect'
+
     reader = pd.read_table(
         f_in, 
         usecols=[input_field_numbers[name] for name in input_field_names],
@@ -474,8 +484,6 @@ def pairs(bins, pairs_path, cool_path, metadata, assembly, chunksize,
         boundscheck=False,
         triucheck=False,
         dupcheck=False,
-        ensure_sorted=False
+        ensure_sorted=False,
+        symmetric=not asymmetric
     )
-
-
-

@@ -98,7 +98,7 @@ def is_cooler(filepath, group=None):
 
 
 def create(cool_uri, bins, pixels, metadata=None, assembly=None, dtypes='<deprecated>',
-           h5opts=None, append=False, lock=None, columns=None, dtype=None,
+           h5opts=None, append=False, lock=None, columns=None, dtype=None, symmetric=True,
            boundscheck=True, triucheck=True, dupcheck=True, ensure_sorted=False, 
            chromsizes='<deprecated>'):
     """
@@ -238,6 +238,10 @@ def create(cool_uri, bins, pixels, metadata=None, assembly=None, dtypes='<deprec
     n_chroms = len(chroms)
     n_bins = len(bins)
 
+    if not symmetric and triucheck:
+        warnings.warn(
+            "Creating a non-symmetric matrix, but `triucheck` was set to True.")
+
     # Chain input validation to the end of the pipeline
     if boundscheck or triucheck or dupcheck or ensure_sorted:
         validator = validate_pixels(
@@ -300,6 +304,7 @@ def create(cool_uri, bins, pixels, metadata=None, assembly=None, dtypes='<deprec
         info = {}
         info['bin-type'] = 'fixed' if binsize is not None else 'variable'
         info['bin-size'] = binsize if binsize is not None else 'null'
+        info['symmetric'] = bool(symmetric)
         info['nchroms'] = n_chroms
         info['nbins'] = n_bins
         info['sum'] = ncontacts
