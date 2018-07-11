@@ -58,6 +58,25 @@ def test_csort():
     assert retcode == 0
 
 
+@with_setup(teardown=partial(teardown_func, testcsort_path, testtbi_path))
+def test_csort_ending_with_pos():
+    # issue #121
+    runner = CliRunner()
+    result = runner.invoke(
+        csort, [
+            op.join(testdir, 'data', 'GM12878-MboI-contacts.subsample.shuffled.4col.txt.gz'),
+            op.join(testdir, 'data', 'hg19-chromsizes.select.txt'),
+            '-c1', '1', '-p1', '2', '-c2', '3', '-p2', '4',
+            '--out', testcsort_path,
+        ]
+    )
+    assert result.exit_code == 0, ''.join(traceback.format_exception(*result.exc_info))
+
+    ref_path = op.join(testdir, 'data', 'GM12878-MboI-contacts.subsample.blksort.4col.txt.gz')
+    retcode = subprocess.call(['zcmp', ref_path, testcsort_path])
+    assert retcode == 0
+
+
 @with_setup(teardown=partial(teardown_func, testcool_path))
 def test_cload_tabix():
     runner = CliRunner()

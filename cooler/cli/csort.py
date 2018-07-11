@@ -47,7 +47,7 @@ with open("{chromosomes_path}", "rb") as f:
 for line in instream:
     if line.startswith(b"{comment_char}"):
         continue
-    parts = line.split(b"{sep}")
+    parts = line.strip().split(b"{sep}")
     chrom1, chrom2 = parts[{c1}], parts[{c2}]
     if chrom1 in chrIDs and chrom2 in chrIDs:
         cid1, cid2 = chrIDs[chrom1], chrIDs[chrom2]
@@ -55,7 +55,7 @@ for line in instream:
         if (cid1 > cid2) or ((cid1 == cid2) and (pos1 > pos2)):
             parts[{c1}], parts[{c2}] = parts[{c2}], parts[{c1}]
             parts[{p1}], parts[{p2}] = parts[{p2}], parts[{p1}]
-        outstream.write(b"\\t".join(parts))
+        outstream.write(b"\\t".join(parts) + b"\\n")
 """
 
 
