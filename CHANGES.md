@@ -1,3 +1,13 @@
+### 0.7.11 (2018-08-17) ###
+
+* Genomic range parser supports humanized units (k/K(b), m/M(b), g/G(b))
+* Experimental support for arbitrary aggregation operations in `cooler csort` (e.g. mean, median, max, min)
+* Documentation updates
+
+Bug fixes
+* Fix newline handling for csort when p1 or p2 is last column.
+* Fix `--count-as-float` regression in load/cload.
+
 ### 0.7.10 (2018-05-07) ###
 
 * Fix a shallow copy bug in validate pixels causing records to sometimes flip twice.
