@@ -478,6 +478,9 @@ def create_from_unordered(cool_uri, bins, chunks, columns=None, dtype=None,
     chromsizes = get_chromsizes(bins)
     bins = bins.copy()
     bins['chrom'] = bins['chrom'].astype(object)
+
+    if dtype is None and 'dtypes' in kwargs:
+        dtype = kwargs.pop('dtypes')
     
     temp_files = []
 
