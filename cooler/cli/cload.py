@@ -32,6 +32,47 @@ def cload():
     pass
 
 
+def _parse_field_params(args):
+    extra_fields = []
+    bad_param = False
+    for arg in args:
+
+        parts = arg.split(',')
+        if len(parts) == 1 or len(parts) > 4:
+            bad_param = True
+        else:
+            name = parts[0]
+            try:
+                number = int(parts[1]) - 1
+            except ValueError:
+                bad_param = True
+
+            if number < 0:
+                raise click.BadParameter(
+                    "Field numbers are assumed to be 1-based.")
+
+            if len(parts) >= 3:
+                dtype = np.dtype(parts[2])
+            else:
+                dtype = None
+
+            if len(parts) == 4:
+                agg = parts[3]
+            else:
+                agg = None
+
+        if bad_param:
+            raise click.BadParameter(
+                "Expected '--field {{name}},{{number}}' "
+                "or '--field {{name}},{{number}},{{dtype}}' "
+                "or '--field {{name}},{{number}},{{dtype}},{{agg}}'; "
+                "got '{}'".format(arg))
+
+        extra_fields.append((name, number, dtype, agg))
+
+    return extra_fields
+
+
 def _parse_bins(arg):
     # Provided chromsizes and binsize
     if ":" in arg:
@@ -288,10 +329,6 @@ def pairix(bins, pairs_path, cool_path, metadata, assembly, nproc, zero_based, m
     help="pos2 field number (one-based)",
     type=int,
     required=True)  #default=5)
-# @click.option(
-#     "--format", "-f",
-#     help="Preset data format.",
-#     type=click.Choice(['4DN', 'BEDPE']))
 @click.option(
     "--chunksize",
     help="Number of input lines to load at a time",
@@ -311,7 +348,7 @@ def pairix(bins, pairs_path, cool_path, metadata, assembly, nproc, zero_based, m
     help="Comment character that indicates lines to ignore.")
 @click.option(
     "--tril-action",
-    type=click.Choice(['reflect', 'drop']),
+    type=click.Choice(['reflect', 'drop']),  # 'none'
     default='reflect',
     show_default=True,
     help="How to handle lower triangle records. " 
@@ -321,18 +358,33 @@ def pairix(bins, pairs_path, cool_path, metadata, assembly, nproc, zero_based, m
          "'drop': discard all lower triangle records. Use this if your input "
          "data has mirror duplicates, i.e. is derived from a complete symmetric "
          "matrix.")
+@click.option(
+    "--field",
+    help="Add supplemental value fields or override default field numbers for "
+         "the specified format. Specify as '<name>,<number>' or as "
+         "'<name>,<number>,<dtype>' or as '<name>,<number>,<dtype>,<agg>' to "
+         "enforce a dtype other than `float` or the default for a standard "
+         "column. Field numbers are 1-based. Repeat the `--field` option for "
+         "each additional field. ",
+    type=str,
+    multiple=True)
+@click.option(
+    "--temp-dir",
+    help="Create temporary files in specified directory.",
+    type=str)
+@click.option(
+    "--no-delete-temp",
+    help="Do not delete temporary files when finished.",
+    type=bool,
+    default=False)
 # @click.option(
-#     "--field",
-#     help="Add supplemental value fields or override default field numbers for "
-#          "the specified format. Specify as '<name>,<number>' or as "
-#          "'<name>,<number>,<dtype>' or '<name>,<number>,<dtype>,<agg>' to enforce a dtype other than `float` or "
-#          "the default for a standard column. Field numbers are 1-based. "
-#          "Repeat the `--field` option for each additional field. ",
-#     type=str,
-#     multiple=True)
+#     "--format", "-f",
+#     help="Preset data format.",
+#     type=click.Choice(['4DN', 'BEDPE']))
 # --sep
-# --count-as-float
-def pairs(bins, pairs_path, cool_path, metadata, assembly, chunksize, zero_based, comment_char, tril_action, **kwargs):
+def pairs(bins, pairs_path, cool_path, metadata, assembly, chunksize, 
+          zero_based, comment_char, tril_action, field, temp_dir,
+          no_delete_temp, **kwargs):
     """
     Bin any text file or stream of pairs.
     
@@ -349,25 +401,39 @@ def pairs(bins, pairs_path, cool_path, metadata, assembly, chunksize, zero_based
             metadata = json.load(f)
 
     input_field_names = [
-        'chrom1', 'pos1', 'chrom2', 'pos2' 
+        'chrom1', 'pos1', 'chrom2', 'pos2',
     ]
     input_field_dtypes = {
-        'chrom1': str, 'pos1': int,
-        'chrom2': str, 'pos2': int,
+        'chrom1': str, 'pos1': np.int64,
+        'chrom2': str, 'pos2': np.int64,
     }
-    # input_field_numbers = {
-    #     'chrom1': 0, 'pos1': 1, 
-    #     'chrom2': 3, 'pos2': 4,
-    # }
     input_field_numbers = {}
     for name in ['chrom1', 'pos1', 'chrom2', 'pos2']:
         if kwargs[name] == 0:
-            raise click.BadParameter("Field numbers start at 1", 
+            raise click.BadParameter(
+                "Field numbers start at 1", 
                 param_hint=name)
         input_field_numbers[name] = kwargs[name] - 1
 
-    output_field_names = None
-    output_field_dtypes = None
+    # include any additional value columns
+    output_field_names = []
+    output_field_dtypes = {}
+    aggregations = {}
+    if len(field):
+        extra_fields = _parse_field_params(field)
+        for name, number, dtype, agg in extra_fields:
+            if name not in input_field_names:
+                input_field_names.append(name)
+                output_field_names.append(name)
+            
+            input_field_numbers[name] = number
+
+            if dtype is not None:
+                input_field_dtypes[name] = dtype
+                output_field_dtypes[name] = dtype
+
+            if agg is not None:
+                aggregations[name] = agg
 
     if pairs_path == '-':
         f_in = sys.stdin
@@ -391,7 +457,7 @@ def pairs(bins, pairs_path, cool_path, metadata, assembly, chunksize, zero_based
         tril_action=tril_action, 
         sort=True,
         validate=True)
-    aggregate = aggregate_records(agg=None, sort=False)
+    aggregate = aggregate_records(agg=aggregations, sort=False)
     pipeline = compose(aggregate, sanitize)
 
     create_from_unordered(
@@ -403,6 +469,8 @@ def pairs(bins, pairs_path, cool_path, metadata, assembly, chunksize, zero_based
         metadata=metadata, 
         assembly=assembly,
         mergebuf=chunksize,
+        temp_dir=temp_dir,
+        delete_temp=not no_delete_temp,
         boundscheck=False,
         triucheck=False,
         dupcheck=False,

@@ -303,10 +303,10 @@ def coarsen(cool_uri, factor, nproc, chunksize, out):
     default=int(10e6),
     show_default=True)
 @click.option(
-    '--balance/--no-balance',
-    help="Apply balancing to each zoom level",
-    default=False,
-    show_default=True)
+    '--balance',
+    help="Apply balancing to each zoom level. Off by default.",
+    is_flag=True,
+    default=False)
 @click.option(
     '--balance-args',
     help="Additional arguments to pass to cooler balance",

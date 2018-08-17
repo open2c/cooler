@@ -269,7 +269,10 @@ class Cooler(object):
             the 'count' column is used.
         balance : bool, optional
             Whether to apply pre-calculated matrix balancing weights to the
-            selection. Default is True.
+            selection. Default is True and uses a column named 'weight'.
+            Alternatively, pass the name of the bin table column containing
+            the desired balancing weights. Set to False to return untransformed 
+            counts.
         sparse: bool, optional
             Return a scipy.sparse.coo_matrix instead of a dense 2D numpy array.
         as_pixels: bool, optional
@@ -532,7 +535,9 @@ def matrix(h5, i0, i1, j0, j1, field=None, balance=True, sparse=False,
         the 'count' column is used.
     balance : bool, optional
         Whether to apply pre-calculated matrix balancing weights to the
-        selection. Default is True.
+        selection. Default is True and uses a column named 'weight'.
+        Alternatively, pass the name of the bin table column containing the
+        desired balancing weights. Set to False to return untransformed counts.
     sparse: bool, optional
         Return a scipy.sparse.coo_matrix instead of a dense 2D numpy array.
     as_pixels: bool, optional
