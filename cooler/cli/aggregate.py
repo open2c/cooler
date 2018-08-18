@@ -100,11 +100,18 @@ def multires_aggregate(input_uri, outfile, nproc, chunksize, lock=None):
         + str(binsize))
     
     # Copy base matrix
-    with h5py.File(infile, 'r') as src, \
-         h5py.File(outfile, 'w') as dest:
+    try:
+        with h5py.File(infile, 'r') as src, \
+                h5py.File(outfile, 'w') as dest:
 
-        src.copy(ingroup, dest, str(zoomLevel))
-        zoom_levels[zoomLevel] = binsize
+            src.copy(ingroup, dest, str(zoomLevel))
+            zoom_levels[zoomLevel] = binsize
+    except OSError:
+        logger.error("Error opening output file." +
+        "Make sure it doesn't already exist "
+        "and you have permission to create files " +
+        "in this directory")
+        return 0,0
     
     # Aggregate
     # Use lock to sync read/write ops on same file
