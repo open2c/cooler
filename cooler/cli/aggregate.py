@@ -49,6 +49,7 @@ def aggregate(input_uri, output_uri, factor, nproc, chunksize, lock):
             new_bins,
             iterator,
             lock=lock,
+            dtypes=dict(c.pixels()[:0].dtypes),
             append=True)
 
     finally:
