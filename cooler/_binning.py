@@ -1153,7 +1153,7 @@ def _sanitize_records(chunk, gs, decode_chroms, is_one_based, tril_action,
             err = chunk[is_neg]
             raise BadInputError(
                 "Found an anchor position with negative value:\n{}".format(
-                err.to_csv(sep='\t')))
+                err.head().to_csv(sep='\t')))
         
         chromsizes1 = gs.chromsizes[chrom1_ids].values
         chromsizes2 = gs.chromsizes[chrom2_ids].values
@@ -1162,7 +1162,7 @@ def _sanitize_records(chunk, gs, decode_chroms, is_one_based, tril_action,
             err = chunk[is_excess]
             raise BadInputError(
                 "Found an anchor position exceeding chromosome length:\n{}".format(
-                err.to_csv(sep='\t')))
+                err.head().to_csv(sep='\t')))
 
     # Handle lower triangle records
     if tril_action is not None:
@@ -1191,7 +1191,7 @@ def _sanitize_records(chunk, gs, decode_chroms, is_one_based, tril_action,
             elif tril_action == 'raise':
                 err = chunk[is_tril]
                 raise BadInputError("Found lower triangle pairs:\n{}".format(
-                    err.to_csv(sep='\t')))
+                    err.head().to_csv(sep='\t')))
             else:
                 raise ValueError("Unknown tril_action value: '{}'".format(
                     tril_action))
@@ -1364,7 +1364,7 @@ def _validate_pixels(chunk, n_bins, boundscheck, triucheck, dupcheck, ensure_sor
         is_dup = chunk.duplicated(['bin1_id', 'bin2_id'])
         if is_dup.any():
             err = chunk[is_dup]
-            raise BadInputError("Found duplicate pixels:\n{}".format(err.to_csv(sep='\t')))
+            raise BadInputError("Found duplicate pixels:\n{}".format(err.head().to_csv(sep='\t')))
 
     if ensure_sorted:
         chunk = chunk.sort_values(['bin1_id', 'bin2_id'])
