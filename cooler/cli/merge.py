@@ -15,7 +15,7 @@ from ..io import create, CoolerMerger
 @click.argument(
     "in_paths",
     nargs=-1,
-    type=click.Path(exists=True))
+    type=click.Path(exists=False))
 @click.option(
     "--chunksize", "-c",
     type=int,
