@@ -445,8 +445,8 @@ def pairs(bins, pairs_path, cool_path, metadata, assembly, chunksize,
         f_in = pairs_path
 
     if tril_action is None:
-        if assymetric:
-            tril_action = 'none'
+        if asymmetric:
+            tril_action = None
         else:
             tril_action = 'reflect'
 

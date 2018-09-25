@@ -496,7 +496,7 @@ def create_from_unordered(cool_uri, bins, chunks, columns=None, dtype=None,
                 dir=temp_dir)
             temp_files.append(tf)
             logger.info('Writing chunk {}: {}'.format(i, tf.name))
-            create(tf.name, bins, chunk, columns=columns, dtype=dtype)
+            create(tf.name, bins, chunk, columns=columns, dtype=dtype, **kwargs)
         chunks = CoolerMerger([Cooler(tf.name) for tf in temp_files], mergebuf)
     else:
         tf = tempfile.NamedTemporaryFile(
@@ -510,7 +510,7 @@ def create_from_unordered(cool_uri, bins, chunks, columns=None, dtype=None,
             uri = tf.name + '::' + str(i)
             uris.append(uri)
             logger.info('Writing chunk {}: {}'.format(i, uri))
-            create(uri, bins, chunk, columns=columns, dtype=dtype, append=True)
+            create(uri, bins, chunk, columns=columns, dtype=dtype, append=True, **kwargs)
         chunks = CoolerMerger([Cooler(uri) for uri in uris], mergebuf)
 
     logger.info('Merging into {}'.format(cool_uri))
