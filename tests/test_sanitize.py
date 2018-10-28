@@ -3,7 +3,7 @@ from six import StringIO
 import numpy as np
 import pandas as pd
 import cooler
-from cooler._binning import sanitize_pixels, sanitize_records, BadInputError
+from cooler.io import sanitize_pixels, sanitize_records, BadInputError
 
 from nose.tools import assert_raises
 
