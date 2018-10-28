@@ -19,7 +19,6 @@ from .ingestion import ContactBinner
 from .utils import parse_cooler_uri, get_binsize, GenomeSegmentation
 from ..util import binnify
 from ..tools import lock
-from .. import api
 
 
 __all__ = ['merge', 'coarsen', 'zoomify']
@@ -155,7 +154,7 @@ class CoolerAggregator(ContactBinner):
 
     """
     def __init__(self, source_uri, bins, chunksize, batchsize, map=map):
-        from cooler.api import Cooler
+        from ..api import Cooler
         self._map = map
         self.source_uri = source_uri
         self.chunksize = chunksize
@@ -172,7 +171,7 @@ class CoolerAggregator(ContactBinner):
         self.factor = self.new_binsize // self.old_binsize
     
     def _aggregate(self, span):
-        from cooler.api import Cooler
+        from ..api import Cooler
         lo, hi = span
 
         clr = Cooler(self.source_uri)
@@ -254,7 +253,8 @@ class CoolerAggregator(ContactBinner):
 
 def aggregate(input_uri, output_uri, factor, nproc, chunksize, lock):
     from .creation import create
-    c = api.Cooler(input_uri)
+    from ..api import Cooler
+    c = Cooler(input_uri)
     chromsizes = c.chromsizes
     new_binsize = c.binsize * factor
     new_bins = binnify(chromsizes, new_binsize)
@@ -357,9 +357,10 @@ def multires_aggregate(input_uri, outfile, nproc, chunksize, lock=None):
     Quad-tree tiling for HiGlass
 
     """
+    from ..api import Cooler
     infile, ingroup = parse_cooler_uri(input_uri)
 
-    clr = api.Cooler(infile, ingroup)
+    clr = Cooler(infile, ingroup)
     n_zooms = get_quadtree_depth(clr.chromsizes, clr.binsize)
     factor = 2
 
@@ -423,11 +424,12 @@ def multires_aggregate(input_uri, outfile, nproc, chunksize, lock=None):
 
 def new_multires_aggregate(input_uris, outfile, resolutions, nproc, chunksize, 
                            lock=None):
+    from ..api import Cooler
     uris = {}
     bases = set()
     for input_uri in input_uris:
         infile, ingroup = parse_cooler_uri(input_uri)
-        base_binsize = api.Cooler(infile, ingroup).binsize
+        base_binsize = Cooler(infile, ingroup).binsize
         uris[base_binsize] = (infile, ingroup)
         bases.add(base_binsize)
 
