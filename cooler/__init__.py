@@ -13,20 +13,20 @@ A cool place to store your Hi-C.
 import logging
 __version__ = '0.7.12-dev'
 __format_version__ = 2
-_logger = None
+_loggers = {}
 
 
-def get_logger():
+def get_logger(name='cooler'):
     # Based on ipython traitlets
-    global _logger
+    global _loggers
 
-    if _logger is None:
-        _logger = logging.getLogger('cooler')
+    if name not in _loggers:
+        _loggers[name] = logging.getLogger(name)
         # Add a NullHandler to silence warnings about not being
         # initialized, per best practice for libraries.
-        _logger.addHandler(logging.NullHandler())
+        _loggers[name].addHandler(logging.NullHandler())
 
-    return _logger
+    return _loggers[name]
 
 
 from .api import Cooler, get, info, chroms, bins, pixels, matrix, annotate

@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 from __future__ import division, print_function
-from signal import signal, SIGPIPE, SIG_DFL
 import os.path as op
 import subprocess
 import shlex
@@ -17,8 +16,8 @@ except ImportError:
     import os
     DEVNULL = open(os.devnull, 'wb')
 
-signal(SIGPIPE, SIG_DFL)
-logger = get_logger()
+
+logger = get_logger(__name__)
 
 
 SORT_POS = 'sort -k{C1},{C1} -k{P1},{P1}n -k{C2},{C2} -k{P2},{P2}n'
@@ -61,7 +60,7 @@ for line in instream:
 
 def _has_parallel_sort():
     return subprocess.call(['sort', '--parallel=1'],
-                           stdin=DEVNULL, 
+                           stdin=DEVNULL,
                            stdout=DEVNULL,
                            stderr=DEVNULL) == 0
 
@@ -74,9 +73,9 @@ def _validate_fieldnum(ctx, param, value):
 
 def make_read_command(infile):
     """
-    If input file appears gzipped based its extension, read using one of pigz 
+    If input file appears gzipped based its extension, read using one of pigz
     or gzip for decompression. Otherwise assume uncompressed and use cat.
-    
+
     Note
     ----
     Gzip decompression can't actually be parallelized, but pigz will create
@@ -226,20 +225,20 @@ def make_index_command(index, fields, zero_based, outfile):
     help="strand2 field number (deprecated)",
     type=int)
 def csort(pairs_path, chromosomes_path, index, chrom1, chrom2, pos1, pos2,
-          flip_only, nproc, zero_based, sep, comment_char, sort_options, out, 
+          flip_only, nproc, zero_based, sep, comment_char, sort_options, out,
           **kwargs):
     """
     Sort and index a contact list.
 
-    Order the mates of each pair record so that all contacts are upper 
+    Order the mates of each pair record so that all contacts are upper
     triangular with respect to the chromosome ordering given by the chromosomes
-    file, sort contacts by genomic location, and index the resulting file. 
+    file, sort contacts by genomic location, and index the resulting file.
 
     Notes:
 
     \b
-    - csort can also be used to sort and index a text representation of 
-      a contact _matrix_ in bedGraph-like format. In this case, substitute 
+    - csort can also be used to sort and index a text representation of
+      a contact _matrix_ in bedGraph-like format. In this case, substitute
       `pos1` and `pos2` with `start1` and `start2`, respectively.
     - Requires Unix tools: sort, bgzip + tabix or pairix.
 
@@ -248,7 +247,7 @@ def csort(pairs_path, chromosomes_path, index, chrom1, chrom2, pos1, pos2,
     \b
     - Upper triangular: the read pairs on each row are assigned to side 1 or 2
       in such a way that (chrom1, pos1) is always "less than" (chrom2, pos2)
-    - Rows are lexicographically sorted by chrom1, pos1, chrom2, pos2; 
+    - Rows are lexicographically sorted by chrom1, pos1, chrom2, pos2;
       i.e. "positionally sorted"
     - Compressed with bgzip [*]
     - Indexed using Tabix [*] on chrom1 and pos1.
@@ -258,7 +257,7 @@ def csort(pairs_path, chromosomes_path, index, chrom1, chrom2, pos1, pos2,
     \b
     - Upper triangular: the read pairs on each row are assigned to side 1 or 2
       in such a way that (chrom1, pos1) is always "less than" (chrom2, pos2)
-    - Rows are lexicographically sorted by chrom1, chrom2, pos1, pos2; i.e. 
+    - Rows are lexicographically sorted by chrom1, chrom2, pos1, pos2; i.e.
       "block sorted"
     - Compressed with bgzip [*]
     - Indexed using Pairix [+] on chrom1, chrom2 and pos1.
@@ -268,7 +267,7 @@ def csort(pairs_path, chromosomes_path, index, chrom1, chrom2, pos1, pos2,
     [+] Pairix on Github: <https://github.com/4dn-dcic/pairix>
 
     \b\bArguments:
-    
+
     PAIRS_PATH : Contacts (i.e. read pairs) text file, optionally compressed.
 
     CHROMOSOMES_PATH : File listing desired chromosomes in the desired order.
@@ -276,6 +275,14 @@ def csort(pairs_path, chromosomes_path, index, chrom1, chrom2, pos1, pos2,
     other chromosomes will be discarded.
 
     """
+    if os.name == 'nt':
+        raise click.Abort(
+            '"cooler csort" does not work on Windows. To ingest unsorted pairs '
+            'data, see the "cooler cload pairs" command.')
+
+    from signal import signal, SIGPIPE, SIG_DFL
+    signal(SIGPIPE, SIG_DFL)
+
     # Check for required Unix tools
     for tool in ['sort', 'bgzip'] + [index]:
         if not cmd_exists(tool):
@@ -298,7 +305,7 @@ def csort(pairs_path, chromosomes_path, index, chrom1, chrom2, pos1, pos2,
             ext = '.txt.gz'
         if index == 'pairix':
             sort_style = '.blksrt'
-        else: 
+        else:
             sort_style = '.possrt'
         outfile = prefix + sort_style + ext
     else:
@@ -309,7 +316,7 @@ def csort(pairs_path, chromosomes_path, index, chrom1, chrom2, pos1, pos2,
         sort_options = shlex.split(sort_options)
     elif _has_parallel_sort():
         sort_options = [
-            '--parallel={}'.format(nproc), 
+            '--parallel={}'.format(nproc),
             '--buffer-size=50%'
         ]
     else:
@@ -399,7 +406,7 @@ def csort(pairs_path, chromosomes_path, index, chrom1, chrom2, pos1, pos2,
             pipeline.append(
                 subprocess.Popen(
                     write_cmd,
-                    stdin=pipeline[-1].stdout, 
+                    stdin=pipeline[-1].stdout,
                     stdout=fout)
             )
 
@@ -411,7 +418,7 @@ def csort(pairs_path, chromosomes_path, index, chrom1, chrom2, pos1, pos2,
                     sys.exit(1)
 
         # Create index file
-        logger.info("Indexing...")        
+        logger.info("Indexing...")
         logger.info("Indexer: {}".format(index))
         logger.info(' '.join(index_cmd))
         p = subprocess.Popen(index_cmd)

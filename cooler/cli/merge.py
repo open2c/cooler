@@ -3,9 +3,10 @@ from __future__ import division, print_function
 from multiprocess import Pool
 
 import click
-from . import cli, logger
+from . import cli, get_logger
 from ..api import Cooler
-from ..io import create, CoolerMerger
+from ..io import create
+from ..reduce import CoolerMerger
 
 
 @cli.command()
@@ -37,6 +38,7 @@ def merge(out_path, in_paths, chunksize):
     Additional columns in the the input files are not preserved in the output.
 
     """
+    logger = get_logger(__name__)
     logger.info("Merging:\n{}".format('\n'.join(in_paths)))
     clrs = [Cooler(path) for path in in_paths]
     chromsizes = clrs[0].chromsizes

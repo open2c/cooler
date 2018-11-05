@@ -10,7 +10,7 @@ import pandas as pd
 import h5py
 
 import click
-from . import cli, logger
+from . import cli, get_logger
 from .. import ice
 from ..io import parse_cooler_uri
 from ..api import Cooler
@@ -139,6 +139,7 @@ def balance(cool_uri, nproc, chunksize, mad_max, min_nnz, min_count, blacklist,
     COOL_PATH : Path to a COOL file.
 
     """
+    logger = get_logger(__name__)
     cool_path, group_path = parse_cooler_uri(cool_uri)
 
     if check:

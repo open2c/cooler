@@ -21,7 +21,7 @@ def parse_humanized(s):
     _, value, unit = _NUMERIC_RE.split(s.replace(',', ''))
     if not len(unit):
         return int(value)
-    
+
     value = float(value)
     unit = unit.upper().strip()
     if unit in ('K', 'KB'):
@@ -45,7 +45,7 @@ def parse_region_string(s):
         UCSC-style string, e.g. "chr5:10,100,000-30,000,000". Ensembl and FASTA
         style sequence names are allowed. End coordinate must be greater than or
         equal to start.
-    
+
     Returns
     -------
     (str, int or None, int or None)
@@ -85,7 +85,7 @@ def parse_region_string(s):
         if typ is None:
             return start, None
 
-        _check_token(typ, token, ['COORD'])    
+        _check_token(typ, token, ['COORD'])
         end = parse_humanized(token)
         if end < start:
             raise ValueError('End coordinate less than start')
@@ -117,7 +117,7 @@ def parse_region(reg, chromsizes=None):
     Returns
     -------
     A well-formed genomic region triple (str, int, int)
-    
+
     """
     if isinstance(reg, six.string_types):
         chrom, start, end = parse_region_string(reg)
@@ -130,7 +130,7 @@ def parse_region(reg, chromsizes=None):
         clen = chromsizes[chrom] if chromsizes is not None else None
     except KeyError:
         raise ValueError("Unknown sequence label: {}".format(chrom))
-    
+
     start = 0 if start is None else start
     if end is None:
         if clen is None:  # TODO --- remove?
@@ -139,11 +139,11 @@ def parse_region(reg, chromsizes=None):
 
     if end < start:
         raise ValueError("End cannot be less than start")
-    
+
     if start < 0 or (clen is not None and end > clen):
         raise ValueError(
             "Genomic region out of bounds: [{}, {})".format(start, end))
-    
+
     return chrom, start, end
 
 
@@ -215,7 +215,7 @@ def fetch_chromsizes(db, **kwargs):
 
     """
     return read_chromsizes(
-        'http://hgdownload.cse.ucsc.edu/goldenPath/{}/database/chromInfo.txt.gz'.format(db), 
+        'http://hgdownload.cse.ucsc.edu/goldenPath/{}/database/chromInfo.txt.gz'.format(db),
         **kwargs)
 
 
@@ -278,15 +278,15 @@ def binnify(chromsizes, binsize):
                 'start': binedges[:-1],
                 'end': binedges[1:],
             }, columns=['chrom', 'start', 'end'])
-    
+
     bintable = pd.concat(
         map(_each, chromsizes.keys()),
-        axis=0, 
+        axis=0,
         ignore_index=True)
-    
+
     bintable['chrom'] = pd.Categorical(
-        bintable['chrom'], 
-        categories=list(chromsizes.index), 
+        bintable['chrom'],
+        categories=list(chromsizes.index),
         ordered=True)
 
     return bintable
@@ -357,7 +357,7 @@ def get_binsize(bins):
 
 def get_chromsizes(bins):
     """
-    Infer chromsizes Series from a bin DataFrame. Assumes that the last bin of 
+    Infer chromsizes Series from a bin DataFrame. Assumes that the last bin of
     each contig is allowed to differ in size from the rest.
 
     Returns
@@ -581,7 +581,7 @@ def unstar(func):
 
 def infer_meta(x, index=None):
     """
-    Extracted and modified from dask/dataframe/utils.py : 
+    Extracted and modified from dask/dataframe/utils.py :
         make_meta (BSD licensed)
 
     Create an empty pandas object containing the desired metadata.
@@ -679,7 +679,7 @@ def infer_meta(x, index=None):
 def get_meta(columns, dtype=None, index_columns=None, index_names=None,
              default_dtype=np.object):
     """
-    Extracted and modified from pandas/io/parsers.py : 
+    Extracted and modified from pandas/io/parsers.py :
         _get_empty_meta (BSD licensed).
 
     """
@@ -717,3 +717,70 @@ def get_meta(columns, dtype=None, index_columns=None, index_names=None,
                 for col_name in columns}
 
     return pd.DataFrame(col_dict, columns=columns, index=index)
+
+
+def check_bins(bins, chromsizes):
+    is_cat = pd.api.types.is_categorical(bins['chrom'])
+    bins = bins.copy()
+    if not is_cat:
+        bins['chrom'] = pd.Categorical(
+            bins.chrom,
+            categories=list(chromsizes.index),
+            ordered=True)
+    else:
+        assert (bins['chrom'].cat.categories == chromsizes.index).all()
+
+    return bins
+
+
+def balanced_partition(gs, n_chunk_max, file_contigs, loadings=None):
+    n_bins = len(gs.bins)
+    grouped = gs._bins_grouped
+
+    chrom_nbins = grouped.size()
+    if loadings is None:
+        loadings = chrom_nbins
+    chrmax = loadings.idxmax()
+    loadings = loadings / loadings.loc[chrmax]
+    const = chrom_nbins.loc[chrmax] / n_chunk_max
+
+    granges = []
+    for chrom, group in grouped:
+        if chrom not in file_contigs:
+            continue
+        clen = gs.chromsizes[chrom]
+        step = int(np.ceil(const / loadings.loc[chrom]))
+        anchors = group.start.values[::step]
+        if anchors[-1] != clen:
+            anchors = np.r_[anchors, clen]
+        granges.extend( (chrom, start, end)
+            for start, end in zip(anchors[:-1], anchors[1:]))
+    return granges
+
+
+class GenomeSegmentation(object):
+    def __init__(self, chromsizes, bins):
+        bins = check_bins(bins, chromsizes)
+        self._bins_grouped = bins.groupby('chrom', sort=False)
+        nbins_per_chrom = self._bins_grouped.size().values
+
+        self.chromsizes = chromsizes
+        self.binsize = get_binsize(bins)
+        self.contigs = list(chromsizes.keys())
+        self.bins = bins
+        self.idmap = pd.Series(
+            index=chromsizes.keys(),
+            data=range(len(chromsizes)))
+        self.chrom_binoffset = np.r_[0, np.cumsum(nbins_per_chrom)]
+        self.chrom_abspos = np.r_[0, np.cumsum(chromsizes.values)]
+        self.start_abspos = (self.chrom_abspos[bins['chrom'].cat.codes] +
+                             bins['start'].values)
+
+    def fetch(self, region):
+        chrom, start, end = parse_region(region, self.chromsizes)
+        result = self._bins_grouped.get_group(chrom)
+        if start > 0 or end < self.chromsizes[chrom]:
+            lo = result['end'].values.searchsorted(start, side='right')
+            hi = lo + result['start'].values[lo:].searchsorted(end, side='left')
+            result = result.iloc[lo:hi]
+        return result

@@ -1,75 +1,75 @@
 # -*- coding: utf-8 -*-
-from __future__ import division, print_function
+from __future__ import absolute_import, print_function, division
 from collections import OrderedDict
 from bisect import bisect_right
 from six.moves import map
-import itertools
 import multiprocess as mp
 import os.path as op
+import itertools
 import shlex
 import math
 import sys
 import six
+
 import pandas as pd
 import numpy as np
 import h5py
 
-from .. import get_logger
-from .ingestion import ContactBinner
-from .utils import parse_cooler_uri, get_binsize, GenomeSegmentation
-from ..util import binnify
-from ..tools import lock
+from . import get_logger
+from .io import parse_cooler_uri, ContactBinner, create
+from .util import binnify, get_binsize, GenomeSegmentation
+from .tools import lock
 
 
 __all__ = ['merge', 'coarsen', 'zoomify']
 
 
-logger = get_logger()
+logger = get_logger(__name__)
 
 
 def merge_breakpoints(indexes, maxbuf):
     """
-    Partition k offset arrays for performing a k-way external merge, such that 
-    no single merge pass loads more than ``maxbuf`` records  into memory, with 
+    Partition k offset arrays for performing a k-way external merge, such that
+    no single merge pass loads more than ``maxbuf`` records  into memory, with
     one exception (see Notes).
-    
+
     Parameters
     ----------
     indexes : sequence of 1D arrays of equal length
-        These offset-array indexes map non-negative integers to their offset 
+        These offset-array indexes map non-negative integers to their offset
         locations in a corresponding data table
     maxbuf : int
-        Maximum cumulative number of records loaded into memory for a single 
+        Maximum cumulative number of records loaded into memory for a single
         merge pass
-        
+
     Returns
     -------
     breakpoints : 1D array
         breakpoint locations to segment all the offset arrays
     cum_offset : 1D array
         cumulative number of records that will be processed at each breakpoint
-        
+
     Notes
     -----
-    The one exception to the post-condition is if any single increment of the 
-    indexes maps to more than ``maxbuf`` records, these will produce 
+    The one exception to the post-condition is if any single increment of the
+    indexes maps to more than ``maxbuf`` records, these will produce
     oversized chunks.
-    
+
     """
     k = len(indexes)
-    
+
     # the virtual cumulative index if no pixels were merged
     cumindex = np.vstack(indexes).sum(axis=0)
     cum_start = 0
     cum_nnz = cumindex[-1]
     n = len(cumindex)
-    
+
     breakpoints = [0]
     cum_offsets = [0]
     lo = 0
     while True:
         # find the next mark
-        hi = bisect_right(cumindex, min(cum_start + maxbuf, cum_nnz), lo=lo) - 1  
+        hi = bisect_right(cumindex, min(cum_start + maxbuf, cum_nnz), lo=lo) - 1
         if hi == lo:
             # number of records to nearest mark exceeds `maxbuf`
             # check for oversized chunks afterwards
@@ -77,13 +77,13 @@ def merge_breakpoints(indexes, maxbuf):
 
         breakpoints.append(hi)
         cum_offsets.append(cumindex[hi])
-        
+
         if cumindex[hi] == cum_nnz:
             break
-        
+
         lo = hi
         cum_start = cumindex[hi]
-    
+
     breakpoints = np.array(breakpoints)
     cum_offsets = np.array(cum_offsets)
     return breakpoints, cum_offsets
@@ -97,7 +97,7 @@ class CoolerMerger(ContactBinner):
     def __init__(self, coolers, maxbuf, **kwargs):
         self.coolers = list(coolers)
         self.maxbuf = maxbuf
-        
+
         # check compatibility between input coolers
         binsize = coolers[0].binsize
         if binsize is not None:
@@ -132,29 +132,29 @@ class CoolerMerger(ContactBinner):
 
             # extract, concat
             combined = pd.concat(
-                [c.pixels()[start:stop] 
+                [c.pixels()[start:stop]
                     for c, start, stop in zip(self.coolers, starts, stops)
                         if (stop - start) > 0],
                 axis=0,
                 ignore_index=True)
-            
+
             # sort and aggregate
             df = (combined.groupby(['bin1_id', 'bin2_id'], sort=True)
                           .aggregate({'count': np.sum})
                           .reset_index())
-            
+
             yield {k: v.values for k, v in six.iteritems(df)}
-            
+
             starts = stops
 
 
-class CoolerAggregator(ContactBinner):
+class CoolerCoarsener(ContactBinner):
     """
     Aggregate contacts from an existing Cooler file.
 
     """
     def __init__(self, source_uri, bins, chunksize, batchsize, map=map):
-        from ..api import Cooler
+        from .api import Cooler
         self._map = map
         self.source_uri = source_uri
         self.chunksize = chunksize
@@ -169,9 +169,9 @@ class CoolerAggregator(ContactBinner):
         self.new_binsize = get_binsize(bins)
         assert self.new_binsize % self.old_binsize == 0
         self.factor = self.new_binsize // self.old_binsize
-    
+
     def _aggregate(self, span):
-        from ..api import Cooler
+        from .api import Cooler
         lo, hi = span
 
         clr = Cooler(self.source_uri)
@@ -195,12 +195,12 @@ class CoolerAggregator(ContactBinner):
             abs_start1 = chrom_abspos[chrom_id1] + start1
             abs_start2 = chrom_abspos[chrom_id2] + start2
             chunk['bin1_id'] = np.searchsorted(
-                start_abspos, 
-                abs_start1, 
+                start_abspos,
+                abs_start1,
                 side='right') - 1
             chunk['bin2_id'] = np.searchsorted(
-                start_abspos, 
-                abs_start2, 
+                start_abspos,
+                abs_start2,
                 side='right') - 1
         else:
             rel_bin1 = np.floor(start1/binsize).astype(int)
@@ -224,7 +224,7 @@ class CoolerAggregator(ContactBinner):
         chunksize = self.chunksize
         batchsize = self.batchsize
         factor = self.factor
-        
+
         # Partition pixels into chunks, respecting chrom1 boundaries
         spans = []
         for chrom, i in six.iteritems(self.gs.idmap):
@@ -233,13 +233,13 @@ class CoolerAggregator(ContactBinner):
             c1 = old_chrom_offset[i + 1]
             step = (chunksize // factor) * factor
             edges = np.arange(
-                old_bin1_offset[c0], 
-                old_bin1_offset[c1] + step, 
+                old_bin1_offset[c0],
+                old_bin1_offset[c1] + step,
                 step)
             edges[-1] = old_bin1_offset[c1]
             spans.append(zip(edges[:-1], edges[1:]))
         spans = list(itertools.chain.from_iterable(spans))
-        
+
         # Process batches of k chunks at a time, then yield the results
         for i in range(0, len(spans), batchsize):
             try:
@@ -251,44 +251,12 @@ class CoolerAggregator(ContactBinner):
                 yield {k: v.values for k, v in six.iteritems(df)}
 
 
-def aggregate(input_uri, output_uri, factor, nproc, chunksize, lock):
-    from .creation import create
-    from ..api import Cooler
-    c = Cooler(input_uri)
-    chromsizes = c.chromsizes
-    new_binsize = c.binsize * factor
-    new_bins = binnify(chromsizes, new_binsize)
-
-    try:
-        # Note: fork before opening to prevent inconsistent global HDF5 state
-        if nproc > 1:
-            pool = mp.Pool(nproc)
-
-        iterator = CoolerAggregator(
-            input_uri,
-            new_bins,
-            chunksize,
-            batchsize=nproc,
-            map=pool.map if nproc > 1 else map)
-
-        create(
-            output_uri,
-            new_bins,
-            iterator,
-            lock=lock,
-            append=True)
-
-    finally:
-        if nproc > 1:
-            pool.close()
-
-
 def get_multiplier_sequence(resolutions, bases=None):
     """
     From a set of target resolutions and one or more base resolutions
     deduce the most efficient sequence of integer multiple aggregations
     to satisfy all targets starting from the base resolution(s).
-    
+
     Parameters
     ----------
     resolutions: sequence of int
@@ -296,7 +264,7 @@ def get_multiplier_sequence(resolutions, bases=None):
     bases: sequence of int, optional
         The base resolutions for which data already exists.
         If not provided, the smallest resolution is assumed to be the base.
-    
+
     Returns
     -------
     resn: 1D array
@@ -306,7 +274,7 @@ def get_multiplier_sequence(resolutions, bases=None):
         that the resolution is a base resolution.
     mult: 1D array
         Multiplier to go from predecessor to target resolution.
-    
+
     """
     if bases is None:
         # assume the base resolution is the smallest one
@@ -317,7 +285,7 @@ def get_multiplier_sequence(resolutions, bases=None):
     resn = np.array(sorted(bases.union(resolutions)))
     pred = -np.ones(len(resn), dtype=int)
     mult = -np.ones(len(resn), dtype=int)
-  
+
     for i, target in list(enumerate(resn))[::-1]:
         p = i - 1
         while p >= 0:
@@ -327,13 +295,13 @@ def get_multiplier_sequence(resolutions, bases=None):
                 break
             else:
                 p -= 1
-    
+
     for i, p in enumerate(pred):
         if p == -1 and resn[i] not in bases:
             raise ValueError(
                 "Resolution {} cannot be derived from "
                 "the base resolutions: {}.".format(resn[i], bases))
-            
+
     return resn, pred, mult
 
 
@@ -343,7 +311,7 @@ QUAD_TILE_SIZE_PIXELS = 256
 def get_quadtree_depth(chromsizes, binsize):
     """
     Depth of quad tree necessary to tesselate the concatenated genome with quad
-    tiles such that linear dimension of the tiles is a preset multiple of the 
+    tiles such that linear dimension of the tiles is a preset multiple of the
     genomic resolution.
 
     """
@@ -357,7 +325,7 @@ def multires_aggregate(input_uri, outfile, nproc, chunksize, lock=None):
     Quad-tree tiling for HiGlass
 
     """
-    from ..api import Cooler
+    from .api import Cooler
     infile, ingroup = parse_cooler_uri(input_uri)
 
     clr = Cooler(infile, ingroup)
@@ -382,14 +350,14 @@ def multires_aggregate(input_uri, outfile, nproc, chunksize, lock=None):
         + str(zoomLevel)
         + " bin size: "
         + str(binsize))
-    
+
     # Copy base matrix
     with h5py.File(infile, 'r') as src, \
          h5py.File(outfile, 'w') as dest:
 
         src.copy(ingroup, dest, str(zoomLevel))
         zoom_levels[zoomLevel] = binsize
-    
+
     # Aggregate
     # Use lock to sync read/write ops on same file
     for i in range(n_zooms - 1, -1, -1):
@@ -403,11 +371,11 @@ def multires_aggregate(input_uri, outfile, nproc, chunksize, lock=None):
             + " bin size: "
             + str(binsize))
 
-        aggregate(
-            outfile + '::' + str(prevLevel), 
+        coarsen(
+            outfile + '::' + str(prevLevel),
             outfile + '::' + str(zoomLevel),
-            factor, 
-            nproc, 
+            factor,
+            nproc,
             chunksize,
             lock
         )
@@ -422,9 +390,50 @@ def multires_aggregate(input_uri, outfile, nproc, chunksize, lock=None):
     return n_zooms, zoom_levels
 
 
-def new_multires_aggregate(input_uris, outfile, resolutions, nproc, chunksize, 
-                           lock=None):
-    from ..api import Cooler
+def merge(out_path, in_paths, chunksize):
+    from .api import Cooler
+    logger.info("Merging:\n{}".format('\n'.join(in_paths)))
+    clrs = [Cooler(path) for path in in_paths]
+    chromsizes = clrs[0].chromsizes
+    bins = clrs[0].bins()[['chrom', 'start', 'end']][:]
+    assembly = clrs[0].info.get('genome-assembly', None)
+    iterator = CoolerMerger(clrs, maxbuf=chunksize)
+    create(out_path, bins, iterator, assembly=assembly)
+
+
+def coarsen(input_uri, output_uri, factor, nproc, chunksize, lock=None):
+    from .api import Cooler
+    c = Cooler(input_uri)
+    chromsizes = c.chromsizes
+    new_binsize = c.binsize * factor
+    new_bins = binnify(chromsizes, new_binsize)
+
+    try:
+        # Note: fork before opening to prevent inconsistent global HDF5 state
+        if nproc > 1:
+            pool = mp.Pool(nproc)
+
+        iterator = CoolerCoarsener(
+            input_uri,
+            new_bins,
+            chunksize,
+            batchsize=nproc,
+            map=pool.map if nproc > 1 else map)
+
+        create(
+            output_uri,
+            new_bins,
+            iterator,
+            lock=lock,
+            append=True)
+
+    finally:
+        if nproc > 1:
+            pool.close()
+
+
+def zoomify(input_uris, outfile, resolutions, nproc, chunksize, lock=None):
+    from .api import Cooler
     uris = {}
     bases = set()
     for input_uri in input_uris:
@@ -439,7 +448,7 @@ def new_multires_aggregate(input_uris, outfile, resolutions, nproc, chunksize,
     logger.info(
         "Copying base matrices and producing {} new zoom levels.".format(n_zooms)
     )
-    
+
     # Copy base matrix
     for base_binsize in bases:
         logger.info("Bin size: " + str(base_binsize))
@@ -457,11 +466,11 @@ def new_multires_aggregate(input_uris, outfile, resolutions, nproc, chunksize,
         binsize = prev_binsize * mult[i]
         logger.info(
             "Aggregating from {} to {}.".format(prev_binsize, binsize))
-        aggregate(
-            outfile + '::resolutions/{}'.format(prev_binsize), 
+        coarsen(
+            outfile + '::resolutions/{}'.format(prev_binsize),
             outfile + '::resolutions/{}'.format(binsize),
-            mult[i], 
-            nproc, 
+            mult[i],
+            nproc,
             chunksize,
             lock
         )
@@ -471,15 +480,3 @@ def new_multires_aggregate(input_uris, outfile, resolutions, nproc, chunksize,
             'format': u'HDF5::MCOOL',
             'format-version': 2,
         })
-
-
-def merge():
-    pass
-
-
-def coarsen():
-    pass
-
-
-def zoomify():
-    pass

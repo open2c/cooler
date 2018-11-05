@@ -13,7 +13,8 @@ import pandas as pd
 import h5py
 
 import click
-from . import cli, logger
+from . import cli, get_logger
+from ._util import _parse_bins
 from .. import util
 from ..io import (
     create, create_from_unordered,
@@ -71,49 +72,6 @@ def _parse_field_params(args):
         extra_fields.append((name, number, dtype, agg))
 
     return extra_fields
-
-
-def _parse_bins(arg):
-    # Provided chromsizes and binsize
-    if ":" in arg:
-        chromsizes_file, binsize = arg.split(":")
-        if not op.exists(chromsizes_file):
-            raise ValueError('File "{}" not found'.format(chromsizes_file))
-        try:
-            binsize = int(binsize)
-        except ValueError:
-            raise ValueError(
-                'Expected integer binsize argument (bp), got "{}"'.format(binsize))
-        chromsizes = util.read_chromsizes(chromsizes_file, all_names=True)
-        bins = util.binnify(chromsizes, binsize)
-
-    # Provided bins
-    elif op.exists(arg):
-        try:
-            bins = pd.read_csv(
-                arg,
-                sep='\t',
-                names=['chrom', 'start', 'end'],
-                usecols=[0, 1, 2],
-                dtype={'chrom': str})
-        except pd.parser.CParserError as e:
-            raise ValueError(
-                'Failed to parse bins file "{}": {}'.format(arg, str(e)))
-
-        chromtable = (
-            bins.drop_duplicates(['chrom'], keep='last')[['chrom', 'end']]
-                .reset_index(drop=True)
-                .rename(columns={'chrom': 'name', 'end': 'length'})
-        )
-        chroms, lengths = list(chromtable['name']), list(chromtable['length'])
-        chromsizes = pd.Series(index=chroms, data=lengths)
-        
-    else:
-        raise ValueError(
-            'Expected BINS to be either <Path to bins file> or '
-            '<Path to chromsizes file>:<binsize in bp>.')
-
-    return chromsizes, bins
 
 
 def register_subcommand(func):
@@ -226,6 +184,7 @@ def tabix(bins, pairs_path, cool_path, metadata, assembly, nproc, zero_based, ma
     Tabix manpage: <http://www.htslib.org/doc/tabix.html>.
 
     """
+    logger = get_logger(__name__)
     chromsizes, bins = _parse_bins(bins)
 
     if metadata is not None:
@@ -244,12 +203,12 @@ def tabix(bins, pairs_path, cool_path, metadata, assembly, nproc, zero_based, ma
             opts['C2'] = kwargs['chrom2'] - 1
         if 'pos2' in kwargs:
             opts['P2'] = kwargs['pos2'] - 1
-        iterator = TabixAggregator(pairs_path, chromsizes, bins, map=map, 
+        iterator = TabixAggregator(pairs_path, chromsizes, bins, map=map,
             is_one_based=(not zero_based), n_chunks=max_split, **opts)
         create(cool_path, bins, iterator, metadata, assembly)
     finally:
         if nproc > 1:
-            pool.close() 
+            pool.close()
 
 
 @register_subcommand
@@ -286,6 +245,7 @@ def pairix(bins, pairs_path, cool_path, metadata, assembly, nproc, zero_based, m
     Pairix on GitHub: <https://github.com/4dn-dcic/pairix>.
 
     """
+    logger = get_logger(__name__)
     chromsizes, bins = _parse_bins(bins)
 
     if metadata is not None:
@@ -299,12 +259,12 @@ def pairix(bins, pairs_path, cool_path, metadata, assembly, nproc, zero_based, m
             map = pool.imap
         else:
             map = six.moves.map
-        iterator = PairixAggregator(pairs_path, chromsizes, bins, map=map, 
+        iterator = PairixAggregator(pairs_path, chromsizes, bins, map=map,
             is_one_based=(not zero_based), n_chunks=max_split)
         create(cool_path, bins, iterator, metadata, assembly)
     finally:
         if nproc > 1:
-            pool.close() 
+            pool.close()
 
 
 @register_subcommand
@@ -351,7 +311,7 @@ def pairix(bins, pairs_path, cool_path, metadata, assembly, nproc, zero_based, m
     type=click.Choice(['reflect', 'drop']),  # 'none'
     default='reflect',
     show_default=True,
-    help="How to handle lower triangle records. " 
+    help="How to handle lower triangle records. "
          "'reflect': make lower triangle records upper triangular. "
          "Use this if your input data comes only from a unique half of a "
          "symmetric matrix (but may not respect the specified chromosome order). "
@@ -382,12 +342,12 @@ def pairix(bins, pairs_path, cool_path, metadata, assembly, nproc, zero_based, m
 #     help="Preset data format.",
 #     type=click.Choice(['4DN', 'BEDPE']))
 # --sep
-def pairs(bins, pairs_path, cool_path, metadata, assembly, chunksize, 
+def pairs(bins, pairs_path, cool_path, metadata, assembly, chunksize,
           zero_based, comment_char, tril_action, field, temp_dir,
           no_delete_temp, **kwargs):
     """
     Bin any text file or stream of pairs.
-    
+
     Pairs data need not be sorted. Accepts compressed files.
     To pipe input from stdin, set PAIRS_PATH to '-'.
 
@@ -411,7 +371,7 @@ def pairs(bins, pairs_path, cool_path, metadata, assembly, chunksize,
     for name in ['chrom1', 'pos1', 'chrom2', 'pos2']:
         if kwargs[name] == 0:
             raise click.BadParameter(
-                "Field numbers start at 1", 
+                "Field numbers start at 1",
                 param_hint=name)
         input_field_numbers[name] = kwargs[name] - 1
 
@@ -425,7 +385,7 @@ def pairs(bins, pairs_path, cool_path, metadata, assembly, chunksize,
             if name not in input_field_names:
                 input_field_names.append(name)
                 output_field_names.append(name)
-            
+
             input_field_numbers[name] = number
 
             if dtype is not None:
@@ -441,7 +401,7 @@ def pairs(bins, pairs_path, cool_path, metadata, assembly, chunksize,
         f_in = pairs_path
 
     reader = pd.read_table(
-        f_in, 
+        f_in,
         usecols=[input_field_numbers[name] for name in input_field_names],
         names=input_field_names,
         dtype=input_field_dtypes,
@@ -451,22 +411,22 @@ def pairs(bins, pairs_path, cool_path, metadata, assembly, chunksize,
 
     sanitize = sanitize_records(
         bins,
-        schema='pairs',  
-        decode_chroms=True, 
-        is_one_based=not zero_based, 
-        tril_action=tril_action, 
+        schema='pairs',
+        decode_chroms=True,
+        is_one_based=not zero_based,
+        tril_action=tril_action,
         sort=True,
         validate=True)
     aggregate = aggregate_records(agg=aggregations, sort=False)
     pipeline = compose(aggregate, sanitize)
 
     create_from_unordered(
-        cool_path, 
-        bins, 
-        map(pipeline, reader), 
+        cool_path,
+        bins,
+        map(pipeline, reader),
         columns=output_field_names,
         dtypes=output_field_dtypes,
-        metadata=metadata, 
+        metadata=metadata,
         assembly=assembly,
         mergebuf=chunksize,
         temp_dir=temp_dir,

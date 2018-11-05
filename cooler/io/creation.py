@@ -1,12 +1,5 @@
 # -*- coding: utf-8 -*-
-"""
-HDF5 writers
-~~~~~~~~~~~~
-
-This module defines and implements the Cooler schema.
-
-"""
-from __future__ import division, print_function
+from __future__ import absolute_import, print_function, division
 from datetime import datetime
 from six.moves import map
 import pandas as pd
@@ -20,29 +13,24 @@ import six
 
 from .. import __version__, __format_version__, get_logger
 from ..core import put
-from ..util import get_binsize, get_chromsizes, infer_meta, get_meta, rlencode
-from .ingestion import validate_pixels
-from .reduction import CoolerMerger
-from .utils import parse_cooler_uri, balanced_partition
+from ..util import get_binsize, get_chromsizes, infer_meta, get_meta, rlencode, balanced_partition
+from . import parse_cooler_uri, validate_pixels
+from . import (
+    MAGIC,
+    URL,
+    CHROM_DTYPE,
+    CHROMID_DTYPE,
+    CHROMSIZE_DTYPE,
+    COORD_DTYPE,
+    BIN_DTYPE,
+    COUNT_DTYPE,
+    CHROMOFFSET_DTYPE,
+    BIN1OFFSET_DTYPE,
+    PIXEL_FIELDS,
+    PIXEL_DTYPES,
+)
 
-
-logger = get_logger()
-
-
-MAGIC = u"HDF5::Cooler"
-URL = u"https://github.com/mirnylab/cooler"
-CHROM_DTYPE = np.dtype('S')
-CHROMID_DTYPE = np.int32
-CHROMSIZE_DTYPE = np.int32
-COORD_DTYPE = np.int32
-BIN_DTYPE = np.int64
-COUNT_DTYPE = np.int32
-CHROMOFFSET_DTYPE = np.int64
-BIN1OFFSET_DTYPE = np.int64
-PIXEL_FIELDS = ('bin1_id', 'bin2_id', 'count')
-PIXEL_DTYPES = (('bin1_id', BIN_DTYPE), 
-                ('bin2_id', BIN_DTYPE), 
-                ('count', COUNT_DTYPE))
+logger = get_logger(__name__)
 
 
 def write_chroms(grp, chroms, h5opts):
@@ -71,7 +59,7 @@ def write_chroms(grp, chroms, h5opts):
                        dtype=CHROMSIZE_DTYPE,
                        data=chroms['length'],
                        **h5opts)
-    
+
     # Extra columns
     columns = list(chroms.keys())
     for col in ['name', 'length']:
@@ -118,7 +106,7 @@ def write_bins(grp, bins, chromnames, h5opts, chrom_as_enum=True):
                            data=chrom_ids,
                            **h5opts)
     except ValueError:
-        # If too many scaffolds for HDF5 enum header, 
+        # If too many scaffolds for HDF5 enum header,
         # try storing chrom IDs as raw int instead
         if chrom_as_enum:
             chrom_as_enum = False
@@ -143,7 +131,7 @@ def write_bins(grp, bins, chromnames, h5opts, chrom_as_enum=True):
                        dtype=COORD_DTYPE,
                        data=bins['end'],
                        **h5opts)
-    
+
     # Extra columns
     columns = list(bins.keys())
     for col in ['chrom', 'start', 'end']:
@@ -195,8 +183,8 @@ def write_pixels(filepath, grouppath, columns, iterable, h5opts, lock):
     columns : sequence
         Sequence of column names
     iterable : an iterable object
-        An object that processes and yields binned contacts from some input 
-        source as a stream of chunks. The chunks must be either pandas 
+        An object that processes and yields binned contacts from some input
+        source as a stream of chunks. The chunks must be either pandas
         DataFrames or mappings of column names to arrays.
     h5opts : dict
         HDF5 filter options.
@@ -207,16 +195,16 @@ def write_pixels(filepath, grouppath, columns, iterable, h5opts, lock):
     nnz = 0
     total = 0
     for i, chunk in enumerate(iterable):
-        
+
         if isinstance(chunk, pd.DataFrame):
             chunk = {k: v.values for k, v in six.iteritems(chunk)}
-        
+
         try:
             if lock is not None:
                 lock.acquire()
 
             logger.debug("writing chunk {}".format(i))
-            
+
             with h5py.File(filepath, 'r+') as fw:
                 grp = fw[grouppath]
                 dsets = [grp[col] for col in columns]
@@ -227,7 +215,7 @@ def write_pixels(filepath, grouppath, columns, iterable, h5opts, lock):
                     dset[nnz:nnz+n] = chunk[col]
                 nnz += n
                 total += chunk['count'].sum()
-                
+
                 fw.flush()
 
         finally:
@@ -277,15 +265,15 @@ def write_indexes(grp, chrom_offset, bin1_offset, h5opts):
     """
     grp.create_dataset(
         "chrom_offset",
-        shape=(len(chrom_offset),), 
+        shape=(len(chrom_offset),),
         dtype=CHROMOFFSET_DTYPE,
-        data=chrom_offset, 
+        data=chrom_offset,
         **h5opts)
     grp.create_dataset(
         "bin1_offset",
-        shape=(len(bin1_offset),), 
+        shape=(len(bin1_offset),),
         dtype=BIN1OFFSET_DTYPE,
-        data=bin1_offset, 
+        data=bin1_offset,
         **h5opts)
 
 
@@ -321,6 +309,60 @@ def write_info(grp, info):
     grp.attrs.update(info)
 
 
+def rename_chroms(grp, rename_dict, h5opts=None):
+    """
+    Substitute existing scaffold names for new ones.
+
+    Parameters
+    ----------
+    grp : h5py.Group
+        Group handle of an open HDF5 file with write permissions.
+    rename_dict : dict
+        Dictionary of old -> new chromosome names. Any names omitted from
+        the dictionary will be kept as is.
+    h5opts : dict, optional
+        HDF5 filter options.
+
+    """
+    if h5opts is None:
+        h5opts = dict(compression='gzip', compression_opts=6)
+
+    chroms = cooler.core.get(grp['chroms']).set_index('name')
+    n_chroms = len(chroms)
+    new_names = np.array(chroms.rename(rename_dict).index.values,
+                         dtype=CHROM_DTYPE)  # auto-adjusts char length
+
+    del grp['chroms/name']
+    grp['chroms'].create_dataset('name',
+                       shape=(n_chroms,),
+                       dtype=new_names.dtype,
+                       data=new_names,
+                       **h5opts)
+
+    bins = cooler.core.get(grp['bins'])
+    n_bins = len(bins)
+    idmap = dict(zip(new_names, range(n_chroms)))
+    if is_categorical(bins['chrom']) or is_integer(bins['chrom']):
+        chrom_ids = bins['chrom'].cat.codes
+        chrom_dtype = h5py.special_dtype(enum=(CHROMID_DTYPE, idmap))
+        del grp['bins/chrom']
+        try:
+            chrom_dset = grp['bins'].create_dataset('chrom',
+                               shape=(n_bins,),
+                               dtype=chrom_dtype,
+                               data=chrom_ids,
+                               **h5opts)
+        except ValueError:
+            # If HDF5 enum header would be too large,
+            # try storing chrom IDs as raw int instead
+            chrom_dtype = CHROMID_DTYPE
+            chrom_dset = grp['bins'].create_dataset('chrom',
+                               shape=(n_bins,),
+                               dtype=chrom_dtype,
+                               data=chrom_ids,
+                               **h5opts)
+
+
 def _get_dtypes_arg(dtypes, kwargs):
     if 'dtype' in kwargs:
         if dtypes is None:
@@ -334,8 +376,8 @@ def _get_dtypes_arg(dtypes, kwargs):
     return dtypes
 
 
-def create(cool_uri, bins, pixels, columns=None, dtypes=None, metadata=None, 
-           assembly=None, mode=None, h5opts=None, boundscheck=True, 
+def create(cool_uri, bins, pixels, columns=None, dtypes=None, metadata=None,
+           assembly=None, mode=None, h5opts=None, boundscheck=True,
            triucheck=True, dupcheck=True, ensure_sorted=False, lock=None,
            append='<deprecated>', **kwargs):
     """
@@ -344,18 +386,18 @@ def create(cool_uri, bins, pixels, columns=None, dtypes=None, metadata=None,
     Parameters
     ----------
     cool_uri : str
-        Path to Cooler file or URI to Cooler group. If the file does not exist, 
+        Path to Cooler file or URI to Cooler group. If the file does not exist,
         it will be created.
     bins : pandas.DataFrame
         Segmentation of the chromosomes into genomic bins as a BED-like
-        DataFrame with columns ``chrom``, ``start`` and ``end``. May contain 
+        DataFrame with columns ``chrom``, ``start`` and ``end``. May contain
         additional columns.
     pixels : DataFrame, dictionary, or iterable of either
-        A table (represented as a data frame or a column-oriented dict) 
-        containing columns labeled 'bin1_id', 'bin2_id' and 'count', sorted 
-        by ('bin1_id', 'bin2_id'). If additional columns are included in the 
-        pixel table, their names and dtypes must be specified in the ``dtypes`` 
-        argument. Alternatively, for larger data, an iterable can be provided 
+        A table (represented as a data frame or a column-oriented dict)
+        containing columns labeled 'bin1_id', 'bin2_id' and 'count', sorted
+        by ('bin1_id', 'bin2_id'). If additional columns are included in the
+        pixel table, their names and dtypes must be specified in the ``dtypes``
+        argument. Alternatively, for larger data, an iterable can be provided
         that yields the pixel data as a sequence of "chunks". If the input is a
         dask DataFrame, it will also be processed one chunk at a time.
     dtypes : dict, optional
@@ -374,20 +416,20 @@ def create(cool_uri, bins, pixels, columns=None, dtypes=None, metadata=None,
     lock : multiprocessing.Lock, optional
         Optional lock to control concurrent access to the output file.
     columns : sequence of str, optional
-        Specify here the names of any additional value columns from the input 
-        besides 'count' to store in the Cooler. The standard columns ['bin1_id', 
-        'bin2_id', 'count'] can be provided, but are already assumed and don't 
-        need to be given explicitly. Additional value columns provided here will 
+        Specify here the names of any additional value columns from the input
+        besides 'count' to store in the Cooler. The standard columns ['bin1_id',
+        'bin2_id', 'count'] can be provided, but are already assumed and don't
+        need to be given explicitly. Additional value columns provided here will
         be stored as np.float64 unless otherwised specified using `dtype`.
     dtype : dict, optional
-        Dictionary mapping column names in the pixel table to dtypes. Can be 
-        used to override the default dtypes of 'bin1_id', 'bin2_id' or 'count'. 
+        Dictionary mapping column names in the pixel table to dtypes. Can be
+        used to override the default dtypes of 'bin1_id', 'bin2_id' or 'count'.
         Any additional value column dtypes must also be provided in the
         `columns` argument, or will be ignored.
 
     Result
     ------
-    Cooler data hierarchy stored in at the specified Cooler URI (HDF5 file and 
+    Cooler data hierarchy stored in at the specified Cooler URI (HDF5 file and
     group path).
 
     """
@@ -467,7 +509,7 @@ def create(cool_uri, bins, pixels, columns=None, dtypes=None, metadata=None,
         pass
     chromnames, lengths = zip(*chromsizes)
     chroms = pd.DataFrame(
-        {'name': chromnames, 'length': lengths}, 
+        {'name': chromnames, 'length': lengths},
         columns=['name', 'length'])
     binsize = get_binsize(bins)
     n_chroms = len(chroms)
@@ -478,7 +520,7 @@ def create(cool_uri, bins, pixels, columns=None, dtypes=None, metadata=None,
         validator = validate_pixels(
             n_bins, boundscheck, triucheck, dupcheck, ensure_sorted)
         iterable = map(validator, iterable)
-    
+
     # Create root group
     with h5py.File(file_path, mode) as f:
         logger.info('Creating cooler at "{}::{}"'.format(file_path, group_path))
@@ -504,7 +546,7 @@ def create(cool_uri, bins, pixels, columns=None, dtypes=None, metadata=None,
         logger.info('Writing bins')
         grp = h5.create_group('bins')
         write_bins(grp, bins, chroms['name'], h5opts)
-        
+
         grp = h5.create_group('pixels')
         prepare_pixels(grp, n_bins, meta.columns, dict(meta.dtypes), h5opts)
 
@@ -526,7 +568,7 @@ def create(cool_uri, bins, pixels, columns=None, dtypes=None, metadata=None,
 
         logger.info('Writing indexes')
         grp = h5.create_group('indexes')
-        
+
         chrom_offset = index_bins(h5['bins'], n_chroms, n_bins)
         bin1_offset = index_pixels(h5['pixels'], n_bins, nnz)
         write_indexes(grp, chrom_offset, bin1_offset, h5opts)
@@ -548,48 +590,48 @@ def create(cool_uri, bins, pixels, columns=None, dtypes=None, metadata=None,
     logger.info('Done')
 
 
-def create_from_unordered(cool_uri, bins, chunks, columns=None, dtypes=None, 
-                          mergebuf=int(20e6), delete_temp=True, temp_dir=None, 
+def create_from_unordered(cool_uri, bins, chunks, columns=None, dtypes=None,
+                          mergebuf=int(20e6), delete_temp=True, temp_dir=None,
                           multifile_merge=False, **kwargs):
     """
-    Create a Cooler in two passes via an external sort mechanism. In the first 
+    Create a Cooler in two passes via an external sort mechanism. In the first
     pass, a sequence of data chunks are processed and sorted in memory and saved
-    to temporary Coolers. In the second pass, the temporary Coolers are merged 
+    to temporary Coolers. In the second pass, the temporary Coolers are merged
     into the output. This way the individual chunks do not need to be provided
     in any particular order.
-    
+
     Parameters
     ----------
     cool_uri : str
         Path to Cooler file or URI to Cooler group. If the file does not exist,
         it will be created.
     bins : DataFrame
-        Segmentation of the chromosomes into genomic bins. May contain 
+        Segmentation of the chromosomes into genomic bins. May contain
         additional columns.
     chunks : iterable of DataFrames
-        Sequence of chunks that get processed and written to separate Coolers 
+        Sequence of chunks that get processed and written to separate Coolers
         and then subsequently merged.
     columns : sequence of str, optional
-        Specify here the names of any additional value columns from the input 
-        besides 'count' to store in the Cooler. The standard columns ['bin1_id', 
-        'bin2_id', 'count'] can be provided, but are already assumed and don't 
-        need to be given explicitly. Additional value columns provided here will 
+        Specify here the names of any additional value columns from the input
+        besides 'count' to store in the Cooler. The standard columns ['bin1_id',
+        'bin2_id', 'count'] can be provided, but are already assumed and don't
+        need to be given explicitly. Additional value columns provided here will
         be stored as np.float64 unless otherwised specified using `dtype`.
     dtypes : dict, optional
-        Dictionary mapping column names in the pixel table to dtypes. Can be 
-        used to override the default dtypes of 'bin1_id', 'bin2_id' or 'count'. 
+        Dictionary mapping column names in the pixel table to dtypes. Can be
+        used to override the default dtypes of 'bin1_id', 'bin2_id' or 'count'.
         Any additional value column dtypes must also be provided in the
         `columns` argument, or will be ignored.
     mergebuf : int, optional
-        Maximum number of records to buffer in memory at any give time during 
+        Maximum number of records to buffer in memory at any give time during
         the merge step.
     delete_temp : bool, optional
-        Whether to delete temporary files when finished. 
+        Whether to delete temporary files when finished.
         Useful for debugging. Default is False.
     temp_dir : str, optional
         Create temporary files in this directory.
     multifile_merge : bool, optional
-        Store temporary merge chunks as separate .cool files rather than in 
+        Store temporary merge chunks as separate .cool files rather than in
         a single multi-cooler file. Default is False.
     metadata : dict, optional
         Experiment metadata to store in the file. Must be JSON compatible.
@@ -612,18 +654,19 @@ def create_from_unordered(cool_uri, bins, chunks, columns=None, dtypes=None,
 
     """
     from ..api import Cooler
+    from ..reduce import CoolerMerger
     chromsizes = get_chromsizes(bins)
     bins = bins.copy()
     bins['chrom'] = bins['chrom'].astype(object)
 
     dtypes = _get_dtypes_arg(dtypes, kwargs)
-    
+
     temp_files = []
 
     if multifile_merge:
         for i, chunk in enumerate(chunks):
             tf = tempfile.NamedTemporaryFile(
-                suffix='.cool', 
+                suffix='.cool',
                 delete=delete_temp,
                 dir=temp_dir)
             temp_files.append(tf)
@@ -632,11 +675,11 @@ def create_from_unordered(cool_uri, bins, chunks, columns=None, dtypes=None,
         chunks = CoolerMerger([Cooler(tf.name) for tf in temp_files], mergebuf)
     else:
         tf = tempfile.NamedTemporaryFile(
-                suffix='.multi.cool', 
+                suffix='.multi.cool',
                 delete=delete_temp,
                 dir=temp_dir)
         temp_files.append(tf)
-        
+
         uris = []
         for i, chunk in enumerate(chunks):
             uri = tf.name + '::' + str(i)
@@ -651,7 +694,7 @@ def create_from_unordered(cool_uri, bins, chunks, columns=None, dtypes=None,
     del temp_files
 
 
-def append(cool_uri, table, data, chunked=False, force=False, h5opts=None, 
+def append(cool_uri, table, data, chunked=False, force=False, h5opts=None,
            lock=None):
     """
     Append one or more data columns to an existing table.
@@ -666,7 +709,7 @@ def append(cool_uri, table, data, chunked=False, force=False, h5opts=None,
         DataFrame, Series or mapping of column names to data. If the input is a
         dask DataFrame or Series, the data is written in chunks.
     chunked : bool, optional
-        If True, the values of the data dict are treated as separate chunk 
+        If True, the values of the data dict are treated as separate chunk
         iterators of column data.
     force : bool, optional
         If True, replace existing columns with the same name as the input.
@@ -747,5 +790,3 @@ def append(cool_uri, table, data, chunked=False, force=False, h5opts=None,
             finally:
                 if lock is not None:
                     lock.release()
-
-
