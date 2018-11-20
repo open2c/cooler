@@ -11,7 +11,7 @@ A cool place to store your Hi-C.
 
 """
 import logging
-__version__ = '0.7.12-dev'
+__version__ = '0.8.0-dev'
 __format_version__ = 2
 _loggers = {}
 
