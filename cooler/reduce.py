@@ -390,15 +390,30 @@ def multires_aggregate(input_uri, outfile, nproc, chunksize, lock=None):
     return n_zooms, zoom_levels
 
 
-def merge(out_path, in_paths, chunksize):
+def merge(output_uri, input_uris, chunksize):
     from .api import Cooler
-    logger.info("Merging:\n{}".format('\n'.join(in_paths)))
-    clrs = [Cooler(path) for path in in_paths]
+    logger.info("Merging:\n{}".format('\n'.join(input_uris)))
+    clrs = [Cooler(path) for path in input_uris]
     chromsizes = clrs[0].chromsizes
     bins = clrs[0].bins()[['chrom', 'start', 'end']][:]
     assembly = clrs[0].info.get('genome-assembly', None)
     iterator = CoolerMerger(clrs, maxbuf=chunksize)
-    create(out_path, bins, iterator, assembly=assembly)
+
+    is_symm = [clr.symmetric_storage_mode == u'upper' for clr in clrs]
+    if all(is_symm):
+        symmetric = True
+    elif not any(is_symm):
+        symmetric = False
+    else:
+        ValueError("Cannot merge symmetric and asymmetric coolers.")
+
+    create(
+        output_uri,
+        bins,
+        iterator,
+        assembly=assembly,
+        symmetric=symmetric
+    )
 
 
 def coarsen(input_uri, output_uri, factor, nproc, chunksize, lock=None):
@@ -407,6 +422,7 @@ def coarsen(input_uri, output_uri, factor, nproc, chunksize, lock=None):
     chromsizes = c.chromsizes
     new_binsize = c.binsize * factor
     new_bins = binnify(chromsizes, new_binsize)
+    dtypes = dict(c.pixels()[0:0].dtypes.drop(['bin1_id', 'bin2_id']))
 
     try:
         # Note: fork before opening to prevent inconsistent global HDF5 state
@@ -424,6 +440,8 @@ def coarsen(input_uri, output_uri, factor, nproc, chunksize, lock=None):
             output_uri,
             new_bins,
             iterator,
+            dtypes=dtypes,
+            symmetric=c.symmetric_storage_mode == u'upper',
             lock=lock,
             append=True)
 

@@ -307,17 +307,25 @@ def pairix(bins, pairs_path, cool_path, metadata, assembly, nproc, zero_based, m
     show_default=True,
     help="Comment character that indicates lines to ignore.")
 @click.option(
-    "--tril-action",
-    type=click.Choice(['reflect', 'drop']),  # 'none'
-    default='reflect',
-    show_default=True,
-    help="How to handle lower triangle records. "
-         "'reflect': make lower triangle records upper triangular. "
-         "Use this if your input data comes only from a unique half of a "
-         "symmetric matrix (but may not respect the specified chromosome order). "
-         "'drop': discard all lower triangle records. Use this if your input "
-         "data has mirror duplicates, i.e. is derived from a complete symmetric "
-         "matrix.")
+    "--symmetric-input",
+    type=click.Choice(['unique', 'duplex']),
+    default='unique',
+    help="Copy status of input data when using symmetric storage. | "
+         "`unique`: Incoming data comes from a unique half of a symmetric "
+         "map, regardless of how record coordinates are ordered. "
+         "Execution will be aborted if duplicates are detected."
+         "This is the default when the output is a symmetric cooler. | "
+         "`duplex`: Incoming data contains upper- and lower-triangle duplicates. "
+         "All input records that map to the lower triangle will be discarded! | "
+         "If you wish to treat lower- and upper-triangle input data as "
+         "distinct, use the `--no-symmetric-storage` option instead. ",
+    show_default=True)
+@click.option(
+    "--no-symmetric-storage", "-N",
+    help="Create a square matrix without implicit symmetry. "
+         "This allows for distinct upper- and lower-triangle values",
+    is_flag=True,
+    default=False)
 @click.option(
     "--field",
     help="Add supplemental value fields or override default field numbers for "
@@ -343,8 +351,8 @@ def pairix(bins, pairs_path, cool_path, metadata, assembly, nproc, zero_based, m
 #     type=click.Choice(['4DN', 'BEDPE']))
 # --sep
 def pairs(bins, pairs_path, cool_path, metadata, assembly, chunksize,
-          zero_based, comment_char, tril_action, field, temp_dir,
-          no_delete_temp, **kwargs):
+          zero_based, comment_char, symmetric_input, no_symmetric_storage,
+          field, temp_dir, no_delete_temp, **kwargs):
     """
     Bin any text file or stream of pairs.
 
@@ -355,6 +363,14 @@ def pairs(bins, pairs_path, cool_path, metadata, assembly, chunksize,
 
     """
     chromsizes, bins = _parse_bins(bins)
+
+    use_symmetric_storage = not no_symmetric_storage
+    tril_action = None
+    if use_symmetric_storage:
+        if symmetric_input == 'unique':
+            tril_action = 'reflect'
+        elif symmetric_input == 'duplex':
+            tril_action = 'drop'
 
     if metadata is not None:
         with open(metadata, 'r') as f:
@@ -434,7 +450,8 @@ def pairs(bins, pairs_path, cool_path, metadata, assembly, chunksize,
         boundscheck=False,
         triucheck=False,
         dupcheck=False,
-        ensure_sorted=False
+        ensure_sorted=False,
+        symmetric=use_symmetric_storage
     )
 
 

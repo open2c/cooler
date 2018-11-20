@@ -140,9 +140,8 @@ def write_bins(grp, bins, chromnames, h5opts, chrom_as_enum=True):
         put(grp, bins[columns])
 
 
-def prepare_pixels(grp, n_bins, columns, dtypes, h5opts):
+def prepare_pixels(grp, n_bins, max_size, columns, dtypes, h5opts):
     columns = list(columns)
-    max_size = n_bins * (n_bins - 1) // 2 + n_bins
     init_size = min(5 * n_bins, max_size)
     grp.create_dataset('bin1_id',
                        dtype=dtypes.get('bin1_id', BIN_DTYPE),
@@ -377,9 +376,9 @@ def _get_dtypes_arg(dtypes, kwargs):
 
 
 def create(cool_uri, bins, pixels, columns=None, dtypes=None, metadata=None,
-           assembly=None, mode=None, h5opts=None, boundscheck=True,
-           triucheck=True, dupcheck=True, ensure_sorted=False, lock=None,
-           append='<deprecated>', **kwargs):
+           assembly=None, symmetric=True, mode=None, h5opts=None,
+           boundscheck=True, triucheck=True, dupcheck=True,
+           ensure_sorted=False, lock=None, append='<deprecated>', **kwargs):
     """
     Create a new Cooler.
 
@@ -515,6 +514,12 @@ def create(cool_uri, bins, pixels, columns=None, dtypes=None, metadata=None,
     n_chroms = len(chroms)
     n_bins = len(bins)
 
+    if not symmetric and triucheck:
+        warnings.warn(
+            "Creating a non-symmetric matrix, but `triucheck` was set to True. "
+            "Changing to False.")
+        triucheck = False
+
     # Chain input validation to the end of the pipeline
     if boundscheck or triucheck or dupcheck or ensure_sorted:
         validator = validate_pixels(
@@ -548,7 +553,11 @@ def create(cool_uri, bins, pixels, columns=None, dtypes=None, metadata=None,
         write_bins(grp, bins, chroms['name'], h5opts)
 
         grp = h5.create_group('pixels')
-        prepare_pixels(grp, n_bins, meta.columns, dict(meta.dtypes), h5opts)
+        if symmetric:
+            max_size = n_bins * (n_bins - 1) // 2 + n_bins
+        else:
+            max_size = n_bins * n_bins
+        prepare_pixels(grp, n_bins, max_size, meta.columns, dict(meta.dtypes), h5opts)
 
     # Multiprocess HDF5 reading is supported only if the same HDF5 file is not
     # open in write mode anywhere. To read and write to the same file, pass a
@@ -575,8 +584,9 @@ def create(cool_uri, bins, pixels, columns=None, dtypes=None, metadata=None,
 
         logger.info('Writing info')
         info = {}
-        info['bin-type'] = 'fixed' if binsize is not None else 'variable'
-        info['bin-size'] = binsize if binsize is not None else 'null'
+        info['bin-type'] = u"fixed" if binsize is not None else u"variable"
+        info['bin-size'] = binsize if binsize is not None else u"none"
+        info['symmetric-storage-mode'] = u"upper" if symmetric else u"none"
         info['nchroms'] = n_chroms
         info['nbins'] = n_bins
         info['sum'] = ncontacts
@@ -671,7 +681,7 @@ def create_from_unordered(cool_uri, bins, chunks, columns=None, dtypes=None,
                 dir=temp_dir)
             temp_files.append(tf)
             logger.info('Writing chunk {}: {}'.format(i, tf.name))
-            create(tf.name, bins, chunk, columns=columns, dtypes=dtypes)
+            create(tf.name, bins, chunk, columns=columns, dtypes=dtypes, **kwargs)
         chunks = CoolerMerger([Cooler(tf.name) for tf in temp_files], mergebuf)
     else:
         tf = tempfile.NamedTemporaryFile(
@@ -685,7 +695,7 @@ def create_from_unordered(cool_uri, bins, chunks, columns=None, dtypes=None,
             uri = tf.name + '::' + str(i)
             uris.append(uri)
             logger.info('Writing chunk {}: {}'.format(i, uri))
-            create(uri, bins, chunk, columns=columns, dtypes=dtypes, append=True)
+            create(uri, bins, chunk, columns=columns, dtypes=dtypes, append=True, **kwargs)
         chunks = CoolerMerger([Cooler(uri) for uri in uris], mergebuf)
 
     logger.info('Merging into {}'.format(cool_uri))

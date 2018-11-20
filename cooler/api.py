@@ -9,7 +9,7 @@ import numpy as np
 import pandas
 import h5py
 
-from .core import (get, region_to_offset, region_to_extent, RangeSelector1D, 
+from .core import (get, region_to_offset, region_to_extent, RangeSelector1D,
                    RangeSelector2D, TriuReader, query_rect)
 from .util import parse_region, open_hdf5, closing_hdf5
 from .io import parse_cooler_uri
@@ -36,10 +36,10 @@ class Cooler(object):
         Parameters
         ----------
         store : str, h5py.File or h5py.Group
-            Path to a COOL file, Cooler URI, or open handle to the root HDF5 
+            Path to a COOL file, Cooler URI, or open handle to the root HDF5
             group of a Cooler.
         root : str, optional
-            HDF5 Group path to root of cooler group if ``store`` is a file. 
+            HDF5 Group path to root of cooler group if ``store`` is a file.
             This option is deprecated. Instead, use a Cooler URI of the form
             "file_path::group_path".
         kwargs : optional
@@ -51,7 +51,7 @@ class Cooler(object):
         If ``store`` is a file path, the file will be opened temporarily in
         when performing operations. This allows ``Cooler`` objects to be
         serialized for multiprocess and distributed computations.
-        
+
         """
         if isinstance(store, six.string_types):
             if root is None:
@@ -72,7 +72,7 @@ class Cooler(object):
             self.uri = self.filename + '::' + self.root
             self.store = store.file
             self.open_kws = {}
-        
+
         with open_hdf5(self.store, **self.open_kws) as h5:
             grp = h5[self.root]
             _ct = chroms(grp)
@@ -94,7 +94,7 @@ class Cooler(object):
     def open(self, mode='r', **kwargs):
         """ Open the HDF5 group containing the Cooler with h5py
 
-        Functions as a context manager. Any ``open_kws`` passed during 
+        Functions as a context manager. Any ``open_kws`` passed during
         construction are ignored.
 
         Parameters
@@ -108,6 +108,11 @@ class Cooler(object):
         """
         grp = h5py.File(self.filename, mode, **kwargs)[self.root]
         return closing_hdf5(grp)
+
+    @property
+    def symmetric_storage_mode(self):
+        mode = self._info.get('symmetric-storage-mode', u"upper")
+        return mode if mode == u"upper" else None
 
     @property
     def binsize(self):
@@ -258,7 +263,7 @@ class Cooler(object):
 
         return RangeSelector1D(None, _slice, _fetch, self._info['nnz'])
 
-    def matrix(self, field=None, balance=True, sparse=False, as_pixels=False, 
+    def matrix(self, field=None, balance=True, sparse=False, as_pixels=False,
                join=False, ignore_index=True, max_chunk=500000000):
         """ Contact matrix selector
 
@@ -271,7 +276,7 @@ class Cooler(object):
             Whether to apply pre-calculated matrix balancing weights to the
             selection. Default is True and uses a column named 'weight'.
             Alternatively, pass the name of the bin table column containing
-            the desired balancing weights. Set to False to return untransformed 
+            the desired balancing weights. Set to False to return untransformed
             counts.
         sparse: bool, optional
             Return a scipy.sparse.coo_matrix instead of a dense 2D numpy array.
@@ -280,7 +285,7 @@ class Cooler(object):
             instead of a rectangular sparse matrix. False by default.
         join : bool, optional
             If requesting pixels, specifies whether to expand the bin ID columns
-            into (chrom, start, end). Has no effect when requesting a 
+            into (chrom, start, end). Has no effect when requesting a
             rectangular matrix. Default is True.
         ignore_index : bool, optional
             If requesting pixels, don't populate the index column with the pixel
@@ -296,7 +301,8 @@ class Cooler(object):
             with open_hdf5(self.store, **self.open_kws) as h5:
                 grp = h5[self.root]
                 return matrix(grp, i0, i1, j0, j1, field, balance, sparse,
-                    as_pixels, join, ignore_index, max_chunk)
+                    as_pixels, join, ignore_index, max_chunk,
+                    self.symmetric_storage_mode == u'upper')
 
         def _fetch(region, region2=None):
             with open_hdf5(self.store, **self.open_kws) as h5:
@@ -444,8 +450,8 @@ def annotate(pixels, bins, replace=True):
     """
     Add bin annotations to a data frame of pixels.
 
-    This is done by performing a relational "join" against the bin IDs of a 
-    table that describes properties of the genomic bins. New columns will be 
+    This is done by performing a relational "join" against the bin IDs of a
+    table that describes properties of the genomic bins. New columns will be
     appended on the left of the output data frame.
 
     Parameters
@@ -516,7 +522,8 @@ def annotate(pixels, bins, replace=True):
 
 
 def matrix(h5, i0, i1, j0, j1, field=None, balance=True, sparse=False,
-           as_pixels=False, join=True, ignore_index=True, max_chunk=500000000):
+           as_pixels=False, join=True, ignore_index=True, max_chunk=500000000,
+           is_upper=True):
     """
     Two-dimensional range query on the Hi-C contact heatmap.
     Depending on the options, returns either a 2D NumPy array, a rectangular
@@ -564,8 +571,6 @@ def matrix(h5, i0, i1, j0, j1, field=None, balance=True, sparse=False,
     if field is None:
         field = 'count'
 
-    triu_reader = TriuReader(h5, field, max_chunk)
-
     if isinstance(balance, str):
         name = balance
     elif balance:
@@ -577,8 +582,12 @@ def matrix(h5, i0, i1, j0, j1, field=None, balance=True, sparse=False,
             "calculate balancing weights or set balance=False.")
 
     if as_pixels:
-        index = None if ignore_index else triu_reader.index_col(i0, i1, j0, j1)
-        i, j, v = triu_reader.query(i0, i1, j0, j1)
+        reader = TriuReader(h5, field, max_chunk)
+        index = None if ignore_index else reader.index_col(i0, i1, j0, j1)
+        if is_upper:
+            i, j, v = query_rect(reader.query, i0, i1, j0, j1, duplex=False)
+        else:
+            i, j, v = reader.query(i0, i1, j0, j1)
 
         cols = ['bin1_id', 'bin2_id', field]
         df = pandas.DataFrame(dict(zip(cols, [i, j, v])),
@@ -596,7 +605,11 @@ def matrix(h5, i0, i1, j0, j1, field=None, balance=True, sparse=False,
         return df
 
     elif sparse:
-        i, j, v = query_rect(triu_reader.query, i0, i1, j0, j1)
+        reader = TriuReader(h5, field, max_chunk)
+        if is_upper:
+            i, j, v = query_rect(reader.query, i0, i1, j0, j1)
+        else:
+            i, j, v = reader.query(i0, i1, j0, j1)
         mat = coo_matrix((v, (i-i0, j-j0)), (i1-i0, j1-j0))
 
         if balance:
@@ -608,7 +621,11 @@ def matrix(h5, i0, i1, j0, j1, field=None, balance=True, sparse=False,
         return mat
 
     else:
-        i, j, v = query_rect(triu_reader.query, i0, i1, j0, j1)
+        reader = TriuReader(h5, field, max_chunk)
+        if is_upper:
+            i, j, v = query_rect(reader.query, i0, i1, j0, j1)
+        else:
+            i, j, v = reader.query(i0, i1, j0, j1)
         arr = coo_matrix((v, (i-i0, j-j0)), (i1-i0, j1-j0)).toarray()
 
         if balance:

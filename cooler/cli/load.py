@@ -81,18 +81,28 @@ from ..io import (
     show_default=True,
     help="Comment character that indicates lines to ignore.")
 @click.option(
-    "--tril-action",
-    type=click.Choice(['reflect', 'drop']),
-    default='reflect',
-    show_default=True,
-    help="How to handle lower triangle pixels. "
-         "'reflect': make lower triangle pixels upper triangular. "
-         "Use this if your input data comes only from a unique half of a "
-         "symmetric matrix (but may not respect the specified chromosome order)."
-         "'drop': discard all lower triangle pixels. Use this if your input "
-         "data is derived from a complete symmetric matrix.")
+    "--symmetric-input",
+    type=click.Choice(['unique', 'duplex']),
+    default='unique',
+    help="Copy status of input data when using symmetric storage. | "
+         "`unique`: Incoming data comes from a unique half of a symmetric "
+         "matrix, regardless of how element coordinates are ordered. "
+         "Execution will be aborted if duplicates are detected. "
+         "This is the default setting when the output is a symmetric cooler. | "
+         "`duplex`: Incoming data contains upper- and lower-triangle duplicates. "
+         "All lower-triangle input elements will be discarded! "
+         "If you wish to treat lower- and upper-triangle input data as "
+         "distinct, use the `--no-symmetric-storage` option instead. ",
+    show_default=True)
+@click.option(
+    "--no-symmetric-storage", "-N",
+    help="Create a square matrix without implicit symmetry. "
+         "This allows for distinct upper- and lower-triangle values",
+    is_flag=True,
+    default=False)
 def load(bins_path, pixels_path, cool_path, format, metadata, assembly,
-         chunksize, field, count_as_float, one_based, comment_char, tril_action):
+         chunksize, field, count_as_float, one_based, comment_char,
+         symmetric_input, no_symmetric_storage):
     """
     Load a pre-binned contact matrix into a COOL file.
 
@@ -133,6 +143,14 @@ def load(bins_path, pixels_path, cool_path, format, metadata, assembly,
     """
     logger = get_logger(__name__)
     chromsizes, bins = _parse_bins(bins_path)
+
+    use_symmetric_storage = not no_symmetric_storage
+    tril_action = None
+    if use_symmetric_storage:
+        if symmetric_input == 'unique':
+            tril_action = 'reflect'
+        elif symmetric_input == 'duplex':
+            tril_action = 'drop'
 
     # User-supplied JSON file
     if metadata is not None:
@@ -222,6 +240,7 @@ def load(bins_path, pixels_path, cool_path, format, metadata, assembly,
 
     logger.info('fields: {}'.format(input_field_numbers))
     logger.info('dtypes: {}'.format(input_field_dtypes))
+    logger.info('symmetric: {}'.format(use_symmetric_storage))
 
     create_from_unordered(
         cool_path,
@@ -233,6 +252,8 @@ def load(bins_path, pixels_path, cool_path, format, metadata, assembly,
         assembly=assembly,
         mergebuf=chunksize,
         ensure_sorted=False,
+        #boundscheck=True,
+        #dupcheck=True,
+        triucheck=True if use_symmetric_storage else False,
+        symmetric=use_symmetric_storage
     )
-
-

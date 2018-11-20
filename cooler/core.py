@@ -323,7 +323,7 @@ def _contains(a0, a1, b0, b1, strict=False):
     return a0 <= b0 and a1 >= b1
 
 
-def query_rect(triu_reader, i0, i1, j0, j1):
+def query_rect(triu_reader, i0, i1, j0, j1, duplex=True):
     """
     Process a 2D range query on a symmetric matrix using a reader that
     retrieves only upper triangle pixels from the matrix.
@@ -373,8 +373,9 @@ def query_rect(triu_reader, i0, i1, j0, j1):
     # symmetric query
     if (i0, i1) == (j0, j1):
         i, j, v = triu_reader(i0, i1, i0, i1)
-        nodiag = i != j
-        i, j, v = np.r_[i, j[nodiag]], np.r_[j, i[nodiag]], np.r_[v, v[nodiag]]
+        if duplex:
+            nodiag = i != j
+            i, j, v = np.r_[i, j[nodiag]], np.r_[j, i[nodiag]], np.r_[v, v[nodiag]]
 
     # asymmetric query
     else:
@@ -392,8 +393,9 @@ def query_rect(triu_reader, i0, i1, j0, j1):
             ix, jx, vx = triu_reader(i0, j0, j0, i1)
             iy, jy, vy = triu_reader(j0, i1, j0, i1)
             iz, jz, vz = triu_reader(i0, i1, i1, j1)
-            nodiag = iy != jy
-            iy, jy, vy = np.r_[iy, jy[nodiag]], np.r_[jy, iy[nodiag]], np.r_[vy, vy[nodiag]]
+            if duplex:
+                nodiag = iy != jy
+                iy, jy, vy = np.r_[iy, jy[nodiag]], np.r_[jy, iy[nodiag]], np.r_[vy, vy[nodiag]]
             i, j, v = np.r_[ix, iy, iz], np.r_[jx, jy, jz], np.r_[vx, vy, vz]
 
         # nested
@@ -401,8 +403,9 @@ def query_rect(triu_reader, i0, i1, j0, j1):
             ix, jx, vx = triu_reader(i0, j0, j0, j1)
             iy, jy, vy = triu_reader(j0, j1, j0, j1)
             jz, iz, vz = triu_reader(j0, j1, j1, i1)
-            nodiag = iy != jy
-            iy, jy, vy = np.r_[iy, jy[nodiag]], np.r_[jy, iy[nodiag]], np.r_[vy, vy[nodiag]]
+            if duplex:
+                nodiag = iy != jy
+                iy, jy, vy = np.r_[iy, jy[nodiag]], np.r_[jy, iy[nodiag]], np.r_[vy, vy[nodiag]]
             i, j, v = np.r_[ix, iy, iz], np.r_[jx, jy, jz], np.r_[vx, vy, vz]
 
         else:
