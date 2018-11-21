@@ -1,13 +1,10 @@
 # -*- coding: utf-8 -*-
-from __future__ import division, print_function
+from __future__ import absolute_import, print_function, division
+from pandas.api.types import is_categorical
+import pandas as pd
 import numpy as np
-import pandas
 import h5py
 import six
-
-
-def is_categorical(array_like):
-    return hasattr(array_like, 'dtype') and array_like.dtype.name == 'category'
 
 
 def get(grp, lo=0, hi=None, fields=None, convert_enum=True, as_dict=False):
@@ -59,7 +56,7 @@ def get(grp, lo=0, hi=None, fields=None, convert_enum=True, as_dict=False):
             dt = None
 
         if dt is not None:
-            data[field] = pandas.Categorical.from_codes(
+            data[field] = pd.Categorical.from_codes(
                 dset[lo:hi],
                 sorted(dt, key=dt.__getitem__),
                 ordered=True)
@@ -77,12 +74,12 @@ def get(grp, lo=0, hi=None, fields=None, convert_enum=True, as_dict=False):
         index = None
 
     if series:
-        return pandas.Series(
+        return pd.Series(
             data[fields[0]],
             index=index,
             name=field)
     else:
-        return pandas.DataFrame(
+        return pd.DataFrame(
             data,
             columns=fields,
             index=index)
@@ -91,7 +88,7 @@ def get(grp, lo=0, hi=None, fields=None, convert_enum=True, as_dict=False):
 def put(grp, df, lo=0, store_categories=True, h5opts=None):
     """
     Store a dataframe into a column-oriented table store.
-    
+
     A table is an HDF5 group containing equal-length 1D datasets serving as
     columns.
 
@@ -115,17 +112,17 @@ def put(grp, df, lo=0, store_categories=True, h5opts=None):
     Notes
     -----
     Categorical data must be ASCII compatible.
-    
+
     """
     if h5opts is None:
         h5opts = dict(compression='gzip', compression_opts=6)
-    
-    if isinstance(df, pandas.Series):
+
+    if isinstance(df, pd.Series):
         df = df.to_frame()
 
     fields = df.keys()
     for field, data in six.iteritems(df):
-        
+
         if np.isscalar(data):
             data = np.array([data])
             dtype = data.dtype
@@ -133,7 +130,7 @@ def put(grp, df, lo=0, store_categories=True, h5opts=None):
         elif is_categorical(data):
             if store_categories:
                 cats = data.cat.categories
-                enum = (data.cat.codes.dtype, 
+                enum = (data.cat.codes.dtype,
                         dict(zip(cats, range(len(cats)))))
                 data = data.cat.codes
                 dtype = h5py.special_dtype(enum=enum)
@@ -151,21 +148,21 @@ def put(grp, df, lo=0, store_categories=True, h5opts=None):
             else:
                 dtype = data.dtype
                 fillvalue = None
-        
+
         hi = lo + len(data)
         try:
             dset = grp[field]
         except KeyError:
             dset = grp.create_dataset(
-                field, 
-                shape=(hi,), 
-                dtype=dtype, 
+                field,
+                shape=(hi,),
+                dtype=dtype,
                 maxshape=(None,),
                 fillvalue=fillvalue,
                 **h5opts)
         if hi > len(dset):
             dset.resize((hi,))
-        
+
         dset[lo:hi] = data
 
 
@@ -187,7 +184,7 @@ def delete(grp, fields=None):
 
     Notes
     -----
-    Deleting objects leaves "holes" in HDF5 files and doesn't shrink the file. 
+    Deleting objects leaves "holes" in HDF5 files and doesn't shrink the file.
     You will need to repack or copy the file contents to reclaim space.
     See the h5repack tool.
 
@@ -275,7 +272,7 @@ class TriuReader(object):
                 all_bin2 = h5['pixels']['bin2_id'][p0:p1]
                 all_data = data[p0:p1]
                 dtype = all_bin2.dtype
-                for row_id, lo, hi in zip(range(i0, i1), 
+                for row_id, lo, hi in zip(range(i0, i1),
                                           edges[:-1] - p0,
                                           edges[1:]  - p0):
                     bin2 = all_bin2[lo:hi]
@@ -326,9 +323,9 @@ def _contains(a0, a1, b0, b1, strict=False):
     return a0 <= b0 and a1 >= b1
 
 
-def query_rect(triu_reader, i0, i1, j0, j1):
+def query_rect(triu_reader, i0, i1, j0, j1, duplex=True):
     """
-    Process a 2D range query on a symmetric matrix using a reader that 
+    Process a 2D range query on a symmetric matrix using a reader that
     retrieves only upper triangle pixels from the matrix.
 
     This function is responsible for filling in the missing data in the query
@@ -351,7 +348,7 @@ def query_rect(triu_reader, i0, i1, j0, j1):
 
     Returns
     -------
-    
+
     i, j, v : 1D arrays
 
 
@@ -364,10 +361,10 @@ def query_rect(triu_reader, i0, i1, j0, j1):
     2. different and non-overlapping
     3. different but partially overlapping
     4. different but one is nested inside the other
-    
+
     - (1) requires filling in the lower triangle.
     - (3) and (4) require splitting the selection into instances of (1) and (2).
-    
+
     In some cases, the input axes ranges are swapped to retrieve the data,
     then the final result is transposed.
 
@@ -376,8 +373,9 @@ def query_rect(triu_reader, i0, i1, j0, j1):
     # symmetric query
     if (i0, i1) == (j0, j1):
         i, j, v = triu_reader(i0, i1, i0, i1)
-        nodiag = i != j
-        i, j, v = np.r_[i, j[nodiag]], np.r_[j, i[nodiag]], np.r_[v, v[nodiag]]
+        if duplex:
+            nodiag = i != j
+            i, j, v = np.r_[i, j[nodiag]], np.r_[j, i[nodiag]], np.r_[v, v[nodiag]]
 
     # asymmetric query
     else:
@@ -395,8 +393,9 @@ def query_rect(triu_reader, i0, i1, j0, j1):
             ix, jx, vx = triu_reader(i0, j0, j0, i1)
             iy, jy, vy = triu_reader(j0, i1, j0, i1)
             iz, jz, vz = triu_reader(i0, i1, i1, j1)
-            nodiag = iy != jy
-            iy, jy, vy = np.r_[iy, jy[nodiag]], np.r_[jy, iy[nodiag]], np.r_[vy, vy[nodiag]]
+            if duplex:
+                nodiag = iy != jy
+                iy, jy, vy = np.r_[iy, jy[nodiag]], np.r_[jy, iy[nodiag]], np.r_[vy, vy[nodiag]]
             i, j, v = np.r_[ix, iy, iz], np.r_[jx, jy, jz], np.r_[vx, vy, vz]
 
         # nested
@@ -404,8 +403,9 @@ def query_rect(triu_reader, i0, i1, j0, j1):
             ix, jx, vx = triu_reader(i0, j0, j0, j1)
             iy, jy, vy = triu_reader(j0, j1, j0, j1)
             jz, iz, vz = triu_reader(j0, j1, j1, i1)
-            nodiag = iy != jy
-            iy, jy, vy = np.r_[iy, jy[nodiag]], np.r_[jy, iy[nodiag]], np.r_[vy, vy[nodiag]]
+            if duplex:
+                nodiag = iy != jy
+                iy, jy, vy = np.r_[iy, jy[nodiag]], np.r_[jy, iy[nodiag]], np.r_[vy, vy[nodiag]]
             i, j, v = np.r_[ix, iy, iz], np.r_[jx, jy, jz], np.r_[vx, vy, vz]
 
         else:

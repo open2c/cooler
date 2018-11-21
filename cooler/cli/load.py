@@ -10,89 +10,13 @@ import pandas as pd
 import h5py
 
 import click
-from . import cli, logger
+from . import cli, get_logger
+from ._util import _parse_bins, _parse_field_params
 from .. import util
 from ..io import (
     parse_cooler_uri, create_from_unordered, sanitize_records, sanitize_pixels
 )
-
-
 # TODO: support dense text or memmapped binary/npy?
-def _parse_field_params(args):
-    extra_fields = []
-    bad_param = False
-    for arg in args:
-
-        parts = arg.split(',')
-        if len(parts) == 1 or len(parts) > 3:
-            bad_param = True
-        else:
-            name = parts[0]
-            try:
-                number = int(parts[1]) - 1
-            except ValueError:
-                bad_param = True
-
-            if number < 0:
-                raise click.BadParameter(
-                    "Field numbers are assumed to be 1-based.")
-
-            if len(parts) == 3:
-                dtype = np.dtype(parts[2])
-            else:
-                dtype = None
-
-        if bad_param:
-            raise click.BadParameter(
-                "Expected '--field {{name}},{{number}}' "
-                "or '--field {{name}},{{number}},{{dtype}}'; "
-                "got '{}'".format(arg))
-        extra_fields.append((name, number, dtype))
-
-    return extra_fields
-
-
-def _parse_bins(arg):
-    # Provided chromsizes and binsize
-    if ":" in arg:
-        chromsizes_file, binsize = arg.split(":")
-        if not op.exists(chromsizes_file):
-            raise ValueError('File "{}" not found'.format(chromsizes_file))
-        try:
-            binsize = int(binsize)
-        except ValueError:
-            raise ValueError(
-                'Expected integer binsize argument (bp), got "{}"'.format(binsize))
-        chromsizes = util.read_chromsizes(chromsizes_file, all_names=True)
-        bins = util.binnify(chromsizes, binsize)
-
-    # Provided bins
-    elif op.exists(arg):
-        try:
-            bins = pd.read_csv(
-                arg,
-                sep='\t',
-                names=['chrom', 'start', 'end'],
-                usecols=[0, 1, 2],
-                dtype={'chrom': str})
-        except pd.parser.CParserError as e:
-            raise ValueError(
-                'Failed to parse bins file "{}": {}'.format(arg, str(e)))
-
-        chromtable = (
-            bins.drop_duplicates(['chrom'], keep='last')[['chrom', 'end']]
-                .reset_index(drop=True)
-                .rename(columns={'chrom': 'name', 'end': 'length'})
-        )
-        chroms, lengths = list(chromtable['name']), list(chromtable['length'])
-        chromsizes = pd.Series(index=chroms, data=lengths)
-        
-    else:
-        raise ValueError(
-            'Expected BINS to be either <Path to bins file> or '
-            '<Path to chromsizes file>:<binsize in bp>.')
-
-    return chromsizes, bins
 
 
 @cli.command()
@@ -148,7 +72,7 @@ def _parse_bins(arg):
     "--one-based",
     is_flag=True,
     default=False,
-    help="Pass this flag if the bin IDs listed in a COO file are one-based " 
+    help="Pass this flag if the bin IDs listed in a COO file are one-based "
          "instead of zero-based.")
 @click.option(
     "--comment-char",
@@ -157,18 +81,28 @@ def _parse_bins(arg):
     show_default=True,
     help="Comment character that indicates lines to ignore.")
 @click.option(
-    "--tril-action",
-    type=click.Choice(['reflect', 'drop']),
-    default='reflect',
-    show_default=True,
-    help="How to handle lower triangle pixels. " 
-         "'reflect': make lower triangle pixels upper triangular. "
-         "Use this if your input data comes only from a unique half of a "
-         "symmetric matrix (but may not respect the specified chromosome order)."
-         "'drop': discard all lower triangle pixels. Use this if your input "
-         "data is derived from a complete symmetric matrix.")
+    "--symmetric-input",
+    type=click.Choice(['unique', 'duplex']),
+    default='unique',
+    help="Copy status of input data when using symmetric storage. | "
+         "`unique`: Incoming data comes from a unique half of a symmetric "
+         "matrix, regardless of how element coordinates are ordered. "
+         "Execution will be aborted if duplicates are detected. "
+         "This is the default setting when the output is a symmetric cooler. | "
+         "`duplex`: Incoming data contains upper- and lower-triangle duplicates. "
+         "All lower-triangle input elements will be discarded! "
+         "If you wish to treat lower- and upper-triangle input data as "
+         "distinct, use the `--no-symmetric-storage` option instead. ",
+    show_default=True)
+@click.option(
+    "--no-symmetric-storage", "-N",
+    help="Create a square matrix without implicit symmetry. "
+         "This allows for distinct upper- and lower-triangle values",
+    is_flag=True,
+    default=False)
 def load(bins_path, pixels_path, cool_path, format, metadata, assembly,
-         chunksize, field, count_as_float, one_based, comment_char, tril_action):
+         chunksize, field, count_as_float, one_based, comment_char,
+         symmetric_input, no_symmetric_storage):
     """
     Load a pre-binned contact matrix into a COOL file.
 
@@ -207,7 +141,16 @@ def load(bins_path, pixels_path, cool_path, format, metadata, assembly,
     COOL_PATH : Output COOL file path or URI.
 
     """
+    logger = get_logger(__name__)
     chromsizes, bins = _parse_bins(bins_path)
+
+    use_symmetric_storage = not no_symmetric_storage
+    tril_action = None
+    if use_symmetric_storage:
+        if symmetric_input == 'unique':
+            tril_action = 'reflect'
+        elif symmetric_input == 'duplex':
+            tril_action = 'drop'
 
     # User-supplied JSON file
     if metadata is not None:
@@ -223,8 +166,8 @@ def load(bins_path, pixels_path, cool_path, format, metadata, assembly,
 
     if format == 'bg2':
         input_field_names = [
-            'chrom1', 'start1', 'end1', 
-            'chrom2', 'start2', 'end2', 
+            'chrom1', 'start1', 'end1',
+            'chrom2', 'start2', 'end2',
             'count'
         ]
         input_field_dtypes = {
@@ -237,8 +180,8 @@ def load(bins_path, pixels_path, cool_path, format, metadata, assembly,
             'chrom2': 3, 'start2': 4, 'end2': 5,
             'count': 6,
         }
-        pipeline = sanitize_records(bins, 
-            schema='bg2', 
+        pipeline = sanitize_records(bins,
+            schema='bg2',
             is_one_based=one_based,
             tril_action=tril_action,
             sort=True)
@@ -248,16 +191,16 @@ def load(bins_path, pixels_path, cool_path, format, metadata, assembly,
             'bin1_id', 'bin2_id', 'count'
         ]
         input_field_dtypes = {
-            'bin1_id': int, 
+            'bin1_id': int,
             'bin2_id': int,
             'count': float if count_as_float else int,
         }
         input_field_numbers = {
-            'bin1_id': 0, 
-            'bin2_id': 1, 
+            'bin1_id': 0,
+            'bin2_id': 1,
             'count': 2,
         }
-        pipeline = sanitize_pixels(bins, 
+        pipeline = sanitize_pixels(bins,
             is_one_based=one_based,
             tril_action=tril_action,
             sort=True)
@@ -274,7 +217,7 @@ def load(bins_path, pixels_path, cool_path, format, metadata, assembly,
             if name not in input_field_names:
                 input_field_names.append(name)
                 output_field_names.append(name)
-            
+
             input_field_numbers[name] = number
 
             if dtype is not None:
@@ -287,7 +230,7 @@ def load(bins_path, pixels_path, cool_path, format, metadata, assembly,
         f_in = pixels_path
 
     reader = pd.read_table(
-        f_in, 
+        f_in,
         usecols=[input_field_numbers[name] for name in input_field_names],
         names=input_field_names,
         dtype=input_field_dtypes,
@@ -297,17 +240,20 @@ def load(bins_path, pixels_path, cool_path, format, metadata, assembly,
 
     logger.info('fields: {}'.format(input_field_numbers))
     logger.info('dtypes: {}'.format(input_field_dtypes))
+    logger.info('symmetric: {}'.format(use_symmetric_storage))
 
     create_from_unordered(
-        cool_path, 
-        bins, 
-        map(pipeline, reader), 
+        cool_path,
+        bins,
+        map(pipeline, reader),
         columns=output_field_names,
         dtypes=output_field_dtypes,
-        metadata=metadata, 
+        metadata=metadata,
         assembly=assembly,
         mergebuf=chunksize,
         ensure_sorted=False,
+        #boundscheck=True,
+        #dupcheck=True,
+        triucheck=True if use_symmetric_storage else False,
+        symmetric=use_symmetric_storage
     )
-
-

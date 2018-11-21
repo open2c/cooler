@@ -16,7 +16,7 @@ from .tools import split, partition
 from .util import mad
 
 
-logger = get_logger()
+logger = get_logger(__name__)
 
 
 class ConvergenceWarning(UserWarning):
