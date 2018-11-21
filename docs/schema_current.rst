@@ -49,7 +49,7 @@ chroms
       length:   typevar['Nchroms'] * int32
     }
 
-In HDF5, ``name`` is a fixed-length ascii array, which maps to the ``np.string_`` dtype.
+In HDF5, ``name`` is a null-padded, fixed-length ASCII array, which maps to numpy's ``S`` dtype.
 
 bins
 """"
@@ -109,7 +109,7 @@ Metadata
 
 Essential key-value properties are stored as root-level HDF5 attributes. A specific bucket called ``metadata`` is reserved for arbitrary JSON-compatible user metadata.
 
-We store all scalar string attributes as unicode text, including JSON-encoded strings.
+All scalar string attributes, including serialized JSON, must be stored as variable-length UTF-8 encoded strings [*]_. 
 
 ::
 
@@ -138,6 +138,8 @@ We store all scalar string attributes as unicode text, including JSON-encoded st
         Custom user metadata about the experiment.
 
 Additional metadata may be stored in the attributes of table columns or groups.
+
+.. [*] In h5py, assigning a Python text string (Python 3 ``str`` or Python 2 ``unicode``) to an HDF5 attribute results in variable-length UTF-8 storage. When assigning attributes from h5py in Python 2, always use the ``unicode`` type.
 
 Additional Notes
 ~~~~~~~~~~~~~~~~
