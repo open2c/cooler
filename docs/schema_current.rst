@@ -66,8 +66,7 @@ bins
       weight:   typevar['Nbins'] * float64
     }
 
-In HDF5, we use the integer-backed ENUM type to encode the ``chrom`` column. For data collections with a very large number of scaffolds, the ENUM type information may be
-too large and the ``chrom`` column is stored as a raw integer column.
+In HDF5, we use the integer-backed ENUM type to encode the ``chrom`` column. For data collections with a very large number of scaffolds, the ENUM type information may be too large to fit in the object's metadata header. In that case, the ``chrom`` column is stored using raw integers and the enumeration is inferred from the ``chrom`` table.
 
 The ``cooler balance`` command by default stores balancing weights in a column called ``weight``. NaN values indicate genomic bins that were blacklisted during the balancing procedure.
 
@@ -102,7 +101,7 @@ Indexes are stored as 1D arrays in a separate group called ``indexes``. They can
 Sparse array interface and symmetry
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+TODO
 
 
 Metadata
