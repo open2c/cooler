@@ -345,6 +345,13 @@ def pairix(bins, pairs_path, cool_path, metadata, assembly, nproc, zero_based, m
     help="Do not delete temporary files when finished.",
     type=bool,
     default=False)
+@click.option(
+    "--max-merge",
+    help="Maximum number of chunks to merge before invoking recursive merging",
+    type=int,
+    default=42, 
+    show_default=True)
+
 # @click.option(
 #     "--format", "-f",
 #     help="Preset data format.",
@@ -352,7 +359,7 @@ def pairix(bins, pairs_path, cool_path, metadata, assembly, nproc, zero_based, m
 # --sep
 def pairs(bins, pairs_path, cool_path, metadata, assembly, chunksize,
           zero_based, comment_char, symmetric_input, no_symmetric_storage,
-          field, temp_dir, no_delete_temp, **kwargs):
+          field, temp_dir, no_delete_temp, max_merge,  **kwargs):
     """
     Bin any text file or stream of pairs.
 
@@ -451,7 +458,8 @@ def pairs(bins, pairs_path, cool_path, metadata, assembly, chunksize,
         triucheck=False,
         dupcheck=False,
         ensure_sorted=False,
-        symmetric=use_symmetric_storage
+        symmetric=use_symmetric_storage, 
+        max_merge=max_merge, 
     )
 
 
