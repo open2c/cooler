@@ -602,7 +602,7 @@ def create(cool_uri, bins, pixels, columns=None, dtypes=None, metadata=None,
 
 def create_from_unordered(cool_uri, bins, chunks, columns=None, dtypes=None,
                           mergebuf=int(20e6), delete_temp=True, temp_dir=None,
-                          multifile_merge=False, max_merge = 42, **kwargs):
+                          multifile_merge=False, max_merge = 200, **kwargs):
     """
     Create a Cooler in two passes via an external sort mechanism. In the first
     pass, a sequence of data chunks are processed and sorted in memory and saved

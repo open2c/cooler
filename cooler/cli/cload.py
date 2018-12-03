@@ -349,7 +349,7 @@ def pairix(bins, pairs_path, cool_path, metadata, assembly, nproc, zero_based, m
     "--max-merge",
     help="Maximum number of chunks to merge before invoking recursive merging",
     type=int,
-    default=42, 
+    default=200, 
     show_default=True)
 
 # @click.option(
