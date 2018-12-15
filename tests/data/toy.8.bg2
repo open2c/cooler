@@ -1,0 +1,12 @@
+chr1	1	8	chr1	17	24	8
+chr1	1	8	chr2	1	8	8
+chr1	9	16	chr1	25	32	8
+chr1	9	16	chr2	9	16	8
+chr1	17	24	chr2	17	24	8
+chr1	25	32	chr2	25	32	8
+chr2	1	8	chr1	25	32	8
+chr2	9	16	chr1	17	24	8
+chr2	17	24	chr1	9	16	8
+chr2	17	24	chr2	1	8	8
+chr2	25	32	chr1	1	8	8
+chr2	25	32	chr2	9	16	8
