@@ -179,6 +179,8 @@ def _sanitize_records(chunk, gs, decode_chroms, is_one_based, tril_action,
     if sort:
         chunk = chunk.sort_values(['bin1_id', 'bin2_id'])
 
+    # TODO: check for duplicate records and warn
+
     return chunk
 
 

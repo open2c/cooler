@@ -7,6 +7,7 @@ import tempfile
 import warnings
 import uuid
 import json
+import os
 
 from six.moves import map
 from six import PY2
