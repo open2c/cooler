@@ -17,6 +17,7 @@ classifiers = """\
     Programming Language :: Python :: 3.4
     Programming Language :: Python :: 3.5
     Programming Language :: Python :: 3.6
+    Programming Language :: Python :: 3.7
 """
 
 
@@ -37,13 +38,7 @@ def get_version():
 
 
 def get_long_description():
-    descr = _read('README.md')
-    try:
-        import pypandoc
-        descr = pypandoc.convert_text(descr, to='rst', format='md')
-    except (IOError, ImportError):
-        pass
-    return descr
+    return _read('README.md')
 
 
 install_requires = [
@@ -64,7 +59,7 @@ install_requires = [
 
 
 tests_require = [
-    'nose',
+    'pytest',
     'mock'
 ]
 
@@ -82,9 +77,10 @@ setup(
     author='Nezar Abdennur',
     author_email='nezar@mit.edu',
     version=get_version(),
-    license='BSD3',
+    license='BSD',
     description='Sparse binary format for genomic interaction matrices',
     long_description=get_long_description(),
+    long_description_content_type='text/markdown',
     keywords=['genomics', 'bioinformatics', 'Hi-C', 'contact', 'matrix', 'format', 'hdf5'],
     url='https://github.com/mirnylab/cooler',
     packages=find_packages(),
