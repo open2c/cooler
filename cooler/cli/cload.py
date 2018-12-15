@@ -205,7 +205,7 @@ def tabix(bins, pairs_path, cool_path, metadata, assembly, nproc, zero_based, ma
             opts['P2'] = kwargs['pos2'] - 1
         iterator = TabixAggregator(pairs_path, chromsizes, bins, map=map,
             is_one_based=(not zero_based), n_chunks=max_split, **opts)
-        create(cool_path, bins, iterator, metadata, assembly)
+        create(cool_path, bins, iterator, metadata=metadata, assembly=assembly)
     finally:
         if nproc > 1:
             pool.close()
@@ -261,7 +261,7 @@ def pairix(bins, pairs_path, cool_path, metadata, assembly, nproc, zero_based, m
             map = six.moves.map
         iterator = PairixAggregator(pairs_path, chromsizes, bins, map=map,
             is_one_based=(not zero_based), n_chunks=max_split)
-        create(cool_path, bins, iterator, metadata, assembly)
+        create(cool_path, bins, iterator, metadata=metadata, assembly=assembly)
     finally:
         if nproc > 1:
             pool.close()
