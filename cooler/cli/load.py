@@ -100,9 +100,15 @@ from ..io import (
          "This allows for distinct upper- and lower-triangle values",
     is_flag=True,
     default=False)
+@click.option(
+    "--storage-options",
+    help="Options to modify the data filter pipeline. Provide as a "
+         "comma-separated list of key-value pairs of the form 'k1=v1,k2=v2,...'. "
+         "See http://docs.h5py.org/en/stable/high/dataset.html#filter-pipeline "
+         "for more details.")
 def load(bins_path, pixels_path, cool_path, format, metadata, assembly,
          chunksize, field, count_as_float, one_based, comment_char,
-         symmetric_input, no_symmetric_storage):
+         symmetric_input, no_symmetric_storage, storage_options):
     """
     Load a pre-binned contact matrix into a COOL file.
 
@@ -224,6 +230,14 @@ def load(bins_path, pixels_path, cool_path, format, metadata, assembly,
                 input_field_dtypes[name] = dtype
                 output_field_dtypes[name] = dtype
 
+    if storage_options is not None:
+        h5opts = _parse_kv_list_param(storage_options)
+        for key in h5opts:
+            if isinstance(h5opts[key], list):
+                h5opts[key] = tuple(h5opts[key])
+    else:
+        h5opts = None
+
     if pixels_path == '-':
         f_in = sys.stdin
     else:
@@ -255,5 +269,6 @@ def load(bins_path, pixels_path, cool_path, format, metadata, assembly,
         #boundscheck=True,
         #dupcheck=True,
         triucheck=True if use_symmetric_storage else False,
-        symmetric=use_symmetric_storage
+        symmetric=use_symmetric_storage,
+        h5opts=h5opts
     )

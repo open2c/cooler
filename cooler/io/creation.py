@@ -323,8 +323,7 @@ def rename_chroms(grp, rename_dict, h5opts=None):
         HDF5 filter options.
 
     """
-    if h5opts is None:
-        h5opts = dict(compression='gzip', compression_opts=6)
+    h5opts = _set_h5opts(h5opts)
 
     chroms = cooler.core.get(grp['chroms']).set_index('name')
     n_chroms = len(chroms)
@@ -373,6 +372,22 @@ def _get_dtypes_arg(dtypes, kwargs):
                 'Please use "dtypes" to provide a column name -> dtype mapping. '
                 '"dtype" remains as an alias but is deprecated.')
     return dtypes
+
+
+def _set_h5opts(h5opts):
+    result = {}
+    if h5opts is not None:
+        result.update(h5opts)
+    available_opts = {'chunks', 'maxshape', 'compression', 'compression_opts',
+        'scaleoffset', 'shuffle', 'fletcher32' , 'fillvalue', 'track_times'}
+    for key in result.keys():
+        if key not in available_opts:
+            raise ValueError("Unknown storage option '{}'.".format(key))
+    result.setdefault('compression', 'gzip')
+    if result['compression'] == 'gzip' and 'compression_opts' not in result:
+        result['compression_opts'] = 6
+    result.setdefault('shuffle', True)
+    return result
 
 
 def create(cool_uri, bins, pixels, columns=None, dtypes=None, metadata=None,
@@ -434,8 +449,7 @@ def create(cool_uri, bins, pixels, columns=None, dtypes=None, metadata=None,
     """
     file_path, group_path = parse_cooler_uri(cool_uri)
     mode = 'a' if append else 'w'
-    if h5opts is None:
-        h5opts = dict(compression='gzip', compression_opts=6, shuffle=True)
+    h5opts = _set_h5opts(h5opts)
 
     if not isinstance(bins, pd.DataFrame):
         raise ValueError(
@@ -731,8 +745,7 @@ def append(cool_uri, table, data, chunked=False, force=False, h5opts=None,
         Optional lock to synchronize concurrent HDF5 file access.
 
     """
-    if h5opts is None:
-        h5opts = dict(compression='gzip', compression_opts=6)
+    h5opts = _set_h5opts(h5opts)
 
     file_path, group_path = parse_cooler_uri(cool_uri)
 

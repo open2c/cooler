@@ -100,8 +100,9 @@ def test_cload_pairs(bins_path, pairs_path, ref_path):
         field=(),
         temp_dir=None,
         no_delete_temp=False,
+        storage_options=None,
         chrom1=1, pos1=2,
-        chrom2=4, pos2=5
+        chrom2=4, pos2=5,
     )
     with h5py.File(testcool_path, 'r') as f1, \
          h5py.File(ref_path, 'r') as f2:
@@ -276,7 +277,8 @@ def test_load_bg2_vs_coo():
         one_based=False,
         comment_char='#',
         symmetric_input='unique',
-        no_symmetric_storage=False
+        no_symmetric_storage=False,
+        storage_options=None,
     )
     load.callback(
         op.join(testdir, 'data', 'hg19.bins.2000kb.bed.gz'),
@@ -291,7 +293,8 @@ def test_load_bg2_vs_coo():
         one_based=False,
         comment_char='#',
         symmetric_input='unique',
-        no_symmetric_storage=False
+        no_symmetric_storage=False,
+        storage_options=None,
     )
 
     with h5py.File(out_path1, 'r') as f1, \

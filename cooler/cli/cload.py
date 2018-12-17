@@ -14,7 +14,7 @@ import h5py
 
 import click
 from . import cli, get_logger
-from ._util import _parse_bins
+from ._util import _parse_bins, _parse_kv_list_param
 from .. import util
 from ..io import (
     create, create_from_unordered,
@@ -345,6 +345,12 @@ def pairix(bins, pairs_path, cool_path, metadata, assembly, nproc, zero_based, m
     help="Do not delete temporary files when finished.",
     type=bool,
     default=False)
+@click.option(
+    "--storage-options",
+    help="Options to modify the data filter pipeline. Provide as a "
+         "comma-separated list of key-value pairs of the form 'k1=v1,k2=v2,...'. "
+         "See http://docs.h5py.org/en/stable/high/dataset.html#filter-pipeline "
+         "for more details.")
 # @click.option(
 #     "--format", "-f",
 #     help="Preset data format.",
@@ -352,7 +358,7 @@ def pairix(bins, pairs_path, cool_path, metadata, assembly, nproc, zero_based, m
 # --sep
 def pairs(bins, pairs_path, cool_path, metadata, assembly, chunksize,
           zero_based, comment_char, symmetric_input, no_symmetric_storage,
-          field, temp_dir, no_delete_temp, **kwargs):
+          field, temp_dir, no_delete_temp, storage_options, **kwargs):
     """
     Bin any text file or stream of pairs.
 
@@ -411,6 +417,14 @@ def pairs(bins, pairs_path, cool_path, metadata, assembly, chunksize,
             if agg is not None:
                 aggregations[name] = agg
 
+    if storage_options is not None:
+        h5opts = _parse_kv_list_param(storage_options)
+        for key in h5opts:
+            if isinstance(h5opts[key], list):
+                h5opts[key] = tuple(h5opts[key])
+    else:
+        h5opts = None
+
     if pairs_path == '-':
         f_in = sys.stdin
     else:
@@ -451,7 +465,8 @@ def pairs(bins, pairs_path, cool_path, metadata, assembly, chunksize,
         triucheck=False,
         dupcheck=False,
         ensure_sorted=False,
-        symmetric=use_symmetric_storage
+        symmetric=use_symmetric_storage,
+        h5opts=h5opts
     )
 
 
