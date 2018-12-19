@@ -640,9 +640,6 @@ def create_from_unordered(cool_uri, bins, chunks, columns=None, dtypes=None,
         Useful for debugging. Default is False.
     temp_dir : str, optional
         Create temporary files in this directory.
-    multifile_merge : bool, optional
-        Store temporary merge chunks as separate .cool files rather than in
-        a single multi-cooler file. Default is False.
     max_merge : int, optional 
         If merging more than max_merge chunks, do merge recursively. 
     metadata : dict, optional
@@ -675,51 +672,38 @@ def create_from_unordered(cool_uri, bins, chunks, columns=None, dtypes=None,
 
     temp_files = []
         
-    if multifile_merge:
-        for i, chunk in enumerate(chunks):
-            tf = tempfile.NamedTemporaryFile(
-                suffix='.cool',
-                delete=delete_temp,
-                dir=temp_dir)
-            temp_files.append(tf)
-            logger.info('Writing chunk {}: {}'.format(i, tf.name))
-            create(tf.name, bins, chunk, columns=columns, dtypes=dtypes, **kwargs)
-            
-        if len(temp_files) > max_merge:
-            temp_files_2 = []            
-    else:
-        tf = tempfile.NamedTemporaryFile(
+    tf = tempfile.NamedTemporaryFile(
+            suffix='.multi.cool',
+            delete=delete_temp,
+            dir=temp_dir)
+    temp_files.append(tf)
+    uris = []
+    for i, chunk in enumerate(chunks):
+        uri = tf.name + '::' + str(i)
+        uris.append(uri)
+        logger.info('Writing chunk {}: {}'.format(i, uri))
+        create(uri, bins, chunk, columns=columns, dtypes=dtypes, append=True, **kwargs)
+    if (len(uris) > max_merge) and (max_merge >= 0):
+        uris2 = []
+        tf2 = tempfile.NamedTemporaryFile(
                 suffix='.multi.cool',
                 delete=delete_temp,
                 dir=temp_dir)
-        temp_files.append(tf)
-        uris = []
-        for i, chunk in enumerate(chunks):
-            uri = tf.name + '::' + str(i)
-            uris.append(uri)
-            logger.info('Writing chunk {}: {}'.format(i, uri))
-            create(uri, bins, chunk, columns=columns, dtypes=dtypes, append=True, **kwargs)
-        if (len(uris) > max_merge) or (max_merge <= 0):
-            uris2 = []
-            tf2 = tempfile.NamedTemporaryFile(
-                    suffix='.multi.cool',
-                    delete=delete_temp,
-                    dir=temp_dir)
-            temp_files.append(tf2)
-            subchunks = np.linspace(0, len(uris), int(np.sqrt(len(uris))), dtype=int)
-            for st,end in zip(subchunks[:-1], subchunks[1:]):
-                chunks = CoolerMerger([Cooler(uri) for uri in uris[st:end]], mergebuf)
-                new_uri = tf2.name + '::' + "{0}-{1}".format(st,end)
-                logger.info('Merging chunks {}-{}: {}'.format(st,end, new_uri))
-                create(new_uri, bins, chunks, columns=columns, dtypes=dtypes, **kwargs)
-                uris2.append(new_uri)            
-            chunks = CoolerMerger([Cooler(uri) for uri in uris2], mergebuf)
-            logger.info('Merging into {}'.format(cool_uri))
-            create(cool_uri, bins, chunks, columns=columns, dtypes=dtypes, **kwargs)
-        else: 
-            chunks = CoolerMerger([Cooler(uri) for uri in uris], mergebuf)            
-            logger.info('Merging into {}'.format(cool_uri))
-            create(cool_uri, bins, chunks, columns=columns, dtypes=dtypes, **kwargs)
+        temp_files.append(tf2)
+        subchunks = np.linspace(0, len(uris), int(np.sqrt(len(uris))), dtype=int)
+        for st,end in zip(subchunks[:-1], subchunks[1:]):
+            chunks = CoolerMerger([Cooler(uri) for uri in uris[st:end]], mergebuf)
+            new_uri = tf2.name + '::' + "{0}-{1}".format(st,end)
+            logger.info('Merging chunks {}-{}: {}'.format(st,end, new_uri))
+            create(new_uri, bins, chunks, columns=columns, dtypes=dtypes, **kwargs)
+            uris2.append(new_uri)            
+        chunks = CoolerMerger([Cooler(uri) for uri in uris2], mergebuf)
+        logger.info('Merging into {}'.format(cool_uri))
+        create(cool_uri, bins, chunks, columns=columns, dtypes=dtypes, **kwargs)
+    else: 
+        chunks = CoolerMerger([Cooler(uri) for uri in uris], mergebuf)            
+        logger.info('Merging into {}'.format(cool_uri))
+        create(cool_uri, bins, chunks, columns=columns, dtypes=dtypes, **kwargs)
 
     del temp_files
     
