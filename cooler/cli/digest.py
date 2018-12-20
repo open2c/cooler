@@ -6,6 +6,7 @@ import sys
 
 import click
 from . import cli
+from ._util import exit_on_broken_pipe
 from .. import util
 
 
@@ -22,7 +23,19 @@ from .. import util
 @click.option(
     "--out", "-o",
     help="Output file (defaults to stdout)")
-def digest(chromsizes, fasta, enzyme, out):
+@click.option(
+    "--header", "-H",
+    help="Print the header of column names as the first row.",
+    is_flag=True,
+    default=False,
+    show_default=True)
+@click.option(
+    "--rel-ids", "-i",
+    type=click.Choice(['0', '1']),
+    help="Include a column of relative bin IDs for each chromosome. "
+         "Choose whether to report them as 0- or 1-based.")
+@exit_on_broken_pipe(1)
+def digest(chromsizes, fasta, enzyme, out, header, rel_ids):
     """
     Generate fragment-delimited genomic bins.
     Output a genome segmentation of restriction fragments as a BED file.
@@ -50,20 +63,18 @@ def digest(chromsizes, fasta, enzyme, out):
     # Digest sequences
     frags = util.digest(fasta_records, enzyme)
 
+    if rel_ids is not None:
+        frags['id'] = frags.groupby('chrom').cumcount()
+        if int(rel_ids) == 1:
+            frags['id'] += 1
+
     # Write output
-    try:
-        if out is None:
-            f = sys.stdout
-        else:
-            f = open(out, 'wt')
-        frags.to_csv(f, sep='\t', index=False, header=False)
-    except (IOError, OSError) as e:
-        if e.errno == 32:  # broken pipe
-            try:
-                f.close()
-            except OSError:
-                pass
-        else:
-            raise
+    if out is None:
+        f = sys.stdout
     else:
-        f.close()
+        f = open(out, 'wt')
+
+    if header:
+        frags[0:0].to_csv(f, sep='\t', index=False, header=True)
+    frags.to_csv(f, sep='\t', index=False, header=False)
+    f.flush()

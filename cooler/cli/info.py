@@ -28,7 +28,7 @@ from ..util import attrs_to_jsonable
     help="Output file (defaults to stdout)")
 def info(cool_uri, field, metadata, out):
     """
-    Display file info and metadata.
+    Display a Cooler's info and metadata.
 
     COOL_PATH : Path to a COOL file or Cooler URI.
 

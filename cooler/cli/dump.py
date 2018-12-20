@@ -7,6 +7,8 @@ import numpy as np
 import pandas as pd
 
 import click
+from ._util import DelimitedTuple
+from ._util import exit_on_broken_pipe
 from . import cli
 from .. import api
 
@@ -25,17 +27,16 @@ from .. import api
     default='pixels',
     show_default=True)
 @click.option(
-    "--header",
+    "--columns", "-c",
+    help="Restrict output to a subset of columns, provided as a "
+         "comma-separated list.",
+    type=DelimitedTuple(sep=','))
+@click.option(
+    "--header", "-H",
     help="Print the header of column names as the first row.",
     is_flag=True,
     default=False,
     show_default=True)
-@click.option(
-    '--chunksize', "-k",
-    help="Sets the amount of pixel data loaded from disk at one time. "
-         "Can affect the performance of joins on high resolution datasets. "
-         "Default is to load as many rows as there are bins.",
-    type=int)
 @click.option(
     "--range", "-r",
     help="The coordinates of a genomic region shown along the row dimension, "
@@ -67,13 +68,30 @@ from .. import api
     help="Join additional columns from the bin table against the pixels. "
          "Provide a comma separated list of column names (no spaces). "
          "The merged columns will be suffixed by '1' and '2' accordingly.",
+    type=DelimitedTuple(sep=','))
+@click.option(
+    "--na-rep",
+    help="Missing data representation. Default is empty ''.",
     default='')
+@click.option(
+    "--float-format",
+    help="Format string for floating point numbers (e.g. '.12g', '03.2f').",
+    default='g',
+    show_default=True)
+@click.option(
+    '--chunksize', "-k",
+    help="Sets the amount of pixel data loaded from disk at one time. "
+         "Can affect the performance of joins on high resolution datasets. "
+         "Default is to load as many rows as there are bins.",
+    type=int)
 @click.option(
     "--out", "-o",
     help="Output text file If .gz extension is detected, file is written "
          "using zlib. Default behavior is to stream to stdout.")
-def dump(cool_uri, table, chunksize, range, range2, join,
-         annotate, balanced, header, out):
+# duplex (not use unique values for symmetric matrices)
+@exit_on_broken_pipe(1)
+def dump(cool_uri, table, columns, header, range, range2, balanced, join,
+         annotate, na_rep, float_format, chunksize, out):
     """
     Dump a contact matrix.
     Print the contents of a COOL file to tab-delimited text.
@@ -118,11 +136,16 @@ def dump(cool_uri, table, chunksize, range, range2, join,
         if chunksize is None:
             chunksize = len(bins)
 
+    if columns is not None:
+        selector = selector[list(columns)]
+
     # write in chunks
     edges = np.arange(0, n+chunksize, chunksize)
     edges[-1] = n
 
     first = True
+    if float_format is not None:
+        float_format = '%' + float_format
 
     for lo, hi in zip(edges[:-1], edges[1:]):
 
@@ -133,8 +156,8 @@ def dump(cool_uri, table, chunksize, range, range2, join,
 
         if table == 'pixels':
 
-            if annotate:
-                extra_fields = annotate.split(',')
+            if annotate is not None:
+                extra_fields = list(annotate)
                 try:
                     extra_cols = bins[extra_fields]
                 except KeyError as e:
@@ -149,27 +172,26 @@ def dump(cool_uri, table, chunksize, range, range2, join,
             if join:
                 sel = api.annotate(sel, bins[['chrom', 'start', 'end']])
 
-            if annotate:
+            if annotate is not None:
                 sel = pd.concat([sel, extra], axis=1)
 
         if first:
             if header:
                 sel[0:0].to_csv(
-                    f, sep='\t', index=False, header=True, float_format='%g')
+                    f,
+                    sep='\t',
+                    index=False,
+                    header=True,
+                    float_format=float_format)
             first = False
 
-        try:
-            sel.to_csv(
-                f, sep='\t', index=False, header=False, float_format='%g')
+        sel.to_csv(
+            f,
+            sep='\t',
+            index=False,
+            header=False,
+            float_format=float_format,
+            na_rep=na_rep)
 
-        except (IOError, OSError) as e:
-            if e.errno == 32:  # broken pipe
-                try:
-                    f.close()
-                except OSError:
-                    pass
-                break
-            else:
-                raise
     else:
-        f.close()
+        f.flush()
