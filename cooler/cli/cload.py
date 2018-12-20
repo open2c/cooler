@@ -346,6 +346,12 @@ def pairix(bins, pairs_path, cool_path, metadata, assembly, nproc, zero_based, m
     type=bool,
     default=False)
 @click.option(
+    "--max-merge",
+    help="Maximum number of chunks to merge before invoking recursive merging",
+    type=int,
+    default=200,
+    show_default=True)
+@click.option(
     "--storage-options",
     help="Options to modify the data filter pipeline. Provide as a "
          "comma-separated list of key-value pairs of the form 'k1=v1,k2=v2,...'. "
@@ -358,7 +364,7 @@ def pairix(bins, pairs_path, cool_path, metadata, assembly, nproc, zero_based, m
 # --sep
 def pairs(bins, pairs_path, cool_path, metadata, assembly, chunksize,
           zero_based, comment_char, symmetric_input, no_symmetric_storage,
-          field, temp_dir, no_delete_temp, storage_options, **kwargs):
+          field, temp_dir, no_delete_temp, max_merge, storage_options, **kwargs):
     """
     Bin any text file or stream of pairs.
 
@@ -459,6 +465,7 @@ def pairs(bins, pairs_path, cool_path, metadata, assembly, chunksize,
         metadata=metadata,
         assembly=assembly,
         mergebuf=chunksize,
+        max_merge=max_merge,
         temp_dir=temp_dir,
         delete_temp=not no_delete_temp,
         boundscheck=False,
@@ -466,8 +473,5 @@ def pairs(bins, pairs_path, cool_path, metadata, assembly, chunksize,
         dupcheck=False,
         ensure_sorted=False,
         symmetric=use_symmetric_storage,
-        h5opts=h5opts
+        h5opts=h5opts,
     )
-
-
-

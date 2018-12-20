@@ -49,7 +49,7 @@ chroms
       length:   typevar['Nchroms'] * int32
     }
 
-In HDF5, ``name`` is a fixed-length ascii array, which maps to the ``np.string_`` dtype.
+In HDF5, ``name`` is a null-padded, fixed-length ASCII array, which maps to numpy's ``S`` dtype.
 
 bins
 """"
@@ -66,8 +66,7 @@ bins
       weight:   typevar['Nbins'] * float64
     }
 
-In HDF5, we use the integer-backed ENUM type to encode the ``chrom`` column. For data collections with a very large number of scaffolds, the ENUM type information may be
-too large and the ``chrom`` column is stored as a raw integer column.
+In HDF5, we use the integer-backed ENUM type to encode the ``chrom`` column. For data collections with a very large number of scaffolds, the ENUM type information may be too large to fit in the object's metadata header. In that case, the ``chrom`` column is stored using raw integers and the enumeration is inferred from the ``chrom`` table.
 
 The ``cooler balance`` command by default stores balancing weights in a column called ``weight``. NaN values indicate genomic bins that were blacklisted during the balancing procedure.
 
@@ -102,7 +101,7 @@ Indexes are stored as 1D arrays in a separate group called ``indexes``. They can
 Sparse array interface and symmetry
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+TODO
 
 
 Metadata
@@ -110,7 +109,7 @@ Metadata
 
 Essential key-value properties are stored as root-level HDF5 attributes. A specific bucket called ``metadata`` is reserved for arbitrary JSON-compatible user metadata.
 
-We store all scalar string attributes as unicode text, including JSON-encoded strings.
+All scalar string attributes, including serialized JSON, must be stored as variable-length UTF-8 encoded strings [*]_. 
 
 ::
 
@@ -139,6 +138,8 @@ We store all scalar string attributes as unicode text, including JSON-encoded st
         Custom user metadata about the experiment.
 
 Additional metadata may be stored in the attributes of table columns or groups.
+
+.. [*] In h5py, assigning a Python text string (Python 3 ``str`` or Python 2 ``unicode``) to an HDF5 attribute results in variable-length UTF-8 storage. When assigning attributes from h5py in Python 2, always use the ``unicode`` type.
 
 Additional Notes
 ~~~~~~~~~~~~~~~~
