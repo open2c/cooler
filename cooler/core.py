@@ -503,6 +503,10 @@ class RangeSelector1D(_IndexingMixin):
     def columns(self):
         return self._slice(self.fields, 0, 0).columns
 
+    @property
+    def dtypes(self):
+        return self._slice(self.fields, 0, 0).dtypes
+
     def keys(self):
         return list(self.columns)
 
