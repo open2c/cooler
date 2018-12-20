@@ -1,54 +1,46 @@
 {
     "creators": [
         {
-            "name": "Nezar Abdennur",
+            "name": "Abdennur, Nezar",
             "affiliation": "MIT, Cambridge, MA, USA",
             "orcid": "0000-0001-5814-0864"
-        }, 
+        },
         {
-            "name": "Anton Goloborodko",
+            "name": "Goloborodko, Anton",
             "affiliation": "MIT, Cambridge, MA, USA"
         }, 
         {
-            "name": "Maxim Imakaev",
+            "name": "Imakaev, Maxim",
             "affiliation": "MIT, Cambridge, MA, USA"
         }, 
         {
-            "name": "Leonid Mirny",
+            "name": "Kerpedjiev, Peter", 
+            "affiliation": "Harvard Medical School"
+        }, 
+        {
+            "name": "Fudenberg, Geoffrey", 
+            "affiliation": "UCSF"
+        }, 
+        {
+            "name": "Oullette, Scott", 
+            "affiliation": "Harvard Medical School"
+        }, 
+        {
+            "name": "Lee, Soo", 
+            "affiliation": "Harvard Medical School"
+        }, 
+        {
+            "name": "Strobelt, Hendrik", 
+            "affiliation": "Harvard"
+        }, 
+        {
+            "name": "Gehlenborg, Nils", 
+            "affiliation": "Harvard Medical School"
+        },
+        {
+            "name": "Mirny, Leonid",
             "affiliation": "MIT, Cambridge, MA, USA"
-        }
-    ], 
-    "contributors": [
-      {
-        "name": "Peter Kerpedjiev", 
-        "affiliation": "Harvard Medical School", 
-        "type": "Other"
-      }, 
-      {
-        "name": "Geoffrey Fudenberg", 
-        "affiliation": "UCSF", 
-        "type": "Other"
-      }, 
-      {
-        "name": "Scott Oullette", 
-        "affiliation": "Harvard Medical School", 
-        "type": "Other"
-      }, 
-      {
-        "name": "Soo Lee", 
-        "affiliation": "Harvard Medical School", 
-        "type": "Other"
-      }, 
-      {
-        "name": "Hendrik Strobelt", 
-        "affiliation": "Harvard", 
-        "type": "Other"
-      }, 
-      {
-        "name": "Nils Gehlenborg", 
-        "affiliation": "Harvard Medical School", 
-        "type": "Other"
-      }
+        },
     ], 
     "keywords": [
         "bioinformatics",
