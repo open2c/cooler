@@ -160,6 +160,8 @@ def _copy(src_uri, dst_uri, overwrite, link, rename, soft_link):
                     del src[src_group]
             elif soft_link:
                 src[dst_group] = h5py.SoftLink(src_group)
+            else:
+                src.copy(src_group, dst_group)
         else:
             if link:
                 raise OSError("Can't hard link between two different files.")
