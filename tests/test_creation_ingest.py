@@ -22,99 +22,6 @@ testdir = op.realpath(op.dirname(__file__))
 testcool_path = op.join(tmp, 'test.cool')
 
 
-@pytest.mark.filterwarnings("ignore")
-@pytest.mark.parametrize("bins_path,pairs_path,ref_path", [(
-    op.join(testdir, 'data', 'hg19.bins.2000kb.bed.gz'),
-    op.join(testdir, 'data', 'hg19.GM12878-MboI.pairs.subsample.sorted.txt.gz'),
-    op.join(testdir, 'data', 'hg19.GM12878-MboI.matrix.2000kb.cool')
-)])
-def test_cload_tabix(bins_path, pairs_path, ref_path):
-
-    cload_tabix.callback(
-        bins_path,
-        pairs_path,
-        testcool_path,
-        metadata=None,
-        assembly='hg19',
-        nproc=8,
-        zero_based=False,
-        max_split=2,
-    )
-    with h5py.File(testcool_path, 'r') as f1, \
-         h5py.File(ref_path, 'r') as f2:
-        assert np.all(f1['pixels/bin1_id'][:] == f2['pixels/bin1_id'][:])
-        assert np.all(f1['pixels/bin2_id'][:] == f2['pixels/bin2_id'][:])
-        assert np.all(f1['pixels/count'][:] == f2['pixels/count'][:])
-    try:
-        os.remove(testcool_path)
-    except OSError:
-        pass
-
-
-@pytest.mark.parametrize("bins_path,pairs_path,ref_path", [(
-    op.join(testdir, 'data', 'hg19.bins.2000kb.bed.gz'),
-    op.join(testdir, 'data', 'hg19.GM12878-MboI.pairs.subsample.blksrt.txt.gz'),
-    op.join(testdir, 'data', 'hg19.GM12878-MboI.matrix.2000kb.cool')
-)])
-def test_cload_pairix(bins_path, pairs_path, ref_path):
-
-    cload_pairix.callback(
-        bins_path,
-        pairs_path,
-        testcool_path,
-        metadata=None,
-        assembly='hg19',
-        nproc=8,
-        zero_based=False,
-        max_split=2,
-    )
-    with h5py.File(testcool_path, 'r') as f1, \
-         h5py.File(ref_path, 'r') as f2:
-        assert np.all(f1['pixels/bin1_id'][:] == f2['pixels/bin1_id'][:])
-        assert np.all(f1['pixels/bin2_id'][:] == f2['pixels/bin2_id'][:])
-        assert np.all(f1['pixels/count'][:] == f2['pixels/count'][:])
-    try:
-        os.remove(testcool_path)
-    except OSError:
-        pass
-
-
-@pytest.mark.parametrize("bins_path,pairs_path,ref_path", [(
-    op.join(testdir, 'data', 'hg19.bins.2000kb.bed.gz'),
-    op.join(testdir, 'data', 'hg19.GM12878-MboI.pairs.subsample.blksrt.txt.gz'),
-    op.join(testdir, 'data', 'hg19.GM12878-MboI.matrix.2000kb.cool')
-)])
-def test_cload_pairs(bins_path, pairs_path, ref_path):
-
-    cload_pairs.callback(
-        bins_path,
-        pairs_path,
-        testcool_path,
-        metadata=None,
-        assembly='hg19',
-        chunksize=int(15e6),
-        zero_based=False,
-        comment_char='#',
-        symmetric_input='unique',
-        no_symmetric_storage=False,
-        field=(),
-        temp_dir=None,
-        no_delete_temp=False,
-        storage_options=None,
-        chrom1=1, pos1=2,
-        chrom2=4, pos2=5,
-    )
-    with h5py.File(testcool_path, 'r') as f1, \
-         h5py.File(ref_path, 'r') as f2:
-        assert np.all(f1['pixels/bin1_id'][:] == f2['pixels/bin1_id'][:])
-        assert np.all(f1['pixels/bin2_id'][:] == f2['pixels/bin2_id'][:])
-        assert np.all(f1['pixels/count'][:] == f2['pixels/count'][:])
-    try:
-        os.remove(testcool_path)
-    except OSError:
-        pass
-
-
 def _alternating_bins(chromsizes, steps):
     def _each(chrom):
         clen = chromsizes[chrom]
@@ -259,16 +166,169 @@ def test_from_hdf5_pairs():
     should_work_with_int32_cols(chromsizes, bintable, mock_pairs)
 
 
+@pytest.mark.filterwarnings("ignore")
+@pytest.mark.parametrize("bins_path,pairs_path,ref_path", [(
+    op.join(testdir, 'data', 'hg19.bins.2000kb.bed.gz'),
+    op.join(testdir, 'data', 'hg19.GM12878-MboI.pairs.subsample.sorted.txt.gz'),
+    op.join(testdir, 'data', 'hg19.GM12878-MboI.matrix.2000kb.cool')
+)])
+def test_cload_tabix(bins_path, pairs_path, ref_path):
+    cload_tabix.callback(
+        bins_path,
+        pairs_path,
+        testcool_path,
+        metadata=None,
+        assembly='hg19',
+        nproc=8,
+        zero_based=False,
+        max_split=2,
+    )
+    with h5py.File(testcool_path, 'r') as f1, \
+         h5py.File(ref_path, 'r') as f2:
+        assert np.all(f1['pixels/bin1_id'][:] == f2['pixels/bin1_id'][:])
+        assert np.all(f1['pixels/bin2_id'][:] == f2['pixels/bin2_id'][:])
+        assert np.all(f1['pixels/count'][:] == f2['pixels/count'][:])
+    try:
+        os.remove(testcool_path)
+    except OSError:
+        pass
+
+
+@pytest.mark.parametrize("bins_path,pairs_path,ref_path", [(
+    op.join(testdir, 'data', 'hg19.bins.2000kb.bed.gz'),
+    op.join(testdir, 'data', 'hg19.GM12878-MboI.pairs.subsample.blksrt.txt.gz'),
+    op.join(testdir, 'data', 'hg19.GM12878-MboI.matrix.2000kb.cool')
+)])
+def test_cload_pairix(bins_path, pairs_path, ref_path):
+    cload_pairix.callback(
+        bins_path,
+        pairs_path,
+        testcool_path,
+        metadata=None,
+        assembly='hg19',
+        nproc=8,
+        zero_based=False,
+        max_split=2,
+    )
+    with h5py.File(testcool_path, 'r') as f1, \
+         h5py.File(ref_path, 'r') as f2:
+        assert np.all(f1['pixels/bin1_id'][:] == f2['pixels/bin1_id'][:])
+        assert np.all(f1['pixels/bin2_id'][:] == f2['pixels/bin2_id'][:])
+        assert np.all(f1['pixels/count'][:] == f2['pixels/count'][:])
+    try:
+        os.remove(testcool_path)
+    except OSError:
+        pass
+
+
+@pytest.mark.parametrize("bins_path,pairs_path,ref_path", [
+    (op.join(testdir, 'data', 'toy.bins.var.bed'),
+     op.join(testdir, 'data', 'toy.pairs'),
+     op.join(testdir, 'data', 'toy.symm.upper.var.cool'))
+    ])
+def test_cload_pairs(bins_path, pairs_path, ref_path):
+    kwargs = dict(
+        metadata=None,
+        assembly='hg19',
+        chunksize=int(15e6),
+        zero_based=False,
+        comment_char='#',
+        symmetric_input='unique',
+        no_symmetric_storage=False,
+        field=(),
+        temp_dir=None,
+        no_delete_temp=False,
+        storage_options=None,
+        no_count=False,
+        max_merge=200,
+        chrom1=1, pos1=2,
+        chrom2=3, pos2=4,
+    )
+    cload_pairs.callback(
+        bins_path,
+        pairs_path,
+        testcool_path,
+        **kwargs
+    )
+    with h5py.File(testcool_path, 'r') as f1, \
+         h5py.File(ref_path, 'r') as f2:
+        assert np.all(f1['pixels/bin1_id'][:] == f2['pixels/bin1_id'][:])
+        assert np.all(f1['pixels/bin2_id'][:] == f2['pixels/bin2_id'][:])
+        assert np.all(f1['pixels/count'][:] == f2['pixels/count'][:])
+    try:
+        os.remove(testcool_path)
+    except OSError:
+        pass
+
+
+@pytest.mark.parametrize("bins_path,pairs_path", [(
+    op.join(testdir, 'data', 'toy.chrom.sizes') + ':2',
+    op.join(testdir, 'data', 'toy.pairs')
+)])
+def test_cload_field(bins_path, pairs_path):
+    kwargs = dict(
+        metadata=None,
+        assembly='toy',
+        chunksize=10,
+        zero_based=False,
+        comment_char='#',
+        symmetric_input='unique',
+        no_symmetric_storage=False,
+        temp_dir=None,
+        no_delete_temp=False,
+        storage_options=None,
+        no_count=True,
+        max_merge=200,
+        chrom1=1, pos1=2,
+        chrom2=3, pos2=4,
+    )
+    from pandas.api import types
+    cload_pairs.callback(
+        bins_path,
+        pairs_path,
+        testcool_path,
+        field=('score=7:dtype=float',),
+        **kwargs
+    )
+    pixels = cooler.Cooler(testcool_path).pixels()[:]
+    assert 'count' in pixels.columns and types.is_integer_dtype(pixels.dtypes['count'])
+    assert 'score' in pixels.columns and types.is_float_dtype(pixels.dtypes['score'])
+
+
+# @pytest.mark.parametrize("bins_path,pairs_path", [(
+#     op.join(testdir, 'data', 'toy.chrom.sizes') + ':2',
+#     op.join(testdir, 'data', 'toy.pairs')
+# )])
+# def test_cload_field2(bins_path, pairs_path):
+#     from pandas.api import types
+
+#     cload_pairs.callback(
+#         bins_path,
+#         pairs_path,
+#         testcool_path,
+#         metadata=None,
+#         assembly='toy',
+#         chunksize=10,
+#         zero_based=False,
+#         comment_char='#',
+#         symmetric_input='unique',
+#         no_symmetric_storage=False,
+#         field=('count=7:agg=min,dtype=float',),
+#         temp_dir=None,
+#         no_delete_temp=False,
+#         storage_options=None,
+#         no_count=True,
+#         max_merge=200,
+#         chrom1=1, pos1=2,
+#         chrom2=3, pos2=4,
+#     )
+#     pixels = cooler.Cooler(testcool_path).pixels()[:]
+#     assert 'count' in pixels.columns and types.is_float_dtype(pixels.dtypes['count'])
+#     assert np.allclose(pixels['count'][:], 0.1)
+
+
 def test_load_bg2_vs_coo():
-
-    out_path1 = op.join(tmp, 'test1.cool')
-    out_path2 = op.join(tmp, 'test2.cool')
-
-    load.callback(
-        op.join(testdir, 'data', 'hg19.bins.2000kb.bed.gz'),
-        op.join(testdir, 'data', 'hg19.GM12878-MboI.matrix.2000kb.bg2.gz'),
-        out_path1,
-        format='bg2',
+    kwargs = dict(
         metadata=None,
         assembly='hg19',
         chunksize=int(20e6),
@@ -280,21 +340,23 @@ def test_load_bg2_vs_coo():
         no_symmetric_storage=False,
         storage_options=None,
     )
+
+    out_path1 = op.join(tmp, 'test1.cool')
+    out_path2 = op.join(tmp, 'test2.cool')
+
+    load.callback(
+        op.join(testdir, 'data', 'hg19.bins.2000kb.bed.gz'),
+        op.join(testdir, 'data', 'hg19.GM12878-MboI.matrix.2000kb.bg2.gz'),
+        out_path1,
+        format='bg2',
+        **kwargs
+    )
     load.callback(
         op.join(testdir, 'data', 'hg19.bins.2000kb.bed.gz'),
         op.join(testdir, 'data', 'hg19.GM12878-MboI.matrix.2000kb.coo.txt'),
         out_path2,
         format='coo',
-        metadata=None,
-        assembly='hg19',
-        chunksize=int(20e6),
-        field=(),
-        count_as_float=False,
-        one_based=False,
-        comment_char='#',
-        symmetric_input='unique',
-        no_symmetric_storage=False,
-        storage_options=None,
+        **kwargs
     )
 
     with h5py.File(out_path1, 'r') as f1, \
@@ -308,3 +370,109 @@ def test_load_bg2_vs_coo():
             os.remove(fp)
         except OSError:
             pass
+
+
+def test_load_zero_one_based_bg2():
+    kwargs = dict(
+        format='bg2',
+        metadata=None,
+        assembly='toy',
+        chunksize=10,
+        field=(),
+        count_as_float=False,
+        comment_char='#',
+        symmetric_input='unique',
+        no_symmetric_storage=False,
+        storage_options=None
+    )
+    # 1-based-start BG2 input
+    ref = 'toy.symm.upper.1.ob.bg2'
+    bins_path = op.join(testdir, 'data', 'toy.chrom.sizes') + ':1'
+    pixels_path = op.join(testdir, 'data', ref)
+    load.callback(
+        bins_path,
+        pixels_path,
+        testcool_path,
+        one_based=True,
+        **kwargs
+    )
+    # reference, 1-based starts
+    ref_df = pd.read_table(pixels_path,
+        names=['chrom1', 'start1', 'end1', 'chrom2', 'start2', 'end2', 'count'])
+    # output
+    out_df = cooler.Cooler(testcool_path).pixels(join=True)[:]
+    out_df['start1'] += 1
+    out_df['start2'] += 1
+    assert np.all(out_df == ref_df)
+
+    # 0-based-start BG2 input
+    ref = 'toy.symm.upper.1.zb.bg2'
+    bins_path = op.join(testdir, 'data', 'toy.chrom.sizes') + ':1'
+    pixels_path = op.join(testdir, 'data', ref)
+    load.callback(
+        bins_path,
+        pixels_path,
+        testcool_path,
+        one_based=False,
+        **kwargs
+    )
+    # reference, 0-based starts
+    ref_df = pd.read_table(pixels_path,
+        names=['chrom1', 'start1', 'end1', 'chrom2', 'start2', 'end2', 'count'])
+    # output
+    out_df = cooler.Cooler(testcool_path).pixels(join=True)[:]
+    assert np.all(out_df == ref_df)
+
+
+def test_load_zero_one_based_coo():
+    kwargs = dict(
+        format='coo',
+        metadata=None,
+        assembly='toy',
+        chunksize=10,
+        field=(),
+        count_as_float=False,
+        comment_char='#',
+        symmetric_input='unique',
+        no_symmetric_storage=False,
+        storage_options=None
+    )
+    # 1-based-start COO input
+    ref = 'toy.symm.upper.1.ob.coo'
+    bins_path = op.join(testdir, 'data', 'toy.chrom.sizes') + ':1'
+    pixels_path = op.join(testdir, 'data', ref)
+    load.callback(
+        bins_path,
+        pixels_path,
+        testcool_path,
+        one_based=True,
+        **kwargs
+    )
+    # reference, 1-based starts
+    ref_df = pd.read_table(
+        pixels_path,
+        names=['bin1_id', 'bin2_id', 'count'])
+    # output
+    out_df = cooler.Cooler(testcool_path).pixels()[:]
+    out_df['bin1_id'] += 1
+    out_df['bin2_id'] += 1
+    assert np.all(out_df == ref_df)
+
+    # 0-based-start COO input
+    ref = 'toy.symm.upper.1.zb.coo'
+    bins_path = op.join(testdir, 'data', 'toy.chrom.sizes') + ':1'
+    pixels_path = op.join(testdir, 'data', ref)
+    load.callback(
+        bins_path,
+        pixels_path,
+        testcool_path,
+        one_based=False,
+        **kwargs
+    )
+    # reference, 0-based starts
+    ref_df = pd.read_table(
+        pixels_path,
+        names=['bin1_id', 'bin2_id', 'count'])
+    # output
+    out_df = cooler.Cooler(testcool_path).pixels()[:]
+    assert np.all(out_df == ref_df)
