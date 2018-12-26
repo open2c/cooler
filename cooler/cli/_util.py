@@ -52,7 +52,6 @@ def parse_kv_list_param(arg, item_sep=',', kv_sep='='):
 
 
 def parse_field_param(arg, includes_colnum=True, includes_agg=True):
-
     parts = arg.split(':')
     prefix = parts[0]
     if len(parts) == 1:
