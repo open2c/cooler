@@ -2,7 +2,7 @@
 from __future__ import division, print_function
 import os.path as op
 import shlex
-
+from ._util import parse_field_param
 from . import cli, get_logger
 from click.testing import CliRunner
 import click
@@ -53,7 +53,7 @@ import click
     is_flag=True,
     default=False)
 def zoomify(cool_uri, nproc, chunksize, resolutions, balance, balance_args,
-            field, out):
+            field, legacy, out):
     """
     Generate a multi-resolution file by coarsening.
 
@@ -62,7 +62,7 @@ def zoomify(cool_uri, nproc, chunksize, resolutions, balance, balance_args,
     COOL_PATH : Path to a COOL file or Cooler URI.
 
     """
-    from ..reduce import legacy_zoomify, zoomify as _zoomify
+    from ..reduce import legacy_zoomify, zoomify as _zoomify, get_quadtree_depth, HIGLASS_TILE_DIM
     from ..io import parse_cooler_uri, create
     from ..tools import lock
     from .. import api
@@ -106,6 +106,10 @@ def zoomify(cool_uri, nproc, chunksize, resolutions, balance, balance_args,
     else:
         if resolutions is not None:
             resolutions = [int(s.strip()) for s in resolutions.split(',')]
+        else:
+            clr = api.Cooler(cool_uri)
+            n_zooms = get_quadtree_depth(clr.chromsizes, clr.binsize, HIGLASS_TILE_DIM)
+            resolutions = [clr.binsize * 2**i for i in range(n_zooms)]
 
         if len(field):
             field_specifiers = [

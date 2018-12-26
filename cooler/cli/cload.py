@@ -14,7 +14,7 @@ import h5py
 
 import click
 from . import cli, get_logger
-from ._util import parse_bins, parse_kv_list_param, parse_field_params
+from ._util import parse_bins, parse_kv_list_param, parse_field_param
 from .. import util
 from ..io import (
     create, create_from_unordered,
@@ -296,12 +296,12 @@ def pairix(bins, pairs_path, cool_path, metadata, assembly, nproc, zero_based, m
          "Repeat the `--field` option for each additional field.",
     type=str,
     multiple=True)
-@click.option(
-    "--no-count".
-    help="Do not store the pair counts. Use this only if you use `--field` to "
-         "specify at least one input field for aggregation as an alternative.",
-    is_flag=True,
-    default=False)
+# @click.option(
+#     "--no-count",
+#     help="Do not store the pair counts. Use this only if you use `--field` to "
+#          "specify at least one input field for aggregation as an alternative.",
+#     is_flag=True,
+#     default=False)
 @click.option(
     "--temp-dir",
     help="Create temporary files in specified directory.",
@@ -309,7 +309,7 @@ def pairix(bins, pairs_path, cool_path, metadata, assembly, nproc, zero_based, m
 @click.option(
     "--no-delete-temp",
     help="Do not delete temporary files when finished.",
-    type=bool,
+    is_flag=True,
     default=False)
 @click.option(
     "--max-merge",
@@ -404,17 +404,21 @@ def pairs(bins, pairs_path, cool_path, metadata, assembly, chunksize,
 
             if agg is not None:
                 aggregations[name] = agg
+            else:
+                aggregations[name] = 'sum'
 
-    # Pairs counts are always produced, unless supressed explicitly
-    do_count = not no_count
-    if do_count:
-        if 'count' not in output_field_names:
-            output_field_names.append('count')  # default dtype and agg
-    else:
-        if not len(output_field_names):
-            click.BadParameter(
-                "To pass `--no-count`, specify at least one input "
-                "value-column using `--field`.")
+    # # Pairs counts are always produced, unless supressed explicitly
+    # do_count = not no_count
+    # if do_count:
+    #     if 'count' not in output_field_names:
+    #         output_field_names.append('count')  # default dtype and agg
+    # else:
+    #     if not len(output_field_names):
+    #         click.BadParameter(
+    #             "To pass `--no-count`, specify at least one input "
+    #             "value-column using `--field`.")
+    if 'count' not in output_field_names:
+        output_field_names.append('count')
 
     # Customize the HDF5 filters
     if storage_options is not None:
@@ -448,7 +452,7 @@ def pairs(bins, pairs_path, cool_path, metadata, assembly, chunksize,
         tril_action=tril_action,
         sort=True,
         validate=True)
-    aggregate = aggregate_records(agg=aggregations, count=do_count, sort=False)
+    aggregate = aggregate_records(agg=aggregations, count=True, sort=False)
     pipeline = compose(aggregate, sanitize)
 
     create_from_unordered(

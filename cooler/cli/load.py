@@ -11,7 +11,7 @@ import h5py
 
 import click
 from . import cli, get_logger
-from ._util import parse_bins, parse_field_params
+from ._util import parse_bins, parse_field_param
 from .. import util
 from ..io import (
     parse_cooler_uri, create_from_unordered, sanitize_records, sanitize_pixels,
@@ -50,7 +50,7 @@ from ..io import (
          "the specified format. Specify as '<name>,<number>' or as "
          "'<name>,<number>,<dtype>' to enforce a dtype other than `float` or "
          "the default for a standard column. Field numbers are 1-based. "
-         "Repeat the `--field` option for each additional field. "
+         "Repeat the `--field` option for each additional field. ",
          #"[Changed in v0.7.7: use a comma separator, rather than a space.]",
     type=str,
     multiple=True)

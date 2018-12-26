@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import division, print_function
 import os.path as op
-
+from ._util import parse_field_param
 from . import cli
 import click
 
@@ -73,7 +73,9 @@ def coarsen(cool_uri, factor, nproc, chunksize, field, out):
         # Default aggregation. Dtype will be inferred.
         columns, dtypes, agg = ['count'], None, None
 
-    _coarsen(cool_uri, out, factor, nproc, chunksize,
+    _coarsen(cool_uri, out, factor,
+             chunksize=chunksize,
+             nproc=nproc,
              columns=columns,
              dtypes=dtypes,
              agg=agg,
