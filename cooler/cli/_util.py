@@ -51,6 +51,56 @@ def parse_kv_list_param(arg, item_sep=',', kv_sep='='):
     return result
 
 
+def parse_field_param(arg, includes_colnum=True, includes_agg=True):
+
+    parts = arg.split(':')
+    prefix = parts[0]
+    if len(parts) == 1:
+        props = None
+    elif len(parts) == 2:
+        props = parts[1]
+    else:
+        raise click.BadParameter(arg)
+
+    if includes_colnum:
+        parts = prefix.split('=')
+        name = parts[0]
+        if len(parts) == 1:
+            colnum = None
+        elif len(parts) == 2:
+            try:
+                colnum = int(parts[1]) - 1
+            except ValueError:
+                raise click.BadParameter(
+                    "Not a number: '{}'".format(parts[1]), param_hint=arg)
+            if colnum < 0:
+                raise click.BadParameter(
+                    "Field numbers start at 1.", param_hint=arg)
+        else:
+            raise click.BadParameter(arg)
+    else:
+        name = parts[0]
+        colnum = None
+
+    dtype = None
+    agg = None
+    if props is not None:
+        for item in props.split(','):
+            try:
+                prop, value = item.split('=')
+            except ValueError:
+                raise click.BadParameter(arg)
+            if prop == 'dtype':
+                dtype = np.dtype(value)
+            elif prop == 'agg' and includes_agg:
+                agg = value
+            else:
+                raise click.BadParameter(
+                    "Invalid property: '{}'.".format(prop),
+                    param_hint=arg)
+    return name, colnum, dtype, agg
+
+
 def parse_bins(arg):
     # Provided chromsizes and binsize
     if ":" in arg:

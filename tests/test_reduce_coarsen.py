@@ -5,7 +5,7 @@ import os
 import cooler
 
 import numpy as np
-from cooler.reduce import coarsen, zoomify, multires_aggregate
+from cooler.reduce import coarsen, zoomify, legacy_zoomify
 
 
 testdir = op.realpath(op.dirname(__file__))
@@ -18,8 +18,8 @@ def test_recursive_agg():
     outfile = multires_path
     chunksize = int(10e6)
     n_zooms = 2
-    n_cpus = 8
-    multires_aggregate(infile, outfile, n_cpus, chunksize)
+    n_cpus = 1
+    legacy_zoomify(infile, outfile, n_cpus, chunksize)
 
     try:
         os.remove(multires_path)

@@ -55,6 +55,7 @@ install_requires = [
     'pyfaidx',
     'pypairix',
     'asciitree',
+    'yaml'
 ]
 
 

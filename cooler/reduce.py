@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, print_function, division
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 from bisect import bisect_right
 from six.moves import map
 import multiprocess as mp
@@ -91,12 +91,16 @@ def merge_breakpoints(indexes, maxbuf):
 
 class CoolerMerger(ContactBinner):
     """
-    Merge (i.e. sum) multiple cooler matrices having identical axes.
+    Implementation of cooler merging.
 
     """
-    def __init__(self, coolers, maxbuf, **kwargs):
+    def __init__(self, coolers, maxbuf, columns=None, agg=None):
         self.coolers = list(coolers)
         self.maxbuf = maxbuf
+        self.columns = ['count'] if columns is None else columns
+        self.agg = {col: 'sum' for col in self.columns}
+        if agg is not None:
+            self.agg.update(agg)
 
         # check compatibility between input coolers
         binsize = coolers[0].binsize
@@ -140,7 +144,7 @@ class CoolerMerger(ContactBinner):
 
             # sort and aggregate
             df = (combined.groupby(['bin1_id', 'bin2_id'], sort=True)
-                          .aggregate({'count': np.sum})
+                          .aggregate(self.agg)
                           .reset_index())
 
             yield {k: v.values for k, v in six.iteritems(df)}
@@ -148,16 +152,130 @@ class CoolerMerger(ContactBinner):
             starts = stops
 
 
-class CoolerCoarsener(ContactBinner):
+def merge(output_uri, input_uris, mergebuf, columns=None, dtypes=None,
+          agg=None, **kwargs):
     """
-    Aggregate contacts from an existing Cooler file.
+    Merge multiple contact matrices with identical axes.
+
+    Parameters
+    ----------
+    output_uri : str
+        Output cooler file path or URI.
+    input_uris : list of str
+        List of input file path or URIs of coolers to combine.
+    mergebuf : int
+        Maximum number of pixels processed at a time.
+    columns : list of str, optional
+        Specify which pixel value columns to include in the aggregation.
+        Default is to use all available value columns.
+    dtypes : dict, optional
+        Specific dtypes to use for value columns. Default is to propagate
+        the current dtypes of the value columns.
+    agg : dict, optional
+        Functions to use for aggregating each value column. Pass the same kind
+        of dict accepted by ``pandas.DataFrame.groupby.agg``. Default is to
+        apply 'sum' to every value column.
+    kwargs
+        Passed to ``cooler.create``.
+
+    Result
+    ------
+    Coarsened cooler stored at ``output_uri``.
+
+    See also
+    --------
+    cooler.reduce.coarsen
+    cooler.reduce.zoomify
 
     """
-    def __init__(self, source_uri, bins, chunksize, batchsize, map=map):
+    #TODO: combine metadata from inputs
+    from .api import Cooler
+    logger.info("Merging:\n{}".format('\n'.join(input_uris)))
+
+    clrs = [Cooler(path) for path in input_uris]
+
+    is_symm = [clr.symmetric_storage_mode == u'upper' for clr in clrs]
+    if all(is_symm):
+        symmetric = True
+    elif not any(is_symm):
+        symmetric = False
+    else:
+        ValueError("Cannot merge symmetric and asymmetric coolers.")
+
+    if columns is None:
+        columns = ['count']
+
+    dtype_map = defaultdict(list)
+    for clr in clrs:
+        pixel_dtypes = clr.pixels().dtypes
+        for col in columns:
+            if col not in pixel_dtypes:
+                raise ValueError(
+                    "Pixel value column '{}' not found in "
+                    "input '{}'.".format(col, clr.filename))
+            else:
+                dtype_map[col].append(pixel_dtypes[col])
+
+    if dtypes is None:
+        dtypes = {}
+    for col in columns:
+        if col not in dtypes:
+            dtypes[col] = np.find_common_type(dtype_map[col], [])
+
+
+    bins = clrs[0].bins()[['chrom', 'start', 'end']][:]
+    assembly = clrs[0].info.get('genome-assembly', None)
+    iterator = CoolerMerger(clrs, maxbuf=mergebuf, columns=columns, agg=agg)
+
+    create(
+        output_uri,
+        bins,
+        iterator,
+        columns=columns,
+        dtypes=dtypes,
+        assembly=assembly,
+        symmetric=symmetric,
+        **kwargs
+    )
+
+
+QUAD_TILE_SIZE_PIXELS = 256
+
+
+ZOOMS_4DN = [
+    1000,
+    2000,
+    5000,
+    10000,
+    25000,
+    50000,
+    100000,
+    250000,
+    500000,
+    1000000,
+    2500000,
+    5000000,
+    10000000
+]
+
+
+class CoolerCoarsener(ContactBinner):
+    """
+    Implementation of cooler coarsening.
+
+    """
+    def __init__(self, source_uri, bins, chunksize, columns, agg,
+                 batchsize, map=map):
         from .api import Cooler
         self._map = map
         self.source_uri = source_uri
-        self.chunksize = chunksize
+        self.chunksize = int(chunksize)
+        self.index_columns = ['bin1_id', 'bin2_id']
+        self.value_columns = columns
+        self.columns = self.index_columns + self.value_columns
+        self.agg = {col: 'sum' for col in self.value_columns}
+        if agg is not None:
+            self.agg.update(agg)
         self.batchsize = batchsize
 
         clr = Cooler(source_uri)
@@ -176,7 +294,7 @@ class CoolerCoarsener(ContactBinner):
 
         clr = Cooler(self.source_uri)
         # convert_enum=False returns chroms as raw ints
-        table = clr.pixels(join=True, convert_enum=False)
+        table = clr.pixels(join=True, convert_enum=False)[self.columns]
         chunk = table[lo:hi]
         logger.info('{} {}'.format(lo, hi))
 
@@ -208,8 +326,11 @@ class CoolerCoarsener(ContactBinner):
             chunk['bin1_id'] = chrom_binoffset[chrom_id1] + rel_bin1
             chunk['bin2_id'] = chrom_binoffset[chrom_id2] + rel_bin2
 
-        grouped = chunk.groupby(['bin1_id', 'bin2_id'], sort=False)
-        return grouped['count'].sum().reset_index()
+        return (
+            chunk.groupby(self.index_columns, sort=False)
+                 .aggregate(self.agg)
+                 .reset_index()
+        )
 
     def aggregate(self, span):
         try:
@@ -249,6 +370,18 @@ class CoolerCoarsener(ContactBinner):
                 lock.release()
             for df in results:
                 yield {k: v.values for k, v in six.iteritems(df)}
+
+
+def get_quadtree_depth(chromsizes, binsize):
+    """
+    Depth of quad tree necessary to tesselate the concatenated genome with quad
+    tiles such that linear dimension of the tiles is a preset multiple of the
+    genomic resolution.
+
+    """
+    tile_size_bp = QUAD_TILE_SIZE_PIXELS * binsize
+    min_tile_cover = math.ceil(sum(chromsizes) / tile_size_bp)
+    return int(math.ceil(np.log2(min_tile_cover)))
 
 
 def get_multiplier_sequence(resolutions, bases=None):
@@ -305,24 +438,210 @@ def get_multiplier_sequence(resolutions, bases=None):
     return resn, pred, mult
 
 
-QUAD_TILE_SIZE_PIXELS = 256
-
-
-def get_quadtree_depth(chromsizes, binsize):
+def coarsen(input_uri, output_uri, factor, chunksize, nproc=1, columns=None,
+            dtypes=None, agg=None, **kwargs):
     """
-    Depth of quad tree necessary to tesselate the concatenated genome with quad
-    tiles such that linear dimension of the tiles is a preset multiple of the
-    genomic resolution.
+    Coarsen a cooler matrix to a lower resolution by an integer factor K.
+
+    This is done by pooling K-by-K neighborhoods of pixels and aggregating.
+    Chromosomal blocks are coarsened separately.
+
+    Parameters
+    ----------
+    input_uri : str
+        Input cooler file path or URI.
+    output_uri : str
+        Input cooler file path or URI.
+    factor : int
+        Coarsening factor.
+    chunksize : int
+        Number of pixels processed at a time per worker.
+    nproc : int, optional
+        Number of workers for batch processing of pixels. Default is 1,
+        i.e. no process pool.
+    columns : list of str, optional
+        Specify which pixel value columns to include in the aggregation.
+        Default is to use all available value columns.
+    dtypes : dict, optional
+        Specific dtypes to use for value columns. Default is to propagate
+        the current dtypes of the value columns.
+    agg : dict, optional
+        Functions to use for aggregating each value column. Pass the same kind
+        of dict accepted by ``pandas.DataFrame.groupby.agg``. Default is to
+        apply 'sum' to every value column.
+    kwargs
+        Passed to ``cooler.create``.
+
+    Result
+    ------
+    Coarsened cooler stored at ``output_uri``.
+
+    See also
+    --------
+    cooler.reduce.zoomify
+    cooler.reduce.merge
 
     """
-    tile_size_bp = QUAD_TILE_SIZE_PIXELS * binsize
-    min_tile_cover = math.ceil(sum(chromsizes) / tile_size_bp)
-    return int(math.ceil(np.log2(min_tile_cover)))
+    #TODO: decide whether to default to 'count' or whatever is there besides bin1_id, bin2_id
+    # dtypes = dict(clr.pixels().dtypes.drop(['bin1_id', 'bin2_id']))
+
+    from .api import Cooler
+    clr = Cooler(input_uri)
+
+    if clr.binsize is None:
+        # raise ValueError("Coarsening variable-bin coolers is not yet supported.")
+        bins = clr.bins()[['chrom', 'start', 'end']][:]
+        new_bins = bins.groupby('chrom').apply(lambda g: g.iloc[::factor, [0, 1]])
+        new_bins['end'] = bins.groupby('chrom').apply(lambda g: g.iloc[factor-1::factor, 2])
+    else:
+        chromsizes = clr.chromsizes
+        new_binsize = clr.binsize * factor
+        new_bins = binnify(chromsizes, new_binsize)
+
+    if columns is None:
+        columns = ['count']
+
+    if dtypes is None:
+        dtypes = {}
+
+    input_dtypes = clr.pixels().dtypes
+    for col in columns:
+        if col not in input_dtypes:
+            raise ValueError(
+                "Pixel value column '{}' not found in "
+                "input '{}'.".format(col, clr.filename))
+        else:
+            dtypes[col] = input_dtypes[col]
+
+    try:
+        # Note: fork before opening to prevent inconsistent global HDF5 state
+        if nproc > 1:
+            pool = mp.Pool(nproc)
+            kwargs.setdefault('lock', lock)
+
+        iterator = CoolerCoarsener(
+            input_uri,
+            new_bins,
+            chunksize,
+            columns=columns,
+            agg=agg,
+            batchsize=nproc,
+            map=pool.map if nproc > 1 else map)
+
+        kwargs.setdefault('append', True)
+
+        create(
+            output_uri,
+            new_bins,
+            iterator,
+            dtypes=dtypes,
+            symmetric=clr.symmetric_storage_mode == u'upper',
+            **kwargs)
+
+    finally:
+        if nproc > 1:
+            pool.close()
 
 
-def multires_aggregate(input_uri, outfile, nproc, chunksize, lock=None):
+def zoomify(input_uris, outfile, resolutions, chunksize, nproc=1, columns=None,
+            dtypes=None, aggs=None, **kwargs):
     """
-    Quad-tree tiling for HiGlass
+    Generate multiple cooler resolutions by recursive coarsening.
+
+    Parameters
+    ----------
+    input_uris : str or sequence of str
+        One or more cooler URIs to use as "base resolutions" for aggregation.
+    outfile : str
+        Output multires cooler (mcool) file path.
+    resolutions : list of int, or a preset {'pow2'| '4dn'}
+        Either a list of target resolutions to generate, or the name of a
+        preset.
+    chunksize : int
+        Number of pixels processed at a time per worker.
+    nproc : int, optional
+        Number of workers for batch processing of pixels. Default is 1,
+        i.e. no process pool.
+    columns : list of str, optional
+        Specify which pixel value columns to include in the aggregation.
+        Default is to use all available value columns.
+    dtypes : dict, optional
+        Specific dtypes to use for value columns. Default is to propagate
+        the current dtypes of the value columns.
+    aggs : dict, optional
+        Functions to use for aggregating each value column. Pass the same kind
+        of dict accepted by ``pandas.DataFrame.groupby.agg``. Default is to
+        apply 'sum' to every value column.
+    kwargs
+        Passed to ``cooler.create``.
+
+    Result
+    ------
+    Zoomified or "multires" cool file stored at ``outfile`` using the MCOOL v2
+    layout: Coolers are stored under a hierarchy of the form
+    "resolutions/{{r}}" for each resolution ``r``.
+
+    See also
+    --------
+    cooler.reduce.coarsen
+    cooler.reduce.merge
+
+    """
+    from .api import Cooler
+    uris = {}
+    bases = set()
+    for input_uri in input_uris:
+        infile, ingroup = parse_cooler_uri(input_uri)
+        base_binsize = Cooler(infile, ingroup).binsize
+        uris[base_binsize] = (infile, ingroup)
+        bases.add(base_binsize)
+
+    resn, pred, mult = get_multiplier_sequence(resolutions, bases)
+    n_zooms = len(resn)
+
+    logger.info(
+        "Copying base matrices and producing {} new zoom levels.".format(n_zooms)
+    )
+
+    # Copy base matrix
+    for base_binsize in bases:
+        logger.info("Bin size: " + str(base_binsize))
+        infile, ingroup = uris[base_binsize]
+        with h5py.File(infile, 'r') as src, \
+            h5py.File(outfile, 'w') as dest:
+            src.copy(ingroup, dest, '/resolutions/{}'.format(base_binsize))
+
+    # Aggregate
+    # Use lock to sync read/write ops on same file
+    for i in range(n_zooms):
+        if pred[i] == -1:
+            continue
+        prev_binsize = resn[pred[i]]
+        binsize = prev_binsize * mult[i]
+        logger.info(
+            "Aggregating from {} to {}.".format(prev_binsize, binsize))
+        coarsen(
+            outfile + '::resolutions/{}'.format(prev_binsize),
+            outfile + '::resolutions/{}'.format(binsize),
+            mult[i],
+            chunksize,
+            nproc=nproc,
+            columns=columns,
+            dtypes=dtypes,
+            agg=agg,
+            **kwargs
+        )
+
+    with h5py.File(outfile, 'r+') as fw:
+        fw.attrs.update({
+            'format': u'HDF5::MCOOL',
+            'format-version': 2,
+        })
+
+
+def legacy_zoomify(input_uri, outfile, nproc, chunksize, lock=None):
+    """
+    Quad-tree tiling using legacy MCOOL layout (::0, ::1, ::2, etc.).
 
     """
     from .api import Cooler
@@ -375,9 +694,9 @@ def multires_aggregate(input_uri, outfile, nproc, chunksize, lock=None):
             outfile + '::' + str(prevLevel),
             outfile + '::' + str(zoomLevel),
             factor,
-            nproc,
-            chunksize,
-            lock
+            chunksize=chunksize,
+            nproc=nproc,
+            lock=lock
         )
         zoom_levels[zoomLevel] = binsize
 
@@ -388,113 +707,3 @@ def multires_aggregate(input_uri, outfile, nproc, chunksize, lock=None):
         fw.attrs.update(zoom_levels)
 
     return n_zooms, zoom_levels
-
-
-def merge(output_uri, input_uris, chunksize):
-    from .api import Cooler
-    logger.info("Merging:\n{}".format('\n'.join(input_uris)))
-    clrs = [Cooler(path) for path in input_uris]
-    chromsizes = clrs[0].chromsizes
-    bins = clrs[0].bins()[['chrom', 'start', 'end']][:]
-    assembly = clrs[0].info.get('genome-assembly', None)
-    iterator = CoolerMerger(clrs, maxbuf=chunksize)
-
-    is_symm = [clr.symmetric_storage_mode == u'upper' for clr in clrs]
-    if all(is_symm):
-        symmetric = True
-    elif not any(is_symm):
-        symmetric = False
-    else:
-        ValueError("Cannot merge symmetric and asymmetric coolers.")
-
-    create(
-        output_uri,
-        bins,
-        iterator,
-        assembly=assembly,
-        symmetric=symmetric
-    )
-
-
-def coarsen(input_uri, output_uri, factor, nproc, chunksize, lock=None):
-    from .api import Cooler
-    c = Cooler(input_uri)
-    chromsizes = c.chromsizes
-    new_binsize = c.binsize * factor
-    new_bins = binnify(chromsizes, new_binsize)
-    dtypes = dict(c.pixels()[0:0].dtypes.drop(['bin1_id', 'bin2_id']))
-
-    try:
-        # Note: fork before opening to prevent inconsistent global HDF5 state
-        if nproc > 1:
-            pool = mp.Pool(nproc)
-
-        iterator = CoolerCoarsener(
-            input_uri,
-            new_bins,
-            chunksize,
-            batchsize=nproc,
-            map=pool.map if nproc > 1 else map)
-
-        create(
-            output_uri,
-            new_bins,
-            iterator,
-            dtypes=dtypes,
-            symmetric=c.symmetric_storage_mode == u'upper',
-            lock=lock,
-            append=True)
-
-    finally:
-        if nproc > 1:
-            pool.close()
-
-
-def zoomify(input_uris, outfile, resolutions, nproc, chunksize, lock=None):
-    from .api import Cooler
-    uris = {}
-    bases = set()
-    for input_uri in input_uris:
-        infile, ingroup = parse_cooler_uri(input_uri)
-        base_binsize = Cooler(infile, ingroup).binsize
-        uris[base_binsize] = (infile, ingroup)
-        bases.add(base_binsize)
-
-    resn, pred, mult = get_multiplier_sequence(resolutions, bases)
-    n_zooms = len(resn)
-
-    logger.info(
-        "Copying base matrices and producing {} new zoom levels.".format(n_zooms)
-    )
-
-    # Copy base matrix
-    for base_binsize in bases:
-        logger.info("Bin size: " + str(base_binsize))
-        infile, ingroup = uris[base_binsize]
-        with h5py.File(infile, 'r') as src, \
-            h5py.File(outfile, 'w') as dest:
-            src.copy(ingroup, dest, '/resolutions/{}'.format(base_binsize))
-
-    # Aggregate
-    # Use lock to sync read/write ops on same file
-    for i in range(n_zooms):
-        if pred[i] == -1:
-            continue
-        prev_binsize = resn[pred[i]]
-        binsize = prev_binsize * mult[i]
-        logger.info(
-            "Aggregating from {} to {}.".format(prev_binsize, binsize))
-        coarsen(
-            outfile + '::resolutions/{}'.format(prev_binsize),
-            outfile + '::resolutions/{}'.format(binsize),
-            mult[i],
-            nproc,
-            chunksize,
-            lock
-        )
-
-    with h5py.File(outfile, 'r+') as fw:
-        fw.attrs.update({
-            'format': u'HDF5::MCOOL',
-            'format-version': 2,
-        })

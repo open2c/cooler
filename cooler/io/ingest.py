@@ -381,14 +381,44 @@ def _aggregate_records(chunk, sort, agg, rename):
                  .reset_index())
 
 
-def aggregate_records(sort=True, agg=None, rename=None):
+def aggregate_records(sort=True, count=True, agg=None, rename=None):
+    """
+    Generates a function that aggregates bin-assigned records by pixel.
+
+    Parameters
+    ----------
+    sort : bool, optional
+        Sort group keys. Get better performance by turning this off.
+        Note that this does not influence the order of observations within each
+        group.
+    count : bool, optional
+        Output the number of records per pixel. Default is True.
+    agg : dict, optional
+        Dict of column names -> functions or names.
+    rename : dict, optional
+        Dict to rename columns after aggregating.
+
+    Returns
+    -------
+    Function that takes a dataframe of records with bin IDs assigned, groups
+    them by pixel, counts them, and optionally aggregates other value columns.
+
+    Notes
+    -----
+    The GroupBy 'count' method ignores NaNs within groups, as opposed to 'size'.
+
+    """
     if agg is None:
         agg = {}
-    agg['bin1_id'] = 'count'  # count ignores NaN for that column
 
     if rename is None:
         rename = {}
-    rename['bin1_id'] = 'count'
+
+    # We use one of the grouper columns to count the number of pairs per pixel.
+    # We always do count, even if 'count' isn't requested as output.
+    agg['bin1_id'] = 'size'
+    if count:
+        rename['bin1_id'] = 'count'
 
     return partial(_aggregate_records, sort=sort, agg=agg, rename=rename)
 

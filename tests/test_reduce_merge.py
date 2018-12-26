@@ -23,7 +23,7 @@ merged_path = op.join(tempfile.gettempdir(), 'test_merged.cool')
 )])
 def test_merge(path1, path2):
 
-    merge(merged_path, [path1, path2], chunksize=int(15e6))
+    merge(merged_path, [path1, path2], mergebuf=int(15e6))
     single = cooler.Cooler(path1)
     merged = cooler.Cooler(merged_path)
     assert merged.pixels()['count'][:].sum() == 2 * single.pixels()['count'][:].sum()
