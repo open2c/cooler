@@ -7,6 +7,7 @@ import click
 from . import cli
 from ..api import Cooler
 from ..util import attrs_to_jsonable
+from ._util import exit_on_broken_pipe
 
 
 @cli.command()
@@ -26,6 +27,7 @@ from ..util import attrs_to_jsonable
 @click.option(
     "--out", "-o",
     help="Output file (defaults to stdout)")
+@exit_on_broken_pipe(1)
 def info(cool_uri, field, metadata, out):
     """
     Display a Cooler's info and metadata.
@@ -36,31 +38,27 @@ def info(cool_uri, field, metadata, out):
     c = Cooler(cool_uri)
 
     # Write output
-    try:
-        if out is None:
-            f = sys.stdout
-        else:
-            f = open(out, 'wt')
+    if out is None:
+        f = sys.stdout
+    else:
+        f = open(out, 'wt')
 
-        if metadata:
-            json.dump(c.info['metadata'], f, indent=4)
-            print(end='\n', file=f)
+    if metadata:
+        json.dump(c.info['metadata'], f, indent=4)
+        print(end='\n', file=f)
 
-        elif field is not None:
-            try:
-                result = c.info[field]
-            except KeyError:
-                print("Data field {} not found.".format(field))
-                sys.exit(1)
-            print(result, file=f)
+    elif field is not None:
+        try:
+            result = c.info[field]
+        except KeyError:
+            print("Data field {} not found.".format(field))
+            sys.exit(1)
+        print(result, file=f)
 
-        else:
-            dct = c.info.copy()
-            dct.pop('metadata', None)
-            json.dump(attrs_to_jsonable(dct), f, indent=4)
-            print(end='\n', file=f)
+    else:
+        dct = c.info.copy()
+        dct.pop('metadata', None)
+        json.dump(attrs_to_jsonable(dct), f, indent=4)
+        print(end='\n', file=f)
 
-    except OSError:
-        pass
-    finally:
-        f.close()
+    f.flush()
