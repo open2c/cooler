@@ -416,11 +416,18 @@ def aggregate_records(sort=True, count=True, agg=None, rename=None):
 
     # We use one of the grouper columns to count the number of pairs per pixel.
     # We always do count, even if 'count' isn't requested as output.
-    agg['bin1_id'] = 'size'
-    if count:
+    if count and 'count' not in agg:
+        agg['bin1_id'] = 'size'
         rename['bin1_id'] = 'count'
 
-    return partial(_aggregate_records, sort=sort, agg=agg, rename=rename)
+    def _aggregate_records(chunk):
+        return (chunk.groupby(['bin1_id', 'bin2_id'], sort=sort)
+                     .aggregate(agg)
+                     .rename(columns=rename)
+                     .reset_index())
+    return _aggregate_records
+
+    # return partial(_aggregate_records, sort=sort, agg=agg, rename=rename)
 
 
 class ContactBinner(object):
