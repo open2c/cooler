@@ -712,12 +712,17 @@ class PairixAggregator(ContactBinner):
         # dumb heuristic to prevent excessively large chunks on one worker
         if hasattr(f, 'get_linecount'):
             n_lines = f.get_linecount()
+            if n_lines < 0:
+                # correct int32 overflow bug
+                MAXINT32 = 2147483647
+                n_lines = MAXINT32 + MAXINT32 + n_lines
             max_chunk = int(100e6)
             n_chunks = n_lines // 2 // max_chunk
             old_n = self.n_chunks
             self.n_chunks = max(self.n_chunks, n_chunks)
             if self.n_chunks > old_n:
-                logger.info("Pairs file has {} lines. Increasing max-split to {}.".format(
+                logger.info(
+                    "Pairs file has {} lines. Increasing max-split to {}.".format(
                     n_lines, self.n_chunks))
 
         # all requested contigs will be placed in the output matrix
