@@ -343,7 +343,7 @@ class TreeViewer(object):
             traverse=TreeTraversal(),
             draw=BoxStyle(gfx=self.bytes_kwargs, **self.text_kwargs)
         )
-        root = AttrNode(self.group, level=self.level)
+        root = TreeNode(self.group, level=self.level)
         result = drawer(root)
 
         # Unicode characters slip in on Python 3.
@@ -358,7 +358,7 @@ class TreeViewer(object):
             traverse=TreeTraversal(),
             draw=BoxStyle(gfx=self.unicode_kwargs, **self.text_kwargs)
         )
-        root = AttrNode(self.group, level=self.level)
+        root = TreeNode(self.group, level=self.level)
         return drawer(root)
 
     def __repr__(self):
