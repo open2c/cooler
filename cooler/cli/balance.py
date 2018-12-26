@@ -128,7 +128,7 @@ from ..util import bedslice
     default='store_final',
     show_default=True)
 def balance(cool_uri, nproc, chunksize, mad_max, min_nnz, min_count, blacklist,
-            ignore_diags, tol, cis_only, trans_only, max_iters, name, force, 
+            ignore_diags, tol, cis_only, trans_only, max_iters, name, force,
             check, stdout, convergence_policy, ignore_dist):
     """
     Out-of-core contact matrix balancing.
@@ -173,18 +173,18 @@ def balance(cool_uri, nproc, chunksize, mad_max, min_nnz, min_count, blacklist,
         import csv
         with open(blacklist, 'rt') as f:
             bad_regions = pd.read_csv(
-                blacklist, 
-                sep='\t', 
+                blacklist,
+                sep='\t',
                 header=0 if csv.Sniffer().has_header(f.read(1024)) else None,
-                usecols=[0, 1, 2], 
+                usecols=[0, 1, 2],
                 names=['chrom', 'start', 'end'],
                 dtype={'chrom': str})
         bins_grouped = clr.bins()[:].groupby('chrom')
         chromsizes = clr.chromsizes
-        
+
         bad_bins = []
         for _, reg in bad_regions.iterrows():
-            result = bedslice(bins_grouped, chromsizes, 
+            result = bedslice(bins_grouped, chromsizes,
                               (reg.chrom, reg.start, reg.end))
             bad_bins.append(result.index.values)
         bad_bins = np.concatenate(bad_bins)
