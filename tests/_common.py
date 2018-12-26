@@ -3,6 +3,7 @@ import tempfile
 import shutil
 import os
 
+from pandas.api.types import is_numeric_dtype
 import numpy as np
 import h5py
 import cooler
@@ -31,6 +32,14 @@ def cooler_cmp(uri1, uri2):
     c2 = cooler.Cooler(uri2)
     with c1.open('r') as f1, \
          c2.open('r') as f2:
-        assert np.allclose(f1['pixels/bin1_id'][:], f2['pixels/bin1_id'][:])
-        assert np.allclose(f1['pixels/bin2_id'][:], f2['pixels/bin2_id'][:])
-        assert np.allclose(f1['pixels/count'][:], f2['pixels/count'][:])
+         for path in (
+                'chroms/name', 'chroms/length',
+                'bins/chrom', 'bins/start', 'bins/end',
+                'pixels/bin1_id', 'pixels/bin2_id', 'pixels/count'):
+            dset1, dset2 = f1[path], f2[path]
+            dtype = dset1.dtype
+            assert dtype == dset2.dtype
+            if is_numeric_dtype(dtype):
+                assert np.allclose(dset1[:], dset2[:])
+            else:
+                assert np.all(dset1[:] == dset2[:])
