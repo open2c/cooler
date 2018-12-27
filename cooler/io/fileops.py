@@ -12,6 +12,10 @@ import os
 from six.moves import map
 from six import PY2
 import six
+try:
+    from json import JSONDecodeError
+except ImportError:
+    JSONDecodeError = ValueError  # PY35+
 
 from asciitree import BoxStyle, LeftAligned
 from asciitree.traversal import Traversal
@@ -391,7 +395,7 @@ def _decode_attr_value(obj):
         except ValueError:
             try:
                 o = json.loads(obj)
-            except json.JSONDecodeError:
+            except JSONDecodeError:
                 o = obj
     else:
         o = obj
