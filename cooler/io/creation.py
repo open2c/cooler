@@ -308,23 +308,7 @@ def write_info(grp, info):
     grp.attrs.update(info)
 
 
-def rename_chroms(grp, rename_dict, h5opts=None):
-    """
-    Substitute existing scaffold names for new ones.
-
-    Parameters
-    ----------
-    grp : h5py.Group
-        Group handle of an open HDF5 file with write permissions.
-    rename_dict : dict
-        Dictionary of old -> new chromosome names. Any names omitted from
-        the dictionary will be kept as is.
-    h5opts : dict, optional
-        HDF5 filter options.
-
-    """
-    h5opts = _set_h5opts(h5opts)
-
+def _rename_chroms(grp, rename_dict, h5opts):
     chroms = cooler.core.get(grp['chroms']).set_index('name')
     n_chroms = len(chroms)
     new_names = np.array(chroms.rename(rename_dict).index.values,
@@ -359,6 +343,27 @@ def rename_chroms(grp, rename_dict, h5opts=None):
                                dtype=chrom_dtype,
                                data=chrom_ids,
                                **h5opts)
+
+
+def rename_chroms(clr, rename_dict, h5opts=None):
+    """
+    Substitute existing scaffold names for new ones.
+
+    Parameters
+    ----------
+    clr : Cooler
+        Cooler object that can be opened with write permissions.
+    rename_dict : dict
+        Dictionary of old -> new chromosome names. Any names omitted from
+        the dictionary will be kept as is.
+    h5opts : dict, optional
+        HDF5 filter options.
+
+    """
+    h5opts = _set_h5opts(h5opts)
+
+    with clr.open('r+') as f:
+        _rename_chroms(f, rename_dict, h5opts)
 
 
 def _get_dtypes_arg(dtypes, kwargs):
