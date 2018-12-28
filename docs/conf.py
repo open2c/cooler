@@ -30,18 +30,18 @@ sys.path.insert(0, os.path.abspath('..'))
 # readthedocs-when-youre-using-numpy-and-scipy/
 import mock
 MOCK_MODULES = [
-    'numpy', 
-    'scipy', 
-    'scipy.sparse', 
-    'pandas', 
-    'pandas.algos', 
+    'numpy',
+    'scipy',
+    'scipy.sparse',
+    'pandas',
+    'pandas.algos',
     'pandas.api',
     'pandas.api.types',
-    'h5py', 
-    'dask', 
-    'dask.base', 
+    'h5py',
+    'dask',
+    'dask.base',
     'dask.array',
-    'dask.dataframe', 
+    'dask.dataframe',
     'dask.dataframe.core',
     'dask.dataframe.utils']
 for mod_name in MOCK_MODULES:
@@ -66,6 +66,7 @@ extensions = [
     'sphinx.ext.viewcode',
     'sphinx.ext.autosummary',
     'numpydoc',
+    'sphinx_click.ext',
 ]
 
 

@@ -8,24 +8,28 @@ import click
 
 
 COMMANDS = [
-    'makebins',
-    'digest',
-    'csort',
     'cload',
     'load',
-    'list',
-    'info',
-    'copy',
-    'dump',
-    'show',
-    'balance',
     'merge',
     'coarsen',
     'zoomify',
+    'balance',
+    'info',
+    'dump',
+    'show',
+    'tree',
+    'attrs',
+    'ls',
+    'cp',
+    'mv',
+    'ln',
+    'makebins',
+    'digest',
+    'csort',
 ]
 
 SUBCOMMANDS = {
-    'cload': ['hiclib', 'pairix', 'tabix', 'pairs']
+    'cload': ['pairs', 'pairix', 'tabix', 'hiclib']
 }
 
 
@@ -43,17 +47,7 @@ Quick reference
 ---------------
 
 +------------------------+
-| Helper commands        |
-+========================+
-| `cooler makebins`_     |
-+------------------------+
-| `cooler digest`_       |
-+------------------------+
-| `cooler csort`_        |
-+------------------------+
-
-+------------------------+
-| Ingesting data         |
+| Data ingest            |
 +========================+
 | `cooler cload`_        |
 +------------------------+
@@ -61,33 +55,55 @@ Quick reference
 +------------------------+
 
 +------------------------+
-| File manipulation/info |
+| Reduction              |
 +========================+
-| `cooler list`_         |
+| `cooler merge`_        |
 +------------------------+
-| `cooler info`_         |
+| `cooler coarsen`_      |
 +------------------------+
-| `cooler copy`_         |
+| `cooler zoomify`_      |
++------------------------+
+
++------------------------+
+| Normalization          |
++========================+
+| `cooler balance`_      |
 +------------------------+
 
 +------------------------+
 | Export/visualization   |
 +========================+
+| `cooler info`_         |
++------------------------+
 | `cooler dump`_         |
 +------------------------+
 | `cooler show`_         |
 +------------------------+
 
 +------------------------+
-| Operations             |
+| File manipulation/info |
 +========================+
-| `cooler balance`_      |
+| `cooler tree`_         |
 +------------------------+
-| `cooler merge`_        |
+| `cooler attrs`_        |
 +------------------------+
-| `cooler coarsen`_      |
+| `cooler ls`_           |
 +------------------------+
-| `cooler zoomify`_      |
+| `cooler cp`_           |
++------------------------+
+| `cooler mv`_           |
++------------------------+
+| `cooler ln`_           |
++------------------------+
+
++------------------------+
+| Helper commands        |
++========================+
+| `cooler makebins`_     |
++------------------------+
+| `cooler digest`_       |
++------------------------+
+| `cooler csort`_        |
 +------------------------+
 
 
@@ -143,7 +159,7 @@ def helptext(command=None):
                 subtext = '\n\n' + info_name + '\n'
                 subtext += '~' * len(info_name) + '\n'
                 subtext += ctx.get_help() + '\n'
-                text += indent(subtext, 8) 
+                text += indent(subtext, 8)
 
     return text
 
