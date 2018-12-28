@@ -1,3 +1,5 @@
+:orphan:
+
 .. _version-1:
 
 Schema
