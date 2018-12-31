@@ -1,3 +1,39 @@
+### 0.8.0 (2018-12-31) ###
+
+New features
+
+* Support for non-symmetric matrices, e.g. RNA-DNA maps.
+* Create function accepts a boolean `symmetric_upper` option to set the storage mode. Default is `True`.
+* Creation commands also use `symmetric_upper` by default, which can be overridden with a flag.
+
+New schema version: 3
+
+* Adds required `storage-mode` metadata attribute. Two possible values: `"symmetric-upper"` indicates a symmetric matrix encoded as upper triangle (previously the only storage mode); `"square"` indicates no special encoding (e.g. for non-symmetric matrices).
+
+API changes
+
+* `cooler.annotate()` option `replace` now defaults to `False`.
+
+* Submodule renaming. Old names are preserved as aliases but are deprecated.
+    * `cooler.io` -> `cooler.create`.
+    * `cooler.ice` -> `cooler.balance`.
+
+* New top level public functions:
+    * `cooler.create_cooler()`. Use instead of `cooler.io.create` and `cooler.io.create_from_unordered`.
+    * `cooler.merge_coolers()`
+    * `cooler.coarsen_cooler()`
+    * `cooler.zoomify_cooler()`
+    * `cooler.balance_cooler()`. Alias: `cooler.balance.iterative_correction()`.
+
+* Refactored file operations available in `cooler.fileops`. See the API reference.
+
+CLI changes
+
+* Various output options added to `cooler info`, `cooler dump`, `cooler makebins` and `cooler digest`.
+* Generic data and attribute hierarchy viewers `cooler tree` and `cooler attrs`.
+* Generic `cp`, `mv` and `ln` convenience commands.
+* New verbosity and process info options.
+
 ### 0.7.11 (2018-08-17) ###
 
 * Genomic range parser supports humanized units (k/K(b), m/M(b), g/G(b))
