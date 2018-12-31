@@ -88,6 +88,8 @@ bins
 
 In HDF5, we use the integer-backed ENUM type to encode the ``chrom`` column. For data collections with a very large number of scaffolds, the ENUM type information may be too large to fit in the object's metadata header. In that case, the ``chrom`` column is stored using raw integers and the enumeration is inferred from the ``chrom`` table.
 
+Genomic intervals are stored using a `0-start, half-open <http://genome.ucsc.edu/blog/the-ucsc-genome-browser-coordinate-counting-systems>`_ representation. The first interval in a scaffold should have ``start`` = 0 and the last interval should have ``end`` = the chromosome length. Intervals are sorted by ``chrom``, then by ``start``.
+
 The ``cooler balance`` command by default stores balancing weights in a column called ``weight``. NaN values indicate genomic bins that were blacklisted during the balancing procedure.
 
 pixels
@@ -103,6 +105,8 @@ pixels
       # RESERVED
       count:    typevar['Nnz'] * int32
     }
+
+In the matrix coordinate system, ``bin1_id`` refers to the ith axis and ``bin2_id`` refers to the jth. Bin IDs are zero-based, i.e. we start counting at 0. Pixels are sorted by ``bin1_id`` then by ``bin2_id``.
 
 The ``count`` column is integer by default, but floating point types can be substituted. Additional columns are to be interpreted as supplementary value columns.
 
@@ -128,7 +132,7 @@ Storing a symmetric matrix requires only the *upper triangular part, including t
 
 .. versionadded:: 3
 
-    To indicate the absence of a special storage mode, e.g. for **non-symmetric** matrices, ``storage-mode`` must be set to ``"complete"``.
+    To indicate the absence of a special storage mode, e.g. for **non-symmetric** matrices, ``storage-mode`` must be set to ``"square"``.  This storage mode indicates to client software that 2D range queries should not be symmetrized.
 
 .. warning:: In schema v2 and earlier, the symmetric-upper storage mode is always assumed.
 
@@ -148,7 +152,7 @@ Essential key-value properties are stored as root-level `HDF5 attributes <http:/
 
     The schema version used.
 
-.. describe:: bin-type : { "fixed" | "variable" }
+.. describe:: bin-type : { "fixed", "variable" }
 
     Indicates whether the resolution is constant along both axes.
 
@@ -156,9 +160,9 @@ Essential key-value properties are stored as root-level `HDF5 attributes <http:/
 
     Size of genomic bins in base pairs if bin-type is "fixed". Otherwise, "null".
 
-.. describe:: storage-mode : { "symmetric-upper" | "complete" }
+.. describe:: storage-mode : { "symmetric-upper", "square" }
 
-    Indicates whether ordinary sparse matrix encoding is used or if a symmetric matrix is encoded by storing only the upper triangular elements.
+    Indicates whether ordinary sparse matrix encoding is used ("square") or whether a symmetric matrix is encoded by storing only the upper triangular elements ("symmetric-upper").
 
 .. rubric:: Reserved, but optional
 
@@ -233,3 +237,9 @@ Many cooler data collections can be stored in a single file. We recognize two co
        .
        .
        .
+
+Backwards compatibility
+=======================
+
+Version 3 introduces the ``storage-mode`` metadata attribute to accomodate square matrices that are non-symmetric.
+Version 2 files are to be interpreted as using the "symmetric-upper" storage mode.
