@@ -15,13 +15,13 @@ import pandas as pd
 import numpy as np
 import h5py
 
-from . import get_logger
-from .io import parse_cooler_uri, ContactBinner, create
-from .util import binnify, get_binsize, GenomeSegmentation
+from ._logging import get_logger
+from .create import ContactBinner, create
+from .util import parse_cooler_uri, binnify, get_binsize, GenomeSegmentation
 from .tools import lock
 
 
-__all__ = ['merge', 'coarsen', 'zoomify']
+__all__ = ['merge_coolers', 'coarsen_cooler', 'zoomify_cooler']
 
 
 logger = get_logger(__name__)
@@ -171,10 +171,14 @@ class CoolerMerger(ContactBinner):
             starts = stops
 
 
-def merge(output_uri, input_uris, mergebuf, columns=None, dtypes=None,
-          agg=None, **kwargs):
+def merge_coolers(output_uri, input_uris, mergebuf, columns=None, dtypes=None,
+                  agg=None, **kwargs):
     """
-    Merge multiple contact matrices with identical axes.
+    Merge multiple coolers with identical axes.
+
+    The merged cooler is stored at ``output_uri``.
+
+    .. versionadded:: 0.8.0
 
     Parameters
     ----------
@@ -197,14 +201,10 @@ def merge(output_uri, input_uris, mergebuf, columns=None, dtypes=None,
     kwargs
         Passed to ``cooler.create``.
 
-    Result
-    ------
-    Merged cooler stored at ``output_uri``.
-
     See also
     --------
-    cooler.reduce.coarsen
-    cooler.reduce.zoomify
+    cooler.coarsen_cooler
+    cooler.zoomify_cooler
 
     """
     #TODO: combine metadata from inputs
@@ -213,13 +213,13 @@ def merge(output_uri, input_uris, mergebuf, columns=None, dtypes=None,
 
     clrs = [Cooler(path) for path in input_uris]
 
-    is_symm = [clr.symmetric_storage_mode == u'upper' for clr in clrs]
+    is_symm = [clr.storage_mode == u'symmetric-upper' for clr in clrs]
     if all(is_symm):
-        symmetric = True
+        symmetric_upper = True
     elif not any(is_symm):
-        symmetric = False
+        symmetric_upper = False
     else:
-        ValueError("Cannot merge symmetric and asymmetric coolers.")
+        ValueError("Cannot merge symmetric and non-symmetric coolers.")
 
     if columns is None:
         columns = ['count']
@@ -252,7 +252,7 @@ def merge(output_uri, input_uris, mergebuf, columns=None, dtypes=None,
         columns=columns,
         dtypes=dtypes,
         assembly=assembly,
-        symmetric=symmetric,
+        symmetric_upper=symmetric_upper,
         **kwargs
     )
 
@@ -489,17 +489,20 @@ class CoolerCoarsener(ContactBinner):
                 yield {k: v.values for k, v in six.iteritems(df)}
 
 
-def coarsen(input_uri, output_uri, factor, chunksize, nproc=1, columns=None,
-            dtypes=None, agg=None, **kwargs):
+def coarsen_cooler(base_uri, output_uri, factor, chunksize, nproc=1,
+                   columns=None, dtypes=None, agg=None, **kwargs):
     """
-    Coarsen a cooler matrix to a lower resolution by an integer factor K.
+    Coarsen a cooler to a lower resolution by an integer factor *k*.
 
-    This is done by pooling K-by-K neighborhoods of pixels and aggregating.
-    Chromosomal blocks are coarsened separately.
+    This is done by pooling *k*-by-*k* neighborhoods of pixels and aggregating.
+    Each chromosomal block is coarsened individually. Result is a coarsened
+    cooler stored at ``output_uri``.
+
+    .. versionadded:: 0.8.0
 
     Parameters
     ----------
-    input_uri : str
+    base_uri : str
         Input cooler file path or URI.
     output_uri : str
         Input cooler file path or URI.
@@ -523,21 +526,17 @@ def coarsen(input_uri, output_uri, factor, chunksize, nproc=1, columns=None,
     kwargs
         Passed to ``cooler.create``.
 
-    Result
-    ------
-    Coarsened cooler stored at ``output_uri``.
-
     See also
     --------
-    cooler.reduce.zoomify
-    cooler.reduce.merge
+    cooler.zoomify_cooler
+    cooler.merge_coolers
 
     """
     #TODO: decide whether to default to 'count' or whatever is there besides bin1_id, bin2_id
     # dtypes = dict(clr.pixels().dtypes.drop(['bin1_id', 'bin2_id']))
 
     from .api import Cooler
-    clr = Cooler(input_uri)
+    clr = Cooler(base_uri)
 
     factor = int(factor)
 
@@ -563,7 +562,7 @@ def coarsen(input_uri, output_uri, factor, chunksize, nproc=1, columns=None,
             kwargs.setdefault('lock', lock)
 
         iterator = CoolerCoarsener(
-            input_uri,
+            base_uri,
             factor,
             chunksize,
             columns=columns,
@@ -580,7 +579,7 @@ def coarsen(input_uri, output_uri, factor, chunksize, nproc=1, columns=None,
             new_bins,
             iterator,
             dtypes=dtypes,
-            symmetric=clr.symmetric_storage_mode == u'upper',
+            symmetric_upper=clr.storage_mode == u'symmetric-upper',
             **kwargs)
 
     finally:
@@ -588,14 +587,20 @@ def coarsen(input_uri, output_uri, factor, chunksize, nproc=1, columns=None,
             pool.close()
 
 
-def zoomify(input_uris, outfile, resolutions, chunksize, nproc=1, columns=None,
-            dtypes=None, agg=None, **kwargs):
+def zoomify_cooler(base_uris, outfile, resolutions, chunksize, nproc=1,
+                   columns=None, dtypes=None, agg=None, **kwargs):
     """
     Generate multiple cooler resolutions by recursive coarsening.
 
+    Result is a "zoomified" or "multires" cool file stored at ``outfile``
+    using the MCOOL v2 layout, where coolers are stored under a hierarchy of
+    the form ``resolutions/<r>`` for each resolution ``r``.
+
+    .. versionadded:: 0.8.0
+
     Parameters
     ----------
-    input_uris : str or sequence of str
+    base_uris : str or sequence of str
         One or more cooler URIs to use as "base resolutions" for aggregation.
     outfile : str
         Output multires cooler (mcool) file path.
@@ -620,39 +625,33 @@ def zoomify(input_uris, outfile, resolutions, chunksize, nproc=1, columns=None,
     kwargs
         Passed to ``cooler.create``.
 
-    Result
-    ------
-    Zoomified or "multires" cool file stored at ``outfile`` using the MCOOL v2
-    layout: Coolers are stored under a hierarchy of the form
-    "resolutions/{{r}}" for each resolution ``r``.
-
     See also
     --------
-    cooler.reduce.coarsen
-    cooler.reduce.merge
+    cooler.coarsen_cooler
+    cooler.merge_coolers
 
     """
     from .api import Cooler
 
-    if isinstance(input_uris, six.string_types):
-        input_uris = [input_uris]
+    if isinstance(base_uris, six.string_types):
+        base_uris = [base_uris]
 
-    uris = {}
-    bases = set()
-    for input_uri in input_uris:
+    parsed_uris = {}
+    base_resolutions = set()
+    for input_uri in base_uris:
         infile, ingroup = parse_cooler_uri(input_uri)
         base_binsize = Cooler(infile, ingroup).binsize
-        uris[base_binsize] = (infile, ingroup)
-        bases.add(base_binsize)
+        parsed_uris[base_binsize] = (infile, ingroup)
+        base_resolutions.add(base_binsize)
 
     # if resolutions is None:
-    #     clr = Cooler(input_uris[0])
+    #     clr = Cooler(base_uris[0])
     #     n_zooms = get_quadtree_depth(clr.chromsizes, clr.binsize, HIGLASS_TILE_DIM)
     #     resn = [clr.binsize * 2**i for i in range(n_zooms)]
     #     pred = np.arange(-1, len(resn)-1)
     #     mult = [2] * len(resn)
     # else:
-    resn, pred, mult = get_multiplier_sequence(resolutions, bases)
+    resn, pred, mult = get_multiplier_sequence(resolutions, base_resolutions)
     n_zooms = len(resn)
 
     logger.info(
@@ -660,9 +659,9 @@ def zoomify(input_uris, outfile, resolutions, chunksize, nproc=1, columns=None,
     )
 
     # Copy base matrix
-    for base_binsize in bases:
+    for base_binsize in base_resolutions:
         logger.info("Bin size: " + str(base_binsize))
-        infile, ingroup = uris[base_binsize]
+        infile, ingroup = parsed_uris[base_binsize]
         with h5py.File(infile, 'r') as src, \
             h5py.File(outfile, 'w') as dest:
             src.copy(ingroup, dest, '/resolutions/{}'.format(base_binsize))
@@ -676,7 +675,7 @@ def zoomify(input_uris, outfile, resolutions, chunksize, nproc=1, columns=None,
         binsize = prev_binsize * mult[i]
         logger.info(
             "Aggregating from {} to {}.".format(prev_binsize, binsize))
-        coarsen(
+        coarsen_cooler(
             outfile + '::resolutions/{}'.format(prev_binsize),
             outfile + '::resolutions/{}'.format(binsize),
             mult[i],
@@ -746,7 +745,7 @@ def legacy_zoomify(input_uri, outfile, nproc, chunksize, lock=None):
             + " bin size: "
             + str(binsize))
 
-        coarsen(
+        coarsen_cooler(
             outfile + '::' + str(prevLevel),
             outfile + '::' + str(zoomLevel),
             factor,

@@ -1,9 +1,14 @@
 # -*- coding: utf-8 -*-
 from __future__ import division, print_function
 import os.path as op
+
 from ._util import parse_field_param
 from . import cli
 import click
+
+from ..util import parse_cooler_uri
+from ..reduce import coarsen_cooler
+from ..tools import lock
 
 
 @cli.command()
@@ -33,8 +38,8 @@ import click
     "--field",
     help="Specify the names of value columns to merge as '<name>'. "
          "Repeat the `--field` option for each one. "
-         "Use '<name>,<dtype>' to specify the dtype. Append '=@<agg>' to "
-         "specify an aggregation function different from 'sum'.",
+         "Use '<name>,dtype=<dtype>' to specify the dtype. Include "
+         "',agg=<agg>' to specify an aggregation function different from 'sum'.",
     type=str,
     multiple=True)
 @click.option(
@@ -43,20 +48,14 @@ import click
     help="Output file or URI")
 def coarsen(cool_uri, factor, nproc, chunksize, field, out):
     """
-    Coarsen a contact matrix.
+    Coarsen a cooler to a lower resolution.
 
-    Works by uniformly gridding the elements of each
-    chromosomal block and summing the elements inside the grid tiles, i.e. a
-    2-D histogram.
-
-    \b\bArguments:
+    Works by pooling *k*-by-*k* neighborhoods of pixels and aggregating.
+    Each chromosomal block is coarsened individually.
 
     COOL_PATH : Path to a COOL file or Cooler URI.
 
     """
-    from ..io import parse_cooler_uri
-    from ..reduce import coarsen as _coarsen
-    from ..tools import lock
     infile, _ = parse_cooler_uri(cool_uri)
     outfile, _ = parse_cooler_uri(out)
     same_file = op.realpath(infile) == op.realpath(outfile)
@@ -73,10 +72,10 @@ def coarsen(cool_uri, factor, nproc, chunksize, field, out):
         # Default aggregation. Dtype will be inferred.
         columns, dtypes, agg = ['count'], None, None
 
-    _coarsen(cool_uri, out, factor,
-             chunksize=chunksize,
-             nproc=nproc,
-             columns=columns,
-             dtypes=dtypes,
-             agg=agg,
-             lock=lock if same_file else None)
+    coarsen_cooler(cool_uri, out, factor,
+                   chunksize=chunksize,
+                   nproc=nproc,
+                   columns=columns,
+                   dtypes=dtypes,
+                   agg=agg,
+                   lock=lock if same_file else None)

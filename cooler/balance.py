@@ -10,11 +10,12 @@ import numpy as np
 import pandas
 import h5py
 
-from . import get_logger
+from ._logging import get_logger
 from .api import Cooler
 from .tools import split, partition
 from .util import mad
 
+__all__ = ['balance_cooler']
 
 logger = get_logger(__name__)
 
@@ -87,7 +88,7 @@ def _balance_genomewide(bias, clr, spans, filters, chunksize, map, tol, max_iter
                 .pipe(_marginalize)
                 .reduce(add, np.zeros(n_bins))
         )
-        
+
         nzmarg = marg[marg != 0]
         if not len(nzmarg):
             scale = np.nan
@@ -124,7 +125,7 @@ def _balance_cisonly(bias, clr, spans, filters, chunksize, map, tol, max_iters,
     bin1_offsets = clr._load_dset('indexes/bin1_offset')
     scales = np.ones(len(chrom_ids))
     n_bins = len(bias)
-    
+
     for cid, lo, hi in zip(chrom_ids, chrom_offsets[:-1], chrom_offsets[1:]):
         logger.info(chroms[cid])
 
@@ -163,14 +164,14 @@ def _balance_cisonly(bias, clr, spans, filters, chunksize, map, tol, max_iters,
                 'Iteration limit reached without convergence on {}.'.format(
                     chroms[cid]),
                 ConvergenceWarning)
-        
+
         scale = nzmarg.mean()
         b = bias[lo:hi]
         b[b == 0] = np.nan
         scales[cid] = scale
         if rescale_marginals:
             bias[lo:hi] /= np.sqrt(scale)
-        
+
     return bias, scales, var
 
 
@@ -181,7 +182,7 @@ def _balance_transonly(bias, clr, spans, filters, chunksize, map, tol, max_iters
 
     chrom_offsets = clr._load_dset('indexes/chrom_offset')
     cweights = 1. / np.concatenate([
-        [(1 - (hi - lo)/n_bins)] * (hi - lo) for lo, hi in 
+        [(1 - (hi - lo)/n_bins)] * (hi - lo) for lo, hi in
             zip(chrom_offsets[:-1], chrom_offsets[1:])
     ])
 
@@ -195,7 +196,7 @@ def _balance_transonly(bias, clr, spans, filters, chunksize, map, tol, max_iters
                 .pipe(_marginalize)
                 .reduce(add, np.zeros(n_bins))
         )
-        
+
         nzmarg = marg[marg != 0]
         if not len(nzmarg):
             scale = np.nan
@@ -225,12 +226,12 @@ def _balance_transonly(bias, clr, spans, filters, chunksize, map, tol, max_iters
 
 
 
-def iterative_correction(clr, chunksize=None, map=map, tol=1e-5,
-                         min_nnz=0, min_count=0, mad_max=0,
-                         cis_only=False, trans_only=False, ignore_diags=False,
-                         max_iters=200, rescale_marginals=True,
-                         use_lock=False, blacklist=None, x0=None,
-                         store=False, store_name='weight'):
+def balance_cooler(clr, chunksize=None, map=map, tol=1e-5,
+                   min_nnz=0, min_count=0, mad_max=0,
+                   cis_only=False, trans_only=False, ignore_diags=False,
+                   max_iters=200, rescale_marginals=True,
+                   use_lock=False, blacklist=None, x0=None,
+                   store=False, store_name='weight'):
     """
     Iterative correction or matrix balancing of a sparse Hi-C contact map in
     Cooler HDF5 format.
@@ -267,7 +268,7 @@ def iterative_correction(clr, chunksize=None, map=map, tol=1e-5,
         Do iterative correction on inter-chromosomal data only.
         Intra-chromosomal data is ignored.
     blacklist : list or 1D array, optional
-        An explicit list of IDs of bad bins to filter out when performing 
+        An explicit list of IDs of bad bins to filter out when performing
         balancing.
     ignore_diags : int or False, optional
         Drop elements occurring on the first ``ignore_diags`` diagonals of the
@@ -292,7 +293,7 @@ def iterative_correction(clr, chunksize=None, map=map, tol=1e-5,
         Dropped bins will be assigned the value NaN.
         N[i, j] = O[i, j] * bias[i] * bias[j]
     stats : dict
-        Summary of parameters used to perform balancing and the average 
+        Summary of parameters used to perform balancing and the average
         magnitude of the corrected matrix's marginal sum at convergence.
 
     """
@@ -396,3 +397,6 @@ def iterative_correction(clr, chunksize=None, map=map, tol=1e-5,
             grp['bins'][store_name].attrs.update(stats)
 
     return bias, stats
+
+
+iterative_correction = balance_cooler  # alias

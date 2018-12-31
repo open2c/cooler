@@ -16,20 +16,16 @@ PIXEL_DTYPES = (('bin1_id', BIN_DTYPE),
                 ('bin2_id', BIN_DTYPE),
                 ('count', COUNT_DTYPE))
 
-#from .ingestion import from_hiclib, from_tabix, from_pairix, from_arraylike
-from .ingest import (
+#from ._ingest import from_hiclib, from_tabix, from_pairix, from_arraylike
+from ._ingest import (
     sanitize_pixels, validate_pixels, sanitize_records, aggregate_records,
     BadInputError, HDF5Aggregator, TabixAggregator, PairixAggregator,
     ArrayLoader, ContactBinner
 )
-from .fileops import (
-    parse_cooler_uri,
-    is_cooler,
-    ls, cp, mv, ln
-)
-from .creation import (
+from ._create import (
     create,
     create_from_unordered,
+    create_cooler,
     append,
     rename_chroms
 )

@@ -11,7 +11,10 @@ import numpy as np
 import pandas
 import h5py
 
+from .util import partition
 from .core import get
+
+__all__ = ['partition', 'split', 'lock']
 
 """
 Two possible reasons for using a lock
@@ -20,26 +23,26 @@ Two possible reasons for using a lock
 file is open for writing. In order for reading processes to obtain the correct
 state, make sure the writing process finishes writing (flushes its buffers and
 actually closes the file) before reading processes attempt to open it.
-This explicit synchronization shouldn't be necessary if using the file in 
+This explicit synchronization shouldn't be necessary if using the file in
 SWMR mode.
 
 See also:
 * <https://support.hdfgroup.org/HDF5/hdf5-quest.html#grdwt>
-* <https://support.hdfgroup.org/projects/SWMR> 
+* <https://support.hdfgroup.org/projects/SWMR>
 
 (2) Synchronize file access when opened before a fork(). Fork-based (Unix)
 multiprocessing and concurrent reading are compatible as long as the fork
 happens before the child processes open the file. If an HDF5 file is already
 open before forking, the child processes inherit the same global HDF5 state,
 which leads to a race condition that causes simultaneous access to fail. One can
-either use a lock to prevent the race condition, or close and re-open the file 
+either use a lock to prevent the race condition, or close and re-open the file
 in the workers after the fork.
 
-See also: 
-* <https://groups.google.com/forum/#!topic/h5py/bJVtWdFtZQM> 
-* <https://github.com/h5py/h5py/issues/591#issuecomment-116785660>. 
+See also:
+* <https://groups.google.com/forum/#!topic/h5py/bJVtWdFtZQM>
+* <https://github.com/h5py/h5py/issues/591#issuecomment-116785660>.
 
-""" 
+"""
 lock = Lock()
 
 
@@ -58,17 +61,17 @@ def apply_pipeline(funcs, prepare, get, key):
 
 class MultiplexDataPipe(object):
     """
-    Create an extendable pipeline of callables to be applied independently to 
+    Create an extendable pipeline of callables to be applied independently to
     each of a collection of inputs and produce a collection of outputs.
-    
-    New tasks are appended with the ``pipe`` method. Pipeline execution can be 
+
+    New tasks are appended with the ``pipe`` method. Pipeline execution can be
     multiplexed using any ``map`` implementation, e.g. multiprocessing Pool.map
     or ipyparallel view.map for distributed execution.
 
     Depending on the ``map`` implementation results may be
 
     * yielded sequentially or online:
-        Python 3 ``map`` or ``itertools.imap``, ``Pool.imap``, 
+        Python 3 ``map`` or ``itertools.imap``, ``Pool.imap``,
         ``Pool.imap_unordered``
 
     * gathered and returned once all outputs are finished:
@@ -116,7 +119,7 @@ class MultiplexDataPipe(object):
         Parameters
         ----------
         get : callable
-            Callable used to be used by workers that fetches the data 
+            Callable used to be used by workers that fetches the data
             corresponding to any of the provided keys
 
         keys : iterable
@@ -142,7 +145,7 @@ class MultiplexDataPipe(object):
         d = self.__dict__.copy()
         d.pop('map', None)
         return d
-    
+
     def __iter__(self):
         return iter(self.run())
 
@@ -151,8 +154,8 @@ class MultiplexDataPipe(object):
         Prepend a task that initializes the data for transformation.
 
         This optional step allows one to keep the original data chunk pristine.
-        The callable ``func`` should return an initial object to pass along the 
-        pipeline for transformation. Subsequent callables in the pipeline will 
+        The callable ``func`` should return an initial object to pass along the
+        pipeline for transformation. Subsequent callables in the pipeline will
         take two arguments instead of one:
 
         * chunk: original data chunk
@@ -199,13 +202,13 @@ class MultiplexDataPipe(object):
     def run(self):
         """
         Run the pipeline
-        
+
         Output depends on map implementation.
-        
+
         """
         pipeline = partial(apply_pipeline, self.funcs, self._prepare, self.get)
         return self.map(pipeline, self.keys)
-    
+
     def gather(self, combine=list, *args, **kwargs):
         """
         Run the pipeline and gather outputs
@@ -221,7 +224,7 @@ class MultiplexDataPipe(object):
 
         """
         return combine(iter(self.run()), *args, **kwargs)
-    
+
     def reduce(self, binop, init):
         """
         Run the pipeline and fold outputs cumulatively as they are returned
@@ -265,12 +268,6 @@ class chunkgetter(object):
                 lock.release()
         return chunk
 
-
-def partition(start, stop, step):
-    return ((i, min(i+step, stop))
-                for i in range(start, stop, step))
-
-    
 def split(clr, map=map, chunksize=int(10e6), spans=None, **kwargs):
     if spans is None:
         spans = partition(0, clr.info['nnz'], chunksize)

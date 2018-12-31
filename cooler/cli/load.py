@@ -9,12 +9,14 @@ from pandas.api.types import is_float_dtype
 import pandas as pd
 import h5py
 
-import click
-from . import cli, get_logger
 from ._util import parse_bins, parse_field_param
+from . import cli, get_logger
+import click
+
 from .. import util
-from ..io import (
-    parse_cooler_uri, create_from_unordered, sanitize_records, sanitize_pixels,
+from ..util import parse_cooler_uri
+from ..create import (
+    create_from_unordered, sanitize_records, sanitize_pixels,
     BIN_DTYPE, COUNT_DTYPE
 )
 
@@ -47,10 +49,11 @@ from ..io import (
 @click.option(
     "--field",
     help="Add supplemental value fields or override default field numbers for "
-         "the specified format. Specify as '<name>,<number>' or as "
-         "'<name>,<number>,<dtype>' to enforce a dtype other than `float` or "
-         "the default for a standard column. Field numbers are 1-based. "
-         "Repeat the `--field` option for each additional field. ",
+         "the specified format. "
+         "Specify quantitative input fields to aggregate into value columns "
+         "using the syntax ``<field-name>=<field-number>``. Add "
+         "``,dtype=<dtype>`` to specify the dtype. Field numbers are 1-based. "
+         "Repeat the ``--field`` option for each additional field.",
          #"[Changed in v0.7.7: use a comma separator, rather than a space.]",
     type=str,
     multiple=True)
@@ -110,41 +113,33 @@ def load(bins_path, pixels_path, cool_path, format, metadata, assembly,
          chunksize, field, count_as_float, one_based, comment_char,
          symmetric_input, no_symmetric_storage, storage_options, **kwargs):
     """
-    Create a Cooler from a pre-binned matrix.
-
-    \b
-    Two input format options (tab-delimited):
-
-    * COO: COO-rdinate sparse matrix format (a.k.a. ijv triple). 3 columns.
-
-    \b
-    - columns: "bin1_id, bin2_id, count",
-
-    * BG2: 2D version of the bedGraph format. 7 columns.
-
-    \b
-    - columns: "chrom1, start1, end1, chrom2, start2, end2, count"
-
-    Input pixel file may be compressed.
-
-    **New in v0.7.7: Input files no longer need to be sorted or indexed!**
-
-    Example:
-
-    \b
-    cooler load -f bg2 <chrom.sizes>:<binsize> in.bg2.gz out.cool
-
-    \b\bArguments:
+    Create a cooler from a pre-binned matrix.
 
     BINS_PATH : One of the following
 
         <TEXT:INTEGER> : 1. Path to a chromsizes file, 2. Bin size in bp
+
         <TEXT> : Path to BED file defining the genomic bin segmentation.
 
     PIXELS_PATH : Text file containing nonzero pixel values. May be gzipped.
-                  Pass '-' to use stdin.
+    Pass '-' to use stdin.
 
     COOL_PATH : Output COOL file path or URI.
+
+    **Notes**
+
+    Two input format options (tab-delimited).
+    Input pixel file may be compressed.
+
+    COO: COO-rdinate sparse matrix format (a.k.a. ijv triple).
+    3 columns: "bin1_id, bin2_id, count",
+
+    BG2: 2D version of the bedGraph format.
+    7 columns: "chrom1, start1, end1, chrom2, start2, end2, count"
+
+    **Examples**
+
+    cooler load -f bg2 <chrom.sizes>:<binsize> in.bg2.gz out.cool
 
     """
     logger = get_logger(__name__)
