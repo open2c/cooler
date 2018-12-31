@@ -8,7 +8,7 @@ import numpy as np
 import h5py
 
 from _common import isolated_filesystem, cooler_cmp
-from cooler.io import fileops
+from cooler import fileops
 import cooler
 import pytest
 
@@ -17,7 +17,7 @@ testdir = op.realpath(op.dirname(__file__))
 
 
 def test_ls():
-    listing = fileops.ls(op.join(testdir, 'data', 'toy.symm.upper.2.mcool'))
+    listing = fileops.list_coolers(op.join(testdir, 'data', 'toy.symm.upper.2.mcool'))
     paths = set(listing)
     for path in (
             '/resolutions/2',

@@ -45,21 +45,21 @@ def test_from_hdf5_pairs():
 
     def should_not_depend_on_chunksize(chromsizes, bintable, mock_pairs):
         # try different chunk sizes
-        binner = cooler.io.HDF5Aggregator(
+        binner = cooler.create.HDF5Aggregator(
             mock_pairs, chromsizes, bintable, chunksize=66)
-        cooler.io.create(testcool_path, bintable, binner)
+        cooler.create.create(testcool_path, bintable, binner)
         with h5py.File(testcool_path, 'r') as h5:
             oc1 = h5['indexes']['chrom_offset'][:]
             ob1 = h5['indexes']['bin1_offset'][:]
-            p1 = cooler.pixels(h5, join=False)
+            p1 = cooler.api.pixels(h5, join=False)
 
-        binner = cooler.io.HDF5Aggregator(
+        binner = cooler.create.HDF5Aggregator(
             mock_pairs, chromsizes, bintable, chunksize=666)
-        cooler.io.create(testcool_path, bintable, binner)
+        cooler.create.create(testcool_path, bintable, binner)
         with h5py.File(testcool_path, 'r') as h5:
             oc2 = h5['indexes']['chrom_offset'][:]
             ob2 = h5['indexes']['bin1_offset'][:]
-            p2 = cooler.pixels(h5, join=False)
+            p2 = cooler.api.pixels(h5, join=False)
 
         assert np.all(oc1 == oc2)
         assert np.all(ob1 == ob2)
@@ -76,7 +76,7 @@ def test_from_hdf5_pairs():
             'cuts2':  mock_pairs['cuts1'],
         }
         with pytest.raises(ValueError):
-            cooler.io.HDF5Aggregator(bad_reads, chromsizes, bintable, chunksize=66)
+            cooler.create.HDF5Aggregator(bad_reads, chromsizes, bintable, chunksize=66)
 
         # not triu
         bad_reads = {
@@ -89,21 +89,21 @@ def test_from_hdf5_pairs():
         bad_reads['chrms2'][0] = 0
         bad_reads['cuts1'][0] = 10
         bad_reads['cuts2'][0] = 9
-        binner = cooler.io.HDF5Aggregator(
+        binner = cooler.create.HDF5Aggregator(
             bad_reads, chromsizes, bintable, chunksize=66)
         with pytest.raises(ValueError):
-            cooler.io.create(testcool_path, bintable, binner)
+            cooler.create.create(testcool_path, bintable, binner)
 
 
     def should_work_with_int32_cols(chromsizes, bintable, mock_pairs):
         # int64
-        binner = cooler.io.HDF5Aggregator(
+        binner = cooler.create.HDF5Aggregator(
             mock_pairs, chromsizes, bintable, chunksize=66)
-        cooler.io.create(testcool_path, bintable, binner)
+        cooler.create.create(testcool_path, bintable, binner)
         with h5py.File(testcool_path, 'r') as h5:
             oc1 = h5['indexes']['chrom_offset'][:]
             ob1 = h5['indexes']['bin1_offset'][:]
-            p1 = cooler.pixels(h5, join=False)
+            p1 = cooler.api.pixels(h5, join=False)
 
         # int32
         mock_pairs32 = {
@@ -112,13 +112,13 @@ def test_from_hdf5_pairs():
             'chrms2': mock_pairs['chrms2'].astype(np.int32),
             'cuts2':  mock_pairs['cuts2'].astype(np.int32),
         }
-        binner = cooler.io.HDF5Aggregator(
+        binner = cooler.create.HDF5Aggregator(
             mock_pairs32, chromsizes, bintable, chunksize=66)
-        cooler.io.create(testcool_path, bintable, binner)
+        cooler.create.create(testcool_path, bintable, binner)
         with h5py.File(testcool_path, 'r') as h5:
             oc2 = h5['indexes']['chrom_offset'][:]
             ob2 = h5['indexes']['bin1_offset'][:]
-            p2 = cooler.pixels(h5, join=False)
+            p2 = cooler.api.pixels(h5, join=False)
 
         assert np.all(oc1 == oc2)
         assert np.all(ob1 == ob2)
