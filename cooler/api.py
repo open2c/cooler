@@ -79,6 +79,8 @@ class Cooler(object):
                 self._chromsizes = _ct.set_index('name')['length']
                 self._chromids = dict(zip(_ct['name'], range(len(_ct))))
                 self._info = info(grp)
+                mode = self._info.get('storage-mode', u"symmetric-upper")
+                self._is_symm_upper = mode == u"symmetric-upper"
         except KeyError:
             err_msg = "No cooler found at: {}.".format(self.store)
             listing = list_coolers(self.store)
@@ -86,7 +88,6 @@ class Cooler(object):
                 err_msg += (" Coolers found in {}. ".format(listing) +
                             "Use '::' to specify a group path")
             raise KeyError(err_msg)
-
 
     def _load_dset(self, path):
         with open_hdf5(self.store, **self.open_kws) as h5:
@@ -120,8 +121,7 @@ class Cooler(object):
 
     @property
     def storage_mode(self):
-        mode = self._info.get('storage-mode', u"symmetric-upper")
-        return mode if mode == u"symmetric-upper" else None
+        return self._info.get('storage-mode', u"symmetric-upper")
 
     @property
     def binsize(self):
@@ -311,7 +311,7 @@ class Cooler(object):
                 grp = h5[self.root]
                 return matrix(grp, i0, i1, j0, j1, field, balance, sparse,
                     as_pixels, join, ignore_index, max_chunk,
-                    self.storage_mode == u'symmetric-upper')
+                    self._is_symm_upper)
 
         def _fetch(region, region2=None):
             with open_hdf5(self.store, **self.open_kws) as h5:

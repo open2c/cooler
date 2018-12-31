@@ -579,7 +579,7 @@ def create(cool_uri, bins, pixels, columns=None, dtypes=None, metadata=None,
         info = {}
         info['bin-type'] = u"fixed" if binsize is not None else u"variable"
         info['bin-size'] = binsize if binsize is not None else u"null"
-        info['storage-mode'] = u"symmetric-upper" if symmetric_upper else u"complete"
+        info['storage-mode'] = u"symmetric-upper" if symmetric_upper else u"square"
         info['nchroms'] = n_chroms
         info['nbins'] = n_bins
         info['sum'] = ncontacts
