@@ -94,7 +94,7 @@ def test_cload_mergepass(ref, extra_args):
         _cmp_pixels_2_bg(
             'toy.2.cool',
             op.join(datadir, 'toy.{}.2.bg2'.format(ref)))
-        assert len(cooler.io.ls(glob('*.cool')[0])) > 0
+        assert len(cooler.fileops.list_coolers(glob('*.cool')[0])) > 0
 
 
 #'--field', '',

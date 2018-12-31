@@ -11,10 +11,18 @@ import h5py
 import json
 import six
 
-from .. import __version__, __format_version__, get_logger
+from .._version import __version__, __format_version__
+from .._logging import get_logger
 from ..core import put
-from ..util import get_binsize, get_chromsizes, infer_meta, get_meta, rlencode, balanced_partition
-from . import parse_cooler_uri, validate_pixels
+from ..util import (
+    parse_cooler_uri,
+    get_chromsizes,
+    get_binsize,
+    infer_meta,
+    get_meta,
+    rlencode,
+)
+from ._ingest import validate_pixels
 from . import (
     MAGIC,
     URL,
@@ -308,23 +316,7 @@ def write_info(grp, info):
     grp.attrs.update(info)
 
 
-def rename_chroms(grp, rename_dict, h5opts=None):
-    """
-    Substitute existing scaffold names for new ones.
-
-    Parameters
-    ----------
-    grp : h5py.Group
-        Group handle of an open HDF5 file with write permissions.
-    rename_dict : dict
-        Dictionary of old -> new chromosome names. Any names omitted from
-        the dictionary will be kept as is.
-    h5opts : dict, optional
-        HDF5 filter options.
-
-    """
-    h5opts = _set_h5opts(h5opts)
-
+def _rename_chroms(grp, rename_dict, h5opts):
     chroms = cooler.core.get(grp['chroms']).set_index('name')
     n_chroms = len(chroms)
     new_names = np.array(chroms.rename(rename_dict).index.values,
@@ -361,6 +353,27 @@ def rename_chroms(grp, rename_dict, h5opts=None):
                                **h5opts)
 
 
+def rename_chroms(clr, rename_dict, h5opts=None):
+    """
+    Substitute existing scaffold names for new ones.
+
+    Parameters
+    ----------
+    clr : Cooler
+        Cooler object that can be opened with write permissions.
+    rename_dict : dict
+        Dictionary of old -> new chromosome names. Any names omitted from
+        the dictionary will be kept as is.
+    h5opts : dict, optional
+        HDF5 filter options.
+
+    """
+    h5opts = _set_h5opts(h5opts)
+
+    with clr.open('r+') as f:
+        _rename_chroms(f, rename_dict, h5opts)
+
+
 def _get_dtypes_arg(dtypes, kwargs):
     if 'dtype' in kwargs:
         if dtypes is None:
@@ -391,60 +404,23 @@ def _set_h5opts(h5opts):
 
 
 def create(cool_uri, bins, pixels, columns=None, dtypes=None, metadata=None,
-           assembly=None, symmetric=True, mode=None, h5opts=None,
+           assembly=None, symmetric_upper=True, mode=None, h5opts=None,
            boundscheck=True, triucheck=True, dupcheck=True,
            ensure_sorted=False, lock=None, append=False, **kwargs):
     """
     Create a new Cooler.
 
-    Parameters
-    ----------
-    cool_uri : str
-        Path to Cooler file or URI to Cooler group. If the file does not exist,
-        it will be created.
-    bins : pandas.DataFrame
-        Segmentation of the chromosomes into genomic bins as a BED-like
-        DataFrame with columns ``chrom``, ``start`` and ``end``. May contain
-        additional columns.
-    pixels : DataFrame, dictionary, or iterable of either
-        A table (represented as a data frame or a column-oriented dict)
-        containing columns labeled 'bin1_id', 'bin2_id' and 'count', sorted
-        by ('bin1_id', 'bin2_id'). If additional columns are included in the
-        pixel table, their names and dtypes must be specified in the ``dtypes``
-        argument. Alternatively, for larger data, an iterable can be provided
-        that yields the pixel data as a sequence of "chunks". If the input is a
-        dask DataFrame, it will also be processed one chunk at a time.
-    dtypes : dict, optional
-        Deprecated in favor of `dtype` to mirror the pandas constructor.
-    metadata : dict, optional
-        Experiment metadata to store in the file. Must be JSON compatible.
-    assembly : str, optional
-        Name of genome assembly.
-    h5opts : dict, optional
-        HDF5 dataset filter options to use (compression, shuffling,
-        checksumming, etc.). Default is to use autochunking and GZIP
-        compression, level 6.
+    Deprecated parameters
+    ---------------------
+    chromsizes : Series
+        Chromsizes are now inferred from ``bins``.
     append : bool, optional
         Append new Cooler to the file if it exists. If False, an existing file
         with the same name will be truncated. Default is False.
-    lock : multiprocessing.Lock, optional
-        Optional lock to control concurrent access to the output file.
-    columns : sequence of str, optional
-        Specify here the names of any additional value columns from the input
-        besides 'count' to store in the Cooler. The standard columns ['bin1_id',
-        'bin2_id', 'count'] can be provided, but are already assumed and don't
-        need to be given explicitly. Additional value columns provided here will
-        be stored as np.float64 unless otherwised specified using `dtype`.
+        Use the ``mode`` argument instead.
     dtype : dict, optional
-        Dictionary mapping column names in the pixel table to dtypes. Can be
-        used to override the default dtypes of 'bin1_id', 'bin2_id' or 'count'.
-        Any additional value column dtypes must also be provided in the
-        `columns` argument, or will be ignored.
-
-    Result
-    ------
-    Cooler data hierarchy stored in at the specified Cooler URI (HDF5 file and
-    group path).
+        Dictionary mapping column names in the pixel table to dtypes.
+        Use the ``dtypes`` argument instead.
 
     """
     file_path, group_path = parse_cooler_uri(cool_uri)
@@ -531,7 +507,7 @@ def create(cool_uri, bins, pixels, columns=None, dtypes=None, metadata=None,
     n_chroms = len(chroms)
     n_bins = len(bins)
 
-    if not symmetric and triucheck:
+    if not symmetric_upper and triucheck:
         warnings.warn(
             "Creating a non-symmetric matrix, but `triucheck` was set to True. "
             "Changing to False.")
@@ -570,7 +546,7 @@ def create(cool_uri, bins, pixels, columns=None, dtypes=None, metadata=None,
         write_bins(grp, bins, chroms['name'], h5opts)
 
         grp = h5.create_group('pixels')
-        if symmetric:
+        if symmetric_upper:
             max_size = n_bins * (n_bins - 1) // 2 + n_bins
         else:
             max_size = n_bins * n_bins
@@ -603,7 +579,7 @@ def create(cool_uri, bins, pixels, columns=None, dtypes=None, metadata=None,
         info = {}
         info['bin-type'] = u"fixed" if binsize is not None else u"variable"
         info['bin-size'] = binsize if binsize is not None else u"null"
-        info['symmetric-storage-mode'] = u"upper" if symmetric else u"none"
+        info['storage-mode'] = u"symmetric-upper" if symmetric_upper else u"square"
         info['nchroms'] = n_chroms
         info['nbins'] = n_bins
         info['sum'] = ncontacts
@@ -618,65 +594,14 @@ def create(cool_uri, bins, pixels, columns=None, dtypes=None, metadata=None,
 
 
 def create_from_unordered(cool_uri, bins, chunks, columns=None, dtypes=None,
-                          mergebuf=int(20e6), delete_temp=True, temp_dir=None,
-                          max_merge = 200, **kwargs):
+                          mode=None, mergebuf=int(20e6), delete_temp=True,
+                          temp_dir=None, max_merge=200, **kwargs):
     """
     Create a Cooler in two passes via an external sort mechanism. In the first
     pass, a sequence of data chunks are processed and sorted in memory and saved
     to temporary Coolers. In the second pass, the temporary Coolers are merged
     into the output. This way the individual chunks do not need to be provided
     in any particular order.
-
-    Parameters
-    ----------
-    cool_uri : str
-        Path to Cooler file or URI to Cooler group. If the file does not exist,
-        it will be created.
-    bins : DataFrame
-        Segmentation of the chromosomes into genomic bins. May contain
-        additional columns.
-    chunks : iterable of DataFrames
-        Sequence of chunks that get processed and written to separate Coolers
-        and then subsequently merged.
-    columns : sequence of str, optional
-        Specify here the names of any additional value columns from the input
-        besides 'count' to store in the Cooler. The standard columns ['bin1_id',
-        'bin2_id', 'count'] can be provided, but are already assumed and don't
-        need to be given explicitly. Additional value columns provided here will
-        be stored as np.float64 unless otherwised specified using `dtype`.
-    dtypes : dict, optional
-        Dictionary mapping column names in the pixel table to dtypes. Can be
-        used to override the default dtypes of 'bin1_id', 'bin2_id' or 'count'.
-        Any additional value column dtypes must also be provided in the
-        `columns` argument, or will be ignored.
-    mergebuf : int, optional
-        Maximum number of records to buffer in memory at any give time during
-        the merge step.
-    delete_temp : bool, optional
-        Whether to delete temporary files when finished.
-        Useful for debugging. Default is False.
-    temp_dir : str, optional
-        Create temporary files in this directory.
-    max_merge : int, optional
-        If merging more than max_merge chunks, do merge recursively.
-    metadata : dict, optional
-        Experiment metadata to store in the file. Must be JSON compatible.
-    assembly : str, optional
-        Name of genome assembly.
-    h5opts : dict, optional
-        HDF5 dataset filter options to use (compression, shuffling,
-        checksumming, etc.). Default is to use autochunking and GZIP
-        compression, level 6.
-    append : bool, optional
-        Append new Cooler to the file if it exists. If False, an existing file
-        with the same name will be truncated. Default is False.
-    lock : multiprocessing.Lock, optional
-        Optional lock to control concurrent access to the output file.
-
-    See also
-    --------
-    sanitize_records
-    sanitize_pixels
 
     """
     from ..api import Cooler
@@ -704,7 +629,7 @@ def create_from_unordered(cool_uri, bins, chunks, columns=None, dtypes=None,
         uris.append(uri)
         logger.info('Writing chunk {}: {}'.format(i, uri))
         create(uri, bins, chunk,
-               columns=columns, dtypes=dtypes, append=True, **kwargs)
+               columns=columns, dtypes=dtypes, mode='a', **kwargs)
 
     # Merge passes
     n = len(uris)
@@ -728,7 +653,7 @@ def create_from_unordered(cool_uri, bins, chunks, columns=None, dtypes=None,
             uris2.append(uri)
             logger.info('Merging chunks {}-{}: {}'.format(lo, hi, uri))
             create(uri, bins, chunk_subset,
-                   columns=columns, dtypes=dtypes, append=True, **kwargs)
+                   columns=columns, dtypes=dtypes, mode='a', **kwargs)
 
         final_uris = uris2
     else:
@@ -741,7 +666,8 @@ def create_from_unordered(cool_uri, bins, chunks, columns=None, dtypes=None,
         mergebuf,
         columns=columns)
     logger.info('Merging into {}'.format(cool_uri))
-    create(cool_uri, bins, chunks, columns=columns, dtypes=dtypes, **kwargs)
+    create(cool_uri, bins, chunks, columns=columns, dtypes=dtypes, mode=mode,
+           **kwargs)
 
     del temp_files
 
@@ -841,3 +767,151 @@ def append(cool_uri, table, data, chunked=False, force=False, h5opts=None,
             finally:
                 if lock is not None:
                     lock.release()
+
+
+def create_cooler(cool_uri, bins, pixels, columns=None, dtypes=None,
+                  metadata=None, assembly=None, ordered=False,
+                  symmetric_upper=True, mode=None, mergebuf=int(20e6),
+                  delete_temp=True, temp_dir=None, max_merge=200,
+                  boundscheck=True, dupcheck=True, triucheck=True,
+                  ensure_sorted=False, h5opts=None, lock=None):
+    """
+    Create a cooler from bins and pixels at the specified URI.
+
+    Because the number of pixels is often very large, the input pixels are
+    normally provided as an iterable (e.g., an iterator or generator) of
+    DataFrame **chunks** that fit in memory.
+
+    .. versionadded:: 0.8.0
+
+    Parameters
+    ----------
+    cool_uri : str
+        Path to cooler file or URI string. If the file does not exist,
+        it will be created.
+    bins : pandas.DataFrame
+        Segmentation of the chromosomes into genomic bins as a BED-like
+        DataFrame with columns ``chrom``, ``start`` and ``end``. May contain
+        additional columns.
+    pixels : DataFrame, dictionary, or iterable of either
+        A table, given as a dataframe or a column-oriented dict, containing
+        columns labeled ``bin1_id``, ``bin2_id`` and ``count``, sorted by
+        (``bin1_id``, ``bin2_id``). If additional columns are included in the
+        pixel table, their names and dtypes must be specified using the
+        ``columns`` and ``dtypes`` arguments. For larger input data, an
+        **iterable** can be provided that yields the pixel data as a sequence
+        of chunks. If the input is a dask DataFrame, it will also be processed
+        one chunk at a time.
+    columns : sequence of str, optional
+        Specify here the names of any additional value columns from the input
+        to store in the cooler. The standard columns (``bin1_id``, ``bin2_id``,
+        ``count``) can be provided, but are already assumed and do not need to
+        be given explicitly. Additional value columns will be given dtype
+        float64 unless specified using ``dtypes``.
+    dtypes : dict, optional
+        Dictionary mapping column names in the pixel table to dtypes. Can be
+        used to override the default dtypes of ``bin1_id``, ``bin2_id`` or
+        ``count`` or assign dtypes to other value columns. Any additional
+        value columns not also provided in the ``columns`` argument will be
+        ignored.
+    metadata : dict, optional
+        Experiment metadata to store in the file. Must be JSON compatible.
+    assembly : str, optional
+        Name of genome assembly.
+    ordered : bool, optional [default: False]
+        If the input chunks of pixels are sorted and ordered
+        lexicographically, set this to True to create the cooler in one step.
+        Otherwise, we create the cooler in two steps using an external sort
+        mechanism. Default is False (i.e., two-step). See Notes.
+    symmetric_upper : bool, optional [default: True]
+        If True, sets the file's storage-mode property to ``symmetric-upper``:
+        use this only if the input data references the upper triangle of a
+        symmetric matrix! For all other cases, set this option to False.
+    mode : {'w' , 'a'}, optional [default: 'w']
+        Write mode for the output file. 'a': if the output file exists, append
+        the new cooler to it. 'w': if the output file exists, it will be
+        truncated. Default is 'w'.
+
+    Other parameters
+    ----------------
+    mergebuf : int, optional
+        Maximum number of records to buffer in memory at any give time during
+        the merge step.
+    delete_temp : bool, optional
+        Whether to delete temporary files when finished.
+        Useful for debugging. Default is False.
+    temp_dir : str, optional
+        Create temporary files in the specified directory instead of the
+        system one.
+    max_merge : int, optional
+        If merging more than ``max_merge`` chunks, do the merge recursively in
+        two passes.
+    boundscheck : bool, optional
+    dupcheck : bool, optional
+    triucheck : bool, optional
+    ensure_sorted : bool, optional
+    h5opts : dict, optional
+        HDF5 dataset filter options to use (compression, shuffling,
+        checksumming, etc.). Default is to use autochunking and GZIP
+        compression, level 6.
+    lock : multiprocessing.Lock, optional
+        Optional lock to control concurrent access to the output file.
+
+    See also
+    --------
+    cooler.create.sanitize_records
+    cooler.create.sanitize_pixels
+
+    Notes
+    -----
+    If the pixel chunks are ordered and sorted lexicographically, then the
+    cooler can be created in a single step by setting ``ordered=True``.
+
+    If not, the cooler is created in two steps via an external sort mechanism.
+    In the first pass, the sequence of pixel chunks are processed and sorted in
+    memory and saved to temporary coolers. In the second pass, the temporary
+    coolers are merged into the output file. This way the individual chunks do
+    not need to be provided in any particular order. When ``ordered=False``,
+    the following options for the merge step are available: ``mergebuf``,
+    ``delete_temp``, ``temp_dir``, ``max_merge``.
+
+    Each chunk of pixels will go through a validation pipeline, which can be
+    customized with the following options: ``boundscheck``, ``triucheck``,
+    ``dupcheck``, ``ensure_sorted``.
+
+    """
+    # dispatch to the approprate creation method
+    if ordered:
+        create(
+            cool_uri, bins, pixels,
+            columns=columns,
+            dtypes=dtypes,
+            metadata=metadata,
+            assembly=assembly,
+            symmetric_upper=symmetric_upper,
+            mode=mode,
+            boundscheck=boundscheck,
+            dupcheck=dupcheck,
+            triucheck=triucheck,
+            ensure_sorted=ensure_sorted,
+            h5opts=h5opts,
+            lock=lock)
+    else:
+        create_from_unordered(
+            cool_uri, bins, pixels,
+            columns=columns,
+            dtypes=dtypes,
+            metadata=metadata,
+            assembly=assembly,
+            symmetric_upper=symmetric_upper,
+            mode=mode,
+            boundscheck=boundscheck,
+            dupcheck=dupcheck,
+            triucheck=triucheck,
+            ensure_sorted=ensure_sorted,
+            h5opts=h5opts,
+            lock=lock,
+            mergebuf=mergebuf,
+            delete_temp=delete_temp,
+            temp_dir=temp_dir,
+            max_merge=max_merge)

@@ -1,6 +1,9 @@
+Sphinx
+sphinx-rtd-theme
+numpydoc
 mock
 six
 multiprocess
-Sphinx==1.5.5
-sphinx-rtd-theme
-numpydoc
+click
+asciitree
+pyyaml

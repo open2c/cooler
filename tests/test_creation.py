@@ -9,7 +9,7 @@ import numpy as np
 import pandas
 import h5py
 
-import cooler.io
+import cooler.create
 import cooler
 import pytest
 
@@ -30,29 +30,29 @@ def test_create_append(fp):
     pixels = c.pixels()[:]
 
     # create
-    cooler.io.create(op.join(tmp, 'test.df.2000kb.cool'), bins, pixels)
-    cooler.io.create(op.join(tmp, 'test.dict.2000kb.cool'), bins, {k:v for k,v in iteritems(pixels)})
-    cooler.io.create(op.join(tmp, 'test.iter_df.2000kb.cool'), bins, [pixels])
-    cooler.io.create(op.join(tmp, 'test.iter_dict.2000kb.cool'), bins, [{k:v for k,v in iteritems(pixels)}])
+    cooler.create.create(op.join(tmp, 'test.df.2000kb.cool'), bins, pixels)
+    cooler.create.create(op.join(tmp, 'test.dict.2000kb.cool'), bins, {k:v for k,v in iteritems(pixels)})
+    cooler.create.create(op.join(tmp, 'test.iter_df.2000kb.cool'), bins, [pixels])
+    cooler.create.create(op.join(tmp, 'test.iter_dict.2000kb.cool'), bins, [{k:v for k,v in iteritems(pixels)}])
     ddf = dd.from_pandas(pixels, npartitions=3)
-    cooler.io.create(op.join(tmp, 'test.ddf.2000kb.cool'), bins, ddf)
+    cooler.create.create(op.join(tmp, 'test.ddf.2000kb.cool'), bins, ddf)
 
     # Append
-    cooler.io.append(op.join(tmp, 'test.df.2000kb.cool'),
+    cooler.create.append(op.join(tmp, 'test.df.2000kb.cool'),
                      'bins',
                      {'start_1based': bins.apply(lambda x: x.start + 1, axis=1)})
-    cooler.io.append(op.join(tmp, 'test.df.2000kb.cool'),
+    cooler.create.append(op.join(tmp, 'test.df.2000kb.cool'),
                      'bins',
                      {'ones': 1})
     series = (ddf['count'] / ddf['count'].sum())
     series.name = 'normed'
-    cooler.io.append(op.join(tmp, 'test.df.2000kb.cool'),
+    cooler.create.append(op.join(tmp, 'test.df.2000kb.cool'),
                      'pixels',
                      series)
-    cooler.io.append(op.join(tmp, 'test.df.2000kb.cool'),
+    cooler.create.append(op.join(tmp, 'test.df.2000kb.cool'),
                      'pixels',
                      series, force=True)
-    cooler.io.append(op.join(tmp, 'test.df.2000kb.cool'),
+    cooler.create.append(op.join(tmp, 'test.df.2000kb.cool'),
                      'bins',
                      {'twos': [np.ones(1000, dtype=int)*2,
                                np.ones(561, dtype=int)*2]},
@@ -74,22 +74,22 @@ def test_roundtrip(f_hm, f_cool):
     bintable = cooler.binnify(chromsizes, binsize)
 
     heatmap = np.load(f_hm)
-    reader = cooler.io.ArrayLoader(bintable, heatmap, 100000)
-    cooler.io.create(f_cool, bintable, reader, assembly='hg19')
+    reader = cooler.create.ArrayLoader(bintable, heatmap, 100000)
+    cooler.create.create(f_cool, bintable, reader, assembly='hg19')
 
     h5 = h5py.File(f_cool, 'r')
-    new_chromtable = cooler.chroms(h5)
+    new_chromtable = cooler.api.chroms(h5)
     assert np.all(chromsizes.index == new_chromtable['name'])
 
-    new_bintable = cooler.bins(h5)
+    new_bintable = cooler.api.bins(h5)
     assert np.all(bintable == new_bintable)
 
-    info = cooler.info(h5)
+    info = cooler.api.info(h5)
     assert info['genome-assembly'] == 'hg19'
     assert info['bin-type'] == 'fixed'
     assert info['bin-size'] == binsize
 
-    mat = cooler.matrix(h5, 0, 100, 0, 100, 'count', balance=False)
+    mat = cooler.api.matrix(h5, 0, 100, 0, 100, 'count', balance=False)
     assert mat.shape == (100, 100)
     assert np.allclose(heatmap[:100,:100], mat)
 
@@ -97,7 +97,7 @@ def test_roundtrip(f_hm, f_cool):
     assert mat.shape == (100, 100)
     assert np.allclose(heatmap[:100,:100], mat)
 
-    mat = cooler.matrix(h5, 100, 200, 100, 200, 'count', balance=False)
+    mat = cooler.api.matrix(h5, 100, 200, 100, 200, 'count', balance=False)
     assert mat.shape == (100, 100)
     assert np.allclose(heatmap[100:200,100:200], mat)
 

@@ -4,9 +4,10 @@ import os.path as op
 import glob
 import sys
 
-import click
-from . import cli
 from ._util import exit_on_broken_pipe
+from . import cli
+import click
+
 from .. import util
 
 
@@ -38,6 +39,7 @@ from .. import util
 def digest(chromsizes, fasta, enzyme, out, header, rel_ids):
     """
     Generate fragment-delimited genomic bins.
+
     Output a genome segmentation of restriction fragments as a BED file.
 
     CHROMSIZES_PATH : UCSC-like chromsizes file, with chromosomes in desired

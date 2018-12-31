@@ -9,12 +9,12 @@ import numpy as np
 import pandas as pd
 import h5py
 
-import click
 from . import cli, get_logger
+import click
+
 from .. import ice
-from ..io import parse_cooler_uri
 from ..api import Cooler
-from ..util import bedslice
+from ..util import parse_cooler_uri, bedslice
 
 
 @cli.command()
@@ -131,10 +131,10 @@ def balance(cool_uri, nproc, chunksize, mad_max, min_nnz, min_count, blacklist,
             ignore_diags, tol, cis_only, trans_only, max_iters, name, force,
             check, stdout, convergence_policy, ignore_dist):
     """
-    Out-of-core contact matrix balancing.
+    Out-of-core matrix balancing.
 
-    Assumes uniform binning. See the help for various filtering options to
-    ignore poorly mapped bins.
+    Matrix must be symmetric. See the help for various filtering options to
+    mask out poorly mapped bins.
 
     COOL_PATH : Path to a COOL file.
 

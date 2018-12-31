@@ -22,7 +22,7 @@ import numpy as np
 import pandas as pd
 import h5py
 
-from .. import get_logger
+from .._logging import get_logger
 from ..util import (
     parse_region, rlencode, get_binsize, get_chromsizes, GenomeSegmentation,
     balanced_partition
@@ -186,7 +186,7 @@ def _sanitize_records(chunk, gs, decode_chroms, is_one_based, tril_action,
 
 def sanitize_records(bins, schema=None, **kwargs):
     """
-    Generates a funtion to sanitize and assign bin IDs to a data frame of
+    Builds a funtion to sanitize and assign bin IDs to a data frame of
     paired genomic positions based on a provided genomic bin segmentation.
 
     Parameters
@@ -234,8 +234,8 @@ def sanitize_records(bins, schema=None, **kwargs):
 
     Returns
     -------
-    Function of one argument that takes a raw dataframe and returns a sanitized
-    dataframe with bin IDs assigned.
+    callable :
+        Function of one argument that takes a raw dataframe and returns a sanitized dataframe with bin IDs assigned.
 
     """
     if schema is not None:
@@ -324,14 +324,13 @@ def validate_pixels(n_bins, boundscheck, triucheck, dupcheck, ensure_sorted):
 
 def sanitize_pixels(bins, **kwargs):
     """
-    Generates a function to sanitize pre-binned genomic data with assigned
-    bin IDs
+    Builds a function to sanitize an already-binned genomic data with
+    genomic bin assignments.
 
     Parameters
     ----------
     bins : DataFrame
         Bin table to compare pixel records against.
-
     is_one_based : bool, optional
         Whether the input bin IDs are one-based, rather than zero-based.
         They will be converted to zero-based.
@@ -341,7 +340,7 @@ def sanitize_pixels(bins, **kwargs):
         "reflected" to their mirror image: "sided" column pairs will have their
         values swapped.
         If set to 'drop', tril pixels will be discarded. This is useful if
-        your input data is symmetric, i.e. contains mirror duplicates of every
+        your input data is duplexed, i.e. contains mirror duplicates of every
         record.
         If set to 'raise', an exception will be raised if any tril record is
         encountered.
@@ -365,8 +364,9 @@ def sanitize_pixels(bins, **kwargs):
 
     Returns
     -------
-    Function of one argument that takes a raw dataframe and returns a sanitized
-    dataframe.
+    callable :
+        Function of one argument that takes a raw dataframe and returns a
+        sanitized dataframe.
 
     """
     chromsizes = get_chromsizes(bins)
@@ -712,12 +712,17 @@ class PairixAggregator(ContactBinner):
         # dumb heuristic to prevent excessively large chunks on one worker
         if hasattr(f, 'get_linecount'):
             n_lines = f.get_linecount()
+            if n_lines < 0:
+                # correct int32 overflow bug
+                MAXINT32 = 2147483647
+                n_lines = MAXINT32 + MAXINT32 + n_lines
             max_chunk = int(100e6)
             n_chunks = n_lines // 2 // max_chunk
             old_n = self.n_chunks
             self.n_chunks = max(self.n_chunks, n_chunks)
             if self.n_chunks > old_n:
-                logger.info("Pairs file has {} lines. Increasing max-split to {}.".format(
+                logger.info(
+                    "Pairs file has {} lines. Increasing max-split to {}.".format(
                     n_lines, self.n_chunks))
 
         # all requested contigs will be placed in the output matrix

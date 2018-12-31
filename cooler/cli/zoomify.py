@@ -2,10 +2,22 @@
 from __future__ import division, print_function
 import os.path as op
 import shlex
+
 from ._util import parse_field_param
 from . import cli, get_logger
 from click.testing import CliRunner
 import click
+
+from ..reduce import (
+    legacy_zoomify,
+    zoomify_cooler,
+    get_quadtree_depth,
+    HIGLASS_TILE_DIM
+)
+from ..util import parse_cooler_uri
+from ..create import create
+from ..tools import lock
+from .. import api
 
 
 @cli.command()
@@ -43,8 +55,8 @@ import click
     "--field",
     help="Specify the names of value columns to merge as '<name>'. "
          "Repeat the `--field` option for each one. "
-         "Use '<name>,<dtype>' to specify the dtype. Append '=@<agg>' to "
-         "specify an aggregation function different from 'sum'.",
+         "Use '<name>,dtype=<dtype>' to specify the dtype. Include "
+         "',agg=<agg>' to specify an aggregation function different from 'sum'.",
     type=str,
     multiple=True)
 @click.option(
@@ -55,17 +67,11 @@ import click
 def zoomify(cool_uri, nproc, chunksize, resolutions, balance, balance_args,
             field, legacy, out):
     """
-    Generate a multi-resolution file by coarsening.
-
-    \b\bArguments:
+    Generate a multi-resolution cooler file by coarsening.
 
     COOL_PATH : Path to a COOL file or Cooler URI.
 
     """
-    from ..reduce import legacy_zoomify, zoomify as _zoomify, get_quadtree_depth, HIGLASS_TILE_DIM
-    from ..io import parse_cooler_uri, create
-    from ..tools import lock
-    from .. import api
     from .balance import balance as balance_cmd
 
     logger = get_logger(__name__)
@@ -123,7 +129,7 @@ def zoomify(cool_uri, nproc, chunksize, resolutions, balance, balance_args,
             # Default aggregation. Dtype will be inferred.
             columns, dtypes, agg = ['count'], None, None
 
-        _zoomify(
+        zoomify_cooler(
             [cool_uri],
             outfile,
             resolutions,

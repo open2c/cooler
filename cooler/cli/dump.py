@@ -6,10 +6,10 @@ import sys
 import numpy as np
 import pandas as pd
 
-import click
-from ._util import DelimitedTuple
-from ._util import exit_on_broken_pipe
+from ._util import DelimitedTuple, exit_on_broken_pipe
 from . import cli
+import click
+
 from .. import api
 
 
@@ -93,10 +93,9 @@ from .. import api
 def dump(cool_uri, table, columns, header, range, range2, balanced, join,
          annotate, na_rep, float_format, chunksize, out):
     """
-    Dump a contact matrix.
-    Print the contents of a COOL file to tab-delimited text.
+    Dump a cooler's data to a text stream.
 
-    COOL_PATH : Path to COOL file or Cooler URI.
+    COOL_PATH : Path to COOL file or cooler URI.
 
     """
     c = api.Cooler(cool_uri)

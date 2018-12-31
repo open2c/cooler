@@ -1,31 +1,52 @@
 .. _current-version:
 
-Schema Version: 3
------------------
+**Schema Version**: 3
 
-This schema describes a `compressed sparse row <https://en.wikipedia.org/wiki/Sparse_matrix#Compressed_sparse_row_.28CSR.2C_CRS_or_Yale_format.29>`_ storage scheme (CSR) for a matrix with genomic dimension/axis annotations.
+This schema describes a `compressed sparse row (CSR) <https://en.wikipedia.org/wiki/Sparse_matrix#Compressed_sparse_row_.28CSR.2C_CRS_or_Yale_format.29>`_ storage scheme for a matrix (i.e., a quantitative heatmap) with genomically labeled dimensions/axes.
+
+HDF5 does not natively implement sparse arrays or relational data structures: its datasets are dense multidimensional arrays. We implement tables and sparse array indexes in HDF5 using groups of 1D arrays. The descriptions of tables and indexes below specify required groups and arrays, conventional column orders, and default data types. They are given in the `datashape <http://datashape.readthedocs.org/en/latest/>`_ layout language.
 
 Data collection
-~~~~~~~~~~~~~~~
+===============
 
-We refer to the object hierarchy describing a single contact matrix as a cooler *data collection*.
+We refer to the object hierarchy describing a single matrix as a cooler *data collection*. A cooler data collection consists of **tables**, **indexes** and **metadata** describing a genomically-labelled sparse matrix.
 
+A typical data collection has the following structure. At the top level, there are four `HDF5 Groups <http://docs.h5py.org/en/stable/high/group.html>`_, each containing 1D arrays (`HDF5 Datasets <http://docs.h5py.org/en/stable/high/dataset.html>`_).
+
+::
+
+  /
+   ├── chroms
+   │   ├── length (24,) int32
+   │   └── name (24,) |S64
+   ├── bins
+   │   ├── chrom (3088281,) int32
+   │   ├── end (3088281,) int32
+   │   ├── start (3088281,) int32
+   │   └── weight (3088281,) float64
+   ├── pixels
+   │   ├── bin1_id (271958554,) int64
+   │   ├── bin2_id (271958554,) int64
+   │   └── count (271958554,) int32
+   └── indexes
+       ├── bin1_offset (3088282,) int64
+       └── chrom_offset (25,) int64
 
 URI syntax
-~~~~~~~~~~
+==========
 
-We identify a cooler data collection using a **URI string**, separating the system path to the container file from the data path within the container file by a double colon ``::``.
+We identify a cooler data collection using a **URI string** to its top-level group, separating the system path to the container file from the **group path** within the container file by a double colon ``::``.
 
 ::
   
-  /path/to/container.cool::/path/to/cooler/group
+  path/to/container.cool::/path/to/cooler/group
+
+When referencing the root group ``/``, the ``::/`` can be omitted. The leading slash is also optional.
 
 Tables
-~~~~~~
+======
 
-HDF5 does not natively support sparse arrays or relational data structures: its datasets are dense multidimensional arrays. As groups of 1D arrays, tables and indexes can be represented using the `datashape <http://datashape.readthedocs.org/en/latest/>`_ layout language. The descriptions below describe required groups and arrays, conventional column orders, and default data types.
-
-A **table** is a group of equal-length 1D arrays (HDF5 datasets) representing **columns**.
+A **table** is a group of equal-length 1D arrays representing **columns**.
 
 Additional groups and tables may be added to a data collection as long as they are not nested under the group of another table.
 
@@ -37,9 +58,8 @@ The column **data types** are listed below as numpy equivalents. They are only d
 
 GZIP is chosen as the default **compression** filter for all columns. This is for portability reasons, since all versions of the HDF5 library ship with it.
 
-
 chroms
-""""""
+------
 
 ::
 
@@ -52,7 +72,7 @@ chroms
 In HDF5, ``name`` is a null-padded, fixed-length ASCII array, which maps to numpy's ``S`` dtype.
 
 bins
-""""
+----
 
 ::
 
@@ -68,10 +88,12 @@ bins
 
 In HDF5, we use the integer-backed ENUM type to encode the ``chrom`` column. For data collections with a very large number of scaffolds, the ENUM type information may be too large to fit in the object's metadata header. In that case, the ``chrom`` column is stored using raw integers and the enumeration is inferred from the ``chrom`` table.
 
+Genomic intervals are stored using a `0-start, half-open <http://genome.ucsc.edu/blog/the-ucsc-genome-browser-coordinate-counting-systems>`_ representation. The first interval in a scaffold should have ``start`` = 0 and the last interval should have ``end`` = the chromosome length. Intervals are sorted by ``chrom``, then by ``start``.
+
 The ``cooler balance`` command by default stores balancing weights in a column called ``weight``. NaN values indicate genomic bins that were blacklisted during the balancing procedure.
 
 pixels
-""""""
+------
 
 ::
 
@@ -84,12 +106,14 @@ pixels
       count:    typevar['Nnz'] * int32
     }
 
+In the matrix coordinate system, ``bin1_id`` refers to the ith axis and ``bin2_id`` refers to the jth. Bin IDs are zero-based, i.e. we start counting at 0. Pixels are sorted by ``bin1_id`` then by ``bin2_id``.
+
 The ``count`` column is integer by default, but floating point types can be substituted. Additional columns are to be interpreted as supplementary value columns.
 
 Indexes
-~~~~~~~
+=======
 
-Indexes are stored as 1D arrays in a separate group called ``indexes``. They can be thought of as run-length encodings of the ``bins/chrom`` and ``pixels/bin1_id`` columns, respectively. ``chrom_offset`` : indicates what row in the bin table each chromosome first appears. ``bin1_offset`` : indicates what row in the pixel table each bin1 ID appears. This is often called *indptr* in CSR data structures. Both arrays are required.
+Indexes are stored as 1D arrays in a separate group called ``indexes``. They can be thought of as run-length encodings of the ``bins/chrom`` and ``pixels/bin1_id`` columns, respectively. Both arrays are required.
 
 ::
 
@@ -98,65 +122,124 @@ Indexes are stored as 1D arrays in a separate group called ``indexes``. They can
       bin1_offset:   (typevar['Nbins'] + 1) * int64
     }
 
-Sparse array interface and symmetry
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+* ``chrom_offset``: indicates which row in the bin table each chromosome first appears. The last element stores the length of the bin table.
+* ``bin1_offset``: indicates which row in the pixel table each bin1 ID first appears. The last element stores the length of the pixel table. This index is usually called *indptr* in CSR data structures. 
 
-TODO
+Storage Mode
+============
+
+Storing a symmetric matrix requires only the *upper triangular part, including the diagonal*, since the remaining elements can be reconstructed from the former ones. To indicate the use of this **mode of matrix storage** to client software, the value of the metadata attribute ``storage-mode`` must be set to ``"symmetric-upper"`` (see `Metadata`_). 
+
+.. versionadded:: 3
+
+    To indicate the absence of a special storage mode, e.g. for **non-symmetric** matrices, ``storage-mode`` must be set to ``"square"``.  This storage mode indicates to client software that 2D range queries should not be symmetrized.
+
+.. warning:: In schema v2 and earlier, the symmetric-upper storage mode is always assumed.
 
 
 Metadata
-~~~~~~~~
+========
 
-Essential key-value properties are stored as root-level HDF5 attributes. A specific bucket called ``metadata`` is reserved for arbitrary JSON-compatible user metadata.
+Essential key-value properties are stored as root-level `HDF5 attributes <http://docs.h5py.org/en/stable/high/attr.html>`_ in the data collection.
 
-All scalar string attributes, including serialized JSON, must be stored as variable-length UTF-8 encoded strings [*]_. 
+.. rubric:: Required attributes
+
+.. describe:: format : string (constant)
+
+    "HDF5::Cooler"
+
+.. describe:: format-version : int
+
+    The schema version used.
+
+.. describe:: bin-type : { "fixed", "variable" }
+
+    Indicates whether the resolution is constant along both axes.
+
+.. describe:: bin-size : int or "null"
+
+    Size of genomic bins in base pairs if bin-type is "fixed". Otherwise, "null".
+
+.. describe:: storage-mode : { "symmetric-upper", "square" }
+
+    Indicates whether ordinary sparse matrix encoding is used ("square") or whether a symmetric matrix is encoded by storing only the upper triangular elements ("symmetric-upper").
+
+.. rubric:: Reserved, but optional
+
+.. describe:: assembly : string
+
+    Name of the genome assembly, e.g. "hg19".
+
+.. describe:: generated-by : string
+
+    Agent that created the file, e.g. "cooler-x.y.z".
+
+.. describe:: creation-date : datetime string
+
+    The moment the collection was created.
+
+.. describe:: metadata : JSON
+
+    Arbitrary JSON-compatible **user metadata** about the experiment.
+
+
+All scalar string attributes, including serialized JSON, must be stored as **variable-length UTF-8 encoded strings**. 
+
+.. warning:: When assigning scalar string attributes in Python 2, always store values having ``unicode`` type. In h5py, assigning a Python text string (Python 3 ``str`` or Python 2 ``unicode``) to an HDF5 attribute results in variable-length UTF-8 storage.
+
+Additional metadata may be stored in the attributes of table groups and columns.
+
+
+File flavors
+============
+
+Many cooler data collections can be stored in a single file. We recognize two common layouts:
+
+* A single-resolution cooler file that contains a single data collection under the ``/`` group. Conventional file extension: ``.cool``.
 
 ::
-
-    format : string
-        'HDF5::Cooler'
-
-    format-version : int
-        The version of the format used
-
-    bin-type : { "fixed" | "variable" }
-        Indicates whether the resolution is constant along both axes.
-
-    bin-size : int or "none"
-        Size of bins in base pairs if bin-type is "fixed".
-
-    symmetric-storage-mode : { "upper" | "none" }
-        Indicates whether a symmetric matrix is stored using only upper triangular elements, including the diagonal.
-
-    generated-by : string
-        Agent that created the file (e.g. 'cooler-x.y.z').
-
-    creation-date : datetime string
-        Moment the file was built.
-
-    metadata : JSON
-        Custom user metadata about the experiment.
-
-Additional metadata may be stored in the attributes of table columns or groups.
-
-.. [*] In h5py, assigning a Python text string (Python 3 ``str`` or Python 2 ``unicode``) to an HDF5 attribute results in variable-length UTF-8 storage. When assigning attributes from h5py in Python 2, always use the ``unicode`` type.
-
-Additional Notes
-~~~~~~~~~~~~~~~~
-
-Having the ``bin1_offset`` index, the ``bin1_id`` column becomes redundant, but we keep it for convenience as it is extremely compressible. It may be dropped in future versions.
+  
+  XYZ.1000.cool
+  /
+   ├── bins
+   ├── chroms
+   ├── pixels
+   └── indexes
 
 
-Flavors
-~~~~~~~
+* A multi-resolution cooler file that contains multiple "coarsened" resolutions or "zoom-levels" derived from the same dataset. Multires cooler files should store each data collection underneath a group called ``/resolutions`` within a sub-group whose name is the bin size. If the base cooler has variable-length bins, then use ``1`` to designate the base resolution, and the use coarsening multiplier (e.g. ``2``, ``4``, ``8``, etc.) to name the lower resolutions. Conventional file extension: ``.mcool``.
 
-MCOOL
+:: 
 
+  XYZ.1000.mcool
+  /
+   └── resolutions
+       ├── 1000
+       │   ├── bins
+       │   ├── chroms
+       │   ├── pixels
+       │   └── indexes
+       ├── 2000
+       │   ├── bins
+       │   ├── chroms
+       │   ├── pixels
+       │   └── indexes
+       ├── 5000
+       │   ├── bins
+       │   ├── chroms
+       │   ├── pixels
+       │   └── indexes
+       ├── 10000
+       │   ├── bins
+       │   ├── chroms
+       │   ├── pixels
+       │   └── indexes
+       .
+       .
+       .
 
-.. comment:
+Backwards compatibility
+=======================
 
-    genome-assembly : string
-        Name of genome assembly;  default: "unknown".
-
-    Good h5py examples:
-    https://www.uetke.com/blog/python/how-to-use-hdf5-files-in-python/
+Version 3 introduces the ``storage-mode`` metadata attribute to accomodate square matrices that are non-symmetric.
+Version 2 files are to be interpreted as using the "symmetric-upper" storage mode.

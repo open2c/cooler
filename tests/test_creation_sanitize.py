@@ -8,8 +8,7 @@ import os
 import numpy as np
 import pandas as pd
 import h5py
-from cooler.io import sanitize_pixels, sanitize_records, BadInputError
-import cooler.io
+from cooler.create import sanitize_pixels, sanitize_records, BadInputError
 import cooler
 import pytest
 

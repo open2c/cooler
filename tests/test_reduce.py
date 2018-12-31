@@ -5,7 +5,7 @@ import shutil
 import os
 
 from _common import isolated_filesystem, cooler_cmp
-from cooler.reduce import coarsen, zoomify, legacy_zoomify, merge
+from cooler.reduce import merge_coolers, coarsen_cooler, zoomify_cooler, legacy_zoomify
 import numpy as np
 import cooler
 import h5py
@@ -21,7 +21,7 @@ testdir = op.realpath(op.dirname(__file__))
 )])
 def test_merge(path1, path2):
     with isolated_filesystem():
-        merge('test.cool', [path1, path2], mergebuf=int(15e6))
+        merge_coolers('test.cool', [path1, path2], mergebuf=int(15e6))
         single = cooler.Cooler(path1)
         merged = cooler.Cooler('test.cool')
         assert merged.pixels()['count'][:].sum() == 2 * single.pixels()['count'][:].sum()
@@ -53,7 +53,7 @@ def test_coarsen(input_uri, factor, ref_uri):
         agg=None
     )
     with isolated_filesystem():
-        coarsen(
+        coarsen_cooler(
             input_uri,
             'test.cool',
             factor,
@@ -71,7 +71,7 @@ def test_zoomify():
         agg=None,
     )
     with isolated_filesystem():
-        zoomify(
+        zoomify_cooler(
             op.join(testdir, 'data', 'toy.asymm.2.cool'),
             'test.2.mcool',
             resolutions=[4, 8, 16, 32],

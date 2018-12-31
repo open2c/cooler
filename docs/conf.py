@@ -30,20 +30,21 @@ sys.path.insert(0, os.path.abspath('..'))
 # readthedocs-when-youre-using-numpy-and-scipy/
 import mock
 MOCK_MODULES = [
-    'numpy', 
-    'scipy', 
-    'scipy.sparse', 
-    'pandas', 
-    'pandas.algos', 
+    'numpy',
+    'scipy',
+    'scipy.sparse',
+    'pandas',
+    'pandas.algos',
     'pandas.api',
     'pandas.api.types',
-    'h5py', 
-    'dask', 
-    'dask.base', 
+    'h5py',
+    'dask',
+    'dask.base',
     'dask.array',
-    'dask.dataframe', 
+    'dask.dataframe',
     'dask.dataframe.core',
-    'dask.dataframe.utils']
+    'dask.dataframe.utils',
+    'cytoolz']
 for mod_name in MOCK_MODULES:
     sys.modules[mod_name] = mock.Mock()
 
@@ -65,11 +66,11 @@ extensions = [
     'sphinx.ext.ifconfig',
     'sphinx.ext.viewcode',
     'sphinx.ext.autosummary',
-    'numpydoc',
+    'sphinx.ext.napoleon',  # 'numpydoc'
 ]
 
-
 numpydoc_show_class_members = False
+napoleon_use_rtype = False
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -87,7 +88,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'cooler'
-copyright = '2016-2017, Nezar Abdennur'
+copyright = '2016-2019, Nezar Abdennur'
 author = 'Nezar Abdennur'
 
 # The version info for the project you're documenting, acts as replacement for
@@ -96,7 +97,7 @@ author = 'Nezar Abdennur'
 #
 
 def _get_version():
-    init = os.path.join('..', 'cooler', '__init__.py')
+    init = os.path.join('..', 'cooler', '_version.py')
     with open(init) as fh:
         text = fh.read()
     version = re.search(

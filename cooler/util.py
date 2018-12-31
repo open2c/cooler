@@ -12,6 +12,44 @@ import pandas as pd
 import h5py
 
 
+def partition(start, stop, step):
+    """Partition an integer interval into equally-sized subintervals.
+    Like builtin :py:func:`range`, but yields pairs of end points.
+
+    Examples
+    --------
+    >>> for lo, hi in partition(0, 9, 2):
+           print(lo, hi)
+    0 2
+    2 4
+    4 6
+    6 8
+    8 9
+
+    """
+    return ((i, min(i+step, stop))
+                for i in range(start, stop, step))
+
+
+def parse_cooler_uri(s):
+    """
+    Parse a Cooler URI string
+
+    e.g. /path/to/mycoolers.cool::/path/to/cooler
+
+    """
+    parts = s.split('::')
+    if len(parts) == 1:
+        file_path, group_path = parts[0], '/'
+    elif len(parts) == 2:
+        file_path, group_path = parts
+        if not group_path.startswith('/'):
+            group_path = '/' + group_path
+    else:
+        raise ValueError("Invalid Cooler URI string")
+    return file_path, group_path
+
+
 def atoi(s):
     return int(s.replace(',', ''))
 
@@ -106,6 +144,7 @@ def parse_region(reg, chromsizes=None):
     """
     Genomic regions are represented as half-open intervals (0-based starts,
     1-based ends) along the length coordinate of a contig/scaffold/chromosome.
+
     Parameters
     ----------
     reg : str or tuple
@@ -114,6 +153,7 @@ def parse_region(reg, chromsizes=None):
     chromsizes : mapping, optional
         Lookup table of scaffold lengths to check against ``chrom`` and the
         ``end`` coordinate. Required if ``end`` is not supplied.
+
     Returns
     -------
     A well-formed genomic region triple (str, int, int)
@@ -184,12 +224,13 @@ def read_chromsizes(filepath_or,
 
     Returns
     -------
-    Series of integer bp lengths indexed by sequence name.
+    :py:class:`pandas.Series`
+        Series of integer bp lengths indexed by sequence name.
 
-    Notes
-    -----
-    UCSC assembly terminology: <http://genome.ucsc.edu/FAQ/FAQdownloads.html#download9>
-    NCBI assembly terminology: <https://www.ncbi.nlm.nih.gov/grc/help/definitions
+    References
+    ----------
+    * `UCSC assembly terminology <http://genome.ucsc.edu/FAQ/FAQdownloads.html#download9>`_
+    * `GRC assembly terminology <https://www.ncbi.nlm.nih.gov/grc/help/definitions>`_
 
     """
     if isinstance(filepath_or, six.string_types) and filepath_or.endswith('.gz'):
@@ -210,8 +251,8 @@ def read_chromsizes(filepath_or,
 
 def fetch_chromsizes(db, **kwargs):
     """
-    Download chromosome sizes from UCSC as a ``pandas.Series``, indexed by
-    chromosome label.
+    Download chromosome sizes from UCSC as a :py:class:`pandas.Series`, indexed
+    by chromosome label.
 
     """
     return read_chromsizes(
@@ -265,7 +306,8 @@ def binnify(chromsizes, binsize):
 
     Returns
     -------
-    Dataframe with columns: 'chrom', 'start', 'end'.
+    bins : :py:class:`pandas.DataFrame`
+        Dataframe with columns: ``chrom``, ``start``, ``end``.
 
     """
     def _each(chrom):
@@ -303,11 +345,12 @@ def digest(fasta_records, enzyme):
     fasta_records : OrderedDict
         Dictionary of chromosome names to sequence records.
     enzyme: str
-        Name of restriction enzyme.
+        Name of restriction enzyme (e.g., 'DpnII').
 
     Returns
     -------
-    Dataframe with columns: 'chrom', 'start', 'end'.
+    frags : :py:class:`pandas.DataFrame`
+        Dataframe with columns: ``chrom``, ``start``, ``end``.
 
     """
     import Bio.Restriction as biorst
