@@ -590,7 +590,7 @@ def matrix(h5, i0, i1, j0, j1, field=None, balance=True, sparse=False,
 
     if balance and name not in h5['bins']:
         raise ValueError(
-            "No column 'bins/{}' found. Use ``cooler.ice`` to ".format(name) +
+            "No column 'bins/{}' found. Use ``cooler.balance_cooler`` to ".format(name) +
             "calculate balancing weights or set balance=False.")
 
     if as_pixels:
