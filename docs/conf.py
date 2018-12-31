@@ -43,7 +43,8 @@ MOCK_MODULES = [
     'dask.array',
     'dask.dataframe',
     'dask.dataframe.core',
-    'dask.dataframe.utils']
+    'dask.dataframe.utils',
+    'cytoolz']
 for mod_name in MOCK_MODULES:
     sys.modules[mod_name] = mock.Mock()
 
@@ -66,7 +67,6 @@ extensions = [
     'sphinx.ext.viewcode',
     'sphinx.ext.autosummary',
     'sphinx.ext.napoleon',  # 'numpydoc'
-    'sphinx_click.ext',
 ]
 
 numpydoc_show_class_members = False
