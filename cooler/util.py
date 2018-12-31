@@ -30,6 +30,7 @@ def partition(start, stop, step):
     return ((i, min(i+step, stop))
                 for i in range(start, stop, step))
 
+
 def parse_cooler_uri(s):
     """
     Parse a Cooler URI string
@@ -143,6 +144,7 @@ def parse_region(reg, chromsizes=None):
     """
     Genomic regions are represented as half-open intervals (0-based starts,
     1-based ends) along the length coordinate of a contig/scaffold/chromosome.
+
     Parameters
     ----------
     reg : str or tuple
@@ -151,6 +153,7 @@ def parse_region(reg, chromsizes=None):
     chromsizes : mapping, optional
         Lookup table of scaffold lengths to check against ``chrom`` and the
         ``end`` coordinate. Required if ``end`` is not supplied.
+
     Returns
     -------
     A well-formed genomic region triple (str, int, int)

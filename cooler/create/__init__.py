@@ -16,7 +16,7 @@ PIXEL_DTYPES = (('bin1_id', BIN_DTYPE),
                 ('bin2_id', BIN_DTYPE),
                 ('count', COUNT_DTYPE))
 
-#from ._ingest import from_hiclib, from_tabix, from_pairix, from_arraylike
+
 from ._ingest import (
     sanitize_pixels, validate_pixels, sanitize_records, aggregate_records,
     BadInputError, HDF5Aggregator, TabixAggregator, PairixAggregator,
