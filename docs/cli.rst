@@ -98,7 +98,8 @@ cooler cload
 
 ::
 
-Create a Cooler from genomic pairs and bins.
+Create a cooler from genomic pairs and bins.
+
 Choose a subcommand based on the format of the input contact list.
 
 .. program:: cooler cload
@@ -132,6 +133,7 @@ To pipe input from stdin, set PAIRS_PATH to '-'.
 BINS : One of the following
 
     <TEXT:INTEGER> : 1. Path to a chromsizes file, 2. Bin size in bp
+
     <TEXT> : Path to BED file defining the genomic bin segmentation.
 
 PAIRS_PATH : Path to contacts (i.e. read pairs) file.
@@ -205,7 +207,7 @@ COOL_PATH : Output COOL file path or URI.
 
 .. option:: --field <field>
 
-    Specify quantitative input fields to aggregate into value columns. Use '<name>=<number>' or '<name>,<dtype>=<number>' to specify the dtype. Append '@<agg>' to specify an aggregation function different from 'sum'. Field numbers are 1-based. Specifying 'count' as the target name will override the default storage of pair counts. Repeat the `--field` option for each additional field.
+    Specify quantitative input fields to aggregate into value columns using the syntax ``<field-name>=<field-number>``. Add ``,dtype=<dtype>`` to specify the dtype, and ``,agg=<agg>`` to specify an aggregation function different from ``sum``. Field numbers are 1-based. Specifying 'count' as the target name will override the default storage of pair counts. Repeat the ``--field`` option for each additional field.
 
 .. option:: --temp-dir <temp_dir>
 
@@ -236,6 +238,7 @@ Bin a pairix-indexed contact list file.
 BINS : One of the following
 
     <TEXT:INTEGER> : 1. Path to a chromsizes file, 2. Bin size in bp
+
     <TEXT> : Path to BED file defining the genomic bin segmentation.
 
 PAIRS_PATH : Path to contacts (i.e. read pairs) file.
@@ -300,6 +303,7 @@ Bin a tabix-indexed contact list file.
 BINS : One of the following
 
     <TEXT:INTEGER> : 1. Path to a chromsizes file, 2. Bin size in bp
+
     <TEXT> : Path to BED file defining the genomic bin segmentation.
 
 PAIRS_PATH : Path to contacts (i.e. read pairs) file.
@@ -372,6 +376,7 @@ Bin a hiclib HDF5 contact list (frag) file.
 BINS : One of the following
 
     <TEXT:INTEGER> : 1. Path to a chromsizes file, 2. Bin size in bp
+
     <TEXT> : Path to BED file defining the genomic bin segmentation.
 
 PAIRS_PATH : Path to contacts (i.e. read pairs) file.
@@ -421,37 +426,33 @@ cooler load
 
 ::
 
-Create a Cooler from a pre-binned matrix.
-
-| Two input format options (tab-delimited):
-
-* COO: COO-rdinate sparse matrix format (a.k.a. ijv triple). 3 columns.
-
-| - columns: "bin1_id, bin2_id, count",
-
-* BG2: 2D version of the bedGraph format. 7 columns.
-
-| - columns: "chrom1, start1, end1, chrom2, start2, end2, count"
-
-Input pixel file may be compressed.
-
-**New in v0.7.7: Input files no longer need to be sorted or indexed!**
-
-Example:
-
-| cooler load -f bg2 <chrom.sizes>:<binsize> in.bg2.gz out.cool
-
-Arguments:
+Create a cooler from a pre-binned matrix.
 
 BINS_PATH : One of the following
 
     <TEXT:INTEGER> : 1. Path to a chromsizes file, 2. Bin size in bp
+
     <TEXT> : Path to BED file defining the genomic bin segmentation.
 
 PIXELS_PATH : Text file containing nonzero pixel values. May be gzipped.
-              Pass '-' to use stdin.
+Pass '-' to use stdin.
 
 COOL_PATH : Output COOL file path or URI.
+
+**Notes**
+
+Two input format options (tab-delimited).
+Input pixel file may be compressed.
+
+COO: COO-rdinate sparse matrix format (a.k.a. ijv triple).
+3 columns: "bin1_id, bin2_id, count",
+
+BG2: 2D version of the bedGraph format.
+7 columns: "chrom1, start1, end1, chrom2, start2, end2, count"
+
+**Examples**
+
+cooler load -f bg2 <chrom.sizes>:<binsize> in.bg2.gz out.cool
 
 .. program:: cooler load
 .. code-block:: shell
@@ -488,7 +489,7 @@ COOL_PATH : Output COOL file path or URI.
 
 .. option:: --field <field>
 
-    Add supplemental value fields or override default field numbers for the specified format. Specify as '<name>,<number>' or as '<name>,<number>,<dtype>' to enforce a dtype other than `float` or the default for a standard column. Field numbers are 1-based. Repeat the `--field` option for each additional field.
+    Add supplemental value fields or override default field numbers for the specified format. Specify quantitative input fields to aggregate into value columns using the syntax ``<field-name>=<field-number>``. Add ``,dtype=<dtype>`` to specify the dtype. Field numbers are 1-based. Repeat the ``--field`` option for each additional field.
 
 .. option:: -c, --chunksize <chunksize>
 
@@ -526,7 +527,13 @@ cooler merge
 
 ::
 
-Merge multiple contact matrices with identical axes.
+Merge multiple coolers with identical axes.
+
+OUT_PATH : Output file path or URI.
+
+IN_PATHS : Input file paths or URIs of coolers to merge.
+
+**Notes**
 
 Data columns merged:
 
@@ -562,7 +569,7 @@ Additional columns in the the input files are not transferred to the output.
 
 .. option:: --field <field>
 
-    Specify the names of value columns to merge as '<name>'. Repeat the `--field` option for each one. Use '<name>,<dtype>' to specify the dtype. Append '=@<agg>' to specify an aggregation function different from 'sum'.
+    Specify the names of value columns to merge as '<name>'. Repeat the `--field` option for each one. Use '<name>,dtype=<dtype>' to specify the dtype. Include ',agg=<agg>' to specify an aggregation function different from 'sum'.
 
 
 ----
@@ -572,13 +579,10 @@ cooler coarsen
 
 ::
 
-Coarsen a contact matrix.
+Coarsen a cooler to a lower resolution.
 
-Works by uniformly gridding the elements of each
-chromosomal block and summing the elements inside the grid tiles, i.e. a
-2-D histogram.
-
-Arguments:
+Works by pooling *k*-by-*k* neighborhoods of pixels and aggregating.
+Each chromosomal block is coarsened individually.
 
 COOL_PATH : Path to a COOL file or Cooler URI.
 
@@ -609,7 +613,7 @@ COOL_PATH : Path to a COOL file or Cooler URI.
 
 .. option:: --field <field>
 
-    Specify the names of value columns to merge as '<name>'. Repeat the `--field` option for each one. Use '<name>,<dtype>' to specify the dtype. Append '=@<agg>' to specify an aggregation function different from 'sum'.
+    Specify the names of value columns to merge as '<name>'. Repeat the `--field` option for each one. Use '<name>,dtype=<dtype>' to specify the dtype. Include ',agg=<agg>' to specify an aggregation function different from 'sum'.
 
 .. option:: -o, --out <out>
 
@@ -623,9 +627,7 @@ cooler zoomify
 
 ::
 
-Generate a multi-resolution file by coarsening.
-
-Arguments:
+Generate a multi-resolution cooler file by coarsening.
 
 COOL_PATH : Path to a COOL file or Cooler URI.
 
@@ -668,7 +670,7 @@ COOL_PATH : Path to a COOL file or Cooler URI.
 
 .. option:: --field <field>
 
-    Specify the names of value columns to merge as '<name>'. Repeat the `--field` option for each one. Use '<name>,<dtype>' to specify the dtype. Append '=@<agg>' to specify an aggregation function different from 'sum'.
+    Specify the names of value columns to merge as '<name>'. Repeat the `--field` option for each one. Use '<name>,dtype=<dtype>' to specify the dtype. Include ',agg=<agg>' to specify an aggregation function different from 'sum'.
 
 .. option:: --legacy
 
@@ -682,10 +684,10 @@ cooler balance
 
 ::
 
-Out-of-core contact matrix balancing.
+Out-of-core matrix balancing.
 
-Assumes uniform binning. See the help for various filtering options to
-ignore poorly mapped bins.
+Matrix must be symmetric. See the help for various filtering options to
+mask out poorly mapped bins.
 
 COOL_PATH : Path to a COOL file.
 
@@ -778,9 +780,9 @@ cooler info
 
 ::
 
-Display a Cooler's info and metadata.
+Display a cooler's info and metadata.
 
-COOL_PATH : Path to a COOL file or Cooler URI.
+COOL_PATH : Path to a COOL file or cooler URI.
 
 .. program:: cooler info
 .. code-block:: shell
@@ -815,10 +817,9 @@ cooler dump
 
 ::
 
-Dump a contact matrix.
-Print the contents of a COOL file to tab-delimited text.
+Dump a cooler's data to a text stream.
 
-COOL_PATH : Path to COOL file or Cooler URI.
+COOL_PATH : Path to COOL file or cooler URI.
 
 .. program:: cooler dump
 .. code-block:: shell
@@ -889,10 +890,7 @@ cooler show
 
 ::
 
-Display a contact matrix.
-Display a region of a contact matrix stored in a COOL file.
-
-Arguments:
+Display and browse a cooler in matplotlib.
 
 COOL_PATH : Path to a COOL file or Cooler URI.
 
@@ -964,7 +962,7 @@ cooler tree
 
 ::
 
-Display the data hierarchy.
+Display a file's data hierarchy.
 
 .. program:: cooler tree
 .. code-block:: shell
@@ -989,7 +987,7 @@ cooler attrs
 
 ::
 
-Display the attribute hierarchy.
+Display a file's attribute hierarchy.
 
 .. program:: cooler attrs
 .. code-block:: shell
@@ -1014,7 +1012,7 @@ cooler ls
 
 ::
 
-List all Coolers inside a COOL file.
+List all coolers inside a file.
 
 .. program:: cooler ls
 .. code-block:: shell
@@ -1041,15 +1039,9 @@ cooler cp
 
 ::
 
-Copy a Cooler from one file to another or within the same file.
+Copy a cooler from one file to another or within the same file.
 
-See also: h5copy, h5repack tools from HDF5 suite
-
-Arguments:
-
-SRC_URI : Path to source file or URI to source Cooler group
-
-DST_URI : Path to destination file or URI to destination Cooler group
+See also: h5copy, h5repack tools from HDF5 suite.
 
 .. program:: cooler cp
 .. code-block:: shell
@@ -1080,7 +1072,7 @@ cooler mv
 
 ::
 
-Rename a Cooler within the same file.
+Rename a cooler within the same file.
 
 .. program:: cooler mv
 .. code-block:: shell
@@ -1111,7 +1103,7 @@ cooler ln
 
 ::
 
-Create a hard link to a Cooler (rather than a true copy) in the same file.
+Create a hard link to a cooler (rather than a true copy) in the same file.
 Also supports soft links (in the same file) or external links (different
 files).
 
@@ -1149,6 +1141,7 @@ cooler makebins
 ::
 
 Generate fixed-width genomic bins.
+
 Output a genome segmentation at a fixed resolution as a BED file.
 
 CHROMSIZES_PATH : UCSC-like chromsizes file, with chromosomes in desired
@@ -1194,6 +1187,7 @@ cooler digest
 ::
 
 Generate fragment-delimited genomic bins.
+
 Output a genome segmentation of restriction fragments as a BED file.
 
 CHROMSIZES_PATH : UCSC-like chromsizes file, with chromosomes in desired
@@ -1251,10 +1245,16 @@ Order the mates of each pair record so that all contacts are upper
 triangular with respect to the chromosome ordering given by the chromosomes
 file, sort contacts by genomic location, and index the resulting file.
 
-Notes:
+PAIRS_PATH : Contacts (i.e. read pairs) text file, optionally compressed.
+
+CHROMOSOMES_PATH : File listing desired chromosomes in the desired order.
+May be tab-delimited, e.g. a UCSC-style chromsizes file. Contacts mapping to
+other chromosomes will be discarded.
+
+**Notes**
 
 | - csort can also be used to sort and index a text representation of
-|   a contact _matrix_ in bedGraph-like format. In this case, substitute
+|   a contact *matrix* in bedGraph-like format. In this case, substitute
 |   `pos1` and `pos2` with `start1` and `start2`, respectively.
 | - Requires Unix tools: sort, bgzip + tabix or pairix.
 
@@ -1278,14 +1278,6 @@ If indexing with Pairix, the output file will have the following properties:
 
 | [*] Tabix manpage: <http://www.htslib.org/doc/tabix.html>.
 | [+] Pairix on Github: <https://github.com/4dn-dcic/pairix>
-
-Arguments:
-
-PAIRS_PATH : Contacts (i.e. read pairs) text file, optionally compressed.
-
-CHROMOSOMES_PATH : File listing desired chromosomes in the desired order.
-May be tab-delimited, e.g. a UCSC-like chromsizes file. Contacts mapping to
-other chromosomes will be discarded.
 
 .. program:: cooler csort
 .. code-block:: shell
@@ -1359,3 +1351,7 @@ other chromosomes will be discarded.
 .. option:: -s2, --strand2 <strand2>
 
     strand2 field number (deprecated)
+
+
+----
+

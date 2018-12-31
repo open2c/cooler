@@ -12,11 +12,12 @@ import numpy as np
 import pandas as pd
 import h5py
 
-import click
-from . import cli, get_logger
 from ._util import parse_bins, parse_kv_list_param, parse_field_param
+from . import cli, get_logger
+import click
+
 from .. import util
-from ..io import (
+from ..create import (
     create, create_from_unordered,
     sanitize_records, aggregate_records,
     TabixAggregator, HDF5Aggregator, PairixAggregator,
@@ -26,7 +27,8 @@ from ..io import (
 @cli.group()
 def cload():
     """
-    Create a Cooler from genomic pairs and bins.
+    Create a cooler from genomic pairs and bins.
+
     Choose a subcommand based on the format of the input contact list.
 
     """
@@ -62,6 +64,7 @@ def add_arg_help(func):
     """BINS : One of the following
 
         <TEXT:INTEGER> : 1. Path to a chromsizes file, 2. Bin size in bp
+
         <TEXT> : Path to BED file defining the genomic bin segmentation.
 
     PAIRS_PATH : Path to contacts (i.e. read pairs) file.
@@ -287,13 +290,13 @@ def pairix(bins, pairs_path, cool_path, metadata, assembly, nproc, zero_based, m
     show_default=True)
 @click.option(
     "--field",
-    help="Specify quantitative input fields to aggregate into value columns. "
-         "Use '<name>=<number>' or '<name>,<dtype>=<number>' to specify the "
-         "dtype. Append '@<agg>' to specify an aggregation function different "
-         "from 'sum'. Field numbers are 1-based. "
-         "Specifying 'count' as the target name will override the default "
-         "storage of pair counts. "
-         "Repeat the `--field` option for each additional field.",
+    help="Specify quantitative input fields to aggregate into value columns "
+         "using the syntax ``<field-name>=<field-number>``. Add "
+         "``,dtype=<dtype>`` to specify the dtype, and ``,agg=<agg>`` to "
+         "specify an aggregation function different from ``sum``. Field "
+         "numbers are 1-based. Specifying 'count' as the target name will "
+         "override the default storage of pair counts. Repeat the ``--field`` "
+         "option for each additional field.",
     type=str,
     multiple=True)
 # @click.option(

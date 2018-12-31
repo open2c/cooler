@@ -10,27 +10,16 @@ A cool place to store your Hi-C.
 :license: BSD
 
 """
-import logging
-__version__ = '0.8.0-dev'
-__format_version__ = 2
-_loggers = {}
+from ._version import __version__, __format_version__
+from .api import Cooler, annotate
+from .create import create_cooler, rename_chroms
+from .reduce import merge_coolers, coarsen_cooler, zoomify_cooler
+from .balance import balance_cooler
+from .util import binnify, read_chromsizes, fetch_chromsizes
+from . import tools
+from . import fileops
 
-
-def get_logger(name='cooler'):
-    # Based on ipython traitlets
-    global _loggers
-
-    if name not in _loggers:
-        _loggers[name] = logging.getLogger(name)
-        # Add a NullHandler to silence warnings about not being
-        # initialized, per best practice for libraries.
-        _loggers[name].addHandler(logging.NullHandler())
-
-    return _loggers[name]
-
-
-from .api import Cooler, get, info, chroms, bins, pixels, matrix, annotate
-from .util import read_chromsizes, binnify, open_hdf5
-from . import util
-from . import ice
-from . import io
+from . import create
+from . import balance
+ice = balance  # alias
+io = create  # deprecated alias

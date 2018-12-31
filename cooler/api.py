@@ -11,48 +11,46 @@ import h5py
 
 from .core import (get, region_to_offset, region_to_extent, RangeSelector1D,
                    RangeSelector2D, TriuReader, query_rect)
-from .util import parse_region, open_hdf5, closing_hdf5
-from .io import parse_cooler_uri
+from .util import parse_cooler_uri, parse_region, open_hdf5, closing_hdf5
+
+__all__ = ['Cooler', 'annotate']
 
 
 class Cooler(object):
     """
-    Convenient interface to a Cooler in a COOL file.
+    A convenient interface to a cooler data collection.
+
+    Parameters
+    ----------
+    store : str, :py:class:`h5py.File` or :py:class:`h5py.Group`
+        Path to a cooler file, URI string, or open handle to the root HDF5
+        group of a cooler data collection.
+    root : str, optional [deprecated]
+        HDF5 Group path to root of cooler group if ``store`` is a file.
+        This option is deprecated. Instead, use a URI string of the form
+        :file:`<file_path>::<group_path>`.
+    kwargs : optional
+        Options to be passed to :py:class:`h5py.File()` upon every access.
+        By default, the file is opened with the default driver and mode='r'.
 
     Notes
     -----
-    * Metadata is accessible as a dictionary through the ``info`` property.
+    If ``store`` is a file path, the file will be opened temporarily in
+    when performing operations. This allows :py:class:`Cooler` objects to be
+    serialized for multiprocess and distributed computations.
 
-    * Data table range queries are provided through table selectors:
-      ``chroms``, ``bins``, and ``pixels``, which return DataFrames
-      or Series.
+    Metadata is accessible as a dictionary through the :py:attr:`info` property.
 
-    * Matrix range queries are provided via a matrix selector, ``matrix``,
-      which return NumPy arrays or SciPy sparse ``coo_matrix``.
+    Table selectors, created using :py:meth:`chroms`, :py:meth:`bins`, and
+    :py:meth:`pixels`, perform range queries over table rows,
+    returning :py:class:`pandas.DataFrame` and :py:class:`pandas.Series`.
+
+    A matrix selector, created using :py:meth:`matrix`, performs 2D matrix
+    range queries, returning :py:class:`numpy.ndarray` or
+    :py:class:`scipy.sparse.coo_matrix`.
 
     """
     def __init__(self, store, root=None, **kwargs):
-        """
-        Parameters
-        ----------
-        store : str, h5py.File or h5py.Group
-            Path to a COOL file, Cooler URI, or open handle to the root HDF5
-            group of a Cooler.
-        root : str, optional
-            HDF5 Group path to root of cooler group if ``store`` is a file.
-            This option is deprecated. Instead, use a Cooler URI of the form
-            "file_path::group_path".
-        kwargs : optional
-            Options to be passed to h5py.File() upon every access. By default,
-            the file is opened with the default driver and mode='r'.
-
-        Notes
-        -----
-        If ``store`` is a file path, the file will be opened temporarily in
-        when performing operations. This allows ``Cooler`` objects to be
-        serialized for multiprocess and distributed computations.
-
-        """
         if isinstance(store, six.string_types):
             if root is None:
                 self.filename, self.root = parse_cooler_uri(store)
@@ -73,13 +71,22 @@ class Cooler(object):
             self.store = store.file
             self.open_kws = {}
 
-        with open_hdf5(self.store, **self.open_kws) as h5:
-            grp = h5[self.root]
-            _ct = chroms(grp)
-            _ct['name'] = _ct['name'].astype(object)
-            self._chromsizes = _ct.set_index('name')['length']
-            self._chromids = dict(zip(_ct['name'], range(len(_ct))))
-            self._info = info(grp)
+        try:
+            with open_hdf5(self.store, **self.open_kws) as h5:
+                grp = h5[self.root]
+                _ct = chroms(grp)
+                _ct['name'] = _ct['name'].astype(object)
+                self._chromsizes = _ct.set_index('name')['length']
+                self._chromids = dict(zip(_ct['name'], range(len(_ct))))
+                self._info = info(grp)
+        except KeyError:
+            err_msg = "No cooler found at: {}.".format(self.store)
+            listing = list_coolers(self.store)
+            if len(listing):
+                err_msg += (" Coolers found in {}. ".format(listing) +
+                            "Use '::' to specify a group path")
+            raise KeyError(err_msg)
+
 
     def _load_dset(self, path):
         with open_hdf5(self.store, **self.open_kws) as h5:
@@ -92,27 +99,29 @@ class Cooler(object):
             return dict(grp[path].attrs)
 
     def open(self, mode='r', **kwargs):
-        """ Open the HDF5 group containing the Cooler with h5py
+        """ Open the HDF5 group containing the Cooler with :py:mod:`h5py`
 
         Functions as a context manager. Any ``open_kws`` passed during
         construction are ignored.
 
         Parameters
         ----------
-        mode : str
-            r (readonly) or r+ (read/write), default: 'r'
+        mode : str, optional [default: 'r']
+            * ``'r'`` (readonly)
+            * ``'r+'`` or ``'a'`` (read/write)
 
-        Additional keywords
-            See h5py.File
+        Notes
+        -----
+            For other parameters, see :py:class:`h5py.File`.
 
         """
         grp = h5py.File(self.filename, mode, **kwargs)[self.root]
         return closing_hdf5(grp)
 
     @property
-    def symmetric_storage_mode(self):
-        mode = self._info.get('symmetric-storage-mode', u"upper")
-        return mode if mode == u"upper" else None
+    def storage_mode(self):
+        mode = self._info.get('storage-mode', u"symmetric-upper")
+        return mode if mode == u"symmetric-upper" else None
 
     @property
     def binsize(self):
@@ -302,7 +311,7 @@ class Cooler(object):
                 grp = h5[self.root]
                 return matrix(grp, i0, i1, j0, j1, field, balance, sparse,
                     as_pixels, join, ignore_index, max_chunk,
-                    self.symmetric_storage_mode == u'upper')
+                    self.storage_mode == u'symmetric-upper')
 
         def _fetch(region, region2=None):
             with open_hdf5(self.store, **self.open_kws) as h5:
@@ -332,7 +341,7 @@ def info(h5):
 
     Parameters
     ----------
-    h5 : ``h5py.File`` or ``h5py.Group``
+    h5 : :py:class:`h5py.File` or :py:class:`h5py.Group`
         Open handle to cooler file.
 
     Returns
@@ -358,7 +367,7 @@ def chroms(h5, lo=0, hi=None, fields=None, **kwargs):
 
     Parameters
     ----------
-    h5 : ``h5py.File`` or ``h5py.Group``
+    h5 : :py:class:`h5py.File` or :py:class:`h5py.Group`
         Open handle to cooler file.
     lo, hi : int, optional
         Range of rows to select from the table.
@@ -367,7 +376,7 @@ def chroms(h5, lo=0, hi=None, fields=None, **kwargs):
 
     Returns
     -------
-    DataFrame
+    :py:class:`DataFrame`
 
     """
     if fields is None:
@@ -383,7 +392,7 @@ def bins(h5, lo=0, hi=None, fields=None, **kwargs):
 
     Parameters
     ----------
-    h5 : ``h5py.File`` or ``h5py.Group``
+    h5 : :py:class:`h5py.File` or :py:class:`h5py.Group`
         Open handle to cooler file.
     lo, hi : int, optional
         Range of rows to select from the table.
@@ -392,7 +401,7 @@ def bins(h5, lo=0, hi=None, fields=None, **kwargs):
 
     Returns
     -------
-    DataFrame
+    :py:class:`DataFrame`
 
     """
     if fields is None:
@@ -417,7 +426,7 @@ def pixels(h5, lo=0, hi=None, fields=None, join=True, **kwargs):
 
     Parameters
     ----------
-    h5 : ``h5py.File`` or ``h5py.Group``
+    h5 : :py:class:`h5py.File` or :py:class:`h5py.Group`
         Open handle to cooler file.
     lo, hi : int, optional
         Range of rows to select from the table.
@@ -429,7 +438,7 @@ def pixels(h5, lo=0, hi=None, fields=None, join=True, **kwargs):
 
     Returns
     -------
-    DataFrame
+    :py:class:`DataFrame`
 
     """
     if fields is None:
@@ -441,12 +450,12 @@ def pixels(h5, lo=0, hi=None, fields=None, join=True, **kwargs):
 
     if join:
         bins = get(h5['bins'], 0, None, ['chrom', 'start', 'end'], **kwargs)
-        df = annotate(df, bins)
+        df = annotate(df, bins, replace=True)
 
     return df
 
 
-def annotate(pixels, bins, replace=True):
+def annotate(pixels, bins, replace=False):
     """
     Add bin annotations to a data frame of pixels.
 
@@ -454,22 +463,25 @@ def annotate(pixels, bins, replace=True):
     table that describes properties of the genomic bins. New columns will be
     appended on the left of the output data frame.
 
+    .. versionchanged:: 0.8.0
+       The default value of ``replace`` changed to False.
+
     Parameters
     ----------
-    pixels : DataFrame
+    pixels : :py:class:`DataFrame`
         A data frame containing columns named ``bin1_id`` and/or ``bin2_id``.
         If columns ``bin1_id`` and ``bin2_id`` are both present in ``pixels``,
         the adjoined columns will be suffixed with '1' and '2' accordingly.
-    bins : DataFrame or DataFrame view
+    bins : :py:class:`DataFrame` or DataFrame selector
         Data structure that contains a full description of the genomic bins of
         the contact matrix, where the index corresponds to bin IDs.
     replace : bool, optional
-        Whether to remove the original ``bin1_id`` and ``bin2_id`` columns from
-        the output. Default is True.
+        Remove the original ``bin1_id`` and ``bin2_id`` columns from the
+        output. Default is False.
 
     Returns
     -------
-    DataFrame
+    :py:class:`DataFrame`
 
     """
     columns = pixels.columns
@@ -531,7 +543,7 @@ def matrix(h5, i0, i1, j0, j1, field=None, balance=True, sparse=False,
 
     Parameters
     ----------
-    h5 : ``h5py.File`` or ``h5py.Group``
+    h5 : :py:class:`h5py.File` or :py:class:`h5py.Group`
         Open handle to cooler file.
     i0, i1 : int, optional
         Bin range along the 0th (row) axis of the heatap.
@@ -595,12 +607,12 @@ def matrix(h5, i0, i1, j0, j1, field=None, balance=True, sparse=False,
 
         if balance:
             weights = Cooler(h5).bins()[[name]]
-            df2 = annotate(df, weights)
+            df2 = annotate(df, weights, replace=False)
             df['balanced'] = df2[name+'1'] * df2[name+'2'] * df2[field]
 
         if join:
             bins = Cooler(h5).bins()[['chrom', 'start', 'end']]
-            df = annotate(df, bins)
+            df = annotate(df, bins, replace=True)
 
         return df
 

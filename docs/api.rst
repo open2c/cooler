@@ -10,6 +10,8 @@ API Reference
 Quick reference
 ---------------
 
+Cooler class
+~~~~~~~~~~~~
 .. autosummary:: 
     cooler.Cooler
     cooler.Cooler.binsize
@@ -22,35 +24,39 @@ Quick reference
     cooler.Cooler.info
     cooler.Cooler.offset
     cooler.Cooler.extent
-    cooler.annotate
 
+Creation/reduction
+~~~~~~~~~~~~~~~~~~
 .. autosummary:: 
-    cooler.ice.iterative_correction
-    cooler.reduce.merge
-    cooler.reduce.coarsen
-    cooler.reduce.zoomify
+    cooler.create_cooler
+    cooler.merge_coolers
+    cooler.coarsen_cooler
+    cooler.zoomify_cooler
 
+Manipulation
+~~~~~~~~~~~~
+.. autosummary:: 
+    cooler.annotate
+    cooler.balance_cooler
+    cooler.rename_chroms
+
+File operations
+~~~~~~~~~~~~~~~
 .. autosummary::
-    cooler.io.create
-    cooler.io.create_from_unordered
-    cooler.io.rename_chroms
-    cooler.io.sanitize_records
-    cooler.io.sanitize_pixels
-
-.. autosummary::
-    cooler.io.is_cooler
-    cooler.io.ls
-    cooler.io.cp
-    cooler.io.mv
-    cooler.io.ln
-
+    cooler.fileops.is_cooler
+    cooler.fileops.is_multires_file
+    cooler.fileops.list_coolers
+    cooler.fileops.cp
+    cooler.fileops.mv
+    cooler.fileops.ln
 
 Sandbox
 ~~~~~~~
 
 .. autosummary::
-    cooler.contrib.dask.daskify
+    cooler.sandbox.dask.read_table
 
+----
 
 cooler
 ------
@@ -58,45 +64,39 @@ cooler
 .. autoclass:: cooler.Cooler
     :members:
 .. autofunction:: cooler.annotate
+.. autofunction:: cooler.create_cooler
+.. autofunction:: cooler.merge_coolers
+.. autofunction:: cooler.coarsen_cooler
+.. autofunction:: cooler.zoomify_cooler
 
+----
 
-cooler.io
+cooler.create
 ---------
 
-.. automodule:: cooler.io
-    :members:
-    :undoc-members:
-    :show-inheritance:
-.. autofunction:: cooler.io.rename_chroms
-.. autofunction:: cooler.io.sanitize_pixels
-.. autofunction:: cooler.io.sanitize_records
+.. autofunction:: cooler.create.sanitize_pixels
+.. autofunction:: cooler.create.sanitize_records
 
+cooler.fileops
+---------
 
-cooler.reduce
--------------
-
-.. autofunction:: cooler.reduce.merge
-.. autofunction:: cooler.reduce.coarsen
-.. autofunction:: cooler.reduce.zoomify
-
-
-cooler.ice
-----------
-
-.. autofunction:: cooler.ice.iterative_correction
-
+.. autofunction:: cooler.fileops.is_cooler
+.. autofunction:: cooler.fileops.is_multires_file
+.. autofunction:: cooler.fileops.list_coolers
+.. autofunction:: cooler.fileops.cp
+.. autofunction:: cooler.fileops.mv
+.. autofunction:: cooler.fileops.ln
 
 cooler.util
 -----------
 
+.. autofunction:: cooler.util.partition
 .. autofunction:: cooler.util.fetch_chromsizes
 .. autofunction:: cooler.util.read_chromsizes
 .. autofunction:: cooler.util.binnify
 .. autofunction:: cooler.util.digest
-.. autofunction:: cooler.util.open_hdf5
 
-cooler.contrib
+cooler.sandbox
 --------------
 
-.. automodule:: cooler.contrib.dask
-    :members:
+.. autofunction:: cooler.sandbox.dask.read_table

@@ -24,174 +24,13 @@ import pandas as pd
 import numpy as np
 import h5py
 
-from .. import get_logger
-from ..util import get_binsize, get_chromsizes, infer_meta, get_meta, parse_region
-from . import MAGIC, URL
+from ._logging import get_logger
+from .util import parse_cooler_uri
+from .create import MAGIC, URL
 
-
-def parse_cooler_uri(s):
-    """
-    Parse a Cooler URI string
-
-    e.g. /path/to/mycoolers.cool::/path/to/cooler
-
-    """
-    parts = s.split('::')
-    if len(parts) == 1:
-        file_path, group_path = parts[0], '/'
-    elif len(parts) == 2:
-        file_path, group_path = parts
-        if not group_path.startswith('/'):
-            group_path = '/' + group_path
-    else:
-        raise ValueError("Invalid Cooler URI string")
-    return file_path, group_path
-
-
-def is_cooler(filepath, group=None):
-    """
-    Determine if a file contains a valid Cooler data hierarchy.
-
-    Parameters
-    ----------
-    filepath : str
-    group : str, optional
-        Path to specific group to check. Otherwise returns True
-        if any Cooler paths are detected.
-
-    Returns
-    -------
-    bool
-
-    """
-    if not h5py.is_hdf5(filepath):
-        return False
-    if group is None:
-        return len(ls(filepath)) > 0
-    if not group.startswith('/'):
-        group = '/' + group
-    return group in ls(filepath)
-
-
-def is_multires_cooler(filepath):
-    raise NotImplementedError
-
-
-def visititems(group, func, level=None):
-    def _visititems(node, func, result=None):
-        children = node.get_children()
-        if children:
-            for child in children:
-                result[child.obj.name] = func(child.obj.name, child.obj)
-                _visititems(child, func, result)
-        return result
-    root = TreeNode(group, level=level)
-    return _visititems(root, func, {})
-
-
-def ls(filepath):
-    """
-    Traverse a file's data hierarchy and list all Cooler nodes.
-
-    Parameters
-    ----------
-    filepath : str
-
-    Returns
-    -------
-    list of Cooler group paths in the file
-
-    """
-
-    listing = []
-    keys = ['chroms', 'bins', 'pixels', 'indexes']
-
-    def _is_cooler(pth, grp):
-        fmt = grp.attrs.get('format', None)
-        url = grp.attrs.get('format-url', None)
-        if fmt == MAGIC or url == URL:
-            if not all(name in grp.keys() for name in keys):
-                warnings.warn(
-                    'Cooler path /{} appears to be corrupt'.format(pth))
-            listing.append('/' + pth if not pth.startswith('/') else pth)
-
-    with h5py.File(filepath, 'r') as f:
-        _is_cooler('/', f)
-        visititems(f, _is_cooler)
-
-    return listing
-
-
-def _copy(src_uri, dst_uri, overwrite, link, rename, soft_link):
-    """
-    Copy a Cooler from one file to another or within the same file.
-
-    See also: h5copy, h5repack tools from HDF5 suite
-
-    \b\bArguments:
-
-    SRC_URI : Path to source file or URI to source Cooler group
-
-    DST_URI : Path to destination file or URI to destination Cooler group
-
-    """
-    src_path, src_group = parse_cooler_uri(src_uri)
-    dst_path, dst_group = parse_cooler_uri(dst_uri)
-
-    if sum([link, rename, soft_link]) > 1:
-        raise ValueError(
-            'Must provide at most one of: "link", "rename", "soft_link"')
-
-    if not os.path.isfile(dst_path) or overwrite:
-        write_mode = 'w'
-    else:
-        write_mode = 'r+'
-
-    with h5py.File(src_path, 'r+') as src, \
-         h5py.File(dst_path, write_mode) as dst:
-
-        # if dst_group in dst and dst_group != '/':
-        #     click.confirm(
-        #         "A group named '{}' already exists in '{}'. Overwrite?".format(
-        #             dst_group, dst_path),
-        #         abort=True)
-        #     del dst[dst_group]
-
-        if src_path == dst_path:
-            if link or rename:
-                src[dst_group] = src[src_group]
-                if rename:
-                    del src[src_group]
-            elif soft_link:
-                src[dst_group] = h5py.SoftLink(src_group)
-            else:
-                src.copy(src_group, dst_group)
-        else:
-            if link:
-                raise OSError("Can't hard link between two different files.")
-            elif soft_link:
-                dst[dst_group] = h5py.ExternalLink(src_path, src_group)
-            else:
-                if dst_group == '/':
-                    for subgrp in src[src_group].keys():
-                        src.copy(src_group + '/' + subgrp, dst, subgrp)
-                    dst[dst_group].attrs.update(src[src_group].attrs)
-                else:
-                    src.copy(
-                        src_group, dst,
-                        dst_group if dst_group != '/' else None)
-
-
-def cp(src_uri, dst_uri, overwrite=False):
-    _copy(src_uri, dst_uri, overwrite, link=False, rename=False, soft_link=False)
-
-
-def mv(src_uri, dst_uri, overwrite=False):
-    _copy(src_uri, dst_uri, overwrite, link=False, rename=True, soft_link=False)
-
-
-def ln(src_uri, dst_uri, soft=False, overwrite=False):
-    _copy(src_uri, dst_uri, overwrite, link=not soft, rename=False, soft_link=soft)
+__all__ = [
+    'is_cooler', 'is_multires_file', 'list_coolers', 'cp', 'mv', 'ln'
+]
 
 
 class TreeNode(object):
@@ -226,16 +65,184 @@ class AttrNode(TreeNode):
         return self.obj.name.split("/")[-1] or "/"
 
 
-class TreeTraversal(Traversal):
+def visititems(group, func, level=None):
+    """Like :py:method:`h5py.Group.visititems`, but much faster somehow.
+    """
+    def _visititems(node, func, result=None):
+        children = node.get_children()
+        if children:
+            for child in children:
+                result[child.obj.name] = func(child.obj.name, child.obj)
+                _visititems(child, func, result)
+        return result
+    root = TreeNode(group, level=level)
+    return _visititems(root, func, {})
 
-    def get_children(self, node):
-        return node.get_children()
 
-    def get_root(self, tree):
-        return tree
+def _is_cooler(grp):
+    fmt = grp.attrs.get('format', None)
+    url = grp.attrs.get('format-url', None)
+    if fmt == MAGIC or url == URL:
+        keys = ('chroms', 'bins', 'pixels', 'indexes')
+        if not all(name in grp.keys() for name in keys):
+            warnings.warn(
+                'Cooler path /{} appears to be corrupt'.format(pth))
+        return True
+    return False
 
-    def get_text(self, node):
-        return node.get_text()
+
+def is_cooler(uri):
+    """
+    Determine if a URI string references a cooler data collection.
+    Returns False if the file or group path doesn't exist.
+
+    """
+    filepath, grouppath = parse_cooler_uri(uri)
+    if not h5py.is_hdf5(filepath):
+        return False
+    with h5py.File(filepath) as f:
+        return _is_cooler(f[grouppath])
+
+
+def is_multires_file(filepath, min_version=1):
+    """
+    Determine if a file is a multi-res cooler file.
+    Returns False if the file doesn't exist.
+
+    """
+    filepath, grouppath = parse_cooler_uri(uri)
+    if not h5py.is_hdf5(filepath):
+        return False
+
+    with h5py.File(filepath) as f:
+        fmt = f.attrs.get('format', None)
+        if 'resolutions' in f.keys() and len(f['resolutions'].keys()) > 0:
+            name = next(list(f['resolutions'].keys()))
+            if fmt == 'HDF5::MCOOL' and _is_cooler(f['resolutions'][name]):
+                return True
+        elif '0' in f.keys() and _is_cooler(f['0']) and min_version < 2:
+            return True
+
+    return False
+
+
+
+def list_coolers(filepath):
+    """
+    List group paths to all cooler data collections in a file.
+
+    Parameters
+    ----------
+    filepath : str
+
+    Returns
+    -------
+    list
+        Cooler group paths in the file.
+
+    """
+    if not h5py.is_hdf5(filepath):
+        raise OSError("'{}' is not an HDF5 file.".format(filepath))
+
+    listing = []
+    def _check_cooler(pth, grp):
+        if _is_cooler(grp):
+            listing.append('/' + pth if not pth.startswith('/') else pth)
+
+    with h5py.File(filepath, 'r') as f:
+        _check_cooler('/', f)
+        visititems(f, _check_cooler)
+
+    return listing
+
+
+def ls(uri):
+    """
+    Get all groups and datasets in an HDF5 file.
+
+    Parameters
+    ----------
+    uri : str
+
+    Returns
+    -------
+    list
+        Group and dataset paths.
+
+    """
+    filepath, grouppath = parse_cooler_uri(uri)
+    if not h5py.is_hdf5(filepath):
+        raise OSError("'{}' is not an HDF5 file.".format(filepath))
+
+    listing = []
+    def _check_all(pth, grp):
+        listing.append('/' + pth if not pth.startswith('/') else pth)
+
+    with h5py.File(filepath, 'r') as f:
+        _check_all(grouppath, f)
+        visititems(f[grouppath], _check_all)
+
+    return listing
+
+
+def _copy(src_uri, dst_uri, overwrite, link, rename, soft_link):
+    src_path, src_group = parse_cooler_uri(src_uri)
+    dst_path, dst_group = parse_cooler_uri(dst_uri)
+
+    if sum([link, rename, soft_link]) > 1:
+        raise ValueError(
+            'Must provide at most one of: "link", "rename", "soft_link"')
+
+    if not os.path.isfile(dst_path) or overwrite:
+        write_mode = 'w'
+    else:
+        write_mode = 'r+'
+
+    with h5py.File(src_path, 'r+') as src, \
+         h5py.File(dst_path, write_mode) as dst:
+
+        if src_path == dst_path:
+            if link or rename:
+                src[dst_group] = src[src_group]
+                if rename:
+                    del src[src_group]
+            elif soft_link:
+                src[dst_group] = h5py.SoftLink(src_group)
+            else:
+                src.copy(src_group, dst_group)
+        else:
+            if link:
+                raise OSError("Can't hard link between two different files.")
+            elif soft_link:
+                dst[dst_group] = h5py.ExternalLink(src_path, src_group)
+            else:
+                if dst_group == '/':
+                    for subgrp in src[src_group].keys():
+                        src.copy(src_group + '/' + subgrp, dst, subgrp)
+                    dst[dst_group].attrs.update(src[src_group].attrs)
+                else:
+                    src.copy(
+                        src_group, dst,
+                        dst_group if dst_group != '/' else None)
+
+
+def cp(src_uri, dst_uri, overwrite=False):
+    """Copy a group or dataset from one file to another or within the same file.
+    """
+    _copy(src_uri, dst_uri, overwrite, link=False, rename=False, soft_link=False)
+
+
+def mv(src_uri, dst_uri, overwrite=False):
+    """Rename a group or dataset within the same file.
+    """
+    _copy(src_uri, dst_uri, overwrite, link=False, rename=True, soft_link=False)
+
+
+def ln(src_uri, dst_uri, soft=False, overwrite=False):
+    """Create a hard link to a group or dataset in the same file. Also
+    supports soft links (in the same file) or external links (different files).
+    """
+    _copy(src_uri, dst_uri, overwrite, link=not soft, rename=False, soft_link=soft)
 
 
 def _tree_html(node, root=False, expand=False):
@@ -317,9 +324,21 @@ def tree_html(group, expand, level):
     return result
 
 
+class TreeTraversal(Traversal):
+
+    def get_children(self, node):
+        return node.get_children()
+
+    def get_root(self, tree):
+        return tree
+
+    def get_text(self, node):
+        return node.get_text()
+
+
 class TreeViewer(object):
 
-    def __init__(self, group, expand=False, level=None):
+    def __init__(self, group, expand=False, level=None, node_cls=TreeNode):
         self.group = group
         self.expand = expand
         self.level = level
@@ -344,12 +363,14 @@ class TreeViewer(object):
             VERTICAL_AND_RIGHT=u"\u251C"
         )
 
+        self.node_cls = node_cls
+
     def __bytes__(self):
         drawer = LeftAligned(
             traverse=TreeTraversal(),
             draw=BoxStyle(gfx=self.bytes_kwargs, **self.text_kwargs)
         )
-        root = TreeNode(self.group, level=self.level)
+        root = self.node_cls(self.group, level=self.level)
         result = drawer(root)
 
         # Unicode characters slip in on Python 3.
@@ -364,7 +385,7 @@ class TreeViewer(object):
             traverse=TreeTraversal(),
             draw=BoxStyle(gfx=self.unicode_kwargs, **self.text_kwargs)
         )
-        root = TreeNode(self.group, level=self.level)
+        root = self.node_cls(self.group, level=self.level)
         return drawer(root)
 
     def __repr__(self):
@@ -426,3 +447,34 @@ def pprint_attr_tree(uri, level):
         s = StringIO()
         yaml.dump(read_attr_tree(grp, level), s)
         return s.getvalue()
+
+
+
+# if not h5py.is_hdf5(filepath):
+#     return False
+# if group is None:
+#     return len(ls(filepath)) > 0
+# if not group.startswith('/'):
+#     group = '/' + group
+# return group in ls(filepath)
+
+# def has_cooler(uri):
+#     """
+#     Determine if a file contains a valid Cooler data hierarchy.
+
+#     Parameters
+#     ----------
+#     filepath : str
+#     group : str, optional
+#         Path to specific group to check. Otherwise returns True
+#         if any Cooler paths are detected.
+
+#     Returns
+#     -------
+#     bool
+
+#     """
+#     filepath, grouppath = parse_cooler_uri(uri)
+#     if not h5py.is_hdf5(filepath):
+#         return False
+#     return len(list_coolers(uri)) > 0

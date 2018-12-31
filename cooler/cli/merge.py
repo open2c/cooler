@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
 from __future__ import division, print_function
+
 from ._util import parse_field_param
 from . import cli, get_logger
 import click
 
+from ..reduce import merge_coolers
 
 @cli.command()
 @click.argument(
@@ -23,13 +25,19 @@ import click
     "--field",
     help="Specify the names of value columns to merge as '<name>'. "
          "Repeat the `--field` option for each one. "
-         "Use '<name>,<dtype>' to specify the dtype. Append '=@<agg>' to "
-         "specify an aggregation function different from 'sum'.",
+         "Use '<name>,dtype=<dtype>' to specify the dtype. Include "
+         "',agg=<agg>' to specify an aggregation function different from 'sum'.",
     type=str,
     multiple=True)
 def merge(out_path, in_paths, chunksize, field):
     """
-    Merge multiple contact matrices with identical axes.
+    Merge multiple coolers with identical axes.
+
+    OUT_PATH : Output file path or URI.
+
+    IN_PATHS : Input file paths or URIs of coolers to merge.
+
+    **Notes**
 
     Data columns merged:
 
@@ -43,7 +51,6 @@ def merge(out_path, in_paths, chunksize, field):
     Additional columns in the the input files are not transferred to the output.
 
     """
-    from ..reduce import merge as _merge
     logger = get_logger(__name__)
 
     if len(field):
@@ -58,6 +65,6 @@ def merge(out_path, in_paths, chunksize, field):
         # Default aggregation. Dtype will be inferred.
         columns, dtypes, agg = ['count'], None, None
 
-    _merge(out_path, in_paths, mergebuf=chunksize, columns=columns,
+    merge_coolers(out_path, in_paths, mergebuf=chunksize, columns=columns,
            dtypes=dtypes, agg=agg)
 

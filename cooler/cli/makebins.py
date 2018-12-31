@@ -2,9 +2,10 @@
 from __future__ import division, print_function
 import sys
 
-import click
-from . import cli
 from ._util import exit_on_broken_pipe
+from . import cli
+import click
+
 from .. import util
 
 
@@ -35,6 +36,7 @@ from .. import util
 def makebins(chromsizes, binsize, out, header, rel_ids):
     """
     Generate fixed-width genomic bins.
+
     Output a genome segmentation at a fixed resolution as a BED file.
 
     CHROMSIZES_PATH : UCSC-like chromsizes file, with chromosomes in desired

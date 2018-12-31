@@ -65,12 +65,12 @@ extensions = [
     'sphinx.ext.ifconfig',
     'sphinx.ext.viewcode',
     'sphinx.ext.autosummary',
-    'numpydoc',
+    'sphinx.ext.napoleon',  # 'numpydoc'
     'sphinx_click.ext',
 ]
 
-
 numpydoc_show_class_members = False
+napoleon_use_rtype = False
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -88,7 +88,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'cooler'
-copyright = '2016-2017, Nezar Abdennur'
+copyright = '2016-2019, Nezar Abdennur'
 author = 'Nezar Abdennur'
 
 # The version info for the project you're documenting, acts as replacement for
@@ -97,7 +97,7 @@ author = 'Nezar Abdennur'
 #
 
 def _get_version():
-    init = os.path.join('..', 'cooler', '__init__.py')
+    init = os.path.join('..', 'cooler', '_version.py')
     with open(init) as fh:
         text = fh.read()
     version = re.search(

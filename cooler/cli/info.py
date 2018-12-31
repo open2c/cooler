@@ -3,11 +3,12 @@ from __future__ import division, print_function
 import json
 import sys
 
-import click
+from ._util import exit_on_broken_pipe
 from . import cli
+import click
+
 from ..api import Cooler
 from ..util import attrs_to_jsonable
-from ._util import exit_on_broken_pipe
 
 
 @cli.command()
@@ -30,9 +31,9 @@ from ._util import exit_on_broken_pipe
 @exit_on_broken_pipe(1)
 def info(cool_uri, field, metadata, out):
     """
-    Display a Cooler's info and metadata.
+    Display a cooler's info and metadata.
 
-    COOL_PATH : Path to a COOL file or Cooler URI.
+    COOL_PATH : Path to a COOL file or cooler URI.
 
     """
     c = Cooler(cool_uri)

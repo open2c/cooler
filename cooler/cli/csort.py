@@ -6,8 +6,10 @@ import shlex
 import sys
 import os
 
-import click
 from . import cli, get_logger
+import click
+
+
 from ..util import cmd_exists
 
 try:
@@ -234,11 +236,17 @@ def csort(pairs_path, chromosomes_path, index, chrom1, chrom2, pos1, pos2,
     triangular with respect to the chromosome ordering given by the chromosomes
     file, sort contacts by genomic location, and index the resulting file.
 
-    Notes:
+    PAIRS_PATH : Contacts (i.e. read pairs) text file, optionally compressed.
+
+    CHROMOSOMES_PATH : File listing desired chromosomes in the desired order.
+    May be tab-delimited, e.g. a UCSC-style chromsizes file. Contacts mapping to
+    other chromosomes will be discarded.
+
+    **Notes**
 
     \b
     - csort can also be used to sort and index a text representation of
-      a contact _matrix_ in bedGraph-like format. In this case, substitute
+      a contact *matrix* in bedGraph-like format. In this case, substitute
       `pos1` and `pos2` with `start1` and `start2`, respectively.
     - Requires Unix tools: sort, bgzip + tabix or pairix.
 
@@ -265,14 +273,6 @@ def csort(pairs_path, chromosomes_path, index, chrom1, chrom2, pos1, pos2,
     \b
     [*] Tabix manpage: <http://www.htslib.org/doc/tabix.html>.
     [+] Pairix on Github: <https://github.com/4dn-dcic/pairix>
-
-    \b\bArguments:
-
-    PAIRS_PATH : Contacts (i.e. read pairs) text file, optionally compressed.
-
-    CHROMOSOMES_PATH : File listing desired chromosomes in the desired order.
-    May be tab-delimited, e.g. a UCSC-like chromsizes file. Contacts mapping to
-    other chromosomes will be discarded.
 
     """
     if os.name == 'nt':

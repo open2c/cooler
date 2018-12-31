@@ -1,3 +1,5 @@
+:orphan:
+
 .. _version-2:
 
 **Version: 2**

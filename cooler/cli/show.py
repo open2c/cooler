@@ -5,8 +5,9 @@ import sys
 import numpy as np
 import h5py
 
-import click
 from . import cli
+import click
+
 from ..api import Cooler
 from .. import util
 
@@ -35,9 +36,9 @@ def load_matrix(c, row_region, col_region, field, balanced, scale):
 
 def interactive(ax, c, row_chrom, col_chrom, field, balanced, scale):
     import matplotlib.pyplot as plt
-    # The code is heavily insired by 
+    # The code is heavily insired by
     # https://gist.github.com/mdboom/048aa35df685fe694330764894f0e40a
-    
+
     def get_extent(ax):
         xstart, ystart, xdelta, ydelta = ax.viewLim.bounds
         xend = xstart + xdelta
@@ -74,7 +75,7 @@ def interactive(ax, c, row_chrom, col_chrom, field, balanced, scale):
         if nelem  >= MAX_MATRIX_SIZE_INTERACTIVE:
             # requested area too large
             im.set_data(np.ones(1)[:, None] * np.nan)
-            
+
             if not plotstate['placeholders']:
                 box, = plt.plot(
                     [0, col_chrom_len, col_chrom_len, 0, 0, col_chrom_len],
@@ -95,7 +96,7 @@ def interactive(ax, c, row_chrom, col_chrom, field, balanced, scale):
             # remove placeholders if any and update
             while plotstate['placeholders']:
                 plotstate['placeholders'].pop().remove()
-            
+
             im.set_data(
                 load_matrix(c, new_row_region, new_col_region, field, balanced, scale))
 
@@ -175,11 +176,8 @@ def interactive(ax, c, row_chrom, col_chrom, field, balanced, scale):
     help="Pixel values to display.")
 def show(cool_uri, range, range2, balanced, out, dpi, scale, force, zmin, zmax, cmap, field):
     """
-    Display a contact matrix.
-    Display a region of a contact matrix stored in a COOL file.
+    Display and browse a cooler in matplotlib.
 
-    \b\bArguments:
-    
     COOL_PATH : Path to a COOL file or Cooler URI.
 
     RANGE : The coordinates of the genomic region to display, in UCSC notation.
@@ -203,7 +201,7 @@ def show(cool_uri, range, range2, balanced, out, dpi, scale, force, zmin, zmax, 
     row_chrom, row_lo, row_hi = util.parse_region(row_region, chromsizes)
     col_chrom, col_lo, col_hi = util.parse_region(col_region, chromsizes)
 
-    if ((get_matrix_size(c, row_region, col_region) >= MAX_MATRIX_SIZE_FILE) 
+    if ((get_matrix_size(c, row_region, col_region) >= MAX_MATRIX_SIZE_FILE)
         and not force):
         print(
             "The matrix of the selected region is too large. "
@@ -231,7 +229,7 @@ def show(cool_uri, range, range2, balanced, out, dpi, scale, force, zmin, zmax, 
         {'linear': 'relative contact frequency',
          'log2'  : 'log 2 ( relative contact frequency )',
          'log10' : 'log 10 ( relative contact frequency )'}[scale])
-    
+
     if out:
         plt.savefig(out, dpi=dpi)
     else:
