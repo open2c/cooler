@@ -11,7 +11,7 @@
 
 Cooler is a support library for a **sparse, compressed, binary** persistent storage format, called _cool_, used to store genomic interaction data, such as Hi-C contact matrices. 
 
-The _cool_ file format is a reference implementation of a genomic matrix data model using [HDF5](https://en.wikipedia.org/wiki/Hierarchical_Data_Format) as the container format.
+The _cooler_ file format is a reference implementation of a genomic matrix data model using [HDF5](https://en.wikipedia.org/wiki/Hierarchical_Data_Format) as the container format.
 
 The `cooler` package aims to provide the following functionality:
 
@@ -26,6 +26,7 @@ To get started:
 - Read the [documentation](http://cooler.readthedocs.org/en/latest/).
 - See the Jupyter Notebook [walkthrough](https://github.com/mirnylab/cooler-binder).
 - _cool_ files from published Hi-C data sets are available at `ftp://cooler.csail.mit.edu/coolers`.
+- Many more multires (_mcool_) files are available on the [4DN data portal](https://data.4dnucleome.org/visualization/index).
 
 Related projects:
 
@@ -59,10 +60,9 @@ See the [docs](http://cooler.readthedocs.org/en/latest/) for more information.
 The `cooler` package includes command line tools for creating, querying and manipulating _cool_ files.
 
 ```bash
-$ cooler makebins $CHROMSIZES_FILE $BINSIZE > bins.10kb.bed
-$ cooler cload bins.10kb.bed $CONTACTS_FILE out.cool
-$ cooler balance -p 10 out.cool
-$ cooler dump -b -t pixels --header --join -r chr3:10,000,000-12,000,000 -r2 chr17 out.cool | head
+$ cooler cload hg19.chrom.sizes:10000 $CONTACTS_FILE out.10000.cool
+$ cooler balance -p 10 out.10000.cool
+$ cooler dump -b -t pixels --header --join -r chr3:10M-12M -r2 chr17 out.10000.cool | head
 ```
 
 ```
@@ -81,7 +81,7 @@ chr3    10000000        10010000        chr17   1800000 1810000 1       0.745982
 See also:
 
 - [CLI Reference](http://cooler.readthedocs.io/en/latest/cli.html).
-- Jupyter Notebook [walkthrough](https://github.com/mirnylab/cooler-binder/blob/master/cooler_cli.ipynb).
+- Jupyter Notebook [walkthrough](https://nbviewer.jupyter.org/github/mirnylab/cooler-binder/blob/master/cooler_cli.ipynb).
 
 ### Python API
 
@@ -97,7 +97,7 @@ The `cooler` library provides a thin wrapper over the excellent [h5py](http://do
 >>> import cooler
 >>> import matplotlib.pyplot as plt
 >>> c = cooler.Cooler('bigDataset.cool')
->>> resolution = c.info['bin-size']
+>>> resolution = c.binsize
 >>> mat = c.matrix(balance=True).fetch('chr5:10,000,000-15,000,000')
 >>> plt.matshow(np.log10(mat), cmap='YlOrRd')
 ```
@@ -106,25 +106,25 @@ The `cooler` library provides a thin wrapper over the excellent [h5py](http://do
 >>> import multiprocessing as mp
 >>> import h5py
 >>> pool = mp.Pool(8)
->>> f = h5py.File('bigDataset.cool', 'r')
->>> weights, stats = cooler.ice.iterative_correction(f, map=pool.map, ignore_diags=3, min_nnz=10)
+>>> c = cooler.Cooler('bigDataset.cool')
+>>> weights, stats = cooler.balance_cooler(c, map=pool.map, ignore_diags=3, min_nnz=10)
 ```
 
 See also:
 
 - [API Reference](http://cooler.readthedocs.io/en/latest/api.html).
-- Jupyter Notebook [walkthrough](https://github.com/mirnylab/cooler-binder/blob/master/cooler_api.ipynb).
+- Jupyter Notebook [walkthrough](https://nbviewer.jupyter.org/github/mirnylab/cooler-binder/blob/master/cooler_api.ipynb).
 
 ### Schema
 
-The _cool_ format implements a simple [data model](http://cooler.readthedocs.io/en/latest/datamodel.html) that stores a genomic matrix in a sparse representation, crucial for developing robust tools for use on increasingly high resolution Hi-C data sets, including streaming and [out-of-core](https://en.wikipedia.org/wiki/Out-of-core_algorithm) algorithms.
+The _cool_ format implements a simple [data model](http://cooler.readthedocs.io/en/latest/schema.html) that stores a genomic matrix in a sparse representation, crucial for developing robust tools for use on increasingly high resolution Hi-C data sets, including streaming and [out-of-core](https://en.wikipedia.org/wiki/Out-of-core_algorithm) algorithms.
 
-The data tables in a _cool_ file are stored in a **columnar** representation as HDF5 groups of 1D array datasets of equal length. The contact matrix itself is stored as a single table containing only the **nonzero upper triangle** pixels.
+The data tables in a cooler file are stored in a **columnar** representation as HDF5 groups of 1D array datasets of equal length. A symmetric contact matrix is represented as a single table containing only the **nonzero upper triangle** pixels.
 
 
 ### Contributing
 
-[Pull requests](https://akrabat.com/the-beginners-guide-to-contributing-to-a-github-project/) are welcome. The current requirements for testing are `nose` and `mock`.
+[Pull requests](https://akrabat.com/the-beginners-guide-to-contributing-to-a-github-project/) are welcome. The current requirements for testing are `pytest` and `mock`.
 
 For development, clone and install in "editable" (i.e. development) mode with the `-e` option. This way you can also pull changes on the fly.
 ```sh
