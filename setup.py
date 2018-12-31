@@ -32,7 +32,7 @@ def _read(*parts, **kwargs):
 def get_version():
     version = re.search(
         r'^__version__\s*=\s*[\'"]([^\'"]*)[\'"]',
-        _read('cooler', '__init__.py'),
+        _read('cooler', '_version.py'),
         re.MULTILINE).group(1)
     return version
 
