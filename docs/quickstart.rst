@@ -24,12 +24,6 @@ Install ``cooler`` from PyPI using pip.
 
     $ pip install cooler
 
-All other Python package dependencies are automatically handled by pip.
-
-.. Additionally, the following tools are required for building ``cool`` files from contact lists:
-.. - Parallel gzip ``pigz``. Install using your system package manager.
-.. - Tabix/bgzf. These come with `Samtools <http://www.htslib.org/download/>`_ but are also available on system package managers like ``brew`` (Mac OS) and ``apt`` (Ubuntu). Alternatively, if you are using ``conda``, consider adding the `bioconda <https://bioconda.github.io/>`_ channel to get access to many more bioinformatics packages.
-
 
 Command line interface
 ----------------------
@@ -40,14 +34,13 @@ See:
 - The `CLI Reference <http://cooler.readthedocs.io/en/latest/cli.html>`_ for more information.
 
 
-The ``cooler`` library includes utilities for creating, querying, merging and manipulating .cool files and for performing out-of-core matrix balancing on a contact matrix of any resolution.
+The ``cooler`` package includes command line tools for creating, querying and manipulating cooler files.
 
 ::
 
-    $ cooler makebins $CHROMSIZES_FILE $BINSIZE > bins.10kb.bed
-    $ cooler cload bins.10kb.bed $CONTACTS_FILE out.cool
-    $ cooler balance -p 10 out.cool
-    $ cooler dump -b -t pixels --header --join -r chr3:10,000,000-12,000,000 -r2 chr17 out.cool | head
+    $ cooler cload pairs hg19.chrom.sizes:10000 $PAIRS_FILE out.10000.cool
+    $ cooler balance -p 10 out.10000.cool
+    $ cooler dump -b -t pixels --header --join -r chr3:10M-12M -r2 chr17 out.10000.cool | head
 
 Output:
 
@@ -83,20 +76,20 @@ The ``cooler`` library provides a thin wrapper over the excellent NumPy-aware `h
 
 ::
 
-    >>>  import multiprocessing as mp
-    >>>  import h5py
-    >>>  pool = mp.Pool(8)
-    >>>  f = h5py.File('bigDataset.cool', 'r')
-    >>>  weights, stats = cooler.ice.iterative_correction(f, map=pool.map, ignore_diags=3, min_nnz=10)
-
-::
-
     >>> import cooler
     >>> import matplotlib.pyplot as plt
     >>> c = cooler.Cooler('bigDataset.cool')
-    >>> resolution = c.info['bin-size']
+    >>> resolution = c.binsize
     >>> mat = c.matrix(balance=True).fetch('chr5:10,000,000-15,000,000')
     >>> plt.matshow(np.log10(mat), cmap='YlOrRd')
+
+::
+
+    >>> import multiprocessing as mp
+    >>> import h5py
+    >>> pool = mp.Pool(8)
+    >>> c = cooler.Cooler('bigDataset.cool')
+    >>> weights, stats = cooler.balance_cooler(c, map=pool.map, ignore_diags=3, min_nnz=10)
 
 
 URI String
@@ -238,11 +231,11 @@ Dask
 ~~~~
 
 Dask data structures provide a way to manipulate and distribute computations on larger-than-memory data using familiar APIs.
-The current ``daskify`` function can be used to generate a dask dataframe backed by the pixel table of a Cooler as follows:
+The sandboxed ``read_table`` function can be used to generate a dask dataframe backed by the pixel table of a Cooler as follows:
 
 .. code-block:: python
 
-    >>> from cooler.contrib.dask import daskify
+    >>> from cooler.sandbox.dask import read_table
     >>> df = daskify(c.filename, 'pixels')
 
     >>> df
