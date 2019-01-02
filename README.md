@@ -57,10 +57,10 @@ See the [docs](http://cooler.readthedocs.org/en/latest/) for more information.
 
 ### Command line interface
 
-The `cooler` package includes command line tools for creating, querying and manipulating _cool_ files.
+The `cooler` package includes command line tools for creating, querying and manipulating cooler files.
 
 ```bash
-$ cooler cload hg19.chrom.sizes:10000 $CONTACTS_FILE out.10000.cool
+$ cooler cload pairs hg19.chrom.sizes:10000 $PAIRS_FILE out.10000.cool
 $ cooler balance -p 10 out.10000.cool
 $ cooler dump -b -t pixels --header --join -r chr3:10M-12M -r2 chr17 out.10000.cool | head
 ```
