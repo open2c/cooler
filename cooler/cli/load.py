@@ -84,25 +84,24 @@ from ..create import (
     show_default=True,
     help="Comment character that indicates lines to ignore.")
 @click.option(
-    "--symmetric-input",
-    type=click.Choice(['unique', 'duplex']),
-    default='unique',
-    help="Copy status of input data when using symmetric storage. | "
-         "`unique`: Incoming data comes from a unique half of a symmetric "
-         "matrix, regardless of how element coordinates are ordered. "
-         "Execution will be aborted if duplicates are detected. "
-         "This is the default setting when the output is a symmetric cooler. | "
-         "`duplex`: Incoming data contains upper- and lower-triangle duplicates. "
-         "All lower-triangle input elements will be discarded! "
-         "If you wish to treat lower- and upper-triangle input data as "
-         "distinct, use the `--no-symmetric-storage` option instead. ",
-    show_default=True)
-@click.option(
-    "--no-symmetric-storage", "-N",
-    help="Create a square matrix without implicit symmetry. "
+    "--no-symmetric-upper", "-N",
+    help="Create a complete square matrix without implicit symmetry. "
          "This allows for distinct upper- and lower-triangle values",
     is_flag=True,
     default=False)
+@click.option(
+    "--input-copy-status",
+    type=click.Choice(['unique', 'duplex']),
+    default='unique',
+    help="Copy status of input data when using symmetric-upper storage. | "
+         "`unique`: Incoming data comes from a unique half of a symmetric "
+         "matrix, regardless of how element coordinates are ordered. "
+         "Execution will be aborted if duplicates are detected. "
+         "`duplex`: Incoming data contains upper- and lower-triangle duplicates. "
+         "All lower-triangle input elements will be discarded! | "
+         "If you wish to treat lower- and upper-triangle input data as "
+         "distinct, use the ``--no-symmetric-upper`` option instead. ",
+    show_default=True)
 @click.option(
     "--storage-options",
     help="Options to modify the data filter pipeline. Provide as a "
@@ -111,7 +110,7 @@ from ..create import (
          "for more details.")
 def load(bins_path, pixels_path, cool_path, format, metadata, assembly,
          chunksize, field, count_as_float, one_based, comment_char,
-         symmetric_input, no_symmetric_storage, storage_options, **kwargs):
+         input_copy_status, no_symmetric_upper, storage_options, **kwargs):
     """
     Create a cooler from a pre-binned matrix.
 
@@ -145,12 +144,12 @@ def load(bins_path, pixels_path, cool_path, format, metadata, assembly,
     logger = get_logger(__name__)
     chromsizes, bins = parse_bins(bins_path)
 
-    use_symmetric_storage = not no_symmetric_storage
+    symmetric_upper = not no_symmetric_upper
     tril_action = None
-    if use_symmetric_storage:
-        if symmetric_input == 'unique':
+    if symmetric_upper:
+        if input_copy_status == 'unique':
             tril_action = 'reflect'
-        elif symmetric_input == 'duplex':
+        elif input_copy_status == 'duplex':
             tril_action = 'drop'
 
     # User-supplied JSON file
@@ -286,7 +285,7 @@ def load(bins_path, pixels_path, cool_path, format, metadata, assembly,
 
     logger.info('fields: {}'.format(input_field_numbers))
     logger.info('dtypes: {}'.format(input_field_dtypes))
-    logger.info('symmetric: {}'.format(use_symmetric_storage))
+    logger.info('symmetric-upper: {}'.format(symmetric_upper))
 
     create_from_unordered(
         cool_path,
@@ -300,7 +299,7 @@ def load(bins_path, pixels_path, cool_path, format, metadata, assembly,
         ensure_sorted=False,
         #boundscheck=True,
         #dupcheck=True,
-        triucheck=True if use_symmetric_storage else False,
-        symmetric=use_symmetric_storage,
+        triucheck=True if symmetric_upper else False,
+        symmetric_upper=symmetric_upper,
         h5opts=h5opts
     )

@@ -269,24 +269,22 @@ def pairix(bins, pairs_path, cool_path, metadata, assembly, nproc, zero_based, m
     show_default=True,
     help="Comment character that indicates lines to ignore.")
 @click.option(
-    "--no-symmetric-storage", "-N",
-    help="Create a square matrix without implicit symmetry. "
+    "--no-symmetric-upper", "-N",
+    help="Create a complete square matrix without implicit symmetry. "
          "This allows for distinct upper- and lower-triangle values",
     is_flag=True,
     default=False)
 @click.option(
-    "--symmetric-input",
+    "--input-copy-status",
     type=click.Choice(['unique', 'duplex']),
     default='unique',
-    help="Copy status of input data when using symmetric storage. | "
+    help="Copy status of input data when using symmetric-upper storage. | "
          "`unique`: Incoming data comes from a unique half of a symmetric "
-         "map, regardless of how record coordinates are ordered. "
-         "Execution will be aborted if duplicates are detected."
-         "This is the default when the output is a symmetric cooler. | "
+         "map, regardless of how the coordinates of a pair are ordered. "
          "`duplex`: Incoming data contains upper- and lower-triangle duplicates. "
          "All input records that map to the lower triangle will be discarded! | "
          "If you wish to treat lower- and upper-triangle input data as "
-         "distinct, use the `--no-symmetric-storage` option instead. ",
+         "distinct, use the ``--no-symmetric-upper`` option. ",
     show_default=True)
 @click.option(
     "--field",
@@ -332,7 +330,7 @@ def pairix(bins, pairs_path, cool_path, metadata, assembly, nproc, zero_based, m
 #     type=click.Choice(['4DN', 'BEDPE']))
 # --sep
 def pairs(bins, pairs_path, cool_path, metadata, assembly, chunksize,
-          zero_based, comment_char, symmetric_input, no_symmetric_storage,
+          zero_based, comment_char, input_copy_status, no_symmetric_upper,
           field, temp_dir, no_delete_temp, max_merge, storage_options, **kwargs):
     """
     Bin any text file or stream of pairs.
@@ -345,12 +343,12 @@ def pairs(bins, pairs_path, cool_path, metadata, assembly, chunksize,
     """
     chromsizes, bins = parse_bins(bins)
 
-    use_symmetric_storage = not no_symmetric_storage
+    symmetric_upper = not no_symmetric_upper
     tril_action = None
-    if use_symmetric_storage:
-        if symmetric_input == 'unique':
+    if symmetric_upper:
+        if input_copy_status == 'unique':
             tril_action = 'reflect'
-        elif symmetric_input == 'duplex':
+        elif input_copy_status == 'duplex':
             tril_action = 'drop'
 
     if metadata is not None:
@@ -474,6 +472,6 @@ def pairs(bins, pairs_path, cool_path, metadata, assembly, chunksize,
         triucheck=False,
         dupcheck=False,
         ensure_sorted=False,
-        symmetric=use_symmetric_storage,
+        symmetric_upper=symmetric_upper,
         h5opts=h5opts,
     )
