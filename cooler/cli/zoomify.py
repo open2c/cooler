@@ -49,6 +49,10 @@ from .. import api
     help="Additional arguments to pass to cooler balance",
     type=str)
 @click.option(
+    '--base-uri', '-i',
+    help="One or more additional base coolers to aggregate from, if needed.",
+    multiple=True)
+@click.option(
     '--out', '-o',
     help="Output file or URI")
 @click.option(
@@ -65,7 +69,7 @@ from .. import api
     is_flag=True,
     default=False)
 def zoomify(cool_uri, nproc, chunksize, resolutions, balance, balance_args,
-            field, legacy, out):
+            field, legacy, base_uri, out):
     """
     Generate a multi-resolution cooler file by coarsening.
 
@@ -130,7 +134,7 @@ def zoomify(cool_uri, nproc, chunksize, resolutions, balance, balance_args,
             columns, dtypes, agg = ['count'], None, None
 
         zoomify_cooler(
-            [cool_uri],
+            [cool_uri] + list(base_uri),
             outfile,
             resolutions,
             chunksize,
