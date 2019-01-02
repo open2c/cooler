@@ -12,6 +12,7 @@ import h5py
 from .core import (get, region_to_offset, region_to_extent, RangeSelector1D,
                    RangeSelector2D, TriuReader, query_rect)
 from .util import parse_cooler_uri, parse_region, open_hdf5, closing_hdf5
+from .fileops import list_coolers
 
 __all__ = ['Cooler', 'annotate']
 
