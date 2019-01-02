@@ -63,12 +63,12 @@ def _cmp_pixels_2_bg(f_out, f_ref, one_based_ref=True):
     assert np.all(out_df == ref_df)
 
 
-#'--no-symmetric-storage'
-#'--symmetric-input', 'unique|duplex',
+#'--no-symmetric-upper'
+#'--input-copy-status', 'unique|duplex',
 @pytest.mark.parametrize("ref,extra_args", [
     ('symm.upper', []), # reflect triu pairs
-    ('symm.upper', ['--symmetric-input', 'unique']),  # reflect triu pairs
-    ('asymm', ['--no-symmetric-storage']),
+    ('symm.upper', ['--input-copy-status', 'unique']),  # reflect triu pairs
+    ('asymm', ['--no-symmetric-upper']),
 ])
 def test_cload_symm_asymm(ref, extra_args):
     runner = CliRunner()
@@ -176,12 +176,12 @@ def _run_load(runner, matrix_file, format, binsize, extra_args):
     return runner.invoke(load, args)
 
 
-#'--no-symmetric-storage'
-#'--symmetric-input', 'unique|duplex',
+#'--no-symmetric-upper'
+#'--input-copy-status', 'unique|duplex',
 @pytest.mark.parametrize("ref,extra_args", [
     ('symm.upper', []),                                              # reflect triu pairs
-    ('symm.upper', ['--one-based', '--symmetric-input', 'unique']),  # reflect triu pairs
-    ('asymm', ['--one-based', '--no-symmetric-storage']),
+    ('symm.upper', ['--one-based', '--input-copy-status', 'unique']),  # reflect triu pairs
+    ('asymm', ['--one-based', '--no-symmetric-upper']),
 ])
 def test_load_symm_asymm(ref, extra_args):
     runner = CliRunner()

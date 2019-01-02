@@ -233,8 +233,8 @@ def test_cload_pairs(bins_path, pairs_path, ref_path):
         chunksize=int(15e6),
         zero_based=False,
         comment_char='#',
-        symmetric_input='unique',
-        no_symmetric_storage=False,
+        input_copy_status='unique',
+        no_symmetric_upper=False,
         field=(),
         temp_dir=None,
         no_delete_temp=False,
@@ -272,8 +272,8 @@ def test_cload_field(bins_path, pairs_path):
         chunksize=10,
         zero_based=False,
         comment_char='#',
-        symmetric_input='unique',
-        no_symmetric_storage=False,
+        input_copy_status='unique',
+        no_symmetric_upper=False,
         temp_dir=None,
         no_delete_temp=False,
         storage_options=None,
@@ -311,8 +311,8 @@ def test_cload_field(bins_path, pairs_path):
 #         chunksize=10,
 #         zero_based=False,
 #         comment_char='#',
-#         symmetric_input='unique',
-#         no_symmetric_storage=False,
+#         input_copy_status='unique',
+#         no_symmetric_upper=False,
 #         field=('count=7:agg=min,dtype=float',),
 #         temp_dir=None,
 #         no_delete_temp=False,
@@ -336,8 +336,8 @@ def test_load_bg2_vs_coo():
         count_as_float=False,
         one_based=False,
         comment_char='#',
-        symmetric_input='unique',
-        no_symmetric_storage=False,
+        input_copy_status='unique',
+        no_symmetric_upper=False,
         storage_options=None,
     )
 
@@ -381,8 +381,8 @@ def test_load_zero_one_based_bg2():
         field=(),
         count_as_float=False,
         comment_char='#',
-        symmetric_input='unique',
-        no_symmetric_storage=False,
+        input_copy_status='unique',
+        no_symmetric_upper=False,
         storage_options=None
     )
     # 1-based-start BG2 input
@@ -433,8 +433,8 @@ def test_load_zero_one_based_coo():
         field=(),
         count_as_float=False,
         comment_char='#',
-        symmetric_input='unique',
-        no_symmetric_storage=False,
+        input_copy_status='unique',
+        no_symmetric_upper=False,
         storage_options=None
     )
     # 1-based-start COO input
