@@ -257,7 +257,7 @@ def merge_coolers(output_uri, input_uris, mergebuf, columns=None, dtypes=None,
     )
 
 
-def _coarsen_partition(edges, maxlen):
+def _optimal_prune_partition(edges, maxlen):
     """Given an integer interval partition ``edges``, find the coarsened
     partition with the longest subintervals such that no new subinterval
     created by removing edges exceeds ``maxlen``.
@@ -293,6 +293,19 @@ def _coarsen_partition(edges, maxlen):
     path = path[:j][::-1]
 
     return edges[path]
+
+
+def _greedy_prune_partition(edges, maxlen):
+    """Given an integer interval partition ``edges`` from 0..nnz, prune the
+    edges to make the new subintervals roughly ``maxlen`` in length.
+    """
+    edges = np.asarray(edges)
+    assert len(edges) >= 2 and edges[0] == 0
+    cumlen = np.r_[0, np.cumsum(np.diff(edges))]
+    cuts = [maxlen * i  for i in range(0, int(np.ceil(cumlen[-1] / maxlen)))]
+    cuts.append(cumlen[-1])
+    idx = np.unique(np.searchsorted(cumlen, cuts))
+    return edges[idx]
 
 
 def get_quadtree_depth(chromsizes, base_binsize, bins_per_tile):
@@ -399,6 +412,8 @@ class CoolerCoarsener(ContactBinner):
         self.old_binsize = clr.binsize
         self.old_chrom_offset = clr._load_dset('indexes/chrom_offset')
         self.old_bin1_offset = clr._load_dset('indexes/bin1_offset')
+
+        # Calculate the new bin segmentation
         if self.old_binsize is None:
             self.new_binsize = None
             bins = clr.bins()[['chrom', 'start', 'end']][:]
@@ -417,10 +432,11 @@ class CoolerCoarsener(ContactBinner):
             self.new_bins = binnify(chromsizes, self.new_binsize)
         self.gs = GenomeSegmentation(chromsizes, self.new_bins)
 
+        # Pre-compute the
         self.chunksize = int(chunksize)
         edges = np.unique(np.r_[self.old_bin1_offset[::self.factor],
                                 self.old_bin1_offset[-1]])
-        self.edges = _coarsen_partition(edges, self.chunksize)
+        self.edges = _greedy_prune_partition(edges, self.chunksize)
 
     def _aggregate(self, span):
         from .api import Cooler
@@ -433,7 +449,6 @@ class CoolerCoarsener(ContactBinner):
         logger.info('{} {}'.format(lo, hi))
 
         # use the "start" point as anchor for re-binning
-        # XXX - alternatives: midpoint anchor, proportional re-binning
         binsize = self.gs.binsize
         chrom_binoffset = self.gs.chrom_binoffset
         chrom_abspos = self.gs.chrom_abspos
@@ -637,21 +652,19 @@ def zoomify_cooler(base_uris, outfile, resolutions, chunksize, nproc=1,
         base_uris = [base_uris]
 
     parsed_uris = {}
+    n_bins_longest_chrom = {}
     base_resolutions = set()
     for input_uri in base_uris:
         infile, ingroup = parse_cooler_uri(input_uri)
-        base_binsize = Cooler(infile, ingroup).binsize
+        clr = Cooler(infile, ingroup)
+        base_binsize = clr.binsize
         parsed_uris[base_binsize] = (infile, ingroup)
+        n_bins_longest_chrom[base_binsize] = clr.bins()[:].groupby('chrom').size().max()
         base_resolutions.add(base_binsize)
 
-    # if resolutions is None:
-    #     clr = Cooler(base_uris[0])
-    #     n_zooms = get_quadtree_depth(clr.chromsizes, clr.binsize, HIGLASS_TILE_DIM)
-    #     resn = [clr.binsize * 2**i for i in range(n_zooms)]
-    #     pred = np.arange(-1, len(resn)-1)
-    #     mult = [2] * len(resn)
-    # else:
+    # Determine the sequence of reductions.
     resn, pred, mult = get_multiplier_sequence(resolutions, base_resolutions)
+
     n_zooms = len(resn)
 
     logger.info(
