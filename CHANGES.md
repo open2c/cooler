@@ -1,3 +1,16 @@
+### 0.8.1 (2019-01-02) ###
+
+New features
+
+* `cooler zoomify` command can take additional base resolutions as input.
+* Restore but deprecate `cooler.io.ls` for backwards compatibility.
+
+Bug fixes
+
+* Fixed regression that slowed down pre-processing during coarsen.
+* Fixed missing import on handling bad URIs.
+
+
 ### 0.8.0 (2018-12-31) ###
 
 New features
