@@ -38,7 +38,7 @@ from . import (
     PIXEL_DTYPES,
 )
 
-logger = get_logger(__name__)
+logger = get_logger('cooler.create')
 
 
 def write_chroms(grp, chroms, h5opts):

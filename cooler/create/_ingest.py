@@ -30,7 +30,7 @@ from ..util import (
 from ..tools import lock, partition
 
 
-logger = get_logger()
+logger = get_logger('cooler.create')
 
 
 class BadInputError(ValueError):
