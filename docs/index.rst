@@ -28,7 +28,6 @@ Contents:
    quickstart
    datamodel
    schema
-   container
    api
    cli
 

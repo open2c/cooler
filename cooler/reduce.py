@@ -619,9 +619,8 @@ def zoomify_cooler(base_uris, outfile, resolutions, chunksize, nproc=1,
         One or more cooler URIs to use as "base resolutions" for aggregation.
     outfile : str
         Output multires cooler (mcool) file path.
-    resolutions : list of int, or a preset {'pow2'| '4dn'}
-        Either a list of target resolutions to generate, or the name of a
-        preset.
+    resolutions : list of int
+        A list of target resolutions to generate.
     chunksize : int
         Number of pixels processed at a time per worker.
     nproc : int, optional
@@ -646,6 +645,7 @@ def zoomify_cooler(base_uris, outfile, resolutions, chunksize, nproc=1,
     cooler.merge_coolers
 
     """
+    # TODO: provide presets? {'pow2', '4dn'}
     from .api import Cooler
 
     if isinstance(base_uris, six.string_types):

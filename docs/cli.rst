@@ -197,13 +197,13 @@ COOL_PATH : Output COOL file path or URI.
 
     Comment character that indicates lines to ignore.  [default: #]
 
-.. option:: -N, --no-symmetric-storage
+.. option:: -N, --no-symmetric-upper
 
-    Create a square matrix without implicit symmetry. This allows for distinct upper- and lower-triangle values
+    Create a complete square matrix without implicit symmetry. This allows for distinct upper- and lower-triangle values
 
-.. option:: --symmetric-input <symmetric_input>
+.. option:: --input-copy-status <input_copy_status>
 
-    Copy status of input data when using symmetric storage. | `unique`: Incoming data comes from a unique half of a symmetric map, regardless of how record coordinates are ordered. Execution will be aborted if duplicates are detected.This is the default when the output is a symmetric cooler. | `duplex`: Incoming data contains upper- and lower-triangle duplicates. All input records that map to the lower triangle will be discarded! | If you wish to treat lower- and upper-triangle input data as distinct, use the `--no-symmetric-storage` option instead.   [default: unique]
+    Copy status of input data when using symmetric-upper storage. | `unique`: Incoming data comes from a unique half of a symmetric map, regardless of how the coordinates of a pair are ordered. `duplex`: Incoming data contains upper- and lower-triangle duplicates. All input records that map to the lower triangle will be discarded! | If you wish to treat lower- and upper-triangle input data as distinct, use the ``--no-symmetric-upper`` option.   [default: unique]
 
 .. option:: --field <field>
 
@@ -507,13 +507,13 @@ cooler load -f bg2 <chrom.sizes>:<binsize> in.bg2.gz out.cool
 
     Comment character that indicates lines to ignore.  [default: #]
 
-.. option:: --symmetric-input <symmetric_input>
+.. option:: -N, --no-symmetric-upper
 
-    Copy status of input data when using symmetric storage. | `unique`: Incoming data comes from a unique half of a symmetric matrix, regardless of how element coordinates are ordered. Execution will be aborted if duplicates are detected. This is the default setting when the output is a symmetric cooler. | `duplex`: Incoming data contains upper- and lower-triangle duplicates. All lower-triangle input elements will be discarded! If you wish to treat lower- and upper-triangle input data as distinct, use the `--no-symmetric-storage` option instead.   [default: unique]
+    Create a complete square matrix without implicit symmetry. This allows for distinct upper- and lower-triangle values
 
-.. option:: -N, --no-symmetric-storage
+.. option:: --input-copy-status <input_copy_status>
 
-    Create a square matrix without implicit symmetry. This allows for distinct upper- and lower-triangle values
+    Copy status of input data when using symmetric-upper storage. | `unique`: Incoming data comes from a unique half of a symmetric matrix, regardless of how element coordinates are ordered. Execution will be aborted if duplicates are detected. `duplex`: Incoming data contains upper- and lower-triangle duplicates. All lower-triangle input elements will be discarded! | If you wish to treat lower- and upper-triangle input data as distinct, use the ``--no-symmetric-upper`` option instead.   [default: unique]
 
 .. option:: --storage-options <storage_options>
 
@@ -663,6 +663,10 @@ COOL_PATH : Path to a COOL file or Cooler URI.
 .. option:: --balance-args <balance_args>
 
     Additional arguments to pass to cooler balance
+
+.. option:: -i, --base-uri <base_uri>
+
+    One or more additional base coolers to aggregate from, if needed.
 
 .. option:: -o, --out <out>
 

@@ -5,24 +5,29 @@ Quickstart
 Installation
 ------------
 
+Install :py:mod:`cooler`  from `PyPI <https://pypi.org/project/cooler>`_ using :command:`pip`.
+
+::
+
+    $ pip install cooler
+
 Requirements:
 
 - Python 2.7 or 3.4 and higher
 - libhdf5
-- Python packages ``numpy``, ``scipy``, ``pandas``, ``h5py``. 
+- Python packages :py:mod:`numpy`, :py:mod:`scipy`, :py:mod:`pandas`, :py:mod:`h5py`. 
 
-We highly recommend using the conda package manager to install scientific packages like these. To get ``conda``, you can download either the full `Anaconda <https://www.continuum.io/downloads>`_ Python distribution which comes with lots of data science software or the minimal `Miniconda <http://conda.pydata.org/miniconda.html>`_ distribution which is just the standalone package manager plus Python. In the latter case, you can install the packages as follows:
+We highly recommend using the conda package manager to install scientific packages like these. To get :command:`conda`, you can download either the full `Anaconda <https://www.continuum.io/downloads>`_ Python distribution which comes with lots of data science software or the minimal `Miniconda <http://conda.pydata.org/miniconda.html>`_ distribution which is just the standalone package manager plus Python. In the latter case, you can install the packages as follows:
 
 ::
 
     $ conda install numpy scipy pandas h5py
 
-
-Install ``cooler`` from PyPI using pip.
+If you are using conda, you can alternatively install cooler from the `bioconda channel <https://bioconda.github.io>`_.
 
 ::
 
-    $ pip install cooler
+    $ conda install -c conda-forge -c bioconda cooler
 
 
 Command line interface
@@ -34,7 +39,7 @@ See:
 - The `CLI Reference <http://cooler.readthedocs.io/en/latest/cli.html>`_ for more information.
 
 
-The ``cooler`` package includes command line tools for creating, querying and manipulating cooler files.
+The :py:mod:`cooler` package includes command line tools for creating, querying and manipulating cooler files.
 
 ::
 
@@ -66,7 +71,7 @@ See:
 - Jupyter Notebook `API walkthrough <https://github.com/mirnylab/cooler-binder/blob/master/cooler_api.ipynb>`_.
 - The :ref:`api-reference` for more information.
 
-The ``cooler`` library provides a thin wrapper over the excellent NumPy-aware `h5py <http://docs.h5py.org/en/latest/>`_ Python interface to HDF5. It supports creation of cooler files and the following types of **range queries** on the data:
+The :py:mod:`cooler` library provides a thin wrapper over the excellent NumPy-aware `h5py <http://docs.h5py.org/en/latest/>`_ Python interface to HDF5. It supports creation of cooler files and the following types of **range queries** on the data:
 
 - Tabular selections are retrieved as Pandas DataFrames and Series.
 - Matrix  selections are retrieved as NumPy arrays, DataFrames, or SciPy sparse matrices.
@@ -293,4 +298,4 @@ The sandboxed ``read_table`` function can be used to generate a dask dataframe b
     17       11149845
     ...
 
-Learn more about the Dask project: https://github.com/dask/dask-tutorial
+Learn more about the `Dask <https://dask.org/>`_ project.

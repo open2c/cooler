@@ -1,8 +1,10 @@
+.. _schema:
+
 ======
 Schema
 ======
 
-.. include:: schema_current.rst
+.. include:: schema_v3.rst
 
 
 Previous schema versions

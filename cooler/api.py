@@ -122,6 +122,10 @@ class Cooler(object):
 
     @property
     def storage_mode(self):
+        """Indicates whether ordinary sparse matrix encoding is used
+        (``"square"``) or whether a symmetric matrix is encoded by storing only
+        the upper triangular elements (``"symmetric-upper"``).
+        """
         return self._info.get('storage-mode', u"symmetric-upper")
 
     @property
