@@ -1,4 +1,5 @@
 from __future__ import absolute_import, print_function, division
+import warnings
 import numpy as np
 
 MAGIC = u"HDF5::Cooler"
@@ -22,9 +23,8 @@ from ._ingest import (
     BadInputError, HDF5Aggregator, TabixAggregator, PairixAggregator,
     ArrayLoader, ContactBinner
 )
+
 from ._create import (
-    create,
-    create_from_unordered,
     create_cooler,
     append,
     rename_chroms
@@ -32,10 +32,36 @@ from ._create import (
 
 
 def ls(*args, **kwargs):
-    import warnings
     warnings.warn(
-        "`cooler.io.ls()` is deprecated in 0.8, will be removed in 0.9. "
+        "`cooler.io` is deprecated in 0.8, will be removed in 0.9. "
         "Use `cooler.fileops.list_coolers()` instead.",
-        category=DeprecationWarning, stacklevel=2)
+        category=FutureWarning, stacklevel=2)
     from ..fileops import list_coolers
     return list_coolers(*args, **kwargs)
+
+
+def is_cooler(*args, **kwargs):
+    warnings.warn(
+        "`cooler.io` is deprecated in 0.8, will be removed in 0.9. "
+        "Use `cooler.fileops.is_cooler()` instead.",
+        category=FutureWarning, stacklevel=2)
+    from ..fileops import is_cooler
+    return is_cooler(*args, **kwargs)
+
+
+def create(*args, **kwargs):
+    warnings.warn(
+        "`cooler.io.create()` is deprecated in 0.8, will be removed in 0.9. "
+        "Use `cooler.create_cooler()` with ordered=True instead.",
+        category=FutureWarning, stacklevel=2)
+    from ._create import create
+    return create(*args, **kwargs)
+
+
+def create_from_unordered(*args, **kwargs):
+    warnings.warn(
+        "`cooler.io.create_from_unordered()` is deprecated in 0.8, "
+        "will be removed in 0.9. Use `cooler.create_cooler()` instead.",
+        category=FutureWarning, stacklevel=2)
+    from ._create import create_from_unordered
+    return create_from_unordered(*args, **kwargs)
