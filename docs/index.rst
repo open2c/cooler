@@ -28,6 +28,7 @@ Contents:
    quickstart
    datamodel
    schema
+   releasenotes
    api
    cli
 
