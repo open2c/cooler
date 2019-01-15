@@ -6,11 +6,11 @@ import os
 
 from scipy.sparse import coo_matrix
 import numpy as np
-import pandas
+import pandas as pd
 import h5py
 
 from .core import (get, region_to_offset, region_to_extent, RangeSelector1D,
-                   RangeSelector2D, TriuReader, query_rect)
+                   RangeSelector2D, CSRReader, query_rect)
 from .util import parse_cooler_uri, parse_region, open_hdf5, closing_hdf5
 from .fileops import list_coolers
 
@@ -44,7 +44,7 @@ class Cooler(object):
 
     Table selectors, created using :py:meth:`chroms`, :py:meth:`bins`, and
     :py:meth:`pixels`, perform range queries over table rows,
-    returning :py:class:`pandas.DataFrame` and :py:class:`pandas.Series`.
+    returning :py:class:`pd.DataFrame` and :py:class:`pd.Series`.
 
     A matrix selector, created using :py:meth:`matrix`, performs 2D matrix
     range queries, returning :py:class:`numpy.ndarray` or
@@ -385,8 +385,8 @@ def chroms(h5, lo=0, hi=None, fields=None, **kwargs):
 
     """
     if fields is None:
-        fields = (pandas.Index(['name', 'length'])
-                        .append(pandas.Index(h5['chroms'].keys()))
+        fields = (pd.Index(['name', 'length'])
+                        .append(pd.Index(h5['chroms'].keys()))
                         .drop_duplicates())
     return get(h5['chroms'], lo, hi, fields, **kwargs)
 
@@ -410,8 +410,8 @@ def bins(h5, lo=0, hi=None, fields=None, **kwargs):
 
     """
     if fields is None:
-        fields = (pandas.Index(['chrom', 'start', 'end'])
-                        .append(pandas.Index(h5['bins'].keys()))
+        fields = (pd.Index(['chrom', 'start', 'end'])
+                        .append(pd.Index(h5['bins'].keys()))
                         .drop_duplicates())
     out = get(h5['bins'], lo, hi, fields, **kwargs)
 
@@ -419,7 +419,7 @@ def bins(h5, lo=0, hi=None, fields=None, **kwargs):
     if ('convert_enum' in kwargs and kwargs['convert_enum'] and
             issubclass(out['chrom'].dtype.type, numbers.Integral)):
         chromnames = chroms(h5, fields='name')
-        out['chrom'] = pandas.Categorical.from_codes(
+        out['chrom'] = pd.Categorical.from_codes(
             out['chrom'], chromnames, ordered=True)
     return out
 
@@ -447,8 +447,8 @@ def pixels(h5, lo=0, hi=None, fields=None, join=True, **kwargs):
 
     """
     if fields is None:
-        fields = (pandas.Index(['bin1_id', 'bin2_id', 'count'])
-                        .append(pandas.Index(h5['pixels'].keys()))
+        fields = (pd.Index(['bin1_id', 'bin2_id', 'count'])
+                        .append(pd.Index(h5['pixels'].keys()))
                         .drop_duplicates())
 
     df = get(h5['pixels'], lo, hi, fields, **kwargs)
@@ -539,8 +539,8 @@ def annotate(pixels, bins, replace=False):
 
 
 def matrix(h5, i0, i1, j0, j1, field=None, balance=True, sparse=False,
-           as_pixels=False, join=True, ignore_index=True, max_chunk=500000000,
-           is_upper=True):
+           as_pixels=False, join=True, ignore_index=True,
+           max_chunk=500000000, is_upper=True):
     """
     Two-dimensional range query on the Hi-C contact heatmap.
     Depending on the options, returns either a 2D NumPy array, a rectangular
@@ -599,15 +599,12 @@ def matrix(h5, i0, i1, j0, j1, field=None, balance=True, sparse=False,
             "calculate balancing weights or set balance=False.")
 
     if as_pixels:
-        reader = TriuReader(h5, field, max_chunk)
+        reader = CSRReader(h5, field, max_chunk)
         index = None if ignore_index else reader.index_col(i0, i1, j0, j1)
-        if is_upper:
-            i, j, v = query_rect(reader.query, i0, i1, j0, j1, duplex=False)
-        else:
-            i, j, v = reader.query(i0, i1, j0, j1)
+        i, j, v = reader.query(i0, i1, j0, j1)
 
         cols = ['bin1_id', 'bin2_id', field]
-        df = pandas.DataFrame(dict(zip(cols, [i, j, v])),
+        df = pd.DataFrame(dict(zip(cols, [i, j, v])),
                               columns=cols, index=index)
 
         if balance:
@@ -622,9 +619,9 @@ def matrix(h5, i0, i1, j0, j1, field=None, balance=True, sparse=False,
         return df
 
     elif sparse:
-        reader = TriuReader(h5, field, max_chunk)
+        reader = CSRReader(h5, field, max_chunk)
         if is_upper:
-            i, j, v = query_rect(reader.query, i0, i1, j0, j1)
+            i, j, v = query_rect(reader.query, i0, i1, j0, j1, duplex=True)
         else:
             i, j, v = reader.query(i0, i1, j0, j1)
         mat = coo_matrix((v, (i-i0, j-j0)), (i1-i0, j1-j0))
@@ -638,9 +635,9 @@ def matrix(h5, i0, i1, j0, j1, field=None, balance=True, sparse=False,
         return mat
 
     else:
-        reader = TriuReader(h5, field, max_chunk)
+        reader = CSRReader(h5, field, max_chunk)
         if is_upper:
-            i, j, v = query_rect(reader.query, i0, i1, j0, j1)
+            i, j, v = query_rect(reader.query, i0, i1, j0, j1, duplex=True)
         else:
             i, j, v = reader.query(i0, i1, j0, j1)
         arr = coo_matrix((v, (i-i0, j-j0)), (i1-i0, j1-j0)).toarray()

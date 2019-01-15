@@ -221,7 +221,7 @@ def region_to_extent(h5, chrom_ids, region, binsize=None):
     return tuple(_region_to_extent(h5, chrom_ids, region, binsize))
 
 
-class TriuReader(object):
+class CSRReader(object):
     """
     Retrieves data from a 2D range query on the pixel table of a Cooler.
 
@@ -401,7 +401,7 @@ def query_rect(triu_reader, i0, i1, j0, j1, duplex=True):
         # nested
         elif _contains(i0, i1, j0, j1):
             ix, jx, vx = triu_reader(i0, j0, j0, j1)
-            iy, jy, vy = triu_reader(j0, j1, j0, j1)
+            jy, iy, vy = triu_reader(j0, j1, j0, j1)
             jz, iz, vz = triu_reader(j0, j1, j1, i1)
             if duplex:
                 nodiag = iy != jy
