@@ -28,9 +28,9 @@ Contents:
    quickstart
    datamodel
    schema
-   releasenotes
    api
    cli
+   releasenotes
 
 
 * :ref:`genindex`
