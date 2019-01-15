@@ -18,7 +18,7 @@ import click
 
 from .. import util
 from ..create import (
-    create, create_from_unordered,
+    create_cooler,
     sanitize_records, aggregate_records,
     TabixAggregator, HDF5Aggregator, PairixAggregator,
 )
@@ -99,7 +99,11 @@ def hiclib(bins, pairs_path, cool_path, metadata, assembly, chunksize):
 
     with h5py.File(pairs_path, 'r') as h5pairs:
         iterator = HDF5Aggregator(h5pairs, chromsizes, bins, chunksize)
-        create(cool_path, bins, iterator, metadata, assembly)
+        create_cooler(
+            cool_path, bins, iterator,
+            metadata=metadata,
+            assembly=assembly,
+            ordered=True)
 
 
 @register_subcommand
@@ -167,7 +171,11 @@ def tabix(bins, pairs_path, cool_path, metadata, assembly, nproc, zero_based, ma
             opts['P2'] = kwargs['pos2'] - 1
         iterator = TabixAggregator(pairs_path, chromsizes, bins, map=map,
             is_one_based=(not zero_based), n_chunks=max_split, **opts)
-        create(cool_path, bins, iterator, metadata=metadata, assembly=assembly)
+        create_cooler(
+            cool_path, bins, iterator,
+            metadata=metadata,
+            assembly=assembly,
+            ordered=True)
     finally:
         if nproc > 1:
             pool.close()
@@ -223,7 +231,11 @@ def pairix(bins, pairs_path, cool_path, metadata, assembly, nproc, zero_based, m
             map = six.moves.map
         iterator = PairixAggregator(pairs_path, chromsizes, bins, map=map,
             is_one_based=(not zero_based), n_chunks=max_split)
-        create(cool_path, bins, iterator, metadata=metadata, assembly=assembly)
+        create_cooler(
+            cool_path, bins, iterator,
+            metadata=metadata,
+            assembly=assembly,
+            ordered=True)
     finally:
         if nproc > 1:
             pool.close()
@@ -456,7 +468,7 @@ def pairs(bins, pairs_path, cool_path, metadata, assembly, chunksize,
     aggregate = aggregate_records(agg=aggregations, count=True, sort=False)
     pipeline = compose(aggregate, sanitize)
 
-    create_from_unordered(
+    create_cooler(
         cool_path,
         bins,
         map(pipeline, reader),
@@ -474,4 +486,5 @@ def pairs(bins, pairs_path, cool_path, metadata, assembly, chunksize,
         ensure_sorted=False,
         symmetric_upper=symmetric_upper,
         h5opts=h5opts,
+        ordered=False
     )
