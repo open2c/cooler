@@ -9,7 +9,7 @@
 
 ## A cool place to store your Hi-C
 
-Cooler is a support library for a **sparse, compressed, binary** persistent storage format, called _cool_, used to store genomic interaction data, such as Hi-C contact matrices. 
+Cooler is a support library for a **sparse, compressed, binary** persistent storage format, called _cooler_, used to store genomic interaction data, such as Hi-C contact matrices. 
 
 The _cooler_ file format is a reference implementation of a genomic matrix data model using [HDF5](https://en.wikipedia.org/wiki/Hierarchical_Data_Format) as the container format.
 
@@ -19,7 +19,7 @@ The `cooler` package aims to provide the following functionality:
 - Query a contact matrix.
 - Export and visualize the data.
 - Perform efficient out-of-core operations, such as aggregation and contact matrix normalization (a.k.a. balancing).
-- Provide a clean and well-documented Python API to facilitate working with potentially larger-than-memory data.
+- Facilitate working with potentially larger-than-memory data.
 
 To get started:
 

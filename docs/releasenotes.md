@@ -1,5 +1,20 @@
 # Release notes #
 
+## v0.8.2 ##
+
+Date: 2019-01-20
+
+### Bug fixes
+
+* A bug was introduced into the matrix-as-pixels selector in 0.8.0 to make it more flexible (also affected `cooler dump`). However, because the new behavior could produce unexpected results, the behavior has been reverted to that in 0.7.
+
+### CLI changes
+
+New options for `cooler dump` pixel output:
+* `--matrix` option: Applies to symmetric-upper coolers; no-op for square coolers. Generates all lower triangular pixels necessary to fill the requested genomic query window. Without this option, `cooler dump` will only return the data explicity stored in the pixel table (i.e. upper triangle).
+* `-one-based-ids` and `--one-based-starts` convenience options.
+
+
 ## v0.8.1 ##
 
 Date: 2019-01-02
