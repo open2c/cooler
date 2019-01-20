@@ -881,6 +881,10 @@ def create_cooler(cool_uri, bins, pixels, columns=None, dtypes=None,
 
     """
     # dispatch to the approprate creation method
+    if isinstance(pixels, (pd.DataFrame, dict)):
+        pixels = pd.DataFrame(pixels).sort_values(['bin1_id', 'bin2_id'])
+        ordered = True
+
     if ordered:
         create(
             cool_uri, bins, pixels,
