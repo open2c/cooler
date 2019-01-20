@@ -309,6 +309,13 @@ class Cooler(object):
         -------
         Matrix selector
 
+        Notes
+        -----
+        If ``as_pixels=True``, only data explicitly stored in the pixel table
+        will be returned: if the cooler's storage mode is symmetric-upper,
+        lower triangular elements will not be generated. If ``as_pixels=False``,
+        those missing non-zero elements will automatically be filled in.
+
         """
 
         def _slice(field, i0, i1, j0, j1):
@@ -544,7 +551,7 @@ def matrix(h5, i0, i1, j0, j1, field=None, balance=True, sparse=False,
     """
     Two-dimensional range query on the Hi-C contact heatmap.
     Depending on the options, returns either a 2D NumPy array, a rectangular
-    sparse ``coo_matrix``, or a data frame of upper triangle pixels.
+    sparse ``coo_matrix``, or a data frame of pixels.
 
     Parameters
     ----------
@@ -581,8 +588,10 @@ def matrix(h5, i0, i1, j0, j1, field=None, balance=True, sparse=False,
 
     Notes
     -----
-    Use the ``toarray()`` method to convert to a sparse matrix to a dense
-    NumPy array.
+    If ``as_pixels=True``, only data explicitly stored in the pixel table
+    will be returned: if the cooler's storage mode is symmetric-upper,
+    lower triangular elements will not be generated. If ``as_pixels=False``,
+    those missing non-zero elements will automatically be filled in.
 
     """
     if field is None:
