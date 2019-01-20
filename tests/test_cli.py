@@ -7,6 +7,7 @@ import traceback; traceback.print_tb(result.exception.__traceback__)
 
 """
 from __future__ import absolute_import, division
+from io import StringIO
 from glob import glob
 import os.path as op
 import tempfile
@@ -17,6 +18,7 @@ from pandas.api import types
 import numpy as np
 import pandas as pd
 
+from _common import cooler_cmp
 from click.testing import CliRunner
 import cooler
 import pytest
@@ -279,6 +281,50 @@ def test_dump():
         f_in = op.join(datadir, 'toy.symm.upper.2.cool')
         result = runner.invoke(dump, [f_in,])
         assert result.exit_code == 0
+
+        # roundtrip symm-upper data
+        bins = pd.read_table(StringIO(
+            runner.invoke(dump, [f_in, '-H', '-t', 'bins']).output))
+        pixels = pd.read_table(
+            StringIO(runner.invoke(dump, [f_in, '-H']).output))
+        cooler.create_cooler('out.cool', bins, pixels, symmetric_upper=True)
+        cooler_cmp(f_in, 'out.cool')
+
+        # duplexed output
+        pixels2 = pd.read_table(StringIO(
+            runner.invoke(dump, [f_in, '--matrix', '-H']).output))
+        assert len(pixels2) > len(pixels)
+        upper = pixels2[pixels2['bin1_id'] <= pixels2['bin2_id']].reset_index(drop=True)
+        assert np.allclose(pixels, upper)
+
+        # lower triangle
+        trans_lower = pd.read_table(StringIO(
+            runner.invoke(dump, [f_in, '-H', '-r', 'chr2', '-r2', 'chr1']).output))
+        assert len(trans_lower) == 0
+        trans_lower = pd.read_table(StringIO(
+            runner.invoke(dump, [f_in, '-m', '-H', '-r', 'chr2', '-r2', 'chr1']).output))
+        assert len(trans_lower) > 0
+
+        # roundtrip square data
+        f_in = op.join(datadir, 'toy.asymm.2.cool')
+        bins = pd.read_table(StringIO(
+            runner.invoke(dump, [f_in, '-H', '-t', 'bins']).output))
+        pixels = pd.read_table(StringIO(
+            runner.invoke(dump, [f_in, '-H']).output))
+        cooler.create_cooler('out.cool', bins, pixels, symmetric_upper=False)
+        cooler_cmp(f_in, 'out.cool')
+        pixels2 = pd.read_table(StringIO(
+            runner.invoke(dump, [f_in, '--matrix', '-H']).output))
+        assert np.allclose(pixels, pixels2)
+
+        # for square data, -m is a no-op
+        lower1 = pd.read_table(StringIO(
+            runner.invoke(dump, [f_in, '-H', '-r', 'chr2', '-r2', 'chr1']).output))
+        lower2 = pd.read_table(StringIO(
+            runner.invoke(dump, [f_in, '-m', '-H', '-r', 'chr2', '-r2', 'chr1']).output))
+        assert np.allclose(lower1, lower2)
+
+
 
 def test_show():
     pass

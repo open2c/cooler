@@ -1,4 +1,5 @@
 from __future__ import absolute_import, print_function, division
+import warnings
 import numpy as np
 
 MAGIC = u"HDF5::Cooler"
@@ -22,20 +23,11 @@ from ._ingest import (
     BadInputError, HDF5Aggregator, TabixAggregator, PairixAggregator,
     ArrayLoader, ContactBinner
 )
+
 from ._create import (
+    create_cooler,
     create,
     create_from_unordered,
-    create_cooler,
     append,
     rename_chroms
 )
-
-
-def ls(*args, **kwargs):
-    import warnings
-    warnings.warn(
-        "`cooler.io.ls()` is deprecated in 0.8, will be removed in 0.9. "
-        "Use `cooler.fileops.list_coolers()` instead.",
-        category=DeprecationWarning, stacklevel=2)
-    from ..fileops import list_coolers
-    return list_coolers(*args, **kwargs)

@@ -1,5 +1,6 @@
 Sphinx
 sphinx-rtd-theme
+recommonmark
 numpydoc
 mock
 six

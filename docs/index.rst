@@ -30,6 +30,7 @@ Contents:
    schema
    api
    cli
+   releasenotes
 
 
 * :ref:`genindex`

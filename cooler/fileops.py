@@ -337,7 +337,16 @@ class TreeTraversal(Traversal):
 
 
 class TreeViewer(object):
+    """
+    Generates ascii- or html-based reprs for "Groupy" objects.
+    Borrowed with minor modifications from the zarr project
+    (Zarr Developers, MIT-licensed).
 
+    <https://github.com/zarr-developers/zarr>
+
+    See: zarr.util.TreeViewer, zarr.util.tree_html
+
+    """
     def __init__(self, group, expand=False, level=None, node_cls=TreeNode):
         self.group = group
         self.expand = expand

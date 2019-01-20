@@ -117,7 +117,7 @@ def test_slice_matrix(mock_cooler):
         (1, 1, 1, 1),
     ]
     for i0, i1, j0, j1 in slices:
-        triu_reader = cooler.core.TriuReader(mock_cooler, 'count', max_chunk=10)
+        triu_reader = cooler.core.CSRReader(mock_cooler, 'count', max_chunk=10)
 
         # triangular query
         index = triu_reader.index_col(i0, i1, j0, j1)

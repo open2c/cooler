@@ -99,7 +99,7 @@ The reference implementation of this data model uses `HDF5 <https://www.hdfgroup
 
 HDF5 files consist of three fundamental entities: groups, datasets, and attibutes. The hierarchical organization of an HDF5 file is conceptually analogous to a file system: *groups* are akin to directories and *datasets* (arrays) are akin to files. Additionally, key-value metadata can be attached to groups and datasets using *attributes*. The standard library provides the ability to access and manipulate these entities. There are bindings for virtually every platform and programming environment. To learn more in detail about HDF5, I recommend the book `HDF5 and Python <https://www.safaribooksonline.com/library/view/python-and-hdf5/9781491944981/ch01.html>`_ by Andrew Collette, the author of ``h5py``.
 
-To implement the data model in HDF5, data tables are stored in a columnar representation as HDF5 groups of 1D array datasets of equal length. Metadata is stored using top-level attributes. See the `schema`_.
+To implement the data model in HDF5, data tables are stored in a columnar representation as HDF5 groups of 1D array datasets of equal length. Metadata is stored using top-level attributes. See the :ref:`schema <schema>`.
 
 
 HDF5 bindings in other languages
