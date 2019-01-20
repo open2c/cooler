@@ -6,7 +6,7 @@ Date: 2019-01-20
 
 ### Bug fixes
 
-* A bug was introduced into the matrix-as-pixels selector in 0.8.0 to make it more flexible (also affected `cooler dump`). However, because the new behavior could produce unexpected results, the behavior has been reverted to that in 0.7.
+* A bug was introduced into the matrix-as-pixels selector in 0.8.0 that also affected `cooler dump`. The behavior has been reverted to that in 0.7.
 
 ### CLI changes
 
