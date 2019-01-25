@@ -301,12 +301,13 @@ def pairix(bins, pairs_path, cool_path, metadata, assembly, nproc, zero_based, m
 @click.option(
     "--field",
     help="Specify quantitative input fields to aggregate into value columns "
-         "using the syntax ``<field-name>=<field-number>``. Add "
-         "``,dtype=<dtype>`` to specify the dtype, and ``,agg=<agg>`` to "
-         "specify an aggregation function different from ``sum``. Field "
-         "numbers are 1-based. Specifying 'count' as the target name will "
-         "override the default storage of pair counts. Repeat the ``--field`` "
-         "option for each additional field.",
+         "using the syntax ``--field <field-name>=<field-number>``. "
+         "Optionally, append ``:`` followed by ``dtype=<dtype>`` to specify "
+         "the data type (e.g. float), and/or ``agg=<agg>`` to "
+         "specify an aggregation function different from sum (e.g. mean). "
+         "Field numbers are 1-based. Passing 'count' as the target name will "
+         "override the default behavior of storing pair counts. "
+         "Repeat the ``--field`` option for each additional field.",
     type=str,
     multiple=True)
 # @click.option(

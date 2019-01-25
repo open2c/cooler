@@ -51,10 +51,10 @@ from ..create import (
     help="Add supplemental value fields or override default field numbers for "
          "the specified format. "
          "Specify quantitative input fields to aggregate into value columns "
-         "using the syntax ``<field-name>=<field-number>``. Add "
-         "``,dtype=<dtype>`` to specify the dtype. Field numbers are 1-based. "
+         "using the syntax ``--field <field-name>=<field-number>``. "
+         "Optionally, append ``:`` followed by ``dtype=<dtype>`` to specify "
+         "the data type (e.g. float). Field numbers are 1-based. "
          "Repeat the ``--field`` option for each additional field.",
-         #"[Changed in v0.7.7: use a comma separator, rather than a space.]",
     type=str,
     multiple=True)
 @click.option(
