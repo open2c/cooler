@@ -207,7 +207,7 @@ COOL_PATH : Output COOL file path or URI.
 
 .. option:: --field <field>
 
-    Specify quantitative input fields to aggregate into value columns using the syntax ``<field-name>=<field-number>``. Add ``,dtype=<dtype>`` to specify the dtype, and ``,agg=<agg>`` to specify an aggregation function different from ``sum``. Field numbers are 1-based. Specifying 'count' as the target name will override the default storage of pair counts. Repeat the ``--field`` option for each additional field.
+    Specify quantitative input fields to aggregate into value columns using the syntax ``--field <field-name>=<field-number>``. Optionally, append ``:`` followed by ``dtype=<dtype>`` to specify the data type (e.g. float), and/or ``agg=<agg>`` to specify an aggregation function different from sum (e.g. mean). Field numbers are 1-based. Passing 'count' as the target name will override the default behavior of storing pair counts. Repeat the ``--field`` option for each additional field.
 
 .. option:: --temp-dir <temp_dir>
 
@@ -489,7 +489,7 @@ cooler load -f bg2 <chrom.sizes>:<binsize> in.bg2.gz out.cool
 
 .. option:: --field <field>
 
-    Add supplemental value fields or override default field numbers for the specified format. Specify quantitative input fields to aggregate into value columns using the syntax ``<field-name>=<field-number>``. Add ``,dtype=<dtype>`` to specify the dtype. Field numbers are 1-based. Repeat the ``--field`` option for each additional field.
+    Add supplemental value fields or override default field numbers for the specified format. Specify quantitative input fields to aggregate into value columns using the syntax ``--field <field-name>=<field-number>``. Optionally, append ``:`` followed by ``dtype=<dtype>`` to specify the data type (e.g. float). Field numbers are 1-based. Repeat the ``--field`` option for each additional field.
 
 .. option:: -c, --chunksize <chunksize>
 
@@ -840,7 +840,7 @@ COOL_PATH : Path to COOL file or cooler URI.
 
 .. option:: -t, --table <table>
 
-    Which table to dump. Choosing 'chroms' or 'bins' will cause all pixel-related options to be ignored. Note that dumping 'pixels' will only provide data for the upper triangle of the contact matrix.   [default: pixels]
+    Which table to dump. Choosing 'chroms' or 'bins' will cause all pixel-related options to be ignored. Note that for coolers stored in symmetric-upper mode, 'pixels' only holds the upper triangle values of the matrix.  [default: pixels]
 
 .. option:: -c, --columns <columns>
 
@@ -850,13 +850,25 @@ COOL_PATH : Path to COOL file or cooler URI.
 
     Print the header of column names as the first row.  [default: False]
 
+.. option:: --na-rep <na_rep>
+
+    Missing data representation. Default is empty ''.
+
+.. option:: --float-format <float_format>
+
+    Format string for floating point numbers (e.g. '.12g', '03.2f').  [default: g]
+
 .. option:: -r, --range <range>
 
-    The coordinates of a genomic region shown along the row dimension, in UCSC notation. (Example: chr1:10,000,000-11,000,000). If omitted, the entire contact matrix is printed.
+    The coordinates of a genomic region shown along the row dimension, in UCSC-style notation. (Example: chr1:10,000,000-11,000,000). If omitted, the entire contact matrix is printed.
 
 .. option:: -r2, --range2 <range2>
 
     The coordinates of a genomic region shown along the column dimension. If omitted, the column range is the same as the row range.
+
+.. option:: -m, --matrix
+
+    For coolers stored in symmetric-upper mode, ensure any empty areas of the genomic query window are populated by generating the lower-triangular pixels.  [default: False]
 
 .. option:: -b, --balanced, --no-balance
 
@@ -870,13 +882,13 @@ COOL_PATH : Path to COOL file or cooler URI.
 
     Join additional columns from the bin table against the pixels. Provide a comma separated list of column names (no spaces). The merged columns will be suffixed by '1' and '2' accordingly.
 
-.. option:: --na-rep <na_rep>
+.. option:: --one-based-ids
 
-    Missing data representation. Default is empty ''.
+    Print bin IDs as one-based rather than zero-based.
 
-.. option:: --float-format <float_format>
+.. option:: --one-based-starts
 
-    Format string for floating point numbers (e.g. '.12g', '03.2f').  [default: g]
+    Print start coordinates as one-based rather than zero-based.
 
 .. option:: -k, --chunksize <chunksize>
 
