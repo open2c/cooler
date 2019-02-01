@@ -37,9 +37,18 @@ def cooler_cmp(uri1, uri2):
                 'bins/chrom', 'bins/start', 'bins/end',
                 'pixels/bin1_id', 'pixels/bin2_id', 'pixels/count'):
             dset1, dset2 = f1[path], f2[path]
-            dtype = dset1.dtype
-            assert dtype == dset2.dtype
-            if is_numeric_dtype(dtype):
+
+            dtype1 = dset1.dtype
+            dtype2 = dset2.dtype
+
+            if dtype1.kind == 'S':
+                # Null padding of ascii arrays is not guaranteed to be
+                # preserved so we only check the kind.
+                assert dtype2.kind == 'S'
+            else:
+                assert dtype1 == dtype2
+
+            if is_numeric_dtype(dtype1):
                 assert np.allclose(dset1[:], dset2[:])
             else:
                 assert np.all(dset1[:] == dset2[:])
