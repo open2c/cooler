@@ -274,8 +274,9 @@ def load(bins_path, pixels_path, cool_path, format, metadata, assembly,
     else:
         f_in = pixels_path
 
-    reader = pd.read_table(
+    reader = pd.read_csv(
         f_in,
+        sep='\t',
         usecols=[input_field_numbers[name] for name in input_field_names],
         names=input_field_names,
         dtype=input_field_dtypes,

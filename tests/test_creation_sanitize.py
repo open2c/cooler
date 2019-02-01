@@ -54,7 +54,7 @@ def _insert_lines(d, new):
 
 def test_sanitize_triu_action():
     text = valid_data
-    chunk = pd.read_table(StringIO(text), names=columns)
+    chunk = pd.read_csv(StringIO(text), sep='\t', names=columns)
     out = sanitize_records(
         bins,
         schema='pairs',
@@ -67,7 +67,7 @@ def test_sanitize_triu_action():
     assert np.all(out.loc[is_tril, 'strand1'] == '+')
 
     text = valid_data
-    chunk = pd.read_table(StringIO(text), names=columns)
+    chunk = pd.read_csv(StringIO(text), sep='\t', names=columns)
     out = sanitize_records(
         bins,
         schema='pairs',
@@ -87,14 +87,14 @@ def test_sanitize_triu_action():
         tril_action='raise',
     )
     text = valid_data
-    chunk = pd.read_table(StringIO(text), names=columns)
+    chunk = pd.read_csv(StringIO(text), sep='\t', names=columns)
     with pytest.raises(BadInputError):
         func(chunk)
 
 
 def test_sanitize_with_strand_column():
     text = valid_data
-    chunk = pd.read_table(StringIO(text), names=columns)
+    chunk = pd.read_csv(StringIO(text), sep='\t', names=columns)
     out = sanitize_records(
         bins,
         schema='pairs',
@@ -110,7 +110,7 @@ def test_sanitize_with_strand_column():
 
 def test_sanitize_with_nuisance_records():
     text = _insert_lines(valid_data, nuisance_chroms)
-    chunk = pd.read_table(StringIO(text), names=columns)
+    chunk = pd.read_csv(StringIO(text), sep='\t', names=columns)
     out = sanitize_records(
         bins,
         schema='pairs',
@@ -129,11 +129,11 @@ def test_sanitize_with_bad_records():
     )
 
     text = _insert_lines(valid_data, oob_lower)
-    chunk = pd.read_table(StringIO(text), names=columns)
+    chunk = pd.read_csv(StringIO(text), sep='\t', names=columns)
     with pytest.raises(BadInputError):
         func(chunk)
 
     text = _insert_lines(valid_data, oob_upper)
-    chunk = pd.read_table(StringIO(text), names=columns)
+    chunk = pd.read_csv(StringIO(text), sep='\t', names=columns)
     with pytest.raises(BadInputError):
         func(chunk)

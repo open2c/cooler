@@ -397,7 +397,8 @@ def test_load_zero_one_based_bg2():
         **kwargs
     )
     # reference, 1-based starts
-    ref_df = pd.read_table(pixels_path,
+    ref_df = pd.read_csv(pixels_path,
+        sep='\t',
         names=['chrom1', 'start1', 'end1', 'chrom2', 'start2', 'end2', 'count'])
     # output
     out_df = cooler.Cooler(testcool_path).pixels(join=True)[:]
@@ -417,7 +418,8 @@ def test_load_zero_one_based_bg2():
         **kwargs
     )
     # reference, 0-based starts
-    ref_df = pd.read_table(pixels_path,
+    ref_df = pd.read_csv(pixels_path,
+        sep='\t',
         names=['chrom1', 'start1', 'end1', 'chrom2', 'start2', 'end2', 'count'])
     # output
     out_df = cooler.Cooler(testcool_path).pixels(join=True)[:]
@@ -449,8 +451,9 @@ def test_load_zero_one_based_coo():
         **kwargs
     )
     # reference, 1-based starts
-    ref_df = pd.read_table(
+    ref_df = pd.read_csv(
         pixels_path,
+        sep='\t',
         names=['bin1_id', 'bin2_id', 'count'])
     # output
     out_df = cooler.Cooler(testcool_path).pixels()[:]
@@ -470,8 +473,9 @@ def test_load_zero_one_based_coo():
         **kwargs
     )
     # reference, 0-based starts
-    ref_df = pd.read_table(
+    ref_df = pd.read_csv(
         pixels_path,
+        sep='\t',
         names=['bin1_id', 'bin2_id', 'count'])
     # output
     out_df = cooler.Cooler(testcool_path).pixels()[:]

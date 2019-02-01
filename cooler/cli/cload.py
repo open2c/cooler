@@ -449,8 +449,9 @@ def pairs(bins, pairs_path, cool_path, metadata, assembly, chunksize,
     else:
         f_in = pairs_path
 
-    reader = pd.read_table(
+    reader = pd.read_csv(
         f_in,
+        sep='\t',
         usecols=[input_field_numbers[name] for name in input_field_names],
         names=input_field_names,
         dtype=input_field_dtypes,

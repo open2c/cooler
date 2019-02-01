@@ -58,7 +58,8 @@ def _cmp_pixels_2_bg(f_out, f_ref, one_based_ref=True):
         out_df['start2'] += 1
 
     # reference
-    ref_df = pd.read_table(f_ref,
+    ref_df = pd.read_csv(f_ref,
+        sep='\t',
         names=['chrom1', 'start1', 'end1',
                'chrom2', 'start2', 'end2', 'count'])
 
@@ -283,45 +284,45 @@ def test_dump():
         assert result.exit_code == 0
 
         # roundtrip symm-upper data
-        bins = pd.read_table(StringIO(
-            runner.invoke(dump, [f_in, '-H', '-t', 'bins']).output))
-        pixels = pd.read_table(
-            StringIO(runner.invoke(dump, [f_in, '-H']).output))
+        bins = pd.read_csv(StringIO(
+            runner.invoke(dump, [f_in, '-H', '-t', 'bins']).output), sep='\t')
+        pixels = pd.read_csv(
+            StringIO(runner.invoke(dump, [f_in, '-H']).output), sep='\t')
         cooler.create_cooler('out.cool', bins, pixels, symmetric_upper=True)
         cooler_cmp(f_in, 'out.cool')
 
         # duplexed output
-        pixels2 = pd.read_table(StringIO(
-            runner.invoke(dump, [f_in, '--matrix', '-H']).output))
+        pixels2 = pd.read_csv(StringIO(
+            runner.invoke(dump, [f_in, '--matrix', '-H']).output), sep='\t')
         assert len(pixels2) > len(pixels)
         upper = pixels2[pixels2['bin1_id'] <= pixels2['bin2_id']].reset_index(drop=True)
         assert np.allclose(pixels, upper)
 
         # lower triangle
-        trans_lower = pd.read_table(StringIO(
-            runner.invoke(dump, [f_in, '-H', '-r', 'chr2', '-r2', 'chr1']).output))
+        trans_lower = pd.read_csv(StringIO(
+            runner.invoke(dump, [f_in, '-H', '-r', 'chr2', '-r2', 'chr1']).output), sep='\t')
         assert len(trans_lower) == 0
-        trans_lower = pd.read_table(StringIO(
-            runner.invoke(dump, [f_in, '-m', '-H', '-r', 'chr2', '-r2', 'chr1']).output))
+        trans_lower = pd.read_csv(StringIO(
+            runner.invoke(dump, [f_in, '-m', '-H', '-r', 'chr2', '-r2', 'chr1']).output), sep='\t')
         assert len(trans_lower) > 0
 
         # roundtrip square data
         f_in = op.join(datadir, 'toy.asymm.2.cool')
-        bins = pd.read_table(StringIO(
-            runner.invoke(dump, [f_in, '-H', '-t', 'bins']).output))
-        pixels = pd.read_table(StringIO(
-            runner.invoke(dump, [f_in, '-H']).output))
+        bins = pd.read_csv(StringIO(
+            runner.invoke(dump, [f_in, '-H', '-t', 'bins']).output), sep='\t')
+        pixels = pd.read_csv(StringIO(
+            runner.invoke(dump, [f_in, '-H']).output), sep='\t')
         cooler.create_cooler('out.cool', bins, pixels, symmetric_upper=False)
         cooler_cmp(f_in, 'out.cool')
-        pixels2 = pd.read_table(StringIO(
-            runner.invoke(dump, [f_in, '--matrix', '-H']).output))
+        pixels2 = pd.read_csv(StringIO(
+            runner.invoke(dump, [f_in, '--matrix', '-H']).output), sep='\t')
         assert np.allclose(pixels, pixels2)
 
         # for square data, -m is a no-op
-        lower1 = pd.read_table(StringIO(
-            runner.invoke(dump, [f_in, '-H', '-r', 'chr2', '-r2', 'chr1']).output))
-        lower2 = pd.read_table(StringIO(
-            runner.invoke(dump, [f_in, '-m', '-H', '-r', 'chr2', '-r2', 'chr1']).output))
+        lower1 = pd.read_csv(StringIO(
+            runner.invoke(dump, [f_in, '-H', '-r', 'chr2', '-r2', 'chr1']).output), sep='\t')
+        lower2 = pd.read_csv(StringIO(
+            runner.invoke(dump, [f_in, '-m', '-H', '-r', 'chr2', '-r2', 'chr1']).output), sep='\t')
         assert np.allclose(lower1, lower2)
 
 
