@@ -2,6 +2,7 @@
 from __future__ import absolute_import, print_function, division
 from datetime import datetime
 from six.moves import map
+from pandas.api.types import is_categorical, is_integer
 import pandas as pd
 import numpy as np
 import posixpath
@@ -13,7 +14,7 @@ import six
 
 from .._version import __version__, __format_version__
 from .._logging import get_logger
-from ..core import put
+from ..core import put, get
 from ..util import (
     parse_cooler_uri,
     get_chromsizes,
@@ -317,7 +318,7 @@ def write_info(grp, info):
 
 
 def _rename_chroms(grp, rename_dict, h5opts):
-    chroms = cooler.core.get(grp['chroms']).set_index('name')
+    chroms = get(grp['chroms']).set_index('name')
     n_chroms = len(chroms)
     new_names = np.array(chroms.rename(rename_dict).index.values,
                          dtype=CHROM_DTYPE)  # auto-adjusts char length
@@ -329,7 +330,7 @@ def _rename_chroms(grp, rename_dict, h5opts):
                        data=new_names,
                        **h5opts)
 
-    bins = cooler.core.get(grp['bins'])
+    bins = get(grp['bins'])
     n_bins = len(bins)
     idmap = dict(zip(new_names, range(n_chroms)))
     if is_categorical(bins['chrom']) or is_integer(bins['chrom']):

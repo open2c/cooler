@@ -9,6 +9,7 @@ import numpy as np
 import pandas
 import h5py
 
+from _common import isolated_filesystem
 import cooler.create
 import cooler
 import pytest
@@ -109,3 +110,15 @@ def test_roundtrip(f_hm, f_cool):
         os.remove(f_cool)
     except OSError:
         pass
+
+
+def test_rename_chroms():
+    from shutil import copyfile
+
+    with isolated_filesystem() as fs:
+        copyfile(op.join(testdir, 'data', 'toy.asymm.4.cool'), 'toy.asymm.4.cool')
+        clr = cooler.Cooler('toy.asymm.4.cool')
+        assert clr.chromnames == ['chr1', 'chr2']
+        cooler.rename_chroms(clr, {'chr1': '1', 'chr2': '2'})
+        clr = cooler.Cooler('toy.asymm.4.cool')
+        assert clr.chromnames == ['1', '2']
