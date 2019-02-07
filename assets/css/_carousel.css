@@ -1,0 +1,22 @@
+.carousel-container {
+  text-align: center;
+  max-height: 14em;
+}
+
+.carousel-text {
+  font-size: 2em;
+}
+
+.carousel-img-wrap {
+  display: inline-block;
+}
+
+.carousel-img-wrap > img {
+  display: block;
+  position: relative;
+  height: 8em;
+}
+
+.slick-prev {
+  color: black !important;
+}

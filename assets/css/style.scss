@@ -1,0 +1,76 @@
+---
+---
+
+@import "jekyll-theme-minimal";
+@import "_carousel.css";
+@import "_custom.css";
+
+$higlass-logo-size: 8em;
+$white: #fff;
+$black: #000;
+$blue: #0f5d92;
+$primary: $blue;
+$easing: cubic-bezier(0.25, 0.1, 0.25, 1);
+$ease-in-cubic: cubic-bezier(0.55, 0.055, 0.675, 0.19);
+$ease-out-cubic: cubic-bezier(0.215, 0.61, 0.355, 1);
+$ease-in-out-cubic: cubic-bezier(0.3, 0.1, 0.6, 1);
+$ease-in-out-quadric: cubic-bezier(0.2, 0.1, 0.2, 1);
+$fast-transition: 0.15s;
+$normal-transition: 0.2s;
+$medium-transition: 0.3s;
+$slow-transition: 0.6s;
+
+.higlass-logo {
+    // height: 8em;
+    // position: relative;
+    // margin-right: 0.5rem;
+    // font-weight: bold;
+    // color: $black;
+    // box-shadow: none;
+    // font-size: 1.375rem; // 22 / 16
+    .icon {
+      width: 2rem;
+      height: 2rem;
+      margin-right: 0.25em;
+      svg {
+        height: $higlass-logo-size;
+        width: auto;
+        transition: color $slow-transition $easing;
+        .lense,
+        .inception {
+          transform-origin: 47% 47%;
+        }
+        .lense {
+          fill: currentColor;
+          transition: transform $slow-transition $easing;
+        }
+        .inception {
+          opacity: 0;
+          fill: white;
+          transform: scale(.166666667);
+          transition: transform $slow-transition $easing 0s,
+                      opacity $slow-transition $easing $fast-transition;
+        }
+      }
+    }
+    &.is-active {
+      box-shadow: 0 2px 0 0 $primary;
+    }
+    &:hover,
+    &:active,
+    &:focus,
+    &.is-active {
+      svg {
+        color: $primary;
+
+        .lense {
+          transform: scale(6);
+        }
+
+        .inception {
+          opacity: 1;
+          transform: scale(1);
+        }
+      }
+    }
+}
