@@ -20,21 +20,20 @@
     
     <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.6.3/css/solid.css" integrity="sha384-+0VIRx+yz1WBcCTXBkVQYIBVNEFH1eP6Zknm16roZCyeNg2maWEpk/l/KsyFKs7G" crossorigin="anonymous">
     <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.6.3/css/fontawesome.css" integrity="sha384-jLuaxTTBR42U2qJ/pm4JRouHkEDHkVqH0T1nyQXn1mZ7Snycpf6Rl25VBNthU4z0" crossorigin="anonymous">
+    <!-- Add the slick-theme.css if you want default styling -->
+    <link rel="stylesheet" type="text/css" href="//cdn.jsdelivr.net/gh/kenwheeler/slick/slick/slick.css"/>
+    <link rel="stylesheet" type="text/css" href="//cdn.jsdelivr.net/gh/kenwheeler/slick/slick/slick-theme.css"/>
     <link rel="stylesheet" href="assets/css/style.css?v=">
+    
     <!--[if lt IE 9]>
     <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv.min.js"></script>
     <![endif]-->
-
-  <!-- Add the slick-theme.css if you want default styling -->
-  <link rel="stylesheet" type="text/css" href="//cdn.jsdelivr.net/gh/kenwheeler/slick/slick/slick.css"/>
-  <link rel="stylesheet" type="text/css" href="//cdn.jsdelivr.net/gh/kenwheeler/slick/slick/slick-theme.css"/>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
 
   </head>
   <body>
     <div class="wrapper">
       <header>
-        
         
           <a href="/cooler"><img src="assets/img/cooler_logo6.png" alt="cooler-logo" /></a>
         
@@ -48,22 +47,31 @@
         
         <div class="downloads-container">
         <ul class="downloads">
+          <li><a href="https://github.com/mirnylab/cooler">View On <strong>GitHub</strong></a></li>
           <li><a href="https://github.com/mirnylab/cooler/archive/v0.8.2.zip">Download <strong>ZIP File</strong></a></li>
           <li><a href="https://github.com/mirnylab/cooler/archive/v0.8.2.tar.gz">Download <strong>TAR Ball</strong></a></li>
-          <li><a href="https://github.com/mirnylab/cooler">View On <strong>GitHub</strong></a></li>
         </ul>
         </div>
         
 
         <div class="badges-container">
         <ul class="badges">
+          <li><a href="https://pypi.org/project/cooler/"><img src="https://img.shields.io/pypi/v/cooler.svg?style=flat" alt="PyPI version"></a>
+
+              <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>pip <span class="nb">install </span>cooler</code></pre></div></div>
+
+          </li>
+          <li><a href="http://bioconda.github.io/recipes/cooler/README.html"><img src="https://img.shields.io/badge/install%20with-bioconda-brightgreen.svg?style=flat" alt="Install with bioconda"></a>
+
+              <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight">
+<code>conda <span class="nb">install</span> <span class="nt">-c</span> conda-forge <span class="nt">-c</span> bioconda cooler</code></pre></div></div>
+          </li>
           <li><img src="https://img.shields.io/pypi/l/cooler.svg?style=flat" alt="License"></li>
-          <li><a href="https://pypi.org/project/cooler/"><img src="https://img.shields.io/pypi/v/cooler.svg?style=flat" alt="PyPI version"></a></li>
-          <li><a href="http://bioconda.github.io/recipes/cooler/README.html"><img src="https://img.shields.io/badge/install%20with-bioconda-brightgreen.svg?style=flat" alt="Install with bioconda"></a></li>
+          <li><img src="https://img.shields.io/readthedocs/cooler/latest.svg?style=flat" alt="Documentation"></li>
         </ul>
         </div>
 
-        <div class="carousel-container">
+        <!-- <div class="carousel-container">
         <div class="carousel">
           <div class="carousel-item">
             <p class="carousel-text">ingest</p>
@@ -98,29 +106,52 @@
             </a>
           </div>
         </div>
-      </div>
+      </div> -->
+
+
+
+
+
 
       </header>
-      <section>
 
+      <section>
       <p><em>Cooler</em> is a support library for a storage format, also called cooler, used to store genomic interaction data of any size, such as <a href="https://en.wikipedia.org/wiki/Chromosome_conformation_capture">Hi-C</a> contact matrices.</p>
 
 <div>
   <img src="assets/img/higlass-with-zoom-world.gif" />
 </div>
 
-<p>Why cooler?</p>
-<ul>
-  <li>Simple, sparse martix <a href="https://cooler.readthedocs.io/en/latest/datamodel.html">data model</a></li>
-  <li>Fast, portable and efficient storage, powered by <a href="https://www.hdfgroup.org/solutions/hdf5/">HDF5</a>.</li>
-  <li>Intuitive command line interface, powered by <a href="https://click.palletsprojects.com/en/7.x/">Click</a>.</li>
-  <li>Flexible Python API, powered by <a href="http://www.numpy.org/">NumPy</a>, <a href="https://pandas.pydata.org/">Pandas</a> and <a href="http://docs.h5py.org/en/stable/">h5py</a>.</li>
-  <li>Multiscale visualization, powered by <a href="https://higlass.io">HiGlass</a>.</li>
-</ul>
+<!-- 
+Why cooler?
+* Simple, sparse martix [data model](https://cooler.readthedocs.io/en/latest/datamodel.html)
+* Fast, portable and efficient storage, powered by [HDF5](https://www.hdfgroup.org/solutions/hdf5/).
+* Intuitive command line interface, powered by [Click](https://click.palletsprojects.com/en/7.x/).
+* Flexible Python API, powered by [NumPy](http://www.numpy.org/), [Pandas](https://pandas.pydata.org/) and [h5py](http://docs.h5py.org/en/stable/).
+* Multiscale visualization, powered by [HiGlass](https://higlass.io).
+ -->
 
-
+<div class="grid-container">
+  <div class="bullet"><span class="bullet-icon"><i class="fa fa-5x fa-table"></i></span></div>
+  <p class="bullet-text">Simple, sparse matrix <a href="https://cooler.readthedocs.io/en/latest/datamodel.html">data model</a></p>
+  <div class="bullet"><span class="bullet-icon"><i class="fa fa-5x fa-database"></i></span></div>
+  <p class="bullet-text">Fast, portable and efficient storage, powered by <a href="https://www.hdfgroup.org/solutions/hdf5/">HDF5</a></p>
+  <div class="bullet"><span class="bullet-icon"><i class="fa fa-5x fa-terminal"></i></span></div>
+  <p class="bullet-text">Extensive command line interface, powered by <a href="https://click.palletsprojects.com/">Click</a></p>
+  <div class="bullet"><span class="bullet-icon"><i class="fa fa-5x fa-laptop-code"></i></span></div>
+  <p class="bullet-text">Flexible Python API, powered by <a href="http://www.numpy.org/">NumPy</a>, <a href="https://pandas.pydata.org/">Pandas</a> and <a href="http://docs.h5py.org/en/stable/">h5py</a></p>
+<!--   <div class="bullet"><span class="bullet-icon"><i class="fa fa-5x fa-eye"></i></span></div>
+  <p class="bullet-text">Multiscale visualization, powered by <a href="https://higlass.io">HiGlass</a></p> -->
+  <div class="bullet">
+      <a class="higlass-logo" href="https://higlass.io">
+      <span class="icon"><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" class="full-dim" viewBox="0 0 32 32" fill-rule="evenodd"><defs><clipPath id="a"><circle cx="15" cy="15" r="11"></circle></clipPath><g id="b"><path fill-opacity=".25" d="M18 8h4v4h-4z"></path><path fill-opacity=".5" d="M13 8h4v4h-4z"></path><path fill-opacity=".7" d="M8 8h4v4H8z"></path><path fill-opacity=".125" d="M18 3h4v4h-4z"></path><path fill-opacity=".25" d="M13 3h4v4h-4z"></path><path fill-opacity=".5" d="M8 3h4v4H8zM18 23h4v4h-4z"></path><path fill-opacity=".25" d="M13 23h4v4h-4z"></path><path fill-opacity=".125" d="M8 23h4v4H8z"></path><path fill-opacity=".5" d="M18 13h4v4h-4z"></path><path fill-opacity=".85" d="M13 13h4v4h-4z"></path><path fill-opacity=".5" d="M8 13h4v4H8z"></path><path fill-opacity=".7" d="M18 18h4v4h-4z"></path><path fill-opacity=".125" d="M23 8h4v4h-4z"></path><path fill-opacity=".25" d="M23 13h4v4h-4z"></path><path fill-opacity=".5" d="M23 18h4v4h-4zM3 8h4v4H3z"></path><path fill-opacity=".25" d="M3 13h4v4H3z"></path><path fill-opacity=".125" d="M3 18h4v4H3z"></path><path fill-opacity=".5" d="M13 18h4v4h-4z"></path><path fill-opacity=".25" d="M8 18h4v4H8z"></path></g><g id="c"><path fill-opacity=".75" d="M18 8h4v4h-4z"></path><path fill-opacity=".5" d="M13 8h4v4h-4z"></path><path fill-opacity=".3" d="M8 8h4v4H8z"></path><path fill-opacity=".875" d="M18 3h4v4h-4z"></path><path fill-opacity=".75" d="M13 3h4v4h-4z"></path><path fill-opacity=".5" d="M8 3h4v4H8zM18 23h4v4h-4z"></path><path fill-opacity=".75" d="M13 23h4v4h-4z"></path><path fill-opacity=".875" d="M8 23h4v4H8z"></path><path fill-opacity=".5" d="M18 13h4v4h-4z"></path><path fill-opacity=".5" d="M13 13h4v4h-4z"></path><path fill-opacity=".5" d="M8 13h4v4H8z"></path><path fill-opacity=".3" d="M18 18h4v4h-4z"></path><path fill-opacity=".875" d="M23 8h4v4h-4z"></path><path fill-opacity=".75" d="M23 13h4v4h-4z"></path><path fill-opacity=".5" d="M23 18h4v4h-4zM3 8h4v4H3z"></path><path fill-opacity=".75" d="M3 13h4v4H3z"></path><path fill-opacity=".875" d="M3 18h4v4H3z"></path><path fill-opacity=".5" d="M13 18h4v4h-4z"></path><path fill-opacity=".75" d="M8 18h4v4H8z"></path></g></defs><path d="M23.415 27.415C21.015 29.047 18.118 30 15 30 6.72 30 0 23.28 0 15 0 6.72 6.72 0 15 0c8.28 0 15 6.72 15 15 0 3.118-.953 6.015-2.585 8.415L32 28l-4 4-4.585-4.585zM15 3c6.623 0 12 5.377 12 12s-5.377 12-12 12S3 21.623 3 15 8.377 3 15 3z"></path><g clip-path="url(#a)"><use xlink:href="#b" class="lense"></use><use xlink:href="#c" class="inception"></use></g></svg></span>
+      </a>
+  </div>
+  <p class="bullet-text">Multiscale visualization, powered by <a href="https://higlass.io">HiGlass</a></p>
+</div>
 
       </section>
+
       <footer>
         
         <p><small>Theme based on <i>minimal</i> by <a href="https://github.com/orderedlist">orderedlist</a>. 
