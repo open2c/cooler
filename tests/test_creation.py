@@ -132,7 +132,7 @@ def test_create_custom_cols():
             'bin2_id': [1, 1, 3, 4, 5, 6, 7, 8, 9],
             'foo':     [1, 1, 1, 1, 1, 2, 2, 2, 2],
             'bar':     [.1, .2, .3, .4, .5, .6, .7, .8, .9],
-        })
+        }, columns=['bin1_id', 'bin2_id', 'foo', 'bar'])
         bins = pd.DataFrame({
             'chrom': ['chr1']*5 + ['chr2']*5,
             'start': list(range(5))*2,
