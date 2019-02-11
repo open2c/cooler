@@ -326,6 +326,8 @@ Quick reference
 
     cooler [OPTIONS] COMMAND [ARGS]...
 
+See the cooler_cli.ipynb Jupyter Notebook for specific examples on usage: (https://github.com/mirnylab/cooler-binder).
+
 .. rubric:: Commands
 
 +------------------------+
