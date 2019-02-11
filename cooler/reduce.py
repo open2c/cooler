@@ -399,7 +399,7 @@ class CoolerCoarsener(ContactBinner):
         self.batchsize = batchsize
 
         self.index_columns = ['bin1_id', 'bin2_id']
-        self.value_columns = columns
+        self.value_columns = list(columns)
         self.columns = self.index_columns + self.value_columns
         self.agg = {col: 'sum' for col in self.value_columns}
         if agg is not None:
@@ -628,7 +628,7 @@ def zoomify_cooler(base_uris, outfile, resolutions, chunksize, nproc=1,
         i.e. no process pool.
     columns : list of str, optional
         Specify which pixel value columns to include in the aggregation.
-        Default is to use all available value columns.
+        Default is to use only the column named 'count' if it exists.
     dtypes : dict, optional
         Specific dtypes to use for value columns. Default is to propagate
         the current dtypes of the value columns.
@@ -671,13 +671,27 @@ def zoomify_cooler(base_uris, outfile, resolutions, chunksize, nproc=1,
         "Copying base matrices and producing {} new zoom levels.".format(n_zooms)
     )
 
+    if columns is None:
+        columns = ['count']
+
     # Copy base matrix
     for base_binsize in base_resolutions:
         logger.info("Bin size: " + str(base_binsize))
         infile, ingroup = parsed_uris[base_binsize]
         with h5py.File(infile, 'r') as src, \
-            h5py.File(outfile, 'w') as dest:
-            src.copy(ingroup, dest, '/resolutions/{}'.format(base_binsize))
+             h5py.File(outfile, 'w') as dest:
+            prefix = '/resolutions/{}'.format(base_binsize)
+
+            src.copy(ingroup + '/chroms',
+                     dest, prefix + '/chroms')
+            src.copy(ingroup + '/bins',
+                     dest, prefix + '/bins')
+            for col in ['bin1_id', 'bin2_id'] + list(columns):
+                src.copy(ingroup + '/pixels/{}'.format(col),
+                         dest, prefix + '/pixels/{}'.format(col))
+            src.copy(ingroup + '/indexes',
+                     dest, prefix + '/indexes')
+            dest[prefix].attrs.update(src[ingroup].attrs)
 
     # Aggregate
     # Use lock to sync read/write ops on same file

@@ -162,13 +162,20 @@ def prepare_pixels(grp, n_bins, max_size, columns, dtypes, h5opts):
                        shape=(init_size,),
                        maxshape=(max_size,),
                        **h5opts)
-    grp.create_dataset('count',
-                       dtype=dtypes.get('count', COUNT_DTYPE),
-                       shape=(init_size,),
-                       maxshape=(max_size,),
-                       **h5opts)
+
+    if 'count'in columns:
+        grp.create_dataset('count',
+                           dtype=dtypes.get('count', COUNT_DTYPE),
+                           shape=(init_size,),
+                           maxshape=(max_size,),
+                           **h5opts)
+
     for col in ['bin1_id', 'bin2_id', 'count']:
-        columns.remove(col)
+        try:
+            columns.remove(col)
+        except ValueError:
+            pass
+
     if columns:
         for col in columns:
             grp.create_dataset(col,
@@ -222,7 +229,8 @@ def write_pixels(filepath, grouppath, columns, iterable, h5opts, lock):
                     dset.resize((nnz + n,))
                     dset[nnz:nnz+n] = chunk[col]
                 nnz += n
-                total += chunk['count'].sum()
+                if 'count' in chunk:
+                    total += chunk['count'].sum()
 
                 fw.flush()
 
@@ -448,7 +456,7 @@ def create(cool_uri, bins, pixels, columns=None, dtypes=None, metadata=None,
         columns = ['bin1_id', 'bin2_id', 'count']
     else:
         columns = list(columns)
-        for col in ['bin1_id', 'bin2_id', 'count']:
+        for col in ['bin1_id', 'bin2_id']:  # don't include count!
             if col not in columns:
                 columns.insert(0, col)
 
@@ -804,26 +812,26 @@ def create_cooler(cool_uri, bins, pixels, columns=None, dtypes=None,
         of chunks. If the input is a dask DataFrame, it will also be processed
         one chunk at a time.
     columns : sequence of str, optional
-        Specify here the names of any additional value columns from the input
-        to store in the cooler. The standard columns (``bin1_id``, ``bin2_id``,
-        ``count``) can be provided, but are already assumed and do not need to
-        be given explicitly. Additional value columns will be given dtype
-        float64 unless specified using ``dtypes``.
+        Customize which value columns from the input pixels to store in the
+        cooler. Non-standard value columns will be given dtype ``float64``
+        unless overriden using the ``dtypes`` argument. If ``None``, we only
+        attempt to store a value column named ``"count"``.
     dtypes : dict, optional
-        Dictionary mapping column names in the pixel table to dtypes. Can be
-        used to override the default dtypes of ``bin1_id``, ``bin2_id`` or
-        ``count`` or assign dtypes to other value columns. Any additional
-        value columns not also provided in the ``columns`` argument will be
-        ignored.
+        Dictionary mapping column names to dtypes. Can be used to override the
+        default dtypes of ``bin1_id``, ``bin2_id`` or ``count`` or assign
+        dtypes to custom value columns. Non-standard value columns given in
+        ``dtypes`` must also be provided in the ``columns`` argument or they
+        will be ignored.
     metadata : dict, optional
         Experiment metadata to store in the file. Must be JSON compatible.
     assembly : str, optional
         Name of genome assembly.
     ordered : bool, optional [default: False]
-        If the input chunks of pixels are sorted and ordered
-        lexicographically, set this to True to create the cooler in one step.
-        Otherwise, we create the cooler in two steps using an external sort
-        mechanism. Default is False (i.e., two-step). See Notes.
+        If the input chunks of pixels are provided with correct triangularity
+        and in ascending order of (``bin1_id``, ``bin2_id``), set this to
+        ``True`` to write the cooler in one step.
+        If ``False`` (default), we create the cooler in two steps using an
+        external sort mechanism. See Notes for more details.
     symmetric_upper : bool, optional [default: True]
         If True, sets the file's storage-mode property to ``symmetric-upper``:
         use this only if the input data references the upper triangle of a
@@ -847,16 +855,21 @@ def create_cooler(cool_uri, bins, pixels, columns=None, dtypes=None,
     max_merge : int, optional
         If merging more than ``max_merge`` chunks, do the merge recursively in
         two passes.
-    boundscheck : bool, optional
-    dupcheck : bool, optional
-    triucheck : bool, optional
-    ensure_sorted : bool, optional
     h5opts : dict, optional
         HDF5 dataset filter options to use (compression, shuffling,
         checksumming, etc.). Default is to use autochunking and GZIP
         compression, level 6.
     lock : multiprocessing.Lock, optional
         Optional lock to control concurrent access to the output file.
+    ensure_sorted : bool, optional
+        Ensure that each input chunk is properly sorted.
+    boundscheck : bool, optional
+        Input validation: Check that all bin IDs lie in the expected range.
+    dupcheck : bool, optional
+        Input validation: Check that no duplicate pixels exist within any chunk.
+    triucheck : bool, optional
+        Input validation: Check that ``bin1_id`` <= ``bin2_id`` when creating
+        coolers in symmetric-upper mode.
 
     See also
     --------
@@ -865,8 +878,9 @@ def create_cooler(cool_uri, bins, pixels, columns=None, dtypes=None,
 
     Notes
     -----
-    If the pixel chunks are ordered and sorted lexicographically, then the
-    cooler can be created in a single step by setting ``ordered=True``.
+    If the pixel chunks are provided in the correct order required for the
+    output to be properly sorted, then the cooler can be created in a single
+    step by setting ``ordered=True``.
 
     If not, the cooler is created in two steps via an external sort mechanism.
     In the first pass, the sequence of pixel chunks are processed and sorted in

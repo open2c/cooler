@@ -59,7 +59,7 @@ from .. import api
     "--field",
     help="Specify the names of value columns to merge as '<name>'. "
          "Repeat the `--field` option for each one. "
-         "Use '<name>,dtype=<dtype>' to specify the dtype. Include "
+         "Use '<name>:dtype=<dtype>' to specify the dtype. Include "
          "',agg=<agg>' to specify an aggregation function different from 'sum'.",
     type=str,
     multiple=True)
@@ -126,6 +126,7 @@ def zoomify(cool_uri, nproc, chunksize, resolutions, balance, balance_args,
                 parse_field_param(arg, includes_colnum=False) for arg in field
             ]
             columns, _, dtypes, agg = zip(*field_specifiers)
+            columns = list(columns)
             dtypes = {col: dt for col, dt in zip(columns, dtypes) if dt is not None}
             agg = {col: f for col, f in zip(columns, agg) if f is not None}
         else:

@@ -6,7 +6,7 @@ import tempfile
 import os.path as op
 import os
 import numpy as np
-import pandas
+import pandas as pd
 import h5py
 
 from _common import isolated_filesystem
@@ -122,3 +122,35 @@ def test_rename_chroms():
         cooler.rename_chroms(clr, {'chr1': '1', 'chr2': '2'})
         clr = cooler.Cooler('toy.asymm.4.cool')
         assert clr.chromnames == ['1', '2']
+
+
+def test_create_custom_cols():
+
+    with isolated_filesystem() as fs:
+        df = pd.DataFrame({
+            'bin1_id': [0, 1, 1, 1, 2, 2, 3, 4, 5],
+            'bin2_id': [1, 1, 3, 4, 5, 6, 7, 8, 9],
+            'foo':     [1, 1, 1, 1, 1, 2, 2, 2, 2],
+            'bar':     [.1, .2, .3, .4, .5, .6, .7, .8, .9],
+        })
+        bins = pd.DataFrame({
+            'chrom': ['chr1']*5 + ['chr2']*5,
+            'start': list(range(5))*2,
+            'end': list(range(1,6))*2,
+        })
+        # works in unordered mode
+        cooler.create_cooler('test.cool', bins, df, columns=['foo', 'bar'])
+        clr = cooler.Cooler('test.cool')
+        assert len(clr.pixels().columns) == 4
+        assert np.allclose(df, clr.pixels()[['bin1_id', 'bin2_id', 'foo', 'bar']][:])
+
+        # works in ordered mode
+        cooler.create_cooler('test.cool', bins, df, columns=['foo', 'bar'], ordered=True)
+        clr = cooler.Cooler('test.cool')
+        assert len(clr.pixels().columns) == 4
+        assert np.allclose(df, clr.pixels()[['bin1_id', 'bin2_id', 'foo', 'bar']][:])
+
+        # raises if no custom columns specified and 'count' does not exist
+        with pytest.raises(ValueError):
+            cooler.create_cooler('test.cool', bins, df, columns=None, ordered=True)
+

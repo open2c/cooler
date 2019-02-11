@@ -454,7 +454,7 @@ def pixels(h5, lo=0, hi=None, fields=None, join=True, **kwargs):
 
     """
     if fields is None:
-        fields = (pd.Index(['bin1_id', 'bin2_id', 'count'])
+        fields = (pd.Index(['bin1_id', 'bin2_id'])
                         .append(pd.Index(h5['pixels'].keys()))
                         .drop_duplicates())
 
