@@ -1,5 +1,3 @@
-@import url(_carousel.css);
-@import url(_custom.css);
 @font-face {
   font-family: 'Noto Sans';
   font-weight: 400;
@@ -422,12 +420,7 @@ footer {
   .downloads {
     position: absolute;
     right: 50px;
-    top: 52px; }
-
-  .badges {
-    position: absolute;
-    right: 190px;
-    top: 104px; } }
+    top: 52px; } }
 @media print, screen and (max-width: 720px) {
   body {
     word-wrap: break-word; }
@@ -457,25 +450,21 @@ footer {
     padding: 0.4in;
     font-size: 12pt;
     color: #444; } }
-.higlass-logo .icon {
-  width: 2rem;
-  height: 2rem;
-  margin-right: 0.25em; }
-  .higlass-logo .icon svg {
-    height: 8em;
-    width: auto;
-    transition: color 0.6s cubic-bezier(0.25, 0.1, 0.25, 1); }
-    .higlass-logo .icon svg .lense,
-    .higlass-logo .icon svg .inception {
-      transform-origin: 47% 47%; }
-    .higlass-logo .icon svg .lense {
-      fill: currentColor;
-      transition: transform 0.6s cubic-bezier(0.25, 0.1, 0.25, 1); }
-    .higlass-logo .icon svg .inception {
-      opacity: 0;
-      fill: white;
-      transform: scale(0.166666667);
-      transition: transform 0.6s cubic-bezier(0.25, 0.1, 0.25, 1) 0s, opacity 0.6s cubic-bezier(0.25, 0.1, 0.25, 1) 0.15s; }
+.higlass-logo svg {
+  height: 6em;
+  width: auto;
+  transition: color 0.6s cubic-bezier(0.25, 0.1, 0.25, 1); }
+  .higlass-logo svg .lense,
+  .higlass-logo svg .inception {
+    transform-origin: 47% 47%; }
+  .higlass-logo svg .lense {
+    fill: currentColor;
+    transition: transform 0.6s cubic-bezier(0.25, 0.1, 0.25, 1); }
+  .higlass-logo svg .inception {
+    opacity: 0;
+    fill: white;
+    transform: scale(0.166666667);
+    transition: transform 0.6s cubic-bezier(0.25, 0.1, 0.25, 1) 0s, opacity 0.6s cubic-bezier(0.25, 0.1, 0.25, 1) 0.15s; }
 .higlass-logo.is-active {
   box-shadow: 0 2px 0 0 #0f5d92; }
 .higlass-logo:hover svg, .higlass-logo:active svg, .higlass-logo:focus svg, .higlass-logo.is-active svg {
@@ -485,3 +474,26 @@ footer {
   .higlass-logo:hover svg .inception, .higlass-logo:active svg .inception, .higlass-logo:focus svg .inception, .higlass-logo.is-active svg .inception {
     opacity: 1;
     transform: scale(1); }
+
+.badges {
+  list-style: none;
+  padding-left: 0;
+  margin-left: 0; }
+
+.grid-container {
+  display: grid;
+  grid-template-columns: 100%;
+  vertical-align: middle;
+  text-align: center;
+  margin-left: 20px;
+  margin-right: 20px;
+  margin-top: 30px; }
+
+.bullet {
+  padding: 10px; }
+
+.bullet-item {
+  padding: 5px; }
+
+.zoom-world {
+  padding: 10px; }

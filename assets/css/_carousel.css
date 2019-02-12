@@ -20,3 +20,72 @@
 .slick-prev {
   color: black !important;
 }
+
+/*<div class="carousel-container">
+<div class="carousel">
+  <div class="carousel-item">
+    <p class="carousel-text">ingest</p>
+    <span class="carousel-img-wrap"><img src="assets/img/icon-1-ingest.png"></span>
+  </div>
+  <div class="carousel-item">
+    <p class="carousel-text">aggregate</p>
+    <span class="carousel-img-wrap"><img src="assets/img/icon-2-agg.png"></span>
+  </div>
+  <div class="carousel-item">
+    <p class="carousel-text">merge</p>
+    <span class="carousel-img-wrap"><img src="assets/img/icon-3-merge.png"></span>
+  </div>
+  <div class="carousel-item">
+    <p class="carousel-text">normalize</p>
+    <span class="carousel-img-wrap"><img src="assets/img/icon-4-norm.png"></span>
+  </div>
+  <div class="carousel-item">
+    <p class="carousel-text">view</p>
+    <span class="carousel-img-wrap"><img src="assets/img/icon-5-view.png"></span>
+  </div>
+  <div class="carousel-item">
+    <p class="carousel-text">interact</p>
+    <span class="carousel-img-wrap"><img src="assets/img/icon-6-interact.png"></span>
+  </div>
+  <div>
+    <p class="carousel-text">explore</p>
+    <a class="higlass-logo" href="https://higlass.io">
+    <span class="icon">
+    <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" class="full-dim" viewBox="0 0 32 32" fill-rule="evenodd"><defs><clipPath id="a"><circle cx="15" cy="15" r="11"></circle></clipPath><g id="b"><path fill-opacity=".25" d="M18 8h4v4h-4z"></path><path fill-opacity=".5" d="M13 8h4v4h-4z"></path><path fill-opacity=".7" d="M8 8h4v4H8z"></path><path fill-opacity=".125" d="M18 3h4v4h-4z"></path><path fill-opacity=".25" d="M13 3h4v4h-4z"></path><path fill-opacity=".5" d="M8 3h4v4H8zM18 23h4v4h-4z"></path><path fill-opacity=".25" d="M13 23h4v4h-4z"></path><path fill-opacity=".125" d="M8 23h4v4H8z"></path><path fill-opacity=".5" d="M18 13h4v4h-4z"></path><path fill-opacity=".85" d="M13 13h4v4h-4z"></path><path fill-opacity=".5" d="M8 13h4v4H8z"></path><path fill-opacity=".7" d="M18 18h4v4h-4z"></path><path fill-opacity=".125" d="M23 8h4v4h-4z"></path><path fill-opacity=".25" d="M23 13h4v4h-4z"></path><path fill-opacity=".5" d="M23 18h4v4h-4zM3 8h4v4H3z"></path><path fill-opacity=".25" d="M3 13h4v4H3z"></path><path fill-opacity=".125" d="M3 18h4v4H3z"></path><path fill-opacity=".5" d="M13 18h4v4h-4z"></path><path fill-opacity=".25" d="M8 18h4v4H8z"></path></g><g id="c"><path fill-opacity=".75" d="M18 8h4v4h-4z"></path><path fill-opacity=".5" d="M13 8h4v4h-4z"></path><path fill-opacity=".3" d="M8 8h4v4H8z"></path><path fill-opacity=".875" d="M18 3h4v4h-4z"></path><path fill-opacity=".75" d="M13 3h4v4h-4z"></path><path fill-opacity=".5" d="M8 3h4v4H8zM18 23h4v4h-4z"></path><path fill-opacity=".75" d="M13 23h4v4h-4z"></path><path fill-opacity=".875" d="M8 23h4v4H8z"></path><path fill-opacity=".5" d="M18 13h4v4h-4z"></path><path fill-opacity=".5" d="M13 13h4v4h-4z"></path><path fill-opacity=".5" d="M8 13h4v4H8z"></path><path fill-opacity=".3" d="M18 18h4v4h-4z"></path><path fill-opacity=".875" d="M23 8h4v4h-4z"></path><path fill-opacity=".75" d="M23 13h4v4h-4z"></path><path fill-opacity=".5" d="M23 18h4v4h-4zM3 8h4v4H3z"></path><path fill-opacity=".75" d="M3 13h4v4H3z"></path><path fill-opacity=".875" d="M3 18h4v4H3z"></path><path fill-opacity=".5" d="M13 18h4v4h-4z"></path><path fill-opacity=".75" d="M8 18h4v4H8z"></path></g></defs><path d="M23.415 27.415C21.015 29.047 18.118 30 15 30 6.72 30 0 23.28 0 15 0 6.72 6.72 0 15 0c8.28 0 15 6.72 15 15 0 3.118-.953 6.015-2.585 8.415L32 28l-4 4-4.585-4.585zM15 3c6.623 0 12 5.377 12 12s-5.377 12-12 12S3 21.623 3 15 8.377 3 15 3z"></path><g clip-path="url(#a)"><use xlink:href="#b" class="lense"></use><use xlink:href="#c" class="inception"></use></g></svg>
+    </span>
+    </a>
+  </div>
+</div>
+</div>
+*/
+
+/*<!-- Add the slick-theme.css if you want default styling -->
+<link rel="stylesheet" type="text/css" href="//cdn.jsdelivr.net/gh/kenwheeler/slick/slick/slick.css"/>
+<link rel="stylesheet" type="text/css" href="//cdn.jsdelivr.net/gh/kenwheeler/slick/slick/slick-theme.css"/>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+<script type="text/javascript" src="//cdn.jsdelivr.net/gh/kenwheeler/slick/slick/slick.min.js"></script>
+<script>
+  $(document).ready(function(){
+    $('.carousel').slick({
+        // dots: true,
+        infinite: true,
+        speed: 300,
+        slidesToShow: 1,
+        //slidesToScroll: 4,
+        autoplay: true,
+        autoplaySpeed: 2000,
+      });
+  });
+</script>
+*/
+
+
+
+/*Why cooler?
+* Simple, sparse martix [data model](https://cooler.readthedocs.io/en/latest/datamodel.html)
+* Fast, portable and efficient storage, powered by [HDF5](https://www.hdfgroup.org/solutions/hdf5/).
+* Intuitive command line interface, powered by [Click](https://click.palletsprojects.com/en/7.x/).
+* Flexible Python API, powered by [NumPy](http://www.numpy.org/), [Pandas](https://pandas.pydata.org/) and [h5py](http://docs.h5py.org/en/stable/).
+* Multiscale visualization, powered by [HiGlass](https://higlass.io).
+*/
