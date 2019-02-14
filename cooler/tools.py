@@ -6,6 +6,7 @@ Experimental API for developing split-apply-combine style algorithms on coolers.
 from __future__ import division, print_function
 from functools import partial, reduce
 from multiprocess import Pool, Lock
+from threading import Semaphore
 
 import numpy as np
 import pandas
@@ -46,7 +47,9 @@ See also:
 lock = Lock()
 
 
-def apply_pipeline(funcs, prepare, get, key):
+def apply_pipeline(funcs, prepare, get, semaphore, key):
+
+    semaphore.acquire()
     chunk = get(key)
     if prepare is not None:
         data = prepare(chunk)
@@ -56,6 +59,8 @@ def apply_pipeline(funcs, prepare, get, key):
         data = chunk
         for func in funcs:
             data = func(data)
+    semaphore.release()
+
     return data
 
 
@@ -134,6 +139,7 @@ class MultiplexDataPipe(object):
         self.map = map
         self.funcs = []
         self._prepare = None
+        self._semaphore = Semaphore(10)
 
     def __copy__(self):
         other = self.__class__(self.get, self.keys, self.map)
@@ -206,7 +212,7 @@ class MultiplexDataPipe(object):
         Output depends on map implementation.
 
         """
-        pipeline = partial(apply_pipeline, self.funcs, self._prepare, self.get)
+        pipeline = partial(apply_pipeline, self.funcs, self._prepare, self.get, self._semaphore)
         return self.map(pipeline, self.keys)
 
     def gather(self, combine=list, *args, **kwargs):
