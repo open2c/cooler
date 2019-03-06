@@ -136,3 +136,8 @@ $ pip install -e .
 ### License
 
 BSD (New)
+
+
+### Citation
+
+Abdennur, N., and Mirny, L. (2019). Cooler: scalable storage for Hi-C data and other genomically-labeled arrays. _BioRxiv_, 557660. doi: [10.1101/557660](https://doi.org/10.1101/557660).
