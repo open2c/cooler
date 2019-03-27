@@ -423,8 +423,7 @@ def bins(h5, lo=0, hi=None, fields=None, **kwargs):
     out = get(h5['bins'], lo, hi, fields, **kwargs)
 
     import numbers
-    if ('convert_enum' in kwargs and kwargs['convert_enum'] and
-            issubclass(out['chrom'].dtype.type, numbers.Integral)):
+    if ( issubclass(out['chrom'].dtype.type, numbers.Integral)):
         chromnames = chroms(h5, fields='name')
         out['chrom'] = pd.Categorical.from_codes(
             out['chrom'], chromnames, ordered=True)
