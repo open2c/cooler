@@ -259,6 +259,10 @@ def load(bins_path, pixels_path, cool_path, format, metadata, assembly,
         input_field_names.append('count')
         output_field_names.append('count')
 
+    if 'count' in input_field_names and count_as_float:
+        input_field_dtypes['count'] = np.float64
+        output_field_dtypes['count'] = np.float64
+
     # Customize the HDF5 filters
     if storage_options is not None:
         h5opts = _parse_kv_list_param(storage_options)
