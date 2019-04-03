@@ -2,6 +2,7 @@
 from __future__ import absolute_import, print_function, division
 from collections import OrderedDict, defaultdict
 from bisect import bisect_right
+from functools import partial
 from six.moves import map
 import multiprocess as mp
 import os.path as op
@@ -398,6 +399,10 @@ class CoolerCoarsener(ContactBinner):
         self.source_uri = source_uri
         self.batchsize = batchsize
 
+        assert isinstance(factor, int) and factor > 1
+        self.factor = factor
+        self.chunksize = int(chunksize)
+
         self.index_columns = ['bin1_id', 'bin2_id']
         self.value_columns = list(columns)
         self.columns = self.index_columns + self.value_columns
@@ -407,36 +412,44 @@ class CoolerCoarsener(ContactBinner):
 
         clr = Cooler(source_uri)
         chromsizes = clr.chromsizes
-        assert isinstance(factor, int) and factor > 1
-        self.factor = factor
+
+        # Info for the old bin segmentation
         self.old_binsize = clr.binsize
         self.old_chrom_offset = clr._load_dset('indexes/chrom_offset')
-        self.old_bin1_offset = clr._load_dset('indexes/bin1_offset')
+        self.old_bin1_offset  = clr._load_dset('indexes/bin1_offset')
 
         # Calculate the new bin segmentation
         if self.old_binsize is None:
             self.new_binsize = None
-            bins = clr.bins()[['chrom', 'start', 'end']][:]
-            def fuse_adjacent_bins(group):
-                new_bins = group[['chrom', 'start']].iloc[::factor]
-                end = group['end'].iloc[factor-1::factor].values
-                if len(end) < len(new_bins):
-                    end = np.r_[end, chromsizes[group.name]]
-                new_bins['end'] = end
-                return new_bins
-            grouped = bins.groupby('chrom')
-            self.new_bins = (grouped.apply(fuse_adjacent_bins)
-                               .reset_index(drop=True))
         else:
             self.new_binsize = self.old_binsize * factor
-            self.new_bins = binnify(chromsizes, self.new_binsize)
+        old_bins = clr.bins()[['chrom', 'start', 'end']][:]
+        self.new_bins = self.coarsen_bins(old_bins, chromsizes, factor)
         self.gs = GenomeSegmentation(chromsizes, self.new_bins)
 
-        # Pre-compute the
-        self.chunksize = int(chunksize)
-        edges = np.unique(np.r_[self.old_bin1_offset[::self.factor],
-                                self.old_bin1_offset[-1]])
+        # Pre-compute the partition of bin1 offsets that groups the pixels into
+        # coarsened bins along the i-axis. Then remove some of the internal
+        # edges of this partition to make bigger groups of pixels. This way
+        # we ensure that none of the original groups gets split.
+        edges = []
+        for chrom, i in six.iteritems(self.gs.idmap):
+            # Respect chrom1 boundaries
+            c0 = self.old_chrom_offset[i]
+            c1 = self.old_chrom_offset[i + 1]
+            edges.extend(self.old_bin1_offset[c0:c1:factor])
+        edges.append(self.old_bin1_offset[-1])
         self.edges = _greedy_prune_partition(edges, self.chunksize)
+
+    @staticmethod
+    def coarsen_bins(old_bins, chromsizes, factor):
+        def _each(group):
+            out = group[['chrom', 'start']].copy().iloc[::factor]
+            end = group['end'].iloc[factor-1::factor].values
+            if len(end) < len(out):
+                end = np.r_[end, chromsizes[group.name]]
+            out['end'] = end
+            return out
+        return old_bins.groupby('chrom').apply(_each).reset_index(drop=True)
 
     def _aggregate(self, span):
         from .api import Cooler
