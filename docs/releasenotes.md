@@ -1,5 +1,14 @@
 # Release notes #
 
+## v0.8.3 #
+
+Date: 2019-02-11
+
+### Bug fixes
+* Fixed import bug in `rename_chroms`
+* `create_cooler` no longer requires a "count" column when specifying custom value columns
+
+
 ## v0.8.2 ##
 
 Date: 2019-01-20

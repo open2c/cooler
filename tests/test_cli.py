@@ -194,6 +194,30 @@ def test_load_symm_asymm(ref, extra_args):
         assert result.exit_code == 0
         _cmp_pixels_2_bg('toy.2.cool', ref)
 
+#'--field', '',
+def test_load_field():
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        extra_args =  ['--field', 'count=7:dtype=float']
+        result = _run_load(runner, 'toy.symm.upper.2.bg2', 'bg2', 2, extra_args)
+        assert result.exit_code == 0
+        pixels1 = cooler.Cooler(op.join(datadir, 'toy.symm.upper.2.cool')).pixels()[:]
+        pixels2 = cooler.Cooler('toy.2.cool').pixels()[:]
+        assert 'count' in pixels2.columns and types.is_float_dtype(pixels2.dtypes['count'])
+        assert np.allclose(pixels1['count'][:], pixels2['count'][:])
+
+
+def test_load_field2():
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        extra_args =  ['--count-as-float']
+        result = _run_load(runner, 'toy.symm.upper.2.bg2', 'bg2', 2, extra_args)
+        assert result.exit_code == 0
+        pixels1 = cooler.Cooler(op.join(datadir, 'toy.symm.upper.2.cool')).pixels()[:]
+        pixels2 = cooler.Cooler('toy.2.cool').pixels()[:]
+        assert 'count' in pixels2.columns and types.is_float_dtype(pixels2.dtypes['count'])
+        assert np.allclose(pixels1['count'][:], pixels2['count'][:])
+
 
 def test_merge():
     runner = CliRunner()
