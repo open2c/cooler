@@ -13,6 +13,7 @@ Date: 2019-04-04
 * Restore function of `--count-as-float` option to `cooler load`
 * Fixed partitioning issue sometimes causing some bins to get split during coarsen
 * `rename_chroms()` will refresh cached chromosome names #147
+* `Cooler.bins()` selector will always properly convert bins/chrom integer IDs to categorical chromosome names when the number of contigs is very large and therefore the HDF5 ENUM header is missing. Before this would only happen when explicitly requesting `convert_enum=True`.
 
 ## v0.8.3 #
 
