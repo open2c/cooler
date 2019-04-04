@@ -120,8 +120,7 @@ def test_rename_chroms():
         clr = cooler.Cooler('toy.asymm.4.cool')
         assert clr.chromnames == ['chr1', 'chr2']
         cooler.rename_chroms(clr, {'chr1': '1', 'chr2': '2'})
-        clr = cooler.Cooler('toy.asymm.4.cool')
-        assert clr.chromnames == ['1', '2']
+        assert clr.chromnames == ['1', '2']  # the Cooler object is refreshed
 
 
 def test_create_custom_cols():

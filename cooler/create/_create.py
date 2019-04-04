@@ -3,6 +3,7 @@ from __future__ import absolute_import, print_function, division
 from datetime import datetime
 from six.moves import map
 from pandas.api.types import is_categorical, is_integer
+import os.path as op
 import pandas as pd
 import numpy as np
 import posixpath
@@ -364,7 +365,8 @@ def _rename_chroms(grp, rename_dict, h5opts):
 
 def rename_chroms(clr, rename_dict, h5opts=None):
     """
-    Substitute existing scaffold names for new ones.
+    Substitute existing chromosome/contig names for new ones. They will be
+    written to the file and the Cooler object will be refreshed.
 
     Parameters
     ----------
@@ -381,6 +383,7 @@ def rename_chroms(clr, rename_dict, h5opts=None):
 
     with clr.open('r+') as f:
         _rename_chroms(f, rename_dict, h5opts)
+    clr._refresh()
 
 
 def _get_dtypes_arg(dtypes, kwargs):
@@ -622,6 +625,11 @@ def create_from_unordered(cool_uri, bins, chunks, columns=None, dtypes=None,
     if columns is not None:
         columns = [col for col in columns if col not in {'bin1_id', 'bin2_id'}]
 
+    if temp_dir is None:
+        temp_dir = op.dirname(parse_cooler_uri(cool_uri)[0])
+    elif temp_dir == '-':
+        temp_dir = None  # makes tempfile module use the system dir
+
     dtypes = _get_dtypes_arg(dtypes, kwargs)
 
     temp_files = []
@@ -850,8 +858,8 @@ def create_cooler(cool_uri, bins, pixels, columns=None, dtypes=None,
         Whether to delete temporary files when finished.
         Useful for debugging. Default is False.
     temp_dir : str, optional
-        Create temporary files in the specified directory instead of the
-        system one.
+        Create temporary files in a specified directory instead of the same
+        directory as the output file. Pass ``-`` to use the system default.
     max_merge : int, optional
         If merging more than ``max_merge`` chunks, do the merge recursively in
         two passes.
