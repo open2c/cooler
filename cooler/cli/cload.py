@@ -318,8 +318,9 @@ def pairix(bins, pairs_path, cool_path, metadata, assembly, nproc, zero_based, m
 #     default=False)
 @click.option(
     "--temp-dir",
-    help="Create temporary files in specified directory.",
-    type=str)
+    help="Create temporary files in a specified directory. Pass ``-`` to use "
+         "the platform default temp dir.",
+    type=click.Path(exists=True, file_okay=False, dir_okay=True, allow_dash=True))
 @click.option(
     "--no-delete-temp",
     help="Do not delete temporary files when finished.",

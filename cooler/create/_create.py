@@ -625,6 +625,8 @@ def create_from_unordered(cool_uri, bins, chunks, columns=None, dtypes=None,
 
     if temp_dir is None:
         temp_dir = op.dirname(parse_cooler_uri(cool_uri)[0])
+    elif temp_dir == '-':
+        temp_dir = None  # makes tempfile module use the system dir
 
     dtypes = _get_dtypes_arg(dtypes, kwargs)
 
@@ -854,8 +856,8 @@ def create_cooler(cool_uri, bins, pixels, columns=None, dtypes=None,
         Whether to delete temporary files when finished.
         Useful for debugging. Default is False.
     temp_dir : str, optional
-        Create temporary files in a specified directory instead of the
-        same directory as the output file.
+        Create temporary files in a specified directory instead of the same
+        directory as the output file. Pass ``-`` to use the system default.
     max_merge : int, optional
         If merging more than ``max_merge`` chunks, do the merge recursively in
         two passes.
