@@ -3,6 +3,7 @@ from __future__ import absolute_import, print_function, division
 from datetime import datetime
 from six.moves import map
 from pandas.api.types import is_categorical, is_integer
+import os.path as op
 import pandas as pd
 import numpy as np
 import posixpath
@@ -622,6 +623,9 @@ def create_from_unordered(cool_uri, bins, chunks, columns=None, dtypes=None,
     if columns is not None:
         columns = [col for col in columns if col not in {'bin1_id', 'bin2_id'}]
 
+    if temp_dir is None:
+        temp_dir = op.dirname(parse_cooler_uri(cool_uri)[0])
+
     dtypes = _get_dtypes_arg(dtypes, kwargs)
 
     temp_files = []
@@ -850,8 +854,8 @@ def create_cooler(cool_uri, bins, pixels, columns=None, dtypes=None,
         Whether to delete temporary files when finished.
         Useful for debugging. Default is False.
     temp_dir : str, optional
-        Create temporary files in the specified directory instead of the
-        system one.
+        Create temporary files in a specified directory instead of the
+        same directory as the output file.
     max_merge : int, optional
         If merging more than ``max_merge`` chunks, do the merge recursively in
         two passes.
