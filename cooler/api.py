@@ -71,7 +71,9 @@ class Cooler(object):
             self.uri = self.filename + '::' + self.root
             self.store = store.file
             self.open_kws = {}
+        self._refresh()
 
+    def _refresh(self):
         try:
             with open_hdf5(self.store, **self.open_kws) as h5:
                 grp = h5[self.root]

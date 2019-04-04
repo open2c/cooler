@@ -365,7 +365,8 @@ def _rename_chroms(grp, rename_dict, h5opts):
 
 def rename_chroms(clr, rename_dict, h5opts=None):
     """
-    Substitute existing scaffold names for new ones.
+    Substitute existing chromosome/contig names for new ones. They will be
+    written to the file and the Cooler object will be refreshed.
 
     Parameters
     ----------
@@ -382,6 +383,7 @@ def rename_chroms(clr, rename_dict, h5opts=None):
 
     with clr.open('r+') as f:
         _rename_chroms(f, rename_dict, h5opts)
+    clr._refresh()
 
 
 def _get_dtypes_arg(dtypes, kwargs):
