@@ -4,6 +4,7 @@ import os.path as op
 import tempfile
 import filecmp
 import os
+from pandas.api import types
 import numpy as np
 import pandas as pd
 import h5py
@@ -282,7 +283,6 @@ def test_cload_field(bins_path, pairs_path):
         chrom1=1, pos1=2,
         chrom2=3, pos2=4,
     )
-    from pandas.api import types
     cload_pairs.callback(
         bins_path,
         pairs_path,
@@ -295,36 +295,34 @@ def test_cload_field(bins_path, pairs_path):
     assert 'score' in pixels.columns and types.is_float_dtype(pixels.dtypes['score'])
 
 
-# @pytest.mark.parametrize("bins_path,pairs_path", [(
-#     op.join(testdir, 'data', 'toy.chrom.sizes') + ':2',
-#     op.join(testdir, 'data', 'toy.pairs')
-# )])
-# def test_cload_field2(bins_path, pairs_path):
-#     from pandas.api import types
-
-#     cload_pairs.callback(
-#         bins_path,
-#         pairs_path,
-#         testcool_path,
-#         metadata=None,
-#         assembly='toy',
-#         chunksize=10,
-#         zero_based=False,
-#         comment_char='#',
-#         input_copy_status='unique',
-#         no_symmetric_upper=False,
-#         field=('count=7:agg=min,dtype=float',),
-#         temp_dir=None,
-#         no_delete_temp=False,
-#         storage_options=None,
-#         no_count=True,
-#         max_merge=200,
-#         chrom1=1, pos1=2,
-#         chrom2=3, pos2=4,
-#     )
-#     pixels = cooler.Cooler(testcool_path).pixels()[:]
-#     assert 'count' in pixels.columns and types.is_float_dtype(pixels.dtypes['count'])
-#     assert np.allclose(pixels['count'][:], 0.1)
+@pytest.mark.parametrize("bins_path,pairs_path", [(
+    op.join(testdir, 'data', 'toy.chrom.sizes') + ':2',
+    op.join(testdir, 'data', 'toy.pairs')
+)])
+def test_cload_custom_tempdir(bins_path, pairs_path):
+    for temp_dir in [op.join(testdir, 'data'), '-']:
+        cload_pairs.callback(
+            bins_path,
+            pairs_path,
+            testcool_path,
+            metadata=None,
+            assembly='toy',
+            chunksize=10,
+            zero_based=False,
+            comment_char='#',
+            input_copy_status='unique',
+            no_symmetric_upper=False,
+            field=(),
+            temp_dir=temp_dir,
+            no_delete_temp=False,
+            storage_options=None,
+            no_count=True,
+            max_merge=200,
+            chrom1=1, pos1=2,
+            chrom2=3, pos2=4,
+        )
+        pixels = cooler.Cooler(testcool_path).pixels()[:]
+        assert 'count' in pixels.columns and types.is_integer_dtype(pixels.dtypes['count'])
 
 
 def test_load_bg2_vs_coo():
