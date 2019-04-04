@@ -34,6 +34,14 @@ def test_bintable(mock_cooler):
     assert np.all(table['end'] == mock_cooler['bins']['end'][lo:hi])
 
 
+def test_bintable_many_contigs():
+    # In a file with many contigs, bins/chrom does not have an ENUM header,
+    # so chromosome names are taken from the chroms/name
+    c = cooler.api.Cooler(op.join(testdir, 'data', 'manycontigs.1.cool'))
+    bins = c.bins()[:10]
+    assert pd.api.types.is_categorical_dtype(bins['chrom'].dtype)
+
+
 def test_pixeltable(mock_cooler):
     lo, hi = 2, 10
     table = cooler.api.pixels(mock_cooler, lo, hi, join=False)

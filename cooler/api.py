@@ -4,6 +4,7 @@ import json
 import six
 import os
 
+from pandas.api.types import is_integer_dtype
 from scipy.sparse import coo_matrix
 import numpy as np
 import pandas as pd
@@ -435,14 +436,20 @@ def bins(h5, lo=0, hi=None, fields=None, **kwargs):
         fields = (pd.Index(['chrom', 'start', 'end'])
                         .append(pd.Index(h5['bins'].keys()))
                         .drop_duplicates())
+
+    # If convert_enum is not explicitly set to False, chrom IDs will get
+    # converted to categorical chromosome names, provided the ENUM header
+    # exists in bins/chrom. Otherwise, they will return as integers.
     out = get(h5['bins'], lo, hi, fields, **kwargs)
 
-    import numbers
-    if ('convert_enum' in kwargs and kwargs['convert_enum'] and
-            issubclass(out['chrom'].dtype.type, numbers.Integral)):
+    # Handle the case where the ENUM header doesn't exist but we want to
+    # convert integer chrom IDs to categorical chromosome names.
+    if (is_integer_dtype(out['chrom'].dtype)
+            and kwargs.get('convert_enum', True)):
         chromnames = chroms(h5, fields='name')
         out['chrom'] = pd.Categorical.from_codes(
             out['chrom'], chromnames, ordered=True)
+
     return out
 
 
