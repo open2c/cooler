@@ -827,3 +827,34 @@ class GenomeSegmentation(object):
             hi = lo + result['start'].values[lo:].searchsorted(end, side='left')
             result = result.iloc[lo:hi]
         return result
+
+
+def buffered(chunks, size=10000000):
+    """
+    Take an incoming iterator of small data frame chunks and buffer them into
+    an outgoing iterator of larger chunks.
+
+    Parameters
+    ----------
+    chunks : iterator of :py:class:`pandas.DataFrame`
+        Each chunk should have the same column names.
+    size : int
+        Minimum length of output chunks.
+
+    Yields
+    ------
+    Larger outgoing :py:class:`pandas.DataFrame` chunks made from concatenating
+    the incoming ones.
+
+    """
+    buf = []
+    n = 0
+    for chunk in chunks:
+        n += len(chunk)
+        buf.append(chunk)
+        if n > size:
+            yield pd.concat(buf, axis=0)
+            buf = []
+            n = 0
+    if len(buf):
+        yield pd.concat(buf, axis=0)
