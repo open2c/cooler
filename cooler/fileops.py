@@ -25,7 +25,7 @@ import numpy as np
 import h5py
 
 from ._logging import get_logger
-from .util import parse_cooler_uri
+from .util import parse_cooler_uri, natsorted
 from .create import MAGIC, URL
 
 __all__ = [
@@ -153,7 +153,7 @@ def list_coolers(filepath):
         _check_cooler('/', f)
         visititems(f, _check_cooler)
 
-    return listing
+    return natsorted(listing)
 
 
 def ls(uri):
