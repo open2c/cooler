@@ -14,7 +14,12 @@ from .core import (get, region_to_offset, region_to_extent, RangeSelector1D,
 from .util import parse_cooler_uri, parse_region, open_hdf5, closing_hdf5
 from .fileops import list_coolers
 
+
 __all__ = ['Cooler', 'annotate']
+
+
+# The 4DN data portal and hic2cool store these weight vectors in divisive form
+_4DN_DIVISIVE_WEIGHTS = {'KR', 'VC', 'VC_SQRT'}
 
 
 class Cooler(object):
@@ -280,7 +285,8 @@ class Cooler(object):
         return RangeSelector1D(None, _slice, _fetch, self._info['nnz'])
 
     def matrix(self, field=None, balance=True, sparse=False, as_pixels=False,
-               join=False, ignore_index=True, max_chunk=500000000):
+               join=False, ignore_index=True, divisive_weights=None,
+               max_chunk=500000000):
         """ Contact matrix selector
 
         Parameters
@@ -306,6 +312,11 @@ class Cooler(object):
         ignore_index : bool, optional
             If requesting pixels, don't populate the index column with the pixel
             IDs to improve performance. Default is True.
+        divisive_weights : bool, optional
+            Force balancing weights to be interpreted as divisive (True) or
+            multiplicative (False). Weights are always assumed to be
+            multiplicative by default unless named KR, VC or SQRT_VC, in which
+            case they are assumed to be divisive by default.
 
         Returns
         -------
@@ -319,12 +330,14 @@ class Cooler(object):
         those missing non-zero elements will automatically be filled in.
 
         """
+        if balance in _4DN_DIVISIVE_WEIGHTS and divisive_weights is None:
+            divisive_weights = True
 
         def _slice(field, i0, i1, j0, j1):
             with open_hdf5(self.store, **self.open_kws) as h5:
                 grp = h5[self.root]
                 return matrix(grp, i0, i1, j0, j1, field, balance, sparse,
-                    as_pixels, join, ignore_index, max_chunk,
+                    as_pixels, join, ignore_index, divisive_weights, max_chunk,
                     self._is_symm_upper)
 
         def _fetch(region, region2=None):
@@ -548,7 +561,7 @@ def annotate(pixels, bins, replace=False):
 
 
 def matrix(h5, i0, i1, j0, j1, field=None, balance=True, sparse=False,
-           as_pixels=False, join=True, ignore_index=True,
+           as_pixels=False, join=True, ignore_index=True, divisive_weights=False,
            max_chunk=500000000, is_upper=True):
     """
     Two-dimensional range query on the Hi-C contact heatmap.
@@ -621,6 +634,9 @@ def matrix(h5, i0, i1, j0, j1, field=None, balance=True, sparse=False,
         if balance:
             weights = Cooler(h5).bins()[[name]]
             df2 = annotate(df, weights, replace=False)
+            if divisive_weights:
+                df2[name+'1'] = 1 / df2[name+'1']
+                df2[name+'2'] = 1 / df2[name+'2']
             df['balanced'] = df2[name+'1'] * df2[name+'2'] * df2[field]
 
         if join:
@@ -641,6 +657,9 @@ def matrix(h5, i0, i1, j0, j1, field=None, balance=True, sparse=False,
             weights = h5['bins'][name]
             bias1 = weights[i0:i1]
             bias2 = bias1 if (i0, i1) == (j0, j1) else weights[j0:j1]
+            if divisive_weights:
+                bias1 = 1 / bias1
+                bias2 = 1 / bias2
             mat.data = bias1[mat.row] * bias2[mat.col] * mat.data
 
         return mat
@@ -657,6 +676,9 @@ def matrix(h5, i0, i1, j0, j1, field=None, balance=True, sparse=False,
             weights = h5['bins'][name]
             bias1 = weights[i0:i1]
             bias2 = bias1 if (i0, i1) == (j0, j1) else weights[j0:j1]
+            if divisive_weights:
+                bias1 = 1 / bias1
+                bias2 = 1 / bias2
             arr = arr * np.outer(bias1, bias2)
 
         return arr
