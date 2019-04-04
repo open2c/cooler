@@ -1,5 +1,19 @@
 # Release notes #
 
+## v0.8.4 ##
+
+Date: 2019-04-04
+
+### Enhancements
+* When creating coolers from unordered input, change the default temporary dir to be the same as the output file instead of the system tmp (pass '-' to use the system one). #150
+* `cooler ls` and `list_coolers()` now output paths in natural order. #153
+* New option in `cooler.matrix()` to handle divisive balancing weight vectors.
+
+### Bug fixes
+* Restore function of `--count-as-float` option to `cooler load`
+* Fixed partitioning issue sometimes causing some bins to get split during coarsen
+* `rename_chroms()` will refresh cached chromosome names #147
+
 ## v0.8.3 #
 
 Date: 2019-02-11
@@ -7,7 +21,6 @@ Date: 2019-02-11
 ### Bug fixes
 * Fixed import bug in `rename_chroms`
 * `create_cooler` no longer requires a "count" column when specifying custom value columns
-
 
 ## v0.8.2 ##
 
