@@ -15,71 +15,91 @@ Quick reference
 
     cooler [OPTIONS] COMMAND [ARGS]...
 
-See the cooler_cli.ipynb Jupyter Notebook for specific examples on usage: (https://github.com/mirnylab/cooler-binder).
 
+.. list-table::
+    :widths: 25 100
+    :align: left
+    :header-rows: 1
 
+    * - Data ingest
+      -
+    * - `cooler cload`_
+      - Create a cooler from genomic point pairs and bins.
+    * - `cooler load`_
+      - Create a cooler from a pre-binned matrix.
 
-.. rubric:: Commands
+.. list-table::
+    :widths: 25 100
+    :align: left
+    :header-rows: 1
 
-+------------------------+
-| Data ingest            |
-+========================+
-| `cooler cload`_        |
-+------------------------+
-| `cooler load`_         |
-+------------------------+
+    * - Reduction
+      -
+    * - `cooler merge`_
+      - Merge multiple coolers with identical axes.
+    * - `cooler coarsen`_
+      - Coarsen a cooler to a lower resolution.
+    * - `cooler zoomify`_
+      - Generate a multi-resolution cooler file by coarsening.
 
-+------------------------+
-| Reduction              |
-+========================+
-| `cooler merge`_        |
-+------------------------+
-| `cooler coarsen`_      |
-+------------------------+
-| `cooler zoomify`_      |
-+------------------------+
+.. list-table::
+    :widths: 25 100
+    :align: left
+    :header-rows: 1
 
-+------------------------+
-| Normalization          |
-+========================+
-| `cooler balance`_      |
-+------------------------+
+    * -  Normalization
+      -
+    * - `cooler balance`_
+      - Out-of-core matrix balancing.
 
-+------------------------+
-| Export/visualization   |
-+========================+
-| `cooler info`_         |
-+------------------------+
-| `cooler dump`_         |
-+------------------------+
-| `cooler show`_         |
-+------------------------+
+.. list-table::
+    :widths: 25 100
+    :align: left
+    :header-rows: 1
 
-+------------------------+
-| File manipulation/info |
-+========================+
-| `cooler tree`_         |
-+------------------------+
-| `cooler attrs`_        |
-+------------------------+
-| `cooler ls`_           |
-+------------------------+
-| `cooler cp`_           |
-+------------------------+
-| `cooler mv`_           |
-+------------------------+
-| `cooler ln`_           |
-+------------------------+
+    * -  Export/visualization
+      -
+    * - `cooler info`_
+      - Display a cooler’s info and metadata.
+    * - `cooler dump`_
+      - Dump a cooler’s data to a text stream.
+    * - `cooler show`_
+      - Display and browse a cooler with matplotlib.
 
-+------------------------+
-| Helper commands        |
-+========================+
-| `cooler makebins`_     |
-+------------------------+
-| `cooler digest`_       |
-+------------------------+
-| `cooler csort`_        |
-+------------------------+
+.. list-table::
+    :widths: 25 100
+    :align: left
+    :header-rows: 1
+
+    * -  File manipulation/info
+      -
+    * - `cooler tree`_
+      - Display a file’s data hierarchy.
+    * - `cooler attrs`_
+      - Display a file’s attribute hierarchy.
+    * - `cooler ls`_
+      - List all coolers inside a file.
+    * - `cooler cp`_
+      - Copy a cooler from one file to another or within the same file.
+    * - `cooler mv`_
+      - Rename a cooler within the same file.
+    * - `cooler ln`_
+      - Create a hard, soft or external link to a cooler.
+
+.. list-table::
+    :widths: 25 100
+    :align: left
+    :header-rows: 1
+
+    * -  Helper commands
+      -
+    * - `cooler makebins`_
+      - Generate fixed-width genomic bins.
+    * - `cooler digest`_
+      - Generate fragment-delimited genomic bins.
+    * - `cooler csort`_
+      - Sort and index a contact list.
+
 
 .. rubric:: Options
 
@@ -98,9 +118,7 @@ See the cooler_cli.ipynb Jupyter Notebook for specific examples on usage: (https
 ----
 
 cooler cload
-----------------
-
-::
+------------
 
 Create a cooler from genomic pairs and bins.
 
@@ -125,9 +143,7 @@ Choose a subcommand based on the format of the input contact list.
 ----
 
 cooler cload pairs
-----------------
-
-::
+------------------
 
 Bin any text file or stream of pairs.
 
@@ -233,9 +249,7 @@ COOL_PATH : Output COOL file path or URI.
 ----
 
 cooler cload pairix
-----------------
-
-::
+-------------------
 
 Bin a pairix-indexed contact list file.
 
@@ -298,9 +312,7 @@ Pairix on GitHub: <https://github.com/4dn-dcic/pairix>.
 ----
 
 cooler cload tabix
-----------------
-
-::
+------------------
 
 Bin a tabix-indexed contact list file.
 
@@ -371,9 +383,7 @@ Tabix manpage: <http://www.htslib.org/doc/tabix.html>.
 ----
 
 cooler cload hiclib
-----------------
-
-::
+-------------------
 
 Bin a hiclib HDF5 contact list (frag) file.
 
@@ -426,9 +436,7 @@ hiclib on BitBucket: <https://bitbucket.org/mirnylab/hiclib>.
 ----
 
 cooler load
-----------------
-
-::
+-----------
 
 Create a cooler from a pre-binned matrix.
 
@@ -527,9 +535,7 @@ cooler load -f bg2 <chrom.sizes>:<binsize> in.bg2.gz out.cool
 ----
 
 cooler merge
-----------------
-
-::
+------------
 
 Merge multiple coolers with identical axes.
 
@@ -579,9 +585,7 @@ Additional columns in the the input files are not transferred to the output.
 ----
 
 cooler coarsen
-----------------
-
-::
+--------------
 
 Coarsen a cooler to a lower resolution.
 
@@ -627,9 +631,7 @@ COOL_PATH : Path to a COOL file or Cooler URI.
 ----
 
 cooler zoomify
-----------------
-
-::
+--------------
 
 Generate a multi-resolution cooler file by coarsening.
 
@@ -688,9 +690,7 @@ COOL_PATH : Path to a COOL file or Cooler URI.
 ----
 
 cooler balance
-----------------
-
-::
+--------------
 
 Out-of-core matrix balancing.
 
@@ -784,9 +784,7 @@ COOL_PATH : Path to a COOL file.
 ----
 
 cooler info
-----------------
-
-::
+-----------
 
 Display a cooler's info and metadata.
 
@@ -821,9 +819,7 @@ COOL_PATH : Path to a COOL file or cooler URI.
 ----
 
 cooler dump
-----------------
-
-::
+-----------
 
 Dump a cooler's data to a text stream.
 
@@ -906,9 +902,7 @@ COOL_PATH : Path to COOL file or cooler URI.
 ----
 
 cooler show
-----------------
-
-::
+-----------
 
 Display and browse a cooler in matplotlib.
 
@@ -978,9 +972,7 @@ Example: chr1:10,000,000-11,000,000
 ----
 
 cooler tree
-----------------
-
-::
+-----------
 
 Display a file's data hierarchy.
 
@@ -1003,9 +995,7 @@ Display a file's data hierarchy.
 ----
 
 cooler attrs
-----------------
-
-::
+------------
 
 Display a file's attribute hierarchy.
 
@@ -1028,9 +1018,7 @@ Display a file's attribute hierarchy.
 ----
 
 cooler ls
-----------------
-
-::
+---------
 
 List all coolers inside a file.
 
@@ -1055,9 +1043,7 @@ List all coolers inside a file.
 ----
 
 cooler cp
-----------------
-
-::
+---------
 
 Copy a cooler from one file to another or within the same file.
 
@@ -1088,9 +1074,7 @@ See also: h5copy, h5repack tools from HDF5 suite.
 ----
 
 cooler mv
-----------------
-
-::
+---------
 
 Rename a cooler within the same file.
 
@@ -1119,9 +1103,7 @@ Rename a cooler within the same file.
 ----
 
 cooler ln
-----------------
-
-::
+---------
 
 Create a hard link to a cooler (rather than a true copy) in the same file.
 Also supports soft links (in the same file) or external links (different
@@ -1156,9 +1138,7 @@ files).
 ----
 
 cooler makebins
-----------------
-
-::
+---------------
 
 Generate fixed-width genomic bins.
 
@@ -1202,9 +1182,7 @@ BINSIZE : Resolution (bin size) in base pairs <int>.
 ----
 
 cooler digest
-----------------
-
-::
+-------------
 
 Generate fragment-delimited genomic bins.
 
@@ -1255,9 +1233,7 @@ ENZYME : Name of restriction enzyme
 ----
 
 cooler csort
-----------------
-
-::
+------------
 
 Sort and index a contact list.
 

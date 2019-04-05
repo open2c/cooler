@@ -326,67 +326,91 @@ Quick reference
 
     cooler [OPTIONS] COMMAND [ARGS]...
 
-.. rubric:: Commands
 
-+------------------------+
-| Data ingest            |
-+========================+
-| `cooler cload`_        |
-+------------------------+
-| `cooler load`_         |
-+------------------------+
+.. list-table::
+    :widths: 25 100
+    :align: left
+    :header-rows: 1
 
-+------------------------+
-| Reduction              |
-+========================+
-| `cooler merge`_        |
-+------------------------+
-| `cooler coarsen`_      |
-+------------------------+
-| `cooler zoomify`_      |
-+------------------------+
+    * - Data ingest
+      -
+    * - `cooler cload`_
+      - Create a cooler from genomic point pairs and bins.
+    * - `cooler load`_
+      - Create a cooler from a pre-binned matrix.
 
-+------------------------+
-| Normalization          |
-+========================+
-| `cooler balance`_      |
-+------------------------+
+.. list-table::
+    :widths: 25 100
+    :align: left
+    :header-rows: 1
 
-+------------------------+
-| Export/visualization   |
-+========================+
-| `cooler info`_         |
-+------------------------+
-| `cooler dump`_         |
-+------------------------+
-| `cooler show`_         |
-+------------------------+
+    * - Reduction
+      -
+    * - `cooler merge`_
+      - Merge multiple coolers with identical axes.
+    * - `cooler coarsen`_
+      - Coarsen a cooler to a lower resolution.
+    * - `cooler zoomify`_
+      - Generate a multi-resolution cooler file by coarsening.
 
-+------------------------+
-| File manipulation/info |
-+========================+
-| `cooler tree`_         |
-+------------------------+
-| `cooler attrs`_        |
-+------------------------+
-| `cooler ls`_           |
-+------------------------+
-| `cooler cp`_           |
-+------------------------+
-| `cooler mv`_           |
-+------------------------+
-| `cooler ln`_           |
-+------------------------+
+.. list-table::
+    :widths: 25 100
+    :align: left
+    :header-rows: 1
 
-+------------------------+
-| Helper commands        |
-+========================+
-| `cooler makebins`_     |
-+------------------------+
-| `cooler digest`_       |
-+------------------------+
-| `cooler csort`_        |
-+------------------------+
+    * -  Normalization
+      -
+    * - `cooler balance`_
+      - Out-of-core matrix balancing.
+
+.. list-table::
+    :widths: 25 100
+    :align: left
+    :header-rows: 1
+
+    * -  Export/visualization
+      -
+    * - `cooler info`_
+      - Display a cooler’s info and metadata.
+    * - `cooler dump`_
+      - Dump a cooler’s data to a text stream.
+    * - `cooler show`_
+      - Display and browse a cooler with matplotlib.
+
+.. list-table::
+    :widths: 25 100
+    :align: left
+    :header-rows: 1
+
+    * -  File manipulation/info
+      -
+    * - `cooler tree`_
+      - Display a file’s data hierarchy.
+    * - `cooler attrs`_
+      - Display a file’s attribute hierarchy.
+    * - `cooler ls`_
+      - List all coolers inside a file.
+    * - `cooler cp`_
+      - Copy a cooler from one file to another or within the same file.
+    * - `cooler mv`_
+      - Rename a cooler within the same file.
+    * - `cooler ln`_
+      - Create a hard, soft or external link to a cooler.
+
+.. list-table::
+    :widths: 25 100
+    :align: left
+    :header-rows: 1
+
+    * -  Helper commands
+      -
+    * - `cooler makebins`_
+      - Generate fixed-width genomic bins.
+    * - `cooler digest`_
+      - Generate fragment-delimited genomic bins.
+    * - `cooler csort`_
+      - Sort and index a contact list.
+
 
 .. rubric:: Options
 
@@ -409,15 +433,13 @@ Quick reference
 for cmd in COMMANDS:
     TEMPLATE += """\
 cooler {0}
-----------------
-
-::
+{1}
 
 {{{0}}}
 
 ----
 
-""".format(cmd)
+""".format(cmd, '-' * (7 + len(cmd)))
 
 
 text = TEMPLATE.format(
