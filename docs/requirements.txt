@@ -1,10 +1,6 @@
 Sphinx
 sphinx-rtd-theme
-recommonmark
+m2r
 numpydoc
 mock
 six
-multiprocess
-click
-asciitree
-pyyaml
