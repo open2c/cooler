@@ -72,13 +72,13 @@ cooler
 ----
 
 cooler.create
----------
+-------------
 
 .. autofunction:: cooler.create.sanitize_pixels
 .. autofunction:: cooler.create.sanitize_records
 
 cooler.fileops
----------
+--------------
 
 .. autofunction:: cooler.fileops.is_cooler
 .. autofunction:: cooler.fileops.is_multires_file

@@ -24,18 +24,32 @@ import shlex
 #sys.path.insert(0, os.path.abspath('.'))
 sys.path.insert(0, os.path.abspath('..'))
 
-autodoc_mock_imports = [
+# autodoc_mock_imports = [
+#     'numpy',
+#     'scipy',
+#     'pandas',
+#     'h5py',
+#     'dask',
+#     'cytoolz',
+# ]
+import mock
+MOCK_MODULES = [
     'numpy',
     'scipy',
+    'scipy.sparse',
     'pandas',
+    'pandas.algos',
+    'pandas.api',
+    'pandas.api.types',
     'h5py',
     'dask',
-    'cytoolz',
-    'multiprocess',
-    'click',
-    'asciitree',
-    'pyyaml',
-]
+    'dask.base',
+    'dask.array',
+    'dask.dataframe',
+    'dask.dataframe.core',
+    'dask.dataframe.utils']
+for mod_name in MOCK_MODULES:
+    sys.modules[mod_name] = mock.Mock()
 
 
 # -- General configuration ------------------------------------------------
@@ -56,7 +70,6 @@ extensions = [
     'sphinx.ext.viewcode',
     'sphinx.ext.autosummary',
     'sphinx.ext.napoleon',  # 'numpydoc'
-    'm2r',
 ]
 
 numpydoc_show_class_members = False
@@ -67,10 +80,17 @@ templates_path = ['_templates']
 
 # The suffix(es) of source filenames.
 # You can specify multiple suffix as a list of string:
-source_suffix = '.rst'
+source_suffix = {
+    '.rst': 'restructuredtext',
+    '.md': 'markdown',
+}
 
 # The encoding of source files.
 #source_encoding = 'utf-8-sig'
+
+source_parsers = {
+    '.md': 'recommonmark.parser.CommonMarkParser'
+}
 
 # The master toctree document.
 master_doc = 'index'
