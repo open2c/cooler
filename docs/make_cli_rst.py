@@ -426,6 +426,8 @@ Quick reference
 
     Show the version and exit.
 
+See the cooler_cli.ipynb Jupyter Notebook for specific examples on usage: (https://github.com/mirnylab/cooler-binder).
+
 ----
 
 """
