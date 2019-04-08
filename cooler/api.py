@@ -444,7 +444,8 @@ def bins(h5, lo=0, hi=None, fields=None, **kwargs):
 
     # Handle the case where the ENUM header doesn't exist but we want to
     # convert integer chrom IDs to categorical chromosome names.
-    if (is_integer_dtype(out['chrom'].dtype)
+    if ('chrom' in fields and
+            is_integer_dtype(out['chrom'].dtype)
             and kwargs.get('convert_enum', True)):
         chromnames = chroms(h5, fields='name')
         out['chrom'] = pd.Categorical.from_codes(

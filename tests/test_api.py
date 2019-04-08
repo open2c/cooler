@@ -33,6 +33,10 @@ def test_bintable(mock_cooler):
     assert np.all(table['start'] == mock_cooler['bins']['start'][lo:hi])
     assert np.all(table['end'] == mock_cooler['bins']['end'][lo:hi])
 
+    table = cooler.api.bins(mock_cooler, lo, hi, fields=['start', 'end'])
+    assert np.all(table['start'] == mock_cooler['bins']['start'][lo:hi])
+    assert np.all(table['end'] == mock_cooler['bins']['end'][lo:hi])
+
 
 def test_bintable_many_contigs():
     # In a file with many contigs, bins/chrom does not have an ENUM header,
@@ -91,13 +95,11 @@ def test_annotate(mock_cooler):
     assert len(df4) == 0
 
 
-# def test_matrix_as_pixels():
-#     c = cooler.Cooler(op.join(
-#         testdir,
-#         'data',
-#         'dixon2012-h1hesc-hindiii-allreps-filtered.1000kb.multires.cool::4'))
-#     df = c.matrix(as_pixels=True, join=True, balance=True).fetch(
-#         "chr10:6052652-6104288",
-#         "chr10:7052652-8104288")
-#     print(df)
-#     assert len(df.dropna()) == 2
+def test_matrix_as_pixels():
+    c = cooler.Cooler(op.join(
+        testdir,
+        'data',
+        'yeast.10kb.cool'))
+    df = c.matrix(as_pixels=True, join=True, balance=True).fetch(
+        "chrI:100345-220254",
+        "chrII:200789-813183")
