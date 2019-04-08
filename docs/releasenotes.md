@@ -1,5 +1,12 @@
 # Release notes #
 
+## v0.8.5 ##
+
+Date: 2019-04-08
+
+### Bug fixes
+* Fixed a regression that prevented selection of bins excluding the `chrom` column.
+
 ## v0.8.4 ##
 
 Date: 2019-04-04
