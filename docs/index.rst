@@ -27,6 +27,7 @@ Contents:
 
    quickstart
    datamodel
+   concepts
    schema
    api
    cli

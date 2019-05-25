@@ -115,6 +115,8 @@ Quick reference
 
     Show the version and exit.
 
+See the cooler_cli.ipynb Jupyter Notebook for specific examples on usage: (https://github.com/mirnylab/cooler-binder).
+
 ----
 
 cooler cload
@@ -231,7 +233,7 @@ COOL_PATH : Output COOL file path or URI.
 
 .. option:: --temp-dir <temp_dir>
 
-    Create temporary files in specified directory.
+    Create temporary files in a specified directory. Pass ``-`` to use the platform default temp dir.
 
 .. option:: --no-delete-temp
 
@@ -680,7 +682,7 @@ COOL_PATH : Path to a COOL file or Cooler URI.
 
 .. option:: --field <field>
 
-    Specify the names of value columns to merge as '<name>'. Repeat the `--field` option for each one. Use '<name>,dtype=<dtype>' to specify the dtype. Include ',agg=<agg>' to specify an aggregation function different from 'sum'.
+    Specify the names of value columns to merge as '<name>'. Repeat the `--field` option for each one. Use '<name>:dtype=<dtype>' to specify the dtype. Include ',agg=<agg>' to specify an aggregation function different from 'sum'.
 
 .. option:: --legacy
 
@@ -778,7 +780,7 @@ COOL_PATH : Path to a COOL file.
 
 .. option:: --convergence-policy <convergence_policy>
 
-    What to do with weights when balancing doesn't converge in max_iters.  [default: store_final]
+    What to do with weights when balancing doesn't converge in max_iters. 'store_final': Store the final result, regardless of whether the iterations converge to the specified tolerance; 'store_nan': Store a vector of NaN values to indicate that the matrix failed to converge; 'discard': Store nothing and exit gracefully; 'error': Abort with non-zero exit status.  [default: store_final]
 
 
 ----

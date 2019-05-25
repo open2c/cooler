@@ -153,7 +153,7 @@ Storing a symmetric matrix requires only the *upper triangular part, including t
 Metadata
 ========
 
-Essential key-value properties are stored as root-level `HDF5 attributes <http://docs.h5py.org/en/stable/high/attr.html>`_ in the data collection.
+Essential key-value properties are stored as `HDF5 attributes <http://docs.h5py.org/en/stable/high/attr.html>`_ at the top-level group of the data collection. Note that depending on where the data collection is located in the file, this can be different from the root group of the entire file ``/``.
 
 .. rubric:: Required attributes
 
@@ -206,7 +206,11 @@ Additional metadata may be stored in other top-level attributes and the attribut
 File flavors
 ============
 
-Many cooler data collections can be stored in a single file. We recognize two common **layouts**:
+Many cooler data collections can be stored in a single file. We recognize two conventional **layouts**:
+
+
+Single-resolution
+-----------------
 
 * A single-resolution cooler file that contains a single data collection under the ``/`` group. Conventional file extension: ``.cool``.
 
@@ -219,6 +223,9 @@ Many cooler data collections can be stored in a single file. We recognize two co
    ├── pixels
    └── indexes
 
+
+Multi-resolution
+----------------
 
 * A multi-resolution cooler file that contains multiple "coarsened" resolutions or "zoom-levels" derived from the same dataset. Multires cooler files should store each data collection underneath a group called ``/resolutions`` within a sub-group whose name is the bin size (e.g, ``XYZ.1000.mcool::resolutions/10000``). If the base cooler has variable-length bins, then use ``1`` to designate the base resolution, and the use coarsening multiplier (e.g. ``2``, ``4``, ``8``, etc.) to name the lower resolutions. Conventional file extension: ``.mcool``.
 
@@ -251,9 +258,24 @@ Many cooler data collections can be stored in a single file. We recognize two co
        .
        .
 
+In addition, a multi-resolution cooler file may indicate to clients that it is using this layout with the following ``/``-level attributes:
+
+.. describe:: format : string (constant)
+
+    "HDF5::MCOOL"
+
+.. describe:: format-version : int
+
+    2
+
+.. describe:: bin-type : { "fixed", "variable" }
+
+    Indicates whether the resolution is constant along both axes.
+
+
 .. note:: 
 
-  The old multi-resolution layout used resolutions strictly in increments of *powers of 2*. In this layout, the data collections are named by zoom level, starting with ``XYZ.1000.mcool::0`` being the coarsest resolution up until the finest or "base" resolution (e.g., ``XYZ.1000.mcool::14`` for 14 levels of coarsening). 
+  The old multi-resolution layout used resolutions strictly in increments of *powers of 2*. In this layout (MCOOL version 2), the data collections are named by zoom level, starting with ``XYZ.1000.mcool::0`` being the coarsest resolution up until the finest or "base" resolution (e.g., ``XYZ.1000.mcool::14`` for 14 levels of coarsening). 
 
   .. versionchanged:: 0.8
     Both the legacy layout and the new mcool layout are supported by `HiGlass <http://higlass.io/app/>`_. Prior to cooler 0.8, the new layout was produced only when requesting a specific list of resolutions. As of cooler 0.8, the new layout is always produced by the :command:`cooler zoomify` command unless the ``--legacy`` option is given. Files produced by :py:func:`cooler.zoomify_cooler`, `hic2cool <https://github.com/4dn-dcic/hic2cool/>`_, and the mcools from the `4DN data portal <https://data.4dnucleome.org/>`_ also follow the new layout.
