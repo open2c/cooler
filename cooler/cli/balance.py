@@ -123,7 +123,12 @@ from ..util import parse_cooler_uri, bedslice
     default=False)
 @click.option(
     "--convergence-policy",
-    help="What to do with weights when balancing doesn't converge in max_iters.",
+    help="What to do with weights when balancing doesn't converge in max_iters. "
+    "'store_final': Store the final result, regardless of whether the iterations "
+    "converge to the specified tolerance; 'store_nan': Store a vector of NaN "
+    "values to indicate that the matrix failed to converge; 'discard': "
+    "Store nothing and exit gracefully; 'error': Abort with non-zero exit "
+    "status.",
     type=click.Choice(['store_final', 'store_nan', 'discard', 'error']),
     default='store_final',
     show_default=True)
