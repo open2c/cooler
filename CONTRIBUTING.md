@@ -33,13 +33,11 @@ Editable mode installs the package by creating a "link" to the working (repo) di
 
 It is best if all new functionality and/or bug fixes have unit tests added with each use-case.
 
-We use [pytest](https://docs.pytest.org/en/latest) as our unit testing framework, with the `pytest-cov` extension to check code coverage and `pytest-flake8` to check code style. You don't need to configure these extensions yourself. Once you've configured your environment, you can just `cd` to the root of your repository and run
+We use [pytest](https://docs.pytest.org/en/latest) as our unit testing framework. Once you've configured your environment, you can just `cd` to the root of your repository and run
 
 ```sh
 pytest
 ```
-
-This automatically checks code style and functionality, and prints code coverage, even though it doesn't fail on low coverage.
 
 Unit tests are automatically run on Travis CI for pull requests.
 
@@ -66,6 +64,12 @@ Documentation from `master` and tagged releases is automatically built and hoste
 ## Acknowledgments
 
 This document is based off of the [guidelines from the sparse project](https://github.com/pydata/sparse/blob/master/docs/contributing.rst).
+
+
+
+<!-- with the `pytest-cov` extension to check code coverage and `pytest-flake8` to check code style. You don't need to configure these extensions yourself.
+This automatically checks code style and functionality, and prints code coverage, even though it doesn't fail on low coverage. -->
+
 
 <!-- ## Coverage
 
