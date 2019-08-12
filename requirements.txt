@@ -12,4 +12,3 @@ pyfaidx
 pypairix
 asciitree
 pyyaml
-mock
