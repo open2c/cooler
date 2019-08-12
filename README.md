@@ -1,6 +1,6 @@
 # Cooler
 
-<a href="https://mirnylab.github.io/cooler"><img width="25%" src="docs/cooler_logo.png" alt="Cooler"></a>
+<a href="https://mirnylab.github.io/cooler"><img width="25%" src="https://github.com/mirnylab/cooler/raw/master/docs/cooler_logo.png" alt="Cooler"></a>
 
 [![Build Status](https://travis-ci.org/mirnylab/cooler.svg?branch=master)](https://travis-ci.org/mirnylab/cooler)
 [![Documentation Status](https://readthedocs.org/projects/cooler/badge/?version=latest)](http://cooler.readthedocs.org/en/latest/)
@@ -45,7 +45,7 @@ See the [docs](http://cooler.readthedocs.org/en/latest/) for more information.
 
 ### Contributing
 
-Interested in contributing? That's great! To get started, check out the [contributing guide](CONTRIBUTING.md).
+Interested in contributing? That's great! To get started, check out the [contributing guide](https://github.com/mirnylab/cooler/blob/master/CONTRIBUTING.md).
 
 
 ### Citing
