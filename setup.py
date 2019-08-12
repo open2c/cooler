@@ -41,22 +41,16 @@ def get_long_description():
     return _read('README.md')
 
 
-install_requires = [
-    'six',
-    'numpy>=1.9',
-    'scipy>=0.16',
-    'pandas>=0.19',
-    'h5py>=2.5',
-    'click>=7',
-    'pysam>0.8',
-    'cytoolz',
-    'multiprocess',
-    'biopython',
-    'pyfaidx',
-    'pypairix',
-    'asciitree',
-    'pyyaml'
-]
+def get_requirements(path):
+    content = _read(path)
+    return [
+        req
+        for req in content.split("\n")
+        if req != '' and not req.startswith('#')
+    ]
+
+
+install_requires = get_requirements('requirements.txt')
 
 
 tests_require = [

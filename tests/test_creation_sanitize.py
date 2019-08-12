@@ -62,9 +62,12 @@ def test_sanitize_triu_action():
         tril_action='reflect',
     )(chunk.copy())
     is_tril = ~np.array(out['triu'], dtype=bool)
-    assert np.all(out.loc[is_tril, 'chrom1'] == chunk.loc[is_tril, 'chrom2'])
-    assert np.all(out.loc[is_tril, 'chrom2'] == chunk.loc[is_tril, 'chrom1'])
-    assert np.all(out.loc[is_tril, 'strand1'] == '+')
+    is_tril_ix = out.index[is_tril]
+    assert np.all(
+        out.loc[is_tril_ix, 'chrom1'] == chunk.loc[is_tril_ix, 'chrom2'])
+    assert np.all(
+        out.loc[is_tril_ix, 'chrom2'] == chunk.loc[is_tril_ix, 'chrom1'])
+    assert np.all(out.loc[is_tril_ix, 'strand1'] == '+')
 
     text = valid_data
     chunk = pd.read_csv(StringIO(text), sep='\t', names=columns)
@@ -75,9 +78,12 @@ def test_sanitize_triu_action():
         tril_action='drop',
     )(chunk.copy())
     is_tril = ~np.array(out['triu'], dtype=bool)
-    assert np.all(out.loc[is_tril, 'chrom1'] == chunk.loc[is_tril, 'chrom2'])
-    assert np.all(out.loc[is_tril, 'chrom2'] == chunk.loc[is_tril, 'chrom1'])
-    assert np.all(out.loc[is_tril, 'strand1'] == '+')
+    is_tril_ix = out.index[is_tril]
+    assert np.all(
+        out.loc[is_tril_ix, 'chrom1'] == chunk.loc[is_tril_ix, 'chrom2'])
+    assert np.all(
+        out.loc[is_tril_ix, 'chrom2'] == chunk.loc[is_tril_ix, 'chrom1'])
+    assert np.all(out.loc[is_tril_ix, 'strand1'] == '+')
     assert len(out) == chunk['triu'].sum()
 
     func = sanitize_records(
