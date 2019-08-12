@@ -1,5 +1,7 @@
 # Cooler
 
+<a href="https://mirnylab.github.io/cooler"><img width="25%" src="docs/cooler_logo.png" alt="Such fan!"></a>
+
 [![Build Status](https://travis-ci.org/mirnylab/cooler.svg?branch=master)](https://travis-ci.org/mirnylab/cooler)
 [![Documentation Status](https://readthedocs.org/projects/cooler/badge/?version=latest)](http://cooler.readthedocs.org/en/latest/)
 [![install with bioconda](https://img.shields.io/badge/install%20with-bioconda-brightgreen.svg?style=flat-square)](http://bioconda.github.io/recipes/cooler/README.html)
@@ -8,6 +10,7 @@
 [![DOI](https://zenodo.org/badge/49553222.svg)](https://zenodo.org/badge/latestdoi/49553222)
 
 ## A cool place to store your Hi-C
+
 
 Cooler is a support library for a **sparse, compressed, binary** persistent storage [format](http://cooler.readthedocs.io/en/latest/schema.html), also called cooler, used to store genomic interaction data, such as Hi-C contact matrices.
 
@@ -72,4 +75,4 @@ BSD (3 Clause)
 - Visualize your cooler data with [HiGlass](http://higlass.io)!
 
 
-<!-- ![Cooler](https://github.com/mirnylab/cooler/raw/master/src/docs/cooler_logo.png "such fan!") -->
+<!--  -->
