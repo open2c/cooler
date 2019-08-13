@@ -1,5 +1,14 @@
 # Release notes #
 
+## [v0.8.6](https://github.com/mirnylab/cooler/compare/v0.8.5...v0.8.6)
+
+Date: 2019-08-12
+
+### Maintenance
+* Added contributing guidelines
+
+### Bug fixes
+* Fixed a related regression that affected selection of the `chrom` column.
 
 ## [v0.8.5](https://github.com/mirnylab/cooler/compare/v0.8.4...v0.8.5)
 
