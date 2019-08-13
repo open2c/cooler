@@ -11,10 +11,9 @@
 
 ## A cool place to store your Hi-C
 
-
 Cooler is a support library for a **sparse, compressed, binary** persistent storage [format](http://cooler.readthedocs.io/en/latest/schema.html), also called cooler, used to store genomic interaction data, such as Hi-C contact matrices.
 
-The cooler file format is a reference implementation of a genomic matrix data model using [HDF5](https://en.wikipedia.org/wiki/Hierarchical_Data_Format) as the container format. The `cooler` package includes [command line tools](http://cooler.readthedocs.io/en/latest/cli.html) and [Python API](http://cooler.readthedocs.io/en/latest/api.html) for creating, querying and manipulating cooler files.
+The cooler file format is an implementation of a genomic matrix data model using [HDF5](https://en.wikipedia.org/wiki/Hierarchical_Data_Format) as the container format. The `cooler` package includes a suite of [command line tools](http://cooler.readthedocs.io/en/latest/cli.html) and a [Python API](http://cooler.readthedocs.io/en/latest/api.html) to facilitate creating, querying and manipulating cooler files.
 
 To get started:
 
@@ -45,7 +44,7 @@ See the [docs](http://cooler.readthedocs.org/en/latest/) for more information.
 
 ### Contributing
 
-Interested in contributing? That's great! To get started, check out the [contributing guide](https://github.com/mirnylab/cooler/blob/master/CONTRIBUTING.md).
+Interested in contributing to cooler? That's great! To get started, check out the [contributing guide](https://github.com/mirnylab/cooler/blob/master/CONTRIBUTING.md).
 
 
 ### Citing
@@ -74,5 +73,3 @@ BSD (3 Clause)
 - Downstream analysis with [cooltools](https://github.com/mirnylab/cooltools)!
 - Visualize your cooler data with [HiGlass](http://higlass.io)!
 
-
-<!--  -->
