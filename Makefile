@@ -30,7 +30,7 @@ publish: build
 	# python setup.py sdist upload
 	# python setup.py bdist_wheel upload
 
-publish-test:
+publish-test: build
 	twine upload --repository-url https://test.pypi.org/legacy/ dist/*
 
 docs-init:
