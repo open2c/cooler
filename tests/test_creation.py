@@ -69,7 +69,7 @@ def test_create_append(fp):
 )])
 def test_roundtrip(f_hm, f_cool):
     chromsizes = cooler.read_chromsizes(
-        'https://genome.ucsc.edu/goldenpath/help/hg19.chrom.sizes',
+        'http://genome.ucsc.edu/goldenpath/help/hg19.chrom.sizes',
         name_patterns=(r'^chr[0-9]+$', r'chrX$'))
     binsize = 2000000
     bintable = cooler.binnify(chromsizes, binsize)
