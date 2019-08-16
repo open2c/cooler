@@ -15,19 +15,23 @@ from ..util import attrs_to_jsonable
 @click.argument(
     "cool_uri",
     type=str,
-    metavar="COOL_PATH")
+    metavar="COOL_PATH"
+)
 @click.option(
     "--field", "-f",
     help="Print the value of a specific info field.",
-    type=str)
+    type=str
+)
 @click.option(
     "--metadata", "-m",
     help="Print the user metadata in JSON format.",
     is_flag=True,
-    default=False)
+    default=False,
+)
 @click.option(
     "--out", "-o",
-    help="Output file (defaults to stdout)")
+    help="Output file (defaults to stdout)"
+)
 @exit_on_broken_pipe(1)
 def info(cool_uri, field, metadata, out):
     """
@@ -42,11 +46,11 @@ def info(cool_uri, field, metadata, out):
     if out is None:
         f = sys.stdout
     else:
-        f = open(out, 'wt')
+        f = open(out, "wt")
 
     if metadata:
-        json.dump(c.info['metadata'], f, indent=4)
-        print(end='\n', file=f)
+        json.dump(c.info["metadata"], f, indent=4)
+        print(end="\n", file=f)
 
     elif field is not None:
         try:
@@ -58,8 +62,8 @@ def info(cool_uri, field, metadata, out):
 
     else:
         dct = c.info.copy()
-        dct.pop('metadata', None)
+        dct.pop("metadata", None)
         json.dump(attrs_to_jsonable(dct), f, indent=4)
-        print(end='\n', file=f)
+        print(end="\n", file=f)
 
     f.flush()

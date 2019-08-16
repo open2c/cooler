@@ -2,15 +2,10 @@
 from __future__ import absolute_import, print_function, division
 from collections import OrderedDict, defaultdict
 from bisect import bisect_right
-from functools import partial
 from six.moves import map
 import multiprocess as mp
-import os.path as op
-import itertools
 import warnings
-import shlex
 import math
-import sys
 import six
 
 import pandas as pd
@@ -19,11 +14,11 @@ import h5py
 
 from ._logging import get_logger
 from .create import ContactBinner, create
-from .util import parse_cooler_uri, binnify, get_binsize, GenomeSegmentation
+from .util import parse_cooler_uri, GenomeSegmentation
 from .tools import lock
 
 
-__all__ = ['merge_coolers', 'coarsen_cooler', 'zoomify_cooler']
+__all__ = ["merge_coolers", "coarsen_cooler", "zoomify_cooler"]
 
 
 logger = get_logger(__name__)
@@ -44,7 +39,7 @@ ZOOMS_4DN = [
     1000000,
     2500000,
     5000000,
-    10000000
+    10000000,
 ]
 
 
@@ -77,21 +72,20 @@ def merge_breakpoints(indexes, maxbuf):
     oversized chunks.
 
     """
-    k = len(indexes)
+    # k = len(indexes)
 
     # the virtual cumulative index if no pixels were merged
     cumindex = np.vstack(indexes).sum(axis=0)
     cum_start = 0
     cum_nnz = cumindex[-1]
-    n = len(cumindex)
+    # n = len(cumindex)
 
     breakpoints = [0]
     cum_offsets = [0]
     lo = 0
     while True:
         # find the next mark
-        hi = bisect_right(
-            cumindex, min(cum_start + maxbuf, cum_nnz), lo=lo) - 1
+        hi = bisect_right(cumindex, min(cum_start + maxbuf, cum_nnz), lo=lo) - 1
         if hi == lo:
             # number of records to nearest mark exceeds `maxbuf`
             # check for oversized chunks afterwards
@@ -116,11 +110,12 @@ class CoolerMerger(ContactBinner):
     Implementation of cooler merging.
 
     """
+
     def __init__(self, coolers, maxbuf, columns=None, agg=None):
         self.coolers = list(coolers)
         self.maxbuf = maxbuf
-        self.columns = ['count'] if columns is None else columns
-        self.agg = {col: 'sum' for col in self.columns}
+        self.columns = ["count"] if columns is None else columns
+        self.agg = {col: "sum" for col in self.columns}
         if agg is not None:
             self.agg.update(agg)
 
@@ -134,48 +129,55 @@ class CoolerMerger(ContactBinner):
                 if not np.all(coolers[i].chromsizes == chromsizes):
                     raise ValueError("Coolers must have the same chromosomes")
         else:
-            bins = coolers[0].bins()[['chrom', 'start', 'end']][:]
+            bins = coolers[0].bins()[["chrom", "start", "end"]][:]
             for i in range(1, len(coolers)):
                 if not np.all(
-                        coolers[i].bins()[['chrom', 'start', 'end']][:] == bins): # noqa
+                    coolers[i].bins()[["chrom", "start", "end"]][:] == bins
+                ):  # noqa
                     raise ValueError("Coolers must have same bin structure")
 
     def __iter__(self):
-        indexes = [c._load_dset('indexes/bin1_offset') for c in self.coolers]
+        indexes = [c._load_dset("indexes/bin1_offset") for c in self.coolers]
         breakpoints, cum_offsets = merge_breakpoints(indexes, self.maxbuf)
         chunksizes = np.diff(cum_offsets)
         if chunksizes.max() > self.maxbuf:
             warnings.warn(
-                'Some merge passes will use more than {} pixels'.format(
-                    self.maxbuf))
+                "Some merge passes will use more than {} pixels".format(self.maxbuf)
+            )
         nnzs = [len(c.pixels()) for c in self.coolers]
-        logger.info('nnzs: {}'.format(nnzs))
+        logger.info("nnzs: {}".format(nnzs))
 
         starts = [0] * len(self.coolers)
         for bp in breakpoints[1:]:
             stops = [index[bp] for index in indexes]
-            logger.info('current: {}'.format(stops))
+            logger.info("current: {}".format(stops))
 
             # extract, concat
             combined = pd.concat(
-                [c.pixels()[start:stop]
+                [
+                    c.pixels()[start:stop]
                     for c, start, stop in zip(self.coolers, starts, stops)
-                    if (stop - start) > 0],
+                    if (stop - start) > 0
+                ],
                 axis=0,
-                ignore_index=True)
+                ignore_index=True,
+            )
 
             # sort and aggregate
-            df = (combined.groupby(['bin1_id', 'bin2_id'], sort=True)
-                          .aggregate(self.agg)
-                          .reset_index())
+            df = (
+                combined.groupby(["bin1_id", "bin2_id"], sort=True)
+                .aggregate(self.agg)
+                .reset_index()
+            )
 
             yield {k: v.values for k, v in six.iteritems(df)}
 
             starts = stops
 
 
-def merge_coolers(output_uri, input_uris, mergebuf, columns=None, dtypes=None,
-                  agg=None, **kwargs):
+def merge_coolers(
+    output_uri, input_uris, mergebuf, columns=None, dtypes=None, agg=None, **kwargs
+):
     """
     Merge multiple coolers with identical axes.
 
@@ -212,11 +214,12 @@ def merge_coolers(output_uri, input_uris, mergebuf, columns=None, dtypes=None,
     """
     # TODO: combine metadata from inputs
     from .api import Cooler
-    logger.info("Merging:\n{}".format('\n'.join(input_uris)))
+
+    logger.info("Merging:\n{}".format("\n".join(input_uris)))
 
     clrs = [Cooler(path) for path in input_uris]
 
-    is_symm = [clr.storage_mode == u'symmetric-upper' for clr in clrs]
+    is_symm = [clr.storage_mode == u"symmetric-upper" for clr in clrs]
     if all(is_symm):
         symmetric_upper = True
     elif not any(is_symm):
@@ -225,7 +228,7 @@ def merge_coolers(output_uri, input_uris, mergebuf, columns=None, dtypes=None,
         ValueError("Cannot merge symmetric and non-symmetric coolers.")
 
     if columns is None:
-        columns = ['count']
+        columns = ["count"]
 
     dtype_map = defaultdict(list)
     for clr in clrs:
@@ -234,7 +237,8 @@ def merge_coolers(output_uri, input_uris, mergebuf, columns=None, dtypes=None,
             if col not in pixel_dtypes:
                 raise ValueError(
                     "Pixel value column '{}' not found in "
-                    "input '{}'.".format(col, clr.filename))
+                    "input '{}'.".format(col, clr.filename)
+                )
             else:
                 dtype_map[col].append(pixel_dtypes[col])
 
@@ -244,8 +248,8 @@ def merge_coolers(output_uri, input_uris, mergebuf, columns=None, dtypes=None,
         if col not in dtypes:
             dtypes[col] = np.find_common_type(dtype_map[col], [])
 
-    bins = clrs[0].bins()[['chrom', 'start', 'end']][:]
-    assembly = clrs[0].info.get('genome-assembly', None)
+    bins = clrs[0].bins()[["chrom", "start", "end"]][:]
+    assembly = clrs[0].info.get("genome-assembly", None)
     iterator = CoolerMerger(clrs, maxbuf=mergebuf, columns=columns, agg=agg)
 
     create(
@@ -274,10 +278,10 @@ def _optimal_prune_partition(edges, maxlen):
     opt[0] = 0
     for i in range(1, n):
         # default to immediate predecessor edge
-        opt[i] = opt[i-1] + min(maxlen, edges[i] - edges[i-1])
+        opt[i] = opt[i - 1] + min(maxlen, edges[i] - edges[i - 1])
         pred[i] = i - 1
         # try earlier predecessors until we exceed maxlen
-        for k in range(i-2, -1, -1):
+        for k in range(i - 2, -1, -1):
             length = edges[i] - edges[k]
             if length > maxlen:
                 break
@@ -383,7 +387,8 @@ def get_multiplier_sequence(resolutions, bases=None):
         if p == -1 and resn[i] not in bases:
             raise ValueError(
                 "Resolution {} cannot be derived from "
-                "the base resolutions: {}.".format(resn[i], bases))
+                "the base resolutions: {}.".format(resn[i], bases)
+            )
 
     return resn, pred, mult
 
@@ -393,9 +398,10 @@ class CoolerCoarsener(ContactBinner):
     Implementation of cooler coarsening.
 
     """
-    def __init__(self, source_uri, factor, chunksize, columns, agg,
-                 batchsize, map=map):
+
+    def __init__(self, source_uri, factor, chunksize, columns, agg, batchsize, map=map):
         from .api import Cooler
+
         self._map = map
 
         self.source_uri = source_uri
@@ -405,10 +411,10 @@ class CoolerCoarsener(ContactBinner):
         self.factor = factor
         self.chunksize = int(chunksize)
 
-        self.index_columns = ['bin1_id', 'bin2_id']
+        self.index_columns = ["bin1_id", "bin2_id"]
         self.value_columns = list(columns)
         self.columns = self.index_columns + self.value_columns
-        self.agg = {col: 'sum' for col in self.value_columns}
+        self.agg = {col: "sum" for col in self.value_columns}
         if agg is not None:
             self.agg.update(agg)
 
@@ -417,15 +423,15 @@ class CoolerCoarsener(ContactBinner):
 
         # Info for the old bin segmentation
         self.old_binsize = clr.binsize
-        self.old_chrom_offset = clr._load_dset('indexes/chrom_offset')
-        self.old_bin1_offset = clr._load_dset('indexes/bin1_offset')
+        self.old_chrom_offset = clr._load_dset("indexes/chrom_offset")
+        self.old_bin1_offset = clr._load_dset("indexes/bin1_offset")
 
         # Calculate the new bin segmentation
         if self.old_binsize is None:
             self.new_binsize = None
         else:
             self.new_binsize = self.old_binsize * factor
-        old_bins = clr.bins()[['chrom', 'start', 'end']][:]
+        old_bins = clr.bins()[["chrom", "start", "end"]][:]
         self.new_bins = self.coarsen_bins(old_bins, chromsizes, factor)
         self.gs = GenomeSegmentation(chromsizes, self.new_bins)
 
@@ -445,23 +451,25 @@ class CoolerCoarsener(ContactBinner):
     @staticmethod
     def coarsen_bins(old_bins, chromsizes, factor):
         def _each(group):
-            out = group[['chrom', 'start']].copy().iloc[::factor]
-            end = group['end'].iloc[factor-1::factor].values
+            out = group[["chrom", "start"]].copy().iloc[::factor]
+            end = group["end"].iloc[factor - 1 :: factor].values
             if len(end) < len(out):
                 end = np.r_[end, chromsizes[group.name]]
-            out['end'] = end
+            out["end"] = end
             return out
-        return old_bins.groupby('chrom').apply(_each).reset_index(drop=True)
+
+        return old_bins.groupby("chrom").apply(_each).reset_index(drop=True)
 
     def _aggregate(self, span):
         from .api import Cooler
+
         lo, hi = span
 
         clr = Cooler(self.source_uri)
         # convert_enum=False returns chroms as raw ints
         table = clr.pixels(join=True, convert_enum=False)[self.columns]
         chunk = table[lo:hi]
-        logger.info('{} {}'.format(lo, hi))
+        logger.info("{} {}".format(lo, hi))
 
         # use the "start" point as anchor for re-binning
         binsize = self.gs.binsize
@@ -469,31 +477,29 @@ class CoolerCoarsener(ContactBinner):
         chrom_abspos = self.gs.chrom_abspos
         start_abspos = self.gs.start_abspos
 
-        chrom_id1 = chunk['chrom1'].values
-        chrom_id2 = chunk['chrom2'].values
-        start1 = chunk['start1'].values
-        start2 = chunk['start2'].values
+        chrom_id1 = chunk["chrom1"].values
+        chrom_id2 = chunk["chrom2"].values
+        start1 = chunk["start1"].values
+        start2 = chunk["start2"].values
         if binsize is None:
             abs_start1 = chrom_abspos[chrom_id1] + start1
             abs_start2 = chrom_abspos[chrom_id2] + start2
-            chunk['bin1_id'] = np.searchsorted(
-                start_abspos,
-                abs_start1,
-                side='right') - 1
-            chunk['bin2_id'] = np.searchsorted(
-                start_abspos,
-                abs_start2,
-                side='right') - 1
+            chunk["bin1_id"] = (
+                np.searchsorted(start_abspos, abs_start1, side="right") - 1
+            )
+            chunk["bin2_id"] = (
+                np.searchsorted(start_abspos, abs_start2, side="right") - 1
+            )
         else:
-            rel_bin1 = np.floor(start1/binsize).astype(int)
-            rel_bin2 = np.floor(start2/binsize).astype(int)
-            chunk['bin1_id'] = chrom_binoffset[chrom_id1] + rel_bin1
-            chunk['bin2_id'] = chrom_binoffset[chrom_id2] + rel_bin2
+            rel_bin1 = np.floor(start1 / binsize).astype(int)
+            rel_bin2 = np.floor(start2 / binsize).astype(int)
+            chunk["bin1_id"] = chrom_binoffset[chrom_id1] + rel_bin1
+            chunk["bin2_id"] = chrom_binoffset[chrom_id2] + rel_bin2
 
         return (
             chunk.groupby(self.index_columns, sort=True)
-                 .aggregate(self.agg)
-                 .reset_index()
+            .aggregate(self.agg)
+            .reset_index()
         )
 
     def aggregate(self, span):
@@ -511,7 +517,7 @@ class CoolerCoarsener(ContactBinner):
             try:
                 if batchsize > 1:
                     lock.acquire()
-                results = self._map(self.aggregate, spans[i:i+batchsize])
+                results = self._map(self.aggregate, spans[i : i + batchsize])
             finally:
                 if batchsize > 1:
                     lock.release()
@@ -519,8 +525,17 @@ class CoolerCoarsener(ContactBinner):
                 yield {k: v.values for k, v in six.iteritems(df)}
 
 
-def coarsen_cooler(base_uri, output_uri, factor, chunksize, nproc=1,
-                   columns=None, dtypes=None, agg=None, **kwargs):
+def coarsen_cooler(
+    base_uri,
+    output_uri,
+    factor,
+    chunksize,
+    nproc=1,
+    columns=None,
+    dtypes=None,
+    agg=None,
+    **kwargs
+):
     """
     Coarsen a cooler to a lower resolution by an integer factor *k*.
 
@@ -566,12 +581,13 @@ def coarsen_cooler(base_uri, output_uri, factor, chunksize, nproc=1,
     # dtypes = dict(clr.pixels().dtypes.drop(['bin1_id', 'bin2_id']))
 
     from .api import Cooler
+
     clr = Cooler(base_uri)
 
     factor = int(factor)
 
     if columns is None:
-        columns = ['count']
+        columns = ["count"]
 
     if dtypes is None:
         dtypes = {}
@@ -581,7 +597,8 @@ def coarsen_cooler(base_uri, output_uri, factor, chunksize, nproc=1,
         if col not in input_dtypes:
             raise ValueError(
                 "Pixel value column '{}' not found in "
-                "input '{}'.".format(col, clr.filename))
+                "input '{}'.".format(col, clr.filename)
+            )
         else:
             dtypes[col] = input_dtypes[col]
 
@@ -589,7 +606,7 @@ def coarsen_cooler(base_uri, output_uri, factor, chunksize, nproc=1,
         # Note: fork before opening to prevent inconsistent global HDF5 state
         if nproc > 1:
             pool = mp.Pool(nproc)
-            kwargs.setdefault('lock', lock)
+            kwargs.setdefault("lock", lock)
 
         iterator = CoolerCoarsener(
             base_uri,
@@ -598,27 +615,38 @@ def coarsen_cooler(base_uri, output_uri, factor, chunksize, nproc=1,
             columns=columns,
             agg=agg,
             batchsize=nproc,
-            map=pool.map if nproc > 1 else map)
+            map=pool.map if nproc > 1 else map,
+        )
 
         new_bins = iterator.new_bins
 
-        kwargs.setdefault('append', True)
+        kwargs.setdefault("append", True)
 
         create(
             output_uri,
             new_bins,
             iterator,
             dtypes=dtypes,
-            symmetric_upper=clr.storage_mode == u'symmetric-upper',
-            **kwargs)
+            symmetric_upper=clr.storage_mode == u"symmetric-upper",
+            **kwargs
+        )
 
     finally:
         if nproc > 1:
             pool.close()
 
 
-def zoomify_cooler(base_uris, outfile, resolutions, chunksize, nproc=1,
-                   columns=None, dtypes=None, agg=None, **kwargs):
+def zoomify_cooler(
+    base_uris,
+    outfile,
+    resolutions,
+    chunksize,
+    nproc=1,
+    columns=None,
+    dtypes=None,
+    agg=None,
+    **kwargs
+):
     """
     Generate multiple cooler resolutions by recursive coarsening.
 
@@ -674,7 +702,7 @@ def zoomify_cooler(base_uris, outfile, resolutions, chunksize, nproc=1,
         clr = Cooler(infile, ingroup)
         base_binsize = clr.binsize
         parsed_uris[base_binsize] = (infile, ingroup)
-        n_bins_longest_chrom[base_binsize] = clr.bins()[:].groupby('chrom').size().max()
+        n_bins_longest_chrom[base_binsize] = clr.bins()[:].groupby("chrom").size().max()
         base_resolutions.add(base_binsize)
 
     # Determine the sequence of reductions.
@@ -687,25 +715,24 @@ def zoomify_cooler(base_uris, outfile, resolutions, chunksize, nproc=1,
     )
 
     if columns is None:
-        columns = ['count']
+        columns = ["count"]
 
     # Copy base matrix
     for base_binsize in base_resolutions:
         logger.info("Bin size: " + str(base_binsize))
         infile, ingroup = parsed_uris[base_binsize]
-        with h5py.File(infile, 'r') as src, \
-             h5py.File(outfile, 'w') as dest: # noqa
-            prefix = '/resolutions/{}'.format(base_binsize)
+        with h5py.File(infile, "r") as src, h5py.File(outfile, "w") as dest:  # noqa
+            prefix = "/resolutions/{}".format(base_binsize)
 
-            src.copy(ingroup + '/chroms',
-                     dest, prefix + '/chroms')
-            src.copy(ingroup + '/bins',
-                     dest, prefix + '/bins')
-            for col in ['bin1_id', 'bin2_id'] + list(columns):
-                src.copy(ingroup + '/pixels/{}'.format(col),
-                         dest, prefix + '/pixels/{}'.format(col))
-            src.copy(ingroup + '/indexes',
-                     dest, prefix + '/indexes')
+            src.copy(ingroup + "/chroms", dest, prefix + "/chroms")
+            src.copy(ingroup + "/bins", dest, prefix + "/bins")
+            for col in ["bin1_id", "bin2_id"] + list(columns):
+                src.copy(
+                    ingroup + "/pixels/{}".format(col),
+                    dest,
+                    prefix + "/pixels/{}".format(col),
+                )
+            src.copy(ingroup + "/indexes", dest, prefix + "/indexes")
             dest[prefix].attrs.update(src[ingroup].attrs)
 
     # Aggregate
@@ -715,11 +742,10 @@ def zoomify_cooler(base_uris, outfile, resolutions, chunksize, nproc=1,
             continue
         prev_binsize = resn[pred[i]]
         binsize = prev_binsize * mult[i]
-        logger.info(
-            "Aggregating from {} to {}.".format(prev_binsize, binsize))
+        logger.info("Aggregating from {} to {}.".format(prev_binsize, binsize))
         coarsen_cooler(
-            outfile + '::resolutions/{}'.format(prev_binsize),
-            outfile + '::resolutions/{}'.format(binsize),
+            outfile + "::resolutions/{}".format(prev_binsize),
+            outfile + "::resolutions/{}".format(binsize),
             mult[i],
             chunksize,
             nproc=nproc,
@@ -729,11 +755,8 @@ def zoomify_cooler(base_uris, outfile, resolutions, chunksize, nproc=1,
             **kwargs
         )
 
-    with h5py.File(outfile, 'r+') as fw:
-        fw.attrs.update({
-            'format': u'HDF5::MCOOL',
-            'format-version': 2,
-        })
+    with h5py.File(outfile, "r+") as fw:
+        fw.attrs.update({"format": u"HDF5::MCOOL", "format-version": 2})
 
 
 def legacy_zoomify(input_uri, outfile, nproc, chunksize, lock=None):
@@ -742,6 +765,7 @@ def legacy_zoomify(input_uri, outfile, nproc, chunksize, lock=None):
 
     """
     from .api import Cooler
+
     infile, ingroup = parse_cooler_uri(input_uri)
 
     clr = Cooler(infile, ingroup)
@@ -751,25 +775,20 @@ def legacy_zoomify(input_uri, outfile, nproc, chunksize, lock=None):
     logger.info("total_length (bp): {}".format(np.sum(clr.chromsizes)))
     logger.info("binsize: {}".format(clr.binsize))
     logger.info("n_zooms: {}".format(n_zooms))
-    logger.info("quad tile cover: {}".format(2**n_zooms))
+    logger.info("quad tile cover: {}".format(2 ** n_zooms))
     logger.info(
-        "Copying base matrix to level " +
-        "{0} and producing {0} new zoom levels ".format(n_zooms) +
-        "counting down to 0..."
+        "Copying base matrix to level "
+        + "{0} and producing {0} new zoom levels ".format(n_zooms)
+        + "counting down to 0..."
     )
 
     zoom_levels = OrderedDict()
     zoomLevel = str(n_zooms)
     binsize = clr.binsize
-    logger.info(
-        "Zoom level: "
-        + str(zoomLevel)
-        + " bin size: "
-        + str(binsize))
+    logger.info("Zoom level: " + str(zoomLevel) + " bin size: " + str(binsize))
 
     # Copy base matrix
-    with h5py.File(infile, 'r') as src, \
-         h5py.File(outfile, 'w') as dest: # noqa
+    with h5py.File(infile, "r") as src, h5py.File(outfile, "w") as dest:  # noqa
 
         src.copy(ingroup, dest, str(zoomLevel))
         zoom_levels[zoomLevel] = binsize
@@ -777,30 +796,31 @@ def legacy_zoomify(input_uri, outfile, nproc, chunksize, lock=None):
     # Aggregate
     # Use lock to sync read/write ops on same file
     for i in range(n_zooms - 1, -1, -1):
-        prev_binsize = binsize
+        # prev_binsize = binsize
         binsize *= factor
-        prevLevel = str(i+1)
+        prevLevel = str(i + 1)
         zoomLevel = str(i)
         logger.info(
             "Aggregating at zoom level: "
             + str(zoomLevel)
             + " bin size: "
-            + str(binsize))
+            + str(binsize)
+        )
 
         coarsen_cooler(
-            outfile + '::' + str(prevLevel),
-            outfile + '::' + str(zoomLevel),
+            outfile + "::" + str(prevLevel),
+            outfile + "::" + str(zoomLevel),
             factor,
             chunksize=chunksize,
             nproc=nproc,
-            lock=lock
+            lock=lock,
         )
         zoom_levels[zoomLevel] = binsize
 
-    with h5py.File(outfile, 'r+') as fw:
-        fw.attrs.update({'max-zoom': n_zooms})
+    with h5py.File(outfile, "r+") as fw:
+        fw.attrs.update({"max-zoom": n_zooms})
         # grp = fw.require_group('.zooms')
-        fw.attrs['max-zooms'] = n_zooms
+        fw.attrs["max-zooms"] = n_zooms
         fw.attrs.update(zoom_levels)
 
     return n_zooms, zoom_levels

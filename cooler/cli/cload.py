@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
-from __future__ import division, print_function
+from __future__ import absolute_import, division, print_function
 from multiprocess import Pool
-from functools import partial
-import os.path as op
 import json
 import six
 import sys
@@ -16,7 +14,6 @@ from ._util import parse_bins, parse_kv_list_param, parse_field_param
 from . import cli, get_logger
 import click
 
-from .. import util
 from ..create import (
     create_cooler,
     sanitize_records, aggregate_records,
@@ -36,32 +33,32 @@ def cload():
 
 
 def register_subcommand(func):
-    return (
+    return (  # noqa
         cload.command()(
-        click.argument(
-            "bins",
-            type=str,
-            metavar="BINS")(
-        click.argument(
-            "pairs_path",
-            type=click.Path(exists=True, allow_dash=True),
-            metavar="PAIRS_PATH")(
-        click.argument(
-            "cool_path",
-            metavar="COOL_PATH")(
-        click.option(
-            "--metadata",
-            help="Path to JSON file containing user metadata.")(
-        click.option(
-            "--assembly",
-            help="Name of genome assembly (e.g. hg19, mm10)")(
-        func))))))
+            click.argument(
+                "bins",
+                type=str,
+                metavar="BINS")(
+            click.argument(
+                "pairs_path",
+                type=click.Path(exists=True, allow_dash=True),
+                metavar="PAIRS_PATH")(
+            click.argument(
+                "cool_path",
+                metavar="COOL_PATH")(
+            click.option(
+                "--metadata",
+                help="Path to JSON file containing user metadata.")(
+            click.option(
+                "--assembly",
+                help="Name of genome assembly (e.g. hg19, mm10)")(
+            func))))))
     )
 
 
 def add_arg_help(func):
-    func.__doc__ = func.__doc__.format(
-    """BINS : One of the following
+    func.__doc__ = func.__doc__.format("""
+    BINS : One of the following
 
         <TEXT:INTEGER> : 1. Path to a chromsizes file, 2. Bin size in bp
 
@@ -80,7 +77,8 @@ def add_arg_help(func):
     help="Control the number of pixels handled by each worker process at a time.",
     type=int,
     default=int(100e6),
-    show_default=True)
+    show_default=True
+)
 def hiclib(bins, pairs_path, cool_path, metadata, assembly, chunksize):
     """
     Bin a hiclib HDF5 contact list (frag) file.
@@ -113,32 +111,37 @@ def hiclib(bins, pairs_path, cool_path, metadata, assembly, chunksize):
     help="Number of processes to split the work between.",
     type=int,
     default=8,
-    show_default=True)
+    show_default=True
+)
 @click.option(
     "--chrom2", "-c2",
     help="chrom2 field number (one-based)",
     type=int,
-    default=4)
+    default=4
+)
 @click.option(
     "--pos2", "-p2",
     help="pos2 field number (one-based)",
     type=int,
-    default=5)
+    default=5
+)
 @click.option(
     "--zero-based", "-0",
     help="Positions are zero-based",
     is_flag=True,
     default=False,
-    show_default=True)
+    show_default=True
+)
 @click.option(
     "--max-split", "-s",
     help="Divide the pairs from each chromosome into at most this many chunks. "
-         "Smaller chromosomes will be split less frequently or not at all. "
-         "Increase ths value if large chromosomes dominate the workload on "
-         "multiple processors.",
+    "Smaller chromosomes will be split less frequently or not at all. "
+    "Increase ths value if large chromosomes dominate the workload on "
+    "multiple processors.",
     type=int,
     default=2,
-    show_default=True)
+    show_default=True
+)
 def tabix(bins, pairs_path, cool_path, metadata, assembly, nproc, zero_based, max_split, **kwargs):
     """
     Bin a tabix-indexed contact list file.
@@ -164,13 +167,23 @@ def tabix(bins, pairs_path, cool_path, metadata, assembly, nproc, zero_based, ma
             map = pool.imap
         else:
             map = six.moves.map
+
         opts = {}
         if 'chrom2' in kwargs:
             opts['C2'] = kwargs['chrom2'] - 1
         if 'pos2' in kwargs:
             opts['P2'] = kwargs['pos2'] - 1
-        iterator = TabixAggregator(pairs_path, chromsizes, bins, map=map,
-            is_one_based=(not zero_based), n_chunks=max_split, **opts)
+
+        iterator = TabixAggregator(
+            pairs_path,
+            chromsizes,
+            bins,
+            map=map,
+            is_one_based=(not zero_based),
+            n_chunks=max_split,
+            **opts
+        )
+
         create_cooler(
             cool_path, bins, iterator,
             metadata=metadata,
@@ -188,22 +201,25 @@ def tabix(bins, pairs_path, cool_path, metadata, assembly, nproc, zero_based, ma
     help="Number of processes to split the work between.",
     type=int,
     default=8,
-    show_default=True)
+    show_default=True
+)
 @click.option(
     "--zero-based", "-0",
     help="Positions are zero-based",
     is_flag=True,
     default=False,
-    show_default=True)
+    show_default=True
+)
 @click.option(
     "--max-split", "-s",
     help="Divide the pairs from each chromosome into at most this many chunks. "
-         "Smaller chromosomes will be split less frequently or not at all. "
-         "Increase ths value if large chromosomes dominate the workload on "
-         "multiple processors.",
+    "Smaller chromosomes will be split less frequently or not at all. "
+    "Increase ths value if large chromosomes dominate the workload on "
+    "multiple processors.",
     type=int,
     default=2,
-    show_default=True)
+    show_default=True
+)
 def pairix(bins, pairs_path, cool_path, metadata, assembly, nproc, zero_based, max_split):
     """
     Bin a pairix-indexed contact list file.
@@ -229,8 +245,15 @@ def pairix(bins, pairs_path, cool_path, metadata, assembly, nproc, zero_based, m
             map = pool.imap
         else:
             map = six.moves.map
-        iterator = PairixAggregator(pairs_path, chromsizes, bins, map=map,
-            is_one_based=(not zero_based), n_chunks=max_split)
+
+        iterator = PairixAggregator(
+            pairs_path,
+            chromsizes,
+            bins,
+            map=map,
+            is_one_based=(not zero_based),
+            n_chunks=max_split)
+
         create_cooler(
             cool_path, bins, iterator,
             metadata=metadata,
@@ -247,69 +270,79 @@ def pairix(bins, pairs_path, cool_path, metadata, assembly, nproc, zero_based, m
     "--chrom1", "-c1",
     help="chrom1 field number (one-based)",
     type=int,
-    required=True)
+    required=True
+)
 @click.option(
     "--pos1", "-p1",
     help="pos1 field number (one-based)",
     type=int,
-    required=True)
+    required=True
+)
 @click.option(
     "--chrom2", "-c2",
     help="chrom2 field number (one-based)",
     type=int,
-    required=True)
+    required=True
+)
 @click.option(
     "--pos2", "-p2",
     help="pos2 field number (one-based)",
     type=int,
-    required=True)
+    required=True
+)
 @click.option(
     "--chunksize",
     help="Number of input lines to load at a time",
     type=int,
-    default=int(15e6))
+    default=int(15e6)
+)
 @click.option(
     "--zero-based", "-0",
     help="Positions are zero-based",
     is_flag=True,
     default=False,
-    show_default=True)
+    show_default=True
+)
 @click.option(
     "--comment-char",
     type=str,
     default='#',
     show_default=True,
-    help="Comment character that indicates lines to ignore.")
+    help="Comment character that indicates lines to ignore."
+)
 @click.option(
     "--no-symmetric-upper", "-N",
     help="Create a complete square matrix without implicit symmetry. "
-         "This allows for distinct upper- and lower-triangle values",
+    "This allows for distinct upper- and lower-triangle values",
     is_flag=True,
-    default=False)
+    default=False
+)
 @click.option(
     "--input-copy-status",
     type=click.Choice(['unique', 'duplex']),
     default='unique',
     help="Copy status of input data when using symmetric-upper storage. | "
-         "`unique`: Incoming data comes from a unique half of a symmetric "
-         "map, regardless of how the coordinates of a pair are ordered. "
-         "`duplex`: Incoming data contains upper- and lower-triangle duplicates. "
-         "All input records that map to the lower triangle will be discarded! | "
-         "If you wish to treat lower- and upper-triangle input data as "
-         "distinct, use the ``--no-symmetric-upper`` option. ",
-    show_default=True)
+    "`unique`: Incoming data comes from a unique half of a symmetric "
+    "map, regardless of how the coordinates of a pair are ordered. "
+    "`duplex`: Incoming data contains upper- and lower-triangle duplicates. "
+    "All input records that map to the lower triangle will be discarded! | "
+    "If you wish to treat lower- and upper-triangle input data as "
+    "distinct, use the ``--no-symmetric-upper`` option. ",
+    show_default=True
+)
 @click.option(
     "--field",
     help="Specify quantitative input fields to aggregate into value columns "
-         "using the syntax ``--field <field-name>=<field-number>``. "
-         "Optionally, append ``:`` followed by ``dtype=<dtype>`` to specify "
-         "the data type (e.g. float), and/or ``agg=<agg>`` to "
-         "specify an aggregation function different from sum (e.g. mean). "
-         "Field numbers are 1-based. Passing 'count' as the target name will "
-         "override the default behavior of storing pair counts. "
-         "Repeat the ``--field`` option for each additional field.",
+    "using the syntax ``--field <field-name>=<field-number>``. "
+    "Optionally, append ``:`` followed by ``dtype=<dtype>`` to specify "
+    "the data type (e.g. float), and/or ``agg=<agg>`` to "
+    "specify an aggregation function different from sum (e.g. mean). "
+    "Field numbers are 1-based. Passing 'count' as the target name will "
+    "override the default behavior of storing pair counts. "
+    "Repeat the ``--field`` option for each additional field.",
     type=str,
-    multiple=True)
+    multiple=True
+)
 # @click.option(
 #     "--no-count",
 #     help="Do not store the pair counts. Use this only if you use `--field` to "
@@ -319,25 +352,29 @@ def pairix(bins, pairs_path, cool_path, metadata, assembly, nproc, zero_based, m
 @click.option(
     "--temp-dir",
     help="Create temporary files in a specified directory. Pass ``-`` to use "
-         "the platform default temp dir.",
-    type=click.Path(exists=True, file_okay=False, dir_okay=True, allow_dash=True))
+    "the platform default temp dir.",
+    type=click.Path(exists=True, file_okay=False, dir_okay=True, allow_dash=True)
+)
 @click.option(
     "--no-delete-temp",
     help="Do not delete temporary files when finished.",
     is_flag=True,
-    default=False)
+    default=False
+)
 @click.option(
     "--max-merge",
     help="Maximum number of chunks to merge before invoking recursive merging",
     type=int,
     default=200,
-    show_default=True)
+    show_default=True
+)
 @click.option(
     "--storage-options",
     help="Options to modify the data filter pipeline. Provide as a "
-         "comma-separated list of key-value pairs of the form 'k1=v1,k2=v2,...'. "
-         "See http://docs.h5py.org/en/stable/high/dataset.html#filter-pipeline "
-         "for more details.")
+    "comma-separated list of key-value pairs of the form 'k1=v1,k2=v2,...'. "
+    "See http://docs.h5py.org/en/stable/high/dataset.html#filter-pipeline "
+    "for more details."
+)
 # @click.option(
 #     "--format", "-f",
 #     help="Preset data format.",

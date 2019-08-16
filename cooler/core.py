@@ -57,11 +57,10 @@ def get(grp, lo=0, hi=None, fields=None, convert_enum=True, as_dict=False):
 
         if dt is not None:
             data[field] = pd.Categorical.from_codes(
-                dset[lo:hi],
-                sorted(dt, key=dt.__getitem__),
-                ordered=True)
+                dset[lo:hi], sorted(dt, key=dt.__getitem__), ordered=True
+            )
         elif dset.dtype.type == np.string_:
-            data[field] = dset[lo:hi].astype('U')
+            data[field] = dset[lo:hi].astype("U")
         else:
             data[field] = dset[lo:hi]
 
@@ -74,15 +73,9 @@ def get(grp, lo=0, hi=None, fields=None, convert_enum=True, as_dict=False):
         index = None
 
     if series:
-        return pd.Series(
-            data[fields[0]],
-            index=index,
-            name=field)
+        return pd.Series(data[fields[0]], index=index, name=field)
     else:
-        return pd.DataFrame(
-            data,
-            columns=fields,
-            index=index)
+        return pd.DataFrame(data, columns=fields, index=index)
 
 
 def put(grp, df, lo=0, store_categories=True, h5opts=None):
@@ -115,7 +108,7 @@ def put(grp, df, lo=0, store_categories=True, h5opts=None):
 
     """
     if h5opts is None:
-        h5opts = dict(compression='gzip', compression_opts=6)
+        h5opts = dict(compression="gzip", compression_opts=6)
 
     if isinstance(df, pd.Series):
         df = df.to_frame()
@@ -130,8 +123,7 @@ def put(grp, df, lo=0, store_categories=True, h5opts=None):
         elif is_categorical(data):
             if store_categories:
                 cats = data.cat.categories
-                enum = (data.cat.codes.dtype,
-                        dict(zip(cats, range(len(cats)))))
+                enum = (data.cat.codes.dtype, dict(zip(cats, range(len(cats)))))
                 data = data.cat.codes
                 dtype = h5py.special_dtype(enum=enum)
                 fillvalue = -1
@@ -142,7 +134,7 @@ def put(grp, df, lo=0, store_categories=True, h5opts=None):
         else:
             data = np.asarray(data)
             if data.dtype in (object, str, bytes):
-                dtype = np.dtype('S')
+                dtype = np.dtype("S")
                 data = np.array(data, dtype=dtype)
                 fillvalue = None
             else:
@@ -159,7 +151,8 @@ def put(grp, df, lo=0, store_categories=True, h5opts=None):
                 dtype=dtype,
                 maxshape=(None,),
                 fillvalue=fillvalue,
-                **h5opts)
+                **h5opts
+            )
         if hi > len(dset):
             dset.resize((hi,))
 
@@ -202,15 +195,15 @@ def _region_to_extent(h5, chrom_ids, region, binsize):
     chrom, start, end = region
     cid = chrom_ids[chrom]
     if binsize is not None:
-        chrom_offset = h5['indexes']['chrom_offset'][cid]
-        yield chrom_offset + int(np.floor(start/binsize))
-        yield chrom_offset + int(np.ceil(end/binsize))
+        chrom_offset = h5["indexes"]["chrom_offset"][cid]
+        yield chrom_offset + int(np.floor(start / binsize))
+        yield chrom_offset + int(np.ceil(end / binsize))
     else:
-        chrom_lo = h5['indexes']['chrom_offset'][cid]
-        chrom_hi = h5['indexes']['chrom_offset'][cid + 1]
-        chrom_bins = h5['bins']['start'][chrom_lo:chrom_hi]
-        yield chrom_lo + np.searchsorted(chrom_bins, start, 'right') - 1
-        yield chrom_lo + np.searchsorted(chrom_bins, end, 'left')
+        chrom_lo = h5["indexes"]["chrom_offset"][cid]
+        chrom_hi = h5["indexes"]["chrom_offset"][cid + 1]
+        chrom_bins = h5["bins"]["start"][chrom_lo:chrom_hi]
+        yield chrom_lo + np.searchsorted(chrom_bins, start, "right") - 1
+        yield chrom_lo + np.searchsorted(chrom_bins, end, "left")
 
 
 def region_to_offset(h5, chrom_ids, region, binsize=None):
@@ -237,6 +230,7 @@ class CSRReader(object):
         memory usage.
 
     """
+
     def __init__(self, h5, field, max_chunk):
         self.h5 = h5
         self.field = field
@@ -244,11 +238,11 @@ class CSRReader(object):
 
     def index_col(self, i0, i1, j0, j1):
         """Retrieve pixel table row IDs corresponding to query rectangle."""
-        edges = self.h5['indexes']['bin1_offset'][i0:i1 + 1]
+        edges = self.h5["indexes"]["bin1_offset"][i0 : i1 + 1]
         index = []
         for lo1, hi1 in zip(edges[:-1], edges[1:]):
             if hi1 - lo1 > 0:
-                bin2 = self.h5['pixels']['bin2_id'][lo1:hi1]
+                bin2 = self.h5["pixels"]["bin2_id"][lo1:hi1]
                 mask = (bin2 >= j0) & (bin2 < j1)
                 index.append(lo1 + np.flatnonzero(mask))
         if not index:
@@ -263,17 +257,17 @@ class CSRReader(object):
 
         i, j, v = [], [], []
         if (i1 - i0 > 0) or (j1 - j0 > 0):
-            edges = h5['indexes']['bin1_offset'][i0:i1 + 1]
-            data = h5['pixels'][field]
+            edges = h5["indexes"]["bin1_offset"][i0 : i1 + 1]
+            data = h5["pixels"][field]
             p0, p1 = edges[0], edges[-1]
 
             if (p1 - p0) < self.max_chunk:
-                all_bin2 = h5['pixels']['bin2_id'][p0:p1]
+                all_bin2 = h5["pixels"]["bin2_id"][p0:p1]
                 all_data = data[p0:p1]
                 dtype = all_bin2.dtype
-                for row_id, lo, hi in zip(range(i0, i1),
-                                          edges[:-1] - p0,
-                                          edges[1:] - p0):
+                for row_id, lo, hi in zip(
+                    range(i0, i1), edges[:-1] - p0, edges[1:] - p0
+                ):
                     bin2 = all_bin2[lo:hi]
                     mask = (bin2 >= j0) & (bin2 < j1)
                     cols = bin2[mask]
@@ -282,9 +276,8 @@ class CSRReader(object):
                     j.append(cols)
                     v.append(all_data[lo:hi][mask])
             else:
-                for row_id, lo, hi in zip(
-                        range(i0, i1), edges[:-1], edges[1:]):
-                    bin2 = h5['pixels']['bin2_id'][lo:hi]
+                for row_id, lo, hi in zip(range(i0, i1), edges[:-1], edges[1:]):
+                    bin2 = h5["pixels"]["bin2_id"][lo:hi]
                     mask = (bin2 >= j0) & (bin2 < j1)
                     cols = bin2[mask]
                     dtype = bin2.dtype
@@ -307,19 +300,22 @@ class CSRReader(object):
 
 def _check_bounds(lo, hi, N):
     if hi > N:
-        raise IndexError('slice index ({}) out of range'.format(hi))
+        raise IndexError("slice index ({}) out of range".format(hi))
     if lo < 0:
-        raise IndexError('slice index ({}) out of range'.format(lo))
+        raise IndexError("slice index ({}) out of range".format(lo))
 
 
 def _comes_before(a0, a1, b0, b1, strict=False):
-    if a0 < b0: return a1 <= b0 if strict else a1 <= b1
+    if a0 < b0:
+        return a1 <= b0 if strict else a1 <= b1
     return False
 
 
 def _contains(a0, a1, b0, b1, strict=False):
-    if a0 > b0 or a1 < b1: return False
-    if strict and (a0 == b0 or a1 == b1): return False
+    if a0 > b0 or a1 < b1:
+        return False
+    if strict and (a0 == b0 or a1 == b1):
+        return False
     return a0 <= b0 and a1 >= b1
 
 
@@ -396,7 +392,11 @@ def query_rect(triu_reader, i0, i1, j0, j1, duplex=True):
             iz, jz, vz = triu_reader(i0, i1, i1, j1)
             if duplex:
                 nodiag = iy != jy
-                iy, jy, vy = np.r_[iy, jy[nodiag]], np.r_[jy, iy[nodiag]], np.r_[vy, vy[nodiag]]
+                iy, jy, vy = (
+                    np.r_[iy, jy[nodiag]],
+                    np.r_[jy, iy[nodiag]],
+                    np.r_[vy, vy[nodiag]],
+                )
             i, j, v = np.r_[ix, iy, iz], np.r_[jx, jy, jz], np.r_[vx, vy, vz]
 
         # nested
@@ -406,7 +406,11 @@ def query_rect(triu_reader, i0, i1, j0, j1, duplex=True):
             jz, iz, vz = triu_reader(j0, j1, j1, i1)
             if duplex:
                 nodiag = iy != jy
-                iy, jy, vy = np.r_[iy, jy[nodiag]], np.r_[jy, iy[nodiag]], np.r_[vy, vy[nodiag]]
+                iy, jy, vy = (
+                    np.r_[iy, jy[nodiag]],
+                    np.r_[jy, iy[nodiag]],
+                    np.r_[vy, vy[nodiag]],
+                )
             i, j, v = np.r_[ix, iy, iz], np.r_[jx, jy, jz], np.r_[vx, vy, vz]
 
         else:
@@ -419,7 +423,6 @@ def query_rect(triu_reader, i0, i1, j0, j1, duplex=True):
 
 
 class _IndexingMixin(object):
-
     def _unpack_index(self, key):
         if isinstance(key, tuple):
             if len(key) == 2:
@@ -427,7 +430,7 @@ class _IndexingMixin(object):
             elif len(key) == 1:
                 row, col = key[0], slice(None)
             else:
-                raise IndexError('invalid number of indices')
+                raise IndexError("invalid number of indices")
         else:
             row, col = key, slice(None)
         return row, col
@@ -442,7 +445,7 @@ class _IndexingMixin(object):
     def _process_slice(self, s, nmax):
         if isinstance(s, slice):
             if s.step not in (1, None):
-                raise ValueError('slicing with step != 1 not supported')
+                raise ValueError("slicing with step != 1 not supported")
             i0, i1 = s.start, s.stop
             if i0 is None:
                 i0 = 0
@@ -457,10 +460,10 @@ class _IndexingMixin(object):
             if s < 0:
                 s += nmax
             if s >= nmax:
-                raise IndexError('index is out of bounds')
+                raise IndexError("index is out of bounds")
             return int(s), int(s + 1)
         else:
-            raise TypeError('expected slice or scalar')
+            raise TypeError("expected slice or scalar")
 
 
 class RangeSelector1D(_IndexingMixin):
@@ -489,6 +492,7 @@ class RangeSelector1D(_IndexingMixin):
     >>> sel.fetch(('chr3', 10000000, 12000000))
 
     """
+
     def __init__(self, fields, slicer, fetcher, nmax):
         self.fields = fields
         self._slice = slicer
@@ -519,15 +523,14 @@ class RangeSelector1D(_IndexingMixin):
     def __getitem__(self, key):
         # requesting a subset of columns
         if isinstance(key, (list, str)):
-            return self.__class__(
-                key, self._slice, self._fetch, self._shape[0])
+            return self.__class__(key, self._slice, self._fetch, self._shape[0])
 
         # requesting an interval of rows
         if isinstance(key, tuple):
             if len(key) == 1:
                 key = key[0]
             else:
-                raise IndexError('too many indices for table')
+                raise IndexError("too many indices for table")
         lo, hi = self._process_slice(key, self._shape[0])
         return self._slice(self.fields, lo, hi)
 
@@ -545,6 +548,7 @@ class RangeSelector2D(_IndexingMixin):
     subscript indexing.
 
     """
+
     def __init__(self, field, slicer, fetcher, shape):
         self.field = field
         self._slice = slicer

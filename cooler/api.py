@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from __future__ import division, print_function
+from __future__ import absolute_import, division, print_function
 import json
 import six
 import os
@@ -10,17 +10,24 @@ import numpy as np
 import pandas as pd
 import h5py
 
-from .core import (get, region_to_offset, region_to_extent, RangeSelector1D,
-                   RangeSelector2D, CSRReader, query_rect)
+from .core import (
+    get,
+    region_to_offset,
+    region_to_extent,
+    RangeSelector1D,
+    RangeSelector2D,
+    CSRReader,
+    query_rect,
+)
 from .util import parse_cooler_uri, parse_region, open_hdf5, closing_hdf5
 from .fileops import list_coolers
 
 
-__all__ = ['Cooler', 'annotate']
+__all__ = ["Cooler", "annotate"]
 
 
 # The 4DN data portal and hic2cool store these weight vectors in divisive form
-_4DN_DIVISIVE_WEIGHTS = {'KR', 'VC', 'VC_SQRT'}
+_4DN_DIVISIVE_WEIGHTS = {"KR", "VC", "VC_SQRT"}
 
 
 class Cooler(object):
@@ -58,6 +65,7 @@ class Cooler(object):
     :py:class:`scipy.sparse.coo_matrix`.
 
     """
+
     def __init__(self, store, root=None, **kwargs):
         if isinstance(store, six.string_types):
             if root is None:
@@ -67,15 +75,15 @@ class Cooler(object):
                     self.filename = h5.file.filename
                     self.root = root
             else:
-                raise ValueError('Not a valid path to a Cooler file')
-            self.uri = self.filename + '::' + self.root
+                raise ValueError("Not a valid path to a Cooler file")
+            self.uri = self.filename + "::" + self.root
             self.store = self.filename
             self.open_kws = kwargs
         else:
             # Assume an open HDF5 handle, ignore open_kws
             self.filename = store.file.filename
             self.root = store.name
-            self.uri = self.filename + '::' + self.root
+            self.uri = self.filename + "::" + self.root
             self.store = store.file
             self.open_kws = {}
         self._refresh()
@@ -85,18 +93,20 @@ class Cooler(object):
             with open_hdf5(self.store, **self.open_kws) as h5:
                 grp = h5[self.root]
                 _ct = chroms(grp)
-                _ct['name'] = _ct['name'].astype(object)
-                self._chromsizes = _ct.set_index('name')['length']
-                self._chromids = dict(zip(_ct['name'], range(len(_ct))))
+                _ct["name"] = _ct["name"].astype(object)
+                self._chromsizes = _ct.set_index("name")["length"]
+                self._chromids = dict(zip(_ct["name"], range(len(_ct))))
                 self._info = info(grp)
-                mode = self._info.get('storage-mode', u"symmetric-upper")
+                mode = self._info.get("storage-mode", u"symmetric-upper")
                 self._is_symm_upper = mode == u"symmetric-upper"
         except KeyError:
             err_msg = "No cooler found at: {}.".format(self.store)
             listing = list_coolers(self.store)
             if len(listing):
-                err_msg += (" Coolers found in {}. ".format(listing) +
-                            "Use '::' to specify a group path")
+                err_msg += (
+                    " Coolers found in {}. ".format(listing)
+                    + "Use '::' to specify a group path"
+                )
             raise KeyError(err_msg)
 
     def _load_dset(self, path):
@@ -109,7 +119,7 @@ class Cooler(object):
             grp = h5[self.root]
             return dict(grp[path].attrs)
 
-    def open(self, mode='r', **kwargs):
+    def open(self, mode="r", **kwargs):
         """ Open the HDF5 group containing the Cooler with :py:mod:`h5py`
 
         Functions as a context manager. Any ``open_kws`` passed during
@@ -135,12 +145,12 @@ class Cooler(object):
         (``"square"``) or whether a symmetric matrix is encoded by storing only
         the upper triangular elements (``"symmetric-upper"``).
         """
-        return self._info.get('storage-mode', u"symmetric-upper")
+        return self._info.get("storage-mode", u"symmetric-upper")
 
     @property
     def binsize(self):
         """ Resolution in base pairs if uniform else None """
-        return self._info['bin-size']
+        return self._info["bin-size"]
 
     @property
     def chromsizes(self):
@@ -173,8 +183,8 @@ class Cooler(object):
         with open_hdf5(self.store, **self.open_kws) as h5:
             grp = h5[self.root]
             return region_to_offset(
-                grp, self._chromids,
-                parse_region(region, self._chromsizes))
+                grp, self._chromids, parse_region(region, self._chromsizes)
+            )
 
     def extent(self, region):
         """ Bin IDs containing the left and right ends of a genomic region
@@ -197,8 +207,8 @@ class Cooler(object):
         with open_hdf5(self.store, **self.open_kws) as h5:
             grp = h5[self.root]
             return region_to_extent(
-                grp, self._chromids,
-                parse_region(region, self._chromsizes))
+                grp, self._chromids, parse_region(region, self._chromsizes)
+            )
 
     @property
     def info(self):
@@ -215,7 +225,7 @@ class Cooler(object):
 
     @property
     def shape(self):
-        return (self._info['nbins'],) * 2
+        return (self._info["nbins"],) * 2
 
     def chroms(self, **kwargs):
         """ Chromosome table selector
@@ -225,12 +235,13 @@ class Cooler(object):
         Table selector
 
         """
+
         def _slice(fields, lo, hi):
             with open_hdf5(self.store, **self.open_kws) as h5:
                 grp = h5[self.root]
                 return chroms(grp, lo, hi, fields, **kwargs)
 
-        return RangeSelector1D(None, _slice, None, self._info['nchroms'])
+        return RangeSelector1D(None, _slice, None, self._info["nchroms"])
 
     def bins(self, **kwargs):
         """ Bin table selector
@@ -249,10 +260,11 @@ class Cooler(object):
         def _fetch(region):
             with open_hdf5(self.store, **self.open_kws) as h5:
                 grp = h5[self.root]
-                return region_to_extent(grp, self._chromids,
-                                        parse_region(region, self._chromsizes))
+                return region_to_extent(
+                    grp, self._chromids, parse_region(region, self._chromsizes)
+                )
 
-        return RangeSelector1D(None, _slice, _fetch, self._info['nbins'])
+        return RangeSelector1D(None, _slice, _fetch, self._info["nbins"])
 
     def pixels(self, join=False, **kwargs):
         """ Pixel table selector
@@ -278,17 +290,25 @@ class Cooler(object):
             with open_hdf5(self.store, **self.open_kws) as h5:
                 grp = h5[self.root]
                 i0, i1 = region_to_extent(
-                    grp, self._chromids,
-                    parse_region(region, self._chromsizes))
-                lo = grp['indexes']['bin1_offset'][i0]
-                hi = grp['indexes']['bin1_offset'][i1]
+                    grp, self._chromids, parse_region(region, self._chromsizes)
+                )
+                lo = grp["indexes"]["bin1_offset"][i0]
+                hi = grp["indexes"]["bin1_offset"][i1]
                 return lo, hi
 
-        return RangeSelector1D(None, _slice, _fetch, self._info['nnz'])
+        return RangeSelector1D(None, _slice, _fetch, self._info["nnz"])
 
-    def matrix(self, field=None, balance=True, sparse=False, as_pixels=False,
-               join=False, ignore_index=True, divisive_weights=None,
-               max_chunk=500000000):
+    def matrix(
+        self,
+        field=None,
+        balance=True,
+        sparse=False,
+        as_pixels=False,
+        join=False,
+        ignore_index=True,
+        divisive_weights=None,
+        max_chunk=500000000,
+    ):
         """ Contact matrix selector
 
         Parameters
@@ -340,9 +360,21 @@ class Cooler(object):
             with open_hdf5(self.store, **self.open_kws) as h5:
                 grp = h5[self.root]
                 return matrix(
-                    grp, i0, i1, j0, j1, field, balance, sparse,
-                    as_pixels, join, ignore_index, divisive_weights, max_chunk,
-                    self._is_symm_upper)
+                    grp,
+                    i0,
+                    i1,
+                    j0,
+                    j1,
+                    field,
+                    balance,
+                    sparse,
+                    as_pixels,
+                    join,
+                    ignore_index,
+                    divisive_weights,
+                    max_chunk,
+                    self._is_symm_upper,
+                )
 
         def _fetch(region, region2=None):
             with open_hdf5(self.store, **self.open_kws) as h5:
@@ -355,13 +387,12 @@ class Cooler(object):
                 j0, j1 = region_to_extent(grp, self._chromids, region2)
                 return i0, i1, j0, j1
 
-        return RangeSelector2D(
-            field, _slice, _fetch, (self._info['nbins'],) * 2)
+        return RangeSelector2D(field, _slice, _fetch, (self._info["nbins"],) * 2)
 
     def __repr__(self):
         if isinstance(self.store, six.string_types):
             filename = os.path.basename(self.store)
-            container = '{}::{}'.format(filename, self.root)
+            container = "{}::{}".format(filename, self.root)
         else:
             container = repr(self.store)
         return '<Cooler "{}">'.format(container)
@@ -412,10 +443,12 @@ def chroms(h5, lo=0, hi=None, fields=None, **kwargs):
 
     """
     if fields is None:
-        fields = (pd.Index(['name', 'length'])
-                    .append(pd.Index(h5['chroms'].keys()))
-                    .drop_duplicates())
-    return get(h5['chroms'], lo, hi, fields, **kwargs)
+        fields = (
+            pd.Index(["name", "length"])
+            .append(pd.Index(h5["chroms"].keys()))
+            .drop_duplicates()
+        )
+    return get(h5["chroms"], lo, hi, fields, **kwargs)
 
 
 def bins(h5, lo=0, hi=None, fields=None, **kwargs):
@@ -437,32 +470,33 @@ def bins(h5, lo=0, hi=None, fields=None, **kwargs):
 
     """
     if fields is None:
-        fields = (pd.Index(['chrom', 'start', 'end'])
-                    .append(pd.Index(h5['bins'].keys()))
-                    .drop_duplicates())
+        fields = (
+            pd.Index(["chrom", "start", "end"])
+            .append(pd.Index(h5["bins"].keys()))
+            .drop_duplicates()
+        )
 
     # If convert_enum is not explicitly set to False, chrom IDs will get
     # converted to categorical chromosome names, provided the ENUM header
     # exists in bins/chrom. Otherwise, they will return as integers.
-    out = get(h5['bins'], lo, hi, fields, **kwargs)
+    out = get(h5["bins"], lo, hi, fields, **kwargs)
 
     # Handle the case where the ENUM header doesn't exist but we want to
     # convert integer chrom IDs to categorical chromosome names.
-    if 'chrom' in fields:
-        convert_enum = kwargs.get('convert_enum', True)
+    if "chrom" in fields:
+        convert_enum = kwargs.get("convert_enum", True)
         if isinstance(fields, six.string_types):
             chrom_col = out
         else:
-            chrom_col = out['chrom']
+            chrom_col = out["chrom"]
 
         if is_integer_dtype(chrom_col.dtype) and convert_enum:
-            chromnames = chroms(h5, fields='name')
-            chrom_col = pd.Categorical.from_codes(
-                chrom_col, chromnames, ordered=True)
+            chromnames = chroms(h5, fields="name")
+            chrom_col = pd.Categorical.from_codes(chrom_col, chromnames, ordered=True)
             if isinstance(fields, six.string_types):
                 out = pd.Series(chrom_col, out.index)
             else:
-                out['chrom'] = chrom_col
+                out["chrom"] = chrom_col
 
     return out
 
@@ -490,14 +524,16 @@ def pixels(h5, lo=0, hi=None, fields=None, join=True, **kwargs):
 
     """
     if fields is None:
-        fields = (pd.Index(['bin1_id', 'bin2_id'])
-                    .append(pd.Index(h5['pixels'].keys()))
-                    .drop_duplicates())
+        fields = (
+            pd.Index(["bin1_id", "bin2_id"])
+            .append(pd.Index(h5["pixels"].keys()))
+            .drop_duplicates()
+        )
 
-    df = get(h5['pixels'], lo, hi, fields, **kwargs)
+    df = get(h5["pixels"], lo, hi, fields, **kwargs)
 
     if join:
-        bins = get(h5['bins'], 0, None, ['chrom', 'start', 'end'], **kwargs)
+        bins = get(h5["bins"], 0, None, ["chrom", "start", "end"], **kwargs)
         df = annotate(df, bins, replace=True)
 
     return df
@@ -535,9 +571,9 @@ def annotate(pixels, bins, replace=False):
     columns = pixels.columns
     ncols = len(columns)
 
-    if 'bin1_id' in columns:
+    if "bin1_id" in columns:
         if len(bins) > len(pixels):
-            bin1 = pixels['bin1_id']
+            bin1 = pixels["bin1_id"]
             lo = bin1.min()
             hi = bin1.max() + 1
             lo = 0 if np.isnan(lo) else lo
@@ -546,15 +582,11 @@ def annotate(pixels, bins, replace=False):
         else:
             right = bins[:]
 
-        pixels = pixels.merge(
-            right,
-            how='left',
-            left_on='bin1_id',
-            right_index=True)
+        pixels = pixels.merge(right, how="left", left_on="bin1_id", right_index=True)
 
-    if 'bin2_id' in columns:
+    if "bin2_id" in columns:
         if len(bins) > len(pixels):
-            bin2 = pixels['bin2_id']
+            bin2 = pixels["bin2_id"]
             lo = bin2.min()
             hi = bin2.max() + 1
             lo = 0 if np.isnan(lo) else lo
@@ -564,29 +596,36 @@ def annotate(pixels, bins, replace=False):
             right = bins[:]
 
         pixels = pixels.merge(
-            right,
-            how='left',
-            left_on='bin2_id',
-            right_index=True,
-            suffixes=('1', '2'))
+            right, how="left", left_on="bin2_id", right_index=True, suffixes=("1", "2")
+        )
 
     # rearrange columns
-    pixels = pixels[list(pixels.columns[ncols:]) +
-                    list(pixels.columns[:ncols])]
+    pixels = pixels[list(pixels.columns[ncols:]) + list(pixels.columns[:ncols])]
 
     # drop bin IDs
     if replace:
-        cols_to_drop = [
-            col for col in ('bin1_id', 'bin2_id') if col in columns
-        ]
+        cols_to_drop = [col for col in ("bin1_id", "bin2_id") if col in columns]
         pixels = pixels.drop(cols_to_drop, axis=1)
 
     return pixels
 
 
-def matrix(h5, i0, i1, j0, j1, field=None, balance=True, sparse=False,
-           as_pixels=False, join=True, ignore_index=True,
-           divisive_weights=False, max_chunk=500000000, is_upper=True):
+def matrix(
+    h5,
+    i0,
+    i1,
+    j0,
+    j1,
+    field=None,
+    balance=True,
+    sparse=False,
+    as_pixels=False,
+    join=True,
+    ignore_index=True,
+    divisive_weights=False,
+    max_chunk=500000000,
+    is_upper=True,
+):
     """
     Two-dimensional range query on the Hi-C contact heatmap.
     Depending on the options, returns either a 2D NumPy array, a rectangular
@@ -634,38 +673,38 @@ def matrix(h5, i0, i1, j0, j1, field=None, balance=True, sparse=False,
 
     """
     if field is None:
-        field = 'count'
+        field = "count"
 
     if isinstance(balance, str):
         name = balance
     elif balance:
-        name = 'weight'
+        name = "weight"
 
-    if balance and name not in h5['bins']:
+    if balance and name not in h5["bins"]:
         raise ValueError(
-            "No column 'bins/{}'".format(name) +
-            "found. Use ``cooler.balance_cooler`` to " +
-            "calculate balancing weights or set balance=False.")
+            "No column 'bins/{}'".format(name)
+            + "found. Use ``cooler.balance_cooler`` to "
+            + "calculate balancing weights or set balance=False."
+        )
 
     if as_pixels:
         reader = CSRReader(h5, field, max_chunk)
         index = None if ignore_index else reader.index_col(i0, i1, j0, j1)
         i, j, v = reader.query(i0, i1, j0, j1)
 
-        cols = ['bin1_id', 'bin2_id', field]
-        df = pd.DataFrame(dict(zip(cols, [i, j, v])),
-                          columns=cols, index=index)
+        cols = ["bin1_id", "bin2_id", field]
+        df = pd.DataFrame(dict(zip(cols, [i, j, v])), columns=cols, index=index)
 
         if balance:
             weights = Cooler(h5).bins()[[name]]
             df2 = annotate(df, weights, replace=False)
             if divisive_weights:
-                df2[name+'1'] = 1 / df2[name+'1']
-                df2[name+'2'] = 1 / df2[name+'2']
-            df['balanced'] = df2[name+'1'] * df2[name+'2'] * df2[field]
+                df2[name + "1"] = 1 / df2[name + "1"]
+                df2[name + "2"] = 1 / df2[name + "2"]
+            df["balanced"] = df2[name + "1"] * df2[name + "2"] * df2[field]
 
         if join:
-            bins = Cooler(h5).bins()[['chrom', 'start', 'end']]
+            bins = Cooler(h5).bins()[["chrom", "start", "end"]]
             df = annotate(df, bins, replace=True)
 
         return df
@@ -676,10 +715,10 @@ def matrix(h5, i0, i1, j0, j1, field=None, balance=True, sparse=False,
             i, j, v = query_rect(reader.query, i0, i1, j0, j1, duplex=True)
         else:
             i, j, v = reader.query(i0, i1, j0, j1)
-        mat = coo_matrix((v, (i-i0, j-j0)), (i1-i0, j1-j0))
+        mat = coo_matrix((v, (i - i0, j - j0)), (i1 - i0, j1 - j0))
 
         if balance:
-            weights = h5['bins'][name]
+            weights = h5["bins"][name]
             bias1 = weights[i0:i1]
             bias2 = bias1 if (i0, i1) == (j0, j1) else weights[j0:j1]
             if divisive_weights:
@@ -695,10 +734,10 @@ def matrix(h5, i0, i1, j0, j1, field=None, balance=True, sparse=False,
             i, j, v = query_rect(reader.query, i0, i1, j0, j1, duplex=True)
         else:
             i, j, v = reader.query(i0, i1, j0, j1)
-        arr = coo_matrix((v, (i-i0, j-j0)), (i1-i0, j1-j0)).toarray()
+        arr = coo_matrix((v, (i - i0, j - j0)), (i1 - i0, j1 - j0)).toarray()
 
         if balance:
-            weights = h5['bins'][name]
+            weights = h5["bins"][name]
             bias1 = weights[i0:i1]
             bias2 = bias1 if (i0, i1) == (j0, j1) else weights[j0:j1]
             if divisive_weights:

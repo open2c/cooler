@@ -15,23 +15,22 @@ from ..util import cmd_exists
 try:
     from subprocess import DEVNULL  # py3
 except ImportError:
-    import os
-    DEVNULL = open(os.devnull, 'wb')
+    DEVNULL = open(os.devnull, "wb")
 
 
 logger = get_logger(__name__)
 
 
-SORT_POS = 'sort -k{C1},{C1} -k{P1},{P1}n -k{C2},{C2} -k{P2},{P2}n'
+SORT_POS = "sort -k{C1},{C1} -k{P1},{P1}n -k{C2},{C2} -k{P2},{P2}n"
 
-SORT_BLK = 'sort -k{C1},{C1} -k{C2},{C2} -k{P1},{P1}n -k{P2},{P2}n'
+SORT_BLK = "sort -k{C1},{C1} -k{C2},{C2} -k{P1},{P1}n -k{P2},{P2}n"
 
-INDEX_TBX = 'tabix -f -s{C1} -b{P1} -e{P1}'
+INDEX_TBX = "tabix -f -s{C1} -b{P1} -e{P1}"
 
-INDEX_PX2 = 'pairix -f -s{C1} -d{C2} -b{P1} -e{P1} -u{P2} -v{P2}'
+INDEX_PX2 = "pairix -f -s{C1} -d{C2} -b{P1} -e{P1} -u{P2} -v{P2}"
 
-FLIP_TEMPLATE = \
-"""import sys
+FLIP_TEMPLATE = """\
+import sys
 from signal import signal, SIGPIPE, SIG_DFL
 signal(SIGPIPE, SIG_DFL)
 
@@ -61,15 +60,16 @@ for line in instream:
 
 
 def _has_parallel_sort():
-    return subprocess.call(['sort', '--parallel=1'],
-                           stdin=DEVNULL,
-                           stdout=DEVNULL,
-                           stderr=DEVNULL) == 0
+    return (
+        subprocess.call(
+            ["sort", "--parallel=1"], stdin=DEVNULL, stdout=DEVNULL, stderr=DEVNULL
+        ) == 0
+    )
 
 
 def _validate_fieldnum(ctx, param, value):
     if value <= 0:
-        raise click.BadParameter('Field numbers are one-based')
+        raise click.BadParameter("Field numbers are one-based")
     return value
 
 
@@ -85,60 +85,64 @@ def make_read_command(infile):
     See <https://github.com/madler/pigz/issues/36>.
 
     """
-    ingzip = infile.endswith('.gz')
+    ingzip = infile.endswith(".gz")
     if ingzip:
-        if cmd_exists('pigz'):
-            read_cmd = ['pigz', '-dc', infile]
-        elif cmd_exists('gzip'):
-            read_cmd = ['gzip', '-dc', infile]
+        if cmd_exists("pigz"):
+            read_cmd = ["pigz", "-dc", infile]
+        elif cmd_exists("gzip"):
+            read_cmd = ["gzip", "-dc", infile]
         else:
-            print('No gzip decompressor found.', file=sys.stderr)
+            print("No gzip decompressor found.", file=sys.stderr)
             sys.exit(1)
     else:
-        read_cmd = ['cat', infile]
+        read_cmd = ["cat", infile]
 
     return read_cmd
 
 
 def make_flip_command(chromosomes_path, sep, comment_char, fields):
-    with open(chromosomes_path, 'rt') as f:
+    with open(chromosomes_path, "rt") as f:
         logger.info("Enumerating requested chromosomes...")
         for i, line in enumerate(f, 1):
-            chrom = line.split('\t')[0].strip()
+            chrom = line.split("\t")[0].strip()
             if chrom:
-                logger.info(chrom + '\t' + str(i))
+                logger.info(chrom + "\t" + str(i))
 
     # zero-based column indices
-    c1 = fields['C1'] - 1
-    c2 = fields['C2'] - 1
-    p1 = fields['P1'] - 1
-    p2 = fields['P2'] - 1
+    c1 = fields["C1"] - 1
+    c2 = fields["C2"] - 1
+    p1 = fields["P1"] - 1
+    p2 = fields["P2"] - 1
     flip_code = FLIP_TEMPLATE.format(
         chromosomes_path=chromosomes_path,
         sep=sep,
         comment_char=comment_char,
-        c1=c1, c2=c2, p1=p1, p2=p2)
+        c1=c1,
+        c2=c2,
+        p1=p1,
+        p2=p2,
+    )
 
-    return [sys.executable, '-c', flip_code]
+    return [sys.executable, "-c", flip_code]
 
 
 def make_sort_command(index, fields, sort_options):
-    os.environ['LC_ALL'] = 'C'
-    if index == 'tabix':
+    os.environ["LC_ALL"] = "C"
+    if index == "tabix":
         sort_cmd = shlex.split(SORT_POS.format(**fields))
-    elif index == 'pairix':
+    elif index == "pairix":
         sort_cmd = shlex.split(SORT_BLK.format(**fields))
     sort_cmd += sort_options
     return sort_cmd
 
 
 def make_index_command(index, fields, zero_based, outfile):
-    if index == 'tabix':
+    if index == "tabix":
         index_cmd = shlex.split(INDEX_TBX.format(**fields))
-    elif index == 'pairix':
+    elif index == "pairix":
         index_cmd = shlex.split(INDEX_PX2.format(**fields))
     if zero_based:
-        index_cmd += ['-0']
+        index_cmd += ["-0"]
     return index_cmd + [outfile]
 
 
@@ -146,89 +150,125 @@ def make_index_command(index, fields, zero_based, outfile):
 @click.argument(
     "pairs_path",
     type=click.Path(exists=True, allow_dash=True),
-    metavar="PAIRS_PATH")
+    metavar="PAIRS_PATH"
+)
 @click.argument(
     "chromosomes_path",
     type=click.Path(exists=True),
-    metavar="CHROMOSOMES_PATH")
+    metavar="CHROMOSOMES_PATH"
+)
 @click.option(
-    "--chrom1", "-c1",
+    "--chrom1",
+    "-c1",
     required=True,
     help="chrom1 field number in the input file (starting from 1)",
     type=int,
-    callback=_validate_fieldnum)
+    callback=_validate_fieldnum,
+)
 @click.option(
-    "--chrom2", "-c2",
+    "--chrom2",
+    "-c2",
     required=True,
     help="chrom2 field number",
     type=int,
-    callback=_validate_fieldnum)
+    callback=_validate_fieldnum,
+)
 @click.option(
-    "--pos1", "-p1",
+    "--pos1",
+    "-p1",
     required=True,
     help="pos1 field number",
     type=int,
-    callback=_validate_fieldnum)
+    callback=_validate_fieldnum,
+)
 @click.option(
-    "--pos2", "-p2",
+    "--pos2",
+    "-p2",
     required=True,
     help="pos2 field number",
     type=int,
-    callback=_validate_fieldnum)
+    callback=_validate_fieldnum,
+)
 @click.option(
-    "--index", "-i",
+    "--index",
+    "-i",
     help="Select the preset sort and indexing options",
-    type=click.Choice(['tabix', 'pairix']),
-    default='pairix',
-    show_default=True)
+    type=click.Choice(["tabix", "pairix"]),
+    default="pairix",
+    show_default=True,
+)
 @click.option(
     "--flip-only",
     help="Only flip mates; no sorting or indexing. Write to stdout.",
     is_flag=True,
     default=False,
-    show_default=True)
+    show_default=True,
+)
 @click.option(
     "--nproc", "-p",
     help="Number of processors",
     type=int,
     default=8,
-    show_default=True)
+    show_default=True
+)
 @click.option(
-    "--zero-based", "-0",
+    "--zero-based",
+    "-0",
     help="Read positions are zero-based",
     is_flag=True,
     default=False,
-    show_default=True)
+    show_default=True,
+)
 @click.option(
     "--sep",
     help="Data delimiter in the input file",
     type=str,
     default=r"\t",
-    show_default=True)
+    show_default=True,
+)
 @click.option(
     "--comment-char",
     help="Comment character to skip header",
     type=str,
-    default='#',
-    show_default=True)
+    default="#",
+    show_default=True,
+)
 @click.option(
     "--sort-options",
     help="Quoted list of additional options to `sort` command",
-    type=str)
+    type=str,
+)
 @click.option(
     "--out", "-o",
-    help="Output gzip file")
+    help="Output gzip file"
+)
 @click.option(
     "--strand1", "-s1",
     help="strand1 field number (deprecated)",
-    type=int)
+    type=int
+)
 @click.option(
     "--strand2", "-s2",
     help="strand2 field number (deprecated)",
-    type=int)
-def csort(pairs_path, chromosomes_path, index, chrom1, chrom2, pos1, pos2,
-          flip_only, nproc, zero_based, sep, comment_char, sort_options, out,
-          **kwargs):
+    type=int
+)
+def csort(
+    pairs_path,
+    chromosomes_path,
+    index,
+    chrom1,
+    chrom2,
+    pos1,
+    pos2,
+    flip_only,
+    nproc,
+    zero_based,
+    sep,
+    comment_char,
+    sort_options,
+    out,
+    **kwargs
+):
     """
     Sort and index a contact list.
 
@@ -275,38 +315,40 @@ def csort(pairs_path, chromosomes_path, index, chrom1, chrom2, pos1, pos2,
     [+] Pairix on Github: <https://github.com/4dn-dcic/pairix>
 
     """
-    if os.name == 'nt':
+    if os.name == "nt":
         raise click.Abort(
             '"cooler csort" does not work on Windows. To ingest unsorted pairs '
-            'data, see the "cooler cload pairs" command.')
+            'data, see the "cooler cload pairs" command.'
+        )
 
     from signal import signal, SIGPIPE, SIG_DFL
+
     signal(SIGPIPE, SIG_DFL)
 
     # Check for required Unix tools
-    for tool in ['sort', 'bgzip'] + [index]:
+    for tool in ["sort", "bgzip"] + [index]:
         if not cmd_exists(tool):
-            print('Command {} not found'.format(tool), file=sys.stderr)
+            print("Command {} not found".format(tool), file=sys.stderr)
             sys.exit(1)
 
     # If output path is not given, produce output path by stripping any .txt,
     # .gz or .txt.gz extension from the input path and appending .sorted[.txt].gz
     infile = pairs_path
     if out is None:
-        if infile == '-' and not flip_only:
+        if infile == "-" and not flip_only:
             logger.error("Output name required when input is stdin")
             raise click.Abort
         prefix = infile
-        ext = '.gz'
-        if prefix.endswith('.gz'):
+        ext = ".gz"
+        if prefix.endswith(".gz"):
             prefix = op.splitext(prefix)[0]
-        if prefix.endswith('.txt'):
+        if prefix.endswith(".txt"):
             prefix = op.splitext(prefix)[0]
-            ext = '.txt.gz'
-        if index == 'pairix':
-            sort_style = '.blksrt'
+            ext = ".txt.gz"
+        if index == "pairix":
+            sort_style = ".blksrt"
         else:
-            sort_style = '.possrt'
+            sort_style = ".possrt"
         outfile = prefix + sort_style + ext
     else:
         outfile = out
@@ -315,20 +357,12 @@ def csort(pairs_path, chromosomes_path, index, chrom1, chrom2, pos1, pos2,
     if sort_options is not None:
         sort_options = shlex.split(sort_options)
     elif _has_parallel_sort():
-        sort_options = [
-            '--parallel={}'.format(nproc),
-            '--buffer-size=50%'
-        ]
+        sort_options = ["--parallel={}".format(nproc), "--buffer-size=50%"]
     else:
         sort_options = []
 
     # 1-based column numbers
-    fields = {
-        'C1': chrom1,
-        'P1': pos1,
-        'C2': chrom2,
-        'P2': pos2,
-    }
+    fields = {"C1": chrom1, "P1": pos1, "C2": chrom2, "P2": pos2}
 
     # build commands
     read_cmd = make_read_command(infile)
@@ -339,20 +373,18 @@ def csort(pairs_path, chromosomes_path, index, chrom1, chrom2, pos1, pos2,
         logger.info("Reordering pair mates...")
         pipeline = []
 
-        logger.debug(' '.join(read_cmd))
+        logger.debug(" ".join(read_cmd))
         pipeline.append(
             subprocess.Popen(
                 read_cmd,
-                stdin=sys.stdin if infile == '-' else None,
-                stdout=subprocess.PIPE)
+                stdin=sys.stdin if infile == "-" else None,
+                stdout=subprocess.PIPE,
+            )
         )
 
-        logger.debug(' '.join(flip_cmd))
+        logger.debug(" ".join(flip_cmd))
         pipeline.append(
-            subprocess.Popen(
-                flip_cmd,
-                stdin=pipeline[-1].stdout,
-                stdout=sys.stdout)
+            subprocess.Popen(flip_cmd, stdin=pipeline[-1].stdout, stdout=sys.stdout)
         )
         for p in pipeline[::-1]:
             p.communicate()
@@ -361,7 +393,7 @@ def csort(pairs_path, chromosomes_path, index, chrom1, chrom2, pos1, pos2,
     else:
 
         sort_cmd = make_sort_command(index, fields, sort_options)
-        write_cmd = ['bgzip', '-c']
+        write_cmd = ["bgzip", "-c"]
         index_cmd = make_index_command(index, fields, zero_based, outfile)
 
         # run pipeline
@@ -369,58 +401,54 @@ def csort(pairs_path, chromosomes_path, index, chrom1, chrom2, pos1, pos2,
         logger.info("Output: '{}'".format(outfile))
         assert infile != outfile
 
-        with open(outfile, 'wb') as fout:
+        with open(outfile, "wb") as fout:
 
             pipeline = []
 
-            logger.debug(' '.join(read_cmd))
+            logger.debug(" ".join(read_cmd))
             pipeline.append(
                 subprocess.Popen(
                     read_cmd,
-                    stdin=sys.stdin if infile == '-' else None,
-                    stdout=subprocess.PIPE)
+                    stdin=sys.stdin if infile == "-" else None,
+                    stdout=subprocess.PIPE,
+                )
             )
 
             logger.info("Reordering pair mates and sorting pair records...")
-            logger.debug(' '.join(flip_cmd))
+            logger.debug(" ".join(flip_cmd))
             pipeline.append(
                 subprocess.Popen(
-                    flip_cmd,
-                    stdin=pipeline[-1].stdout,
-                    stdout=subprocess.PIPE)
+                    flip_cmd, stdin=pipeline[-1].stdout, stdout=subprocess.PIPE
+                )
             )
 
-            if index == 'pairix':
+            if index == "pairix":
                 logger.info("Sort order: block (chrom1, chrom2, pos1, pos2)")
             else:
                 logger.info("Sort order: positional (chrom1, pos1, chrom2, pos2)")
-            logger.info(' '.join(sort_cmd))
+            logger.info(" ".join(sort_cmd))
             pipeline.append(
                 subprocess.Popen(
-                    sort_cmd,
-                    stdin=pipeline[-1].stdout,
-                    stdout=subprocess.PIPE)
+                    sort_cmd, stdin=pipeline[-1].stdout, stdout=subprocess.PIPE
+                )
             )
 
-            logger.debug(' '.join(write_cmd))
+            logger.debug(" ".join(write_cmd))
             pipeline.append(
-                subprocess.Popen(
-                    write_cmd,
-                    stdin=pipeline[-1].stdout,
-                    stdout=fout)
+                subprocess.Popen(write_cmd, stdin=pipeline[-1].stdout, stdout=fout)
             )
 
             for p in pipeline[::-1]:
                 p.communicate()
 
                 if p.returncode != 0:
-                    logger.error(' '.join(p.args))
+                    logger.error(" ".join(p.args))
                     sys.exit(1)
 
         # Create index file
         logger.info("Indexing...")
         logger.info("Indexer: {}".format(index))
-        logger.info(' '.join(index_cmd))
+        logger.info(" ".join(index_cmd))
         p = subprocess.Popen(index_cmd)
         p.communicate()
         if p.returncode != 0:
