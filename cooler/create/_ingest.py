@@ -50,7 +50,6 @@ SANITIZE_PRESETS = {
 }
 
 
-
 def _sanitize_records(chunk, gs, decode_chroms, is_one_based, tril_action,
                       chrom_field, anchor_field, sided_fields, suffixes,
                       sort, validate):
@@ -104,7 +103,7 @@ def _sanitize_records(chunk, gs, decode_chroms, is_one_based, tril_action,
             err = chunk[is_neg]
             raise BadInputError(
                 "Found an anchor position with negative value:\n{}".format(
-                err.head().to_csv(sep='\t')))
+                    err.head().to_csv(sep='\t')))
 
         chromsizes1 = gs.chromsizes[chrom1_ids].values
         chromsizes2 = gs.chromsizes[chrom2_ids].values
@@ -113,7 +112,7 @@ def _sanitize_records(chunk, gs, decode_chroms, is_one_based, tril_action,
             err = chunk[is_excess]
             raise BadInputError(
                 "Found an anchor position exceeding chromosome length:\n{}".format(
-                err.head().to_csv(sep='\t')))
+                    err.head().to_csv(sep='\t')))
 
     # Handle lower triangle records
     if tril_action is not None:
@@ -252,8 +251,8 @@ def sanitize_records(bins, schema=None, **kwargs):
 
 
 def _sanitize_pixels(chunk, gs, is_one_based=False, tril_action='reflect',
-                    bin1_field='bin1_id', bin2_field='bin2_id', sided_fields=(),
-                    suffixes=('1', '2'), validate=True, sort=True):
+                     bin1_field='bin1_id', bin2_field='bin2_id', sided_fields=(),
+                     suffixes=('1', '2'), validate=True, sort=True):
     if is_one_based:
         chunk['bin1_id'] -= 1
         chunk['bin2_id'] -= 1
@@ -263,8 +262,8 @@ def _sanitize_pixels(chunk, gs, is_one_based=False, tril_action='reflect',
         if np.any(is_tril):
             if tril_action == 'reflect':
                 chunk.loc[is_tril, 'bin1_id'], \
-                    chunk.loc[is_tril, 'bin2_id'] = chunk.loc[is_tril, 'bin2_id'], \
-                                                       chunk.loc[is_tril, 'bin1_id']
+                chunk.loc[is_tril, 'bin2_id'] = chunk.loc[is_tril, 'bin2_id'], \
+                                                chunk.loc[is_tril, 'bin1_id']
                 for field in sided_fields:
                     chunk.loc[is_tril, field + suffixes[0]], \
                     chunk.loc[is_tril, field + suffixes[1]] = \
@@ -281,7 +280,8 @@ def _sanitize_pixels(chunk, gs, is_one_based=False, tril_action='reflect',
     return chunk.sort_values(['bin1_id', 'bin2_id']) if sort else chunk
 
 
-def _validate_pixels(chunk, n_bins, boundscheck, triucheck, dupcheck, ensure_sorted):
+def _validate_pixels(chunk, n_bins, boundscheck, triucheck, dupcheck,
+                     ensure_sorted):
     if boundscheck:
         is_neg = (chunk['bin1_id'] < 0) | (chunk['bin2_id'] < 0)
         if np.any(is_neg):
@@ -559,7 +559,8 @@ class TabixAggregator(ContactBinner):
     tab-delimited text file.
 
     """
-    def __init__(self, filepath, chromsizes, bins, map=map, n_chunks=1, is_one_based=False, **kwargs):
+    def __init__(self, filepath, chromsizes, bins, map=map, n_chunks=1,
+                 is_one_based=False, **kwargs):
         try:
             import pysam
         except ImportError:
@@ -656,7 +657,7 @@ class TabixAggregator(ContactBinner):
                         'bin2_id': list(accumulator.keys()),
                         'count':   list(accumulator.values())},
                         columns=['bin1_id', 'bin2_id', 'count'])
-                          .sort_values('bin2_id')
+                            .sort_values('bin2_id')
                 )
 
                 accumulator.clear()
@@ -678,7 +679,8 @@ class PairixAggregator(ContactBinner):
     tab-delimited text file.
 
     """
-    def __init__(self, filepath, chromsizes, bins, map=map, n_chunks=1, is_one_based=False, **kwargs):
+    def __init__(self, filepath, chromsizes, bins, map=map, n_chunks=1,
+                 is_one_based=False, **kwargs):
         try:
             import pypairix
         except ImportError:
@@ -722,8 +724,9 @@ class PairixAggregator(ContactBinner):
             self.n_chunks = max(self.n_chunks, n_chunks)
             if self.n_chunks > old_n:
                 logger.info(
-                    "Pairs file has {} lines. Increasing max-split to {}.".format(
-                    n_lines, self.n_chunks))
+                    "Pairs file has {} lines. "
+                    "Increasing max-split to {}.".format(
+                        n_lines, self.n_chunks))
 
         # all requested contigs will be placed in the output matrix
         self.gs = GenomeSegmentation(chromsizes, bins)
@@ -803,7 +806,7 @@ class PairixAggregator(ContactBinner):
                     'bin2_id': list(accumulator.keys()),
                     'count':   list(accumulator.values())},
                     columns=['bin1_id', 'bin2_id', 'count'])
-                      .sort_values('bin2_id')
+                        .sort_values('bin2_id')
             )
 
             accumulator.clear()

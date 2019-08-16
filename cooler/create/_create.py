@@ -110,22 +110,24 @@ def write_bins(grp, bins, chromnames, h5opts, chrom_as_enum=True):
 
     # Store bins
     try:
-        chrom_dset = grp.create_dataset('chrom',
-                           shape=(n_bins,),
-                           dtype=chrom_dtype,
-                           data=chrom_ids,
-                           **h5opts)
+        chrom_dset = grp.create_dataset(
+            'chrom',
+            shape=(n_bins,),
+            dtype=chrom_dtype,
+            data=chrom_ids,
+            **h5opts)
     except ValueError:
         # If too many scaffolds for HDF5 enum header,
         # try storing chrom IDs as raw int instead
         if chrom_as_enum:
             chrom_as_enum = False
             chrom_dtype = CHROMID_DTYPE
-            chrom_dset = grp.create_dataset('chrom',
-                               shape=(n_bins,),
-                               dtype=chrom_dtype,
-                               data=chrom_ids,
-                               **h5opts)
+            chrom_dset = grp.create_dataset(
+                'chrom',
+                shape=(n_bins,),
+                dtype=chrom_dtype,
+                data=chrom_ids,
+                **h5opts)
         else:
             raise
     if not chrom_as_enum:
@@ -333,11 +335,12 @@ def _rename_chroms(grp, rename_dict, h5opts):
                          dtype=CHROM_DTYPE)  # auto-adjusts char length
 
     del grp['chroms/name']
-    grp['chroms'].create_dataset('name',
-                       shape=(n_chroms,),
-                       dtype=new_names.dtype,
-                       data=new_names,
-                       **h5opts)
+    grp['chroms'].create_dataset(
+        'name',
+        shape=(n_chroms,),
+        dtype=new_names.dtype,
+        data=new_names,
+        **h5opts)
 
     bins = get(grp['bins'])
     n_bins = len(bins)
@@ -347,20 +350,22 @@ def _rename_chroms(grp, rename_dict, h5opts):
         chrom_dtype = h5py.special_dtype(enum=(CHROMID_DTYPE, idmap))
         del grp['bins/chrom']
         try:
-            chrom_dset = grp['bins'].create_dataset('chrom',
-                               shape=(n_bins,),
-                               dtype=chrom_dtype,
-                               data=chrom_ids,
-                               **h5opts)
+            chrom_dset = grp['bins'].create_dataset(
+                'chrom',
+                shape=(n_bins,),
+                dtype=chrom_dtype,
+                data=chrom_ids,
+                **h5opts)
         except ValueError:
             # If HDF5 enum header would be too large,
             # try storing chrom IDs as raw int instead
             chrom_dtype = CHROMID_DTYPE
-            chrom_dset = grp['bins'].create_dataset('chrom',
-                               shape=(n_bins,),
-                               dtype=chrom_dtype,
-                               data=chrom_ids,
-                               **h5opts)
+            chrom_dset = grp['bins'].create_dataset(
+                'chrom',
+                shape=(n_bins,),
+                dtype=chrom_dtype,
+                data=chrom_ids,
+                **h5opts)
 
 
 def rename_chroms(clr, rename_dict, h5opts=None):
@@ -403,8 +408,9 @@ def _set_h5opts(h5opts):
     result = {}
     if h5opts is not None:
         result.update(h5opts)
-    available_opts = {'chunks', 'maxshape', 'compression', 'compression_opts',
-        'scaleoffset', 'shuffle', 'fletcher32' , 'fillvalue', 'track_times'}
+    available_opts = {
+        'chunks', 'maxshape', 'compression', 'compression_opts',
+        'scaleoffset', 'shuffle', 'fletcher32', 'fillvalue', 'track_times'}
     for key in result.keys():
         if key not in available_opts:
             raise ValueError("Unknown storage option '{}'.".format(key))
@@ -452,9 +458,11 @@ def create(cool_uri, bins, pixels, columns=None, dtypes=None, metadata=None,
 
     for col in ['chrom', 'start', 'end']:
         if col not in bins.columns:
-            raise ValueError("Missing column from bin table: '{}'.".format(col))
+            raise ValueError(
+                "Missing column from bin table: '{}'.".format(col))
 
-    # Populate expected pixel column names. Include user-provided value columns.
+    # Populate expected pixel column names. Include user-provided value
+    # columns.
     if columns is None:
         columns = ['bin1_id', 'bin2_id', 'count']
     else:
@@ -521,8 +529,8 @@ def create(cool_uri, bins, pixels, columns=None, dtypes=None, metadata=None,
 
     if not symmetric_upper and triucheck:
         warnings.warn(
-            "Creating a non-symmetric matrix, but `triucheck` was set to True. "
-            "Changing to False.")
+            "Creating a non-symmetric matrix, but `triucheck` was set to "
+            "True. Changing to False.")
         triucheck = False
 
     # Chain input validation to the end of the pipeline
@@ -533,8 +541,9 @@ def create(cool_uri, bins, pixels, columns=None, dtypes=None, metadata=None,
 
     # Create root group
     with h5py.File(file_path, mode) as f:
-        logger.info('Creating cooler at "{}::{}"'.format(file_path, group_path))
-        if group_path is '/':
+        logger.info(
+            'Creating cooler at "{}::{}"'.format(file_path, group_path))
+        if group_path == '/':
             for name in ['chroms', 'bins', 'pixels', 'indexes']:
                 if name in f:
                     del f[name]
@@ -562,7 +571,8 @@ def create(cool_uri, bins, pixels, columns=None, dtypes=None, metadata=None,
             max_size = n_bins * (n_bins - 1) // 2 + n_bins
         else:
             max_size = n_bins * n_bins
-        prepare_pixels(grp, n_bins, max_size, meta.columns, dict(meta.dtypes), h5opts)
+        prepare_pixels(grp, n_bins, max_size, meta.columns, dict(meta.dtypes),
+                       h5opts)
 
     # Multiprocess HDF5 reading is supported only if the same HDF5 file is not
     # open in write mode anywhere. To read and write to the same file, pass a

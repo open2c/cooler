@@ -33,8 +33,8 @@ def get_group_info(path, grouppath, keys):
             columns=keys)
 
         for key in categoricals:
-            meta[key] = pd.Categorical([],
-                categories=categoricals[key], ordered=True)
+            meta[key] = pd.Categorical(
+                [], categories=categoricals[key], ordered=True)
 
     return nrows, keys, meta, categoricals
 
@@ -71,7 +71,7 @@ def restore_categories(data, categorical_columns):
 
 
 def read_table(group_uri, keys=None, chunksize=int(10e6), index=None,
-            lock=None):
+               lock=None):
     """
     Create a dask dataframe around a column-oriented table in HDF5.
 

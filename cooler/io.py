@@ -1,5 +1,6 @@
 import warnings
 
+
 def ls(*args, **kwargs):
     warnings.warn(
         "`cooler.io` is deprecated in 0.8, will be removed in 0.9. "

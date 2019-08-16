@@ -28,7 +28,7 @@ def partition(start, stop, step):
 
     """
     return ((i, min(i+step, stop))
-                for i in range(start, stop, step))
+            for i in range(start, stop, step))
 
 
 def parse_cooler_uri(s):
@@ -81,8 +81,8 @@ def parse_region_string(s):
     ----------
     s : str
         UCSC-style string, e.g. "chr5:10,100,000-30,000,000". Ensembl and FASTA
-        style sequence names are allowed. End coordinate must be greater than or
-        equal to start.
+        style sequence names are allowed. End coordinate must be greater than
+        or equal to start.
 
     Returns
     -------
@@ -102,14 +102,13 @@ def parse_region_string(s):
             typ = match.lastgroup
             yield typ, match.group(typ)
 
-
     def _check_token(typ, token, expected):
         if typ is None:
-            raise ValueError('Expected {} token missing'.format(' or '.join(expected)))
+            raise ValueError('Expected {} token missing'.format(
+                ' or '.join(expected)))
         else:
             if typ not in expected:
                 raise ValueError('Unexpected token "{}"'.format(token))
-
 
     def _expect(tokens):
         typ, token = next(tokens, (None, None))
@@ -198,15 +197,16 @@ def natsorted(iterable):
 
 def argnatsort(array):
     array = np.asarray(array)
-    if not len(array): return np.array([], dtype=int)
+    if not len(array):
+        return np.array([], dtype=int)
     cols = tuple(zip(*(natsort_key(x) for x in array)))
     return np.lexsort(cols[::-1])
 
 
 def read_chromsizes(filepath_or,
-                   name_patterns=(r'^chr[0-9]+$', r'^chr[XY]$', r'^chrM$'),
-                   all_names=False,
-                   **kwargs):
+                    name_patterns=(r'^chr[0-9]+$', r'^chr[XY]$', r'^chrM$'),
+                    all_names=False,
+                    **kwargs):
     """
     Parse a ``<db>.chrom.sizes`` or ``<db>.chromInfo.txt`` file from the UCSC
     database, where ``db`` is a genome assembly name.
@@ -237,7 +237,7 @@ def read_chromsizes(filepath_or,
         kwargs.setdefault('compression', 'gzip')
     chromtable = pd.read_csv(
         filepath_or, sep='\t', usecols=[0, 1],
-        names=['name', 'length'], dtype={'name':str}, **kwargs)
+        names=['name', 'length'], dtype={'name': str}, **kwargs)
     if not all_names:
         parts = []
         for pattern in name_patterns:
@@ -262,8 +262,8 @@ def fetch_chromsizes(db, **kwargs):
 
 def load_fasta(names, *filepaths):
     """
-    Load lazy FASTA records from one or multiple files without reading them into
-    memory.
+    Load lazy FASTA records from one or multiple files without reading them
+    into memory.
 
     Parameters
     ----------
@@ -332,6 +332,7 @@ def binnify(chromsizes, binsize):
         ordered=True)
 
     return bintable
+
 
 make_bintable = binnify
 
@@ -542,7 +543,7 @@ def rlencode(array, chunksize=None):
 
 def cmd_exists(cmd):
     return any(os.access(os.path.join(path, cmd), os.X_OK)
-                for path in os.environ['PATH'].split(os.pathsep))
+               for path in os.environ['PATH'].split(os.pathsep))
 
 
 def mad(data, axis=None):
@@ -577,7 +578,7 @@ def open_hdf5(fp, mode='r', *args, **kwargs):
     else:
         own_fh = False
         if mode == 'r' and fp.file.mode == 'r+':
-            #warnings.warn("File object provided is writeable but intent is read-only")
+            # warnings.warn("File object provided is writeable but intent is read-only")
             pass
         elif mode in ('r+', 'a') and fp.file.mode == 'r':
             raise ValueError("File object provided is not writeable")
@@ -596,10 +597,13 @@ def open_hdf5(fp, mode='r', *args, **kwargs):
 class closing_hdf5(h5py.Group):
     def __init__(self, grp):
         super(closing_hdf5, self).__init__(grp.id)
+
     def __enter__(self):
         return self
+
     def __exit__(self, *exc_info):
         return self.file.close()
+
     def close(self):
         self.file.close()
 
@@ -796,7 +800,8 @@ def balanced_partition(gs, n_chunk_max, file_contigs, loadings=None):
         anchors = group.start.values[::step]
         if anchors[-1] != clen:
             anchors = np.r_[anchors, clen]
-        granges.extend( (chrom, start, end)
+        granges.extend(
+            (chrom, start, end)
             for start, end in zip(anchors[:-1], anchors[1:]))
     return granges
 
@@ -824,7 +829,8 @@ class GenomeSegmentation(object):
         result = self._bins_grouped.get_group(chrom)
         if start > 0 or end < self.chromsizes[chrom]:
             lo = result['end'].values.searchsorted(start, side='right')
-            hi = lo + result['start'].values[lo:].searchsorted(end, side='left')
+            hi = lo + result['start'].values[lo:].searchsorted(end,
+                                                               side='left')
             result = result.iloc[lo:hi]
         return result
 

@@ -7,6 +7,7 @@ from six.moves import map
 import multiprocess as mp
 import os.path as op
 import itertools
+import warnings
 import shlex
 import math
 import sys
@@ -89,7 +90,8 @@ def merge_breakpoints(indexes, maxbuf):
     lo = 0
     while True:
         # find the next mark
-        hi = bisect_right(cumindex, min(cum_start + maxbuf, cum_nnz), lo=lo) - 1
+        hi = bisect_right(
+            cumindex, min(cum_start + maxbuf, cum_nnz), lo=lo) - 1
         if hi == lo:
             # number of records to nearest mark exceeds `maxbuf`
             # check for oversized chunks afterwards
@@ -135,7 +137,7 @@ class CoolerMerger(ContactBinner):
             bins = coolers[0].bins()[['chrom', 'start', 'end']][:]
             for i in range(1, len(coolers)):
                 if not np.all(
-                    coolers[i].bins()[['chrom', 'start', 'end']][:] == bins):
+                        coolers[i].bins()[['chrom', 'start', 'end']][:] == bins): # noqa
                     raise ValueError("Coolers must have same bin structure")
 
     def __iter__(self):
@@ -158,7 +160,7 @@ class CoolerMerger(ContactBinner):
             combined = pd.concat(
                 [c.pixels()[start:stop]
                     for c, start, stop in zip(self.coolers, starts, stops)
-                        if (stop - start) > 0],
+                    if (stop - start) > 0],
                 axis=0,
                 ignore_index=True)
 
@@ -208,7 +210,7 @@ def merge_coolers(output_uri, input_uris, mergebuf, columns=None, dtypes=None,
     cooler.zoomify_cooler
 
     """
-    #TODO: combine metadata from inputs
+    # TODO: combine metadata from inputs
     from .api import Cooler
     logger.info("Merging:\n{}".format('\n'.join(input_uris)))
 
@@ -266,7 +268,7 @@ def _optimal_prune_partition(edges, maxlen):
     n = len(edges)
     if n < 2:
         raise ValueError("Partition must have 2 or more edges.")
-    opt  = np.zeros(n, dtype=int)
+    opt = np.zeros(n, dtype=int)
     pred = np.zeros(n, dtype=int)
 
     opt[0] = 0
@@ -303,7 +305,7 @@ def _greedy_prune_partition(edges, maxlen):
     edges = np.asarray(edges)
     assert len(edges) >= 2 and edges[0] == 0
     cumlen = np.r_[0, np.cumsum(np.diff(edges))]
-    cuts = [maxlen * i  for i in range(0, int(np.ceil(cumlen[-1] / maxlen)))]
+    cuts = [maxlen * i for i in range(0, int(np.ceil(cumlen[-1] / maxlen)))]
     cuts.append(cumlen[-1])
     idx = np.unique(np.searchsorted(cumlen, cuts))
     return edges[idx]
@@ -416,7 +418,7 @@ class CoolerCoarsener(ContactBinner):
         # Info for the old bin segmentation
         self.old_binsize = clr.binsize
         self.old_chrom_offset = clr._load_dset('indexes/chrom_offset')
-        self.old_bin1_offset  = clr._load_dset('indexes/bin1_offset')
+        self.old_bin1_offset = clr._load_dset('indexes/bin1_offset')
 
         # Calculate the new bin segmentation
         if self.old_binsize is None:
@@ -560,7 +562,7 @@ def coarsen_cooler(base_uri, output_uri, factor, chunksize, nproc=1,
     cooler.merge_coolers
 
     """
-    #TODO: decide whether to default to 'count' or whatever is there besides bin1_id, bin2_id
+    # TODO: decide whether to default to 'count' or whatever is there besides bin1_id, bin2_id
     # dtypes = dict(clr.pixels().dtypes.drop(['bin1_id', 'bin2_id']))
 
     from .api import Cooler
@@ -692,7 +694,7 @@ def zoomify_cooler(base_uris, outfile, resolutions, chunksize, nproc=1,
         logger.info("Bin size: " + str(base_binsize))
         infile, ingroup = parsed_uris[base_binsize]
         with h5py.File(infile, 'r') as src, \
-             h5py.File(outfile, 'w') as dest:
+             h5py.File(outfile, 'w') as dest: # noqa
             prefix = '/resolutions/{}'.format(base_binsize)
 
             src.copy(ingroup + '/chroms',
@@ -767,7 +769,7 @@ def legacy_zoomify(input_uri, outfile, nproc, chunksize, lock=None):
 
     # Copy base matrix
     with h5py.File(infile, 'r') as src, \
-         h5py.File(outfile, 'w') as dest:
+         h5py.File(outfile, 'w') as dest: # noqa
 
         src.copy(ingroup, dest, str(zoomLevel))
         zoom_levels[zoomLevel] = binsize
@@ -797,7 +799,7 @@ def legacy_zoomify(input_uri, outfile, nproc, chunksize, lock=None):
 
     with h5py.File(outfile, 'r+') as fw:
         fw.attrs.update({'max-zoom': n_zooms})
-        #grp = fw.require_group('.zooms')
+        # grp = fw.require_group('.zooms')
         fw.attrs['max-zooms'] = n_zooms
         fw.attrs.update(zoom_levels)
 

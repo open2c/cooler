@@ -120,7 +120,7 @@ def put(grp, df, lo=0, store_categories=True, h5opts=None):
     if isinstance(df, pd.Series):
         df = df.to_frame()
 
-    fields = df.keys()
+    # fields = df.keys()
     for field, data in six.iteritems(df):
 
         if np.isscalar(data):
@@ -256,7 +256,6 @@ class CSRReader(object):
         else:
             return np.concatenate(index, axis=0)
 
-
     def query(self, i0, i1, j0, j1):
         """Retrieve sparse matrix data inside a query rectangle."""
         h5 = self.h5
@@ -274,7 +273,7 @@ class CSRReader(object):
                 dtype = all_bin2.dtype
                 for row_id, lo, hi in zip(range(i0, i1),
                                           edges[:-1] - p0,
-                                          edges[1:]  - p0):
+                                          edges[1:] - p0):
                     bin2 = all_bin2[lo:hi]
                     mask = (bin2 >= j0) & (bin2 < j1)
                     cols = bin2[mask]
@@ -283,7 +282,8 @@ class CSRReader(object):
                     j.append(cols)
                     v.append(all_data[lo:hi][mask])
             else:
-                for row_id, lo, hi in zip(range(i0, i1), edges[:-1], edges[1:]):
+                for row_id, lo, hi in zip(
+                        range(i0, i1), edges[:-1], edges[1:]):
                     bin2 = h5['pixels']['bin2_id'][lo:hi]
                     mask = (bin2 >= j0) & (bin2 < j1)
                     cols = bin2[mask]
@@ -338,12 +338,12 @@ def query_rect(triu_reader, i0, i1, j0, j1, duplex=True):
     ----------
 
     triu_reader : callable
-        Callable that takes a query rectangle but only returns elements from the
-        upper triangle of the parent matrix.
+        Callable that takes a query rectangle but only returns elements from
+        the upper triangle of the parent matrix.
 
     i0, i1, j0, j1 : int
-        Bounding matrix coordinates of the query rectangle. Assumed to be within
-        the bounds of the parent matrix.
+        Bounding matrix coordinates of the query rectangle. Assumed to be
+        within the bounds of the parent matrix.
 
 
     Returns
@@ -363,7 +363,8 @@ def query_rect(triu_reader, i0, i1, j0, j1, duplex=True):
     4. different but one is nested inside the other
 
     - (1) requires filling in the lower triangle.
-    - (3) and (4) require splitting the selection into instances of (1) and (2).
+    - (3) and (4) require splitting the selection into instances of
+      (1) and (2).
 
     In some cases, the input axes ranges are swapped to retrieve the data,
     then the final result is transposed.
@@ -415,7 +416,6 @@ def query_rect(triu_reader, i0, i1, j0, j1, duplex=True):
             i, j = j, i
 
     return i, j, v
-
 
 
 class _IndexingMixin(object):

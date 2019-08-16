@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-Experimental API for developing split-apply-combine style algorithms on coolers.
+Experimental API for developing split-apply-combine style algorithms on
+coolers.
 
 """
 from __future__ import division, print_function
@@ -34,9 +35,9 @@ See also:
 multiprocessing and concurrent reading are compatible as long as the fork
 happens before the child processes open the file. If an HDF5 file is already
 open before forking, the child processes inherit the same global HDF5 state,
-which leads to a race condition that causes simultaneous access to fail. One can
-either use a lock to prevent the race condition, or close and re-open the file
-in the workers after the fork.
+which leads to a race condition that causes simultaneous access to fail. One
+can either use a lock to prevent the race condition, or close and re-open the
+file in the workers after the fork.
 
 See also:
 * <https://groups.google.com/forum/#!topic/h5py/bJVtWdFtZQM>
@@ -245,7 +246,8 @@ class MultiplexDataPipe(object):
 
 
 class chunkgetter(object):
-    def __init__(self, clr, include_chroms=False, include_bins=True, use_lock=False):
+    def __init__(self, clr, include_chroms=False, include_bins=True,
+                 use_lock=False):
         self.cooler = clr
         self.include_chroms = include_chroms
         self.include_bins = include_bins
@@ -267,6 +269,7 @@ class chunkgetter(object):
             if self.use_lock:
                 lock.release()
         return chunk
+
 
 def split(clr, map=map, chunksize=int(10e6), spans=None, **kwargs):
     if spans is None:

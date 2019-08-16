@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 from __future__ import division, print_function
-from multiprocess import Pool, Lock
 from functools import partial
 from operator import add
 import warnings
@@ -59,8 +58,8 @@ def _zero_cis(chunk, data):
 def _timesouterproduct(vec, chunk, data):
     pixels = chunk['pixels']
     data = (vec[pixels['bin1_id']]
-                * vec[pixels['bin2_id']]
-                * data)
+            * vec[pixels['bin2_id']]
+            * data)
     return data
 
 
@@ -68,20 +67,20 @@ def _marginalize(chunk, data):
     n = len(chunk['bins']['chrom'])
     pixels = chunk['pixels']
     marg = (
-          np.bincount(pixels['bin1_id'], weights=data, minlength=n)
-        + np.bincount(pixels['bin2_id'], weights=data, minlength=n)
+          np.bincount(pixels['bin1_id'], weights=data, minlength=n) +
+          np.bincount(pixels['bin2_id'], weights=data, minlength=n)
     )
     return marg
 
 
-def _balance_genomewide(bias, clr, spans, filters, chunksize, map, tol, max_iters,
-                        rescale_marginals, use_lock):
+def _balance_genomewide(bias, clr, spans, filters, chunksize, map, tol,
+                        max_iters, rescale_marginals, use_lock):
     scale = 1.0
     n_bins = len(bias)
 
     for _ in range(max_iters):
         marg = (
-            split(clr, spans=spans, map=map, use_lock=use_lock)
+            split(clr, spans=spans, map=map, use_lock=use_lock)  # noqa
                 .prepare(_init)
                 .pipe(filters)
                 .pipe(_timesouterproduct, bias)
@@ -134,7 +133,7 @@ def _balance_cisonly(bias, clr, spans, filters, chunksize, map, tol, max_iters,
         scale = 1.0
         for _ in range(max_iters):
             marg = (
-                split(clr, spans=spans, map=map, use_lock=use_lock)
+                split(clr, spans=spans, map=map, use_lock=use_lock)  # noqa
                     .prepare(_init)
                     .pipe(filters)
                     .pipe(_timesouterproduct, bias)
@@ -175,20 +174,20 @@ def _balance_cisonly(bias, clr, spans, filters, chunksize, map, tol, max_iters,
     return bias, scales, var
 
 
-def _balance_transonly(bias, clr, spans, filters, chunksize, map, tol, max_iters,
-                        rescale_marginals, use_lock):
+def _balance_transonly(bias, clr, spans, filters, chunksize, map, tol,
+                       max_iters, rescale_marginals, use_lock):
     scale = 1.0
     n_bins = len(bias)
 
     chrom_offsets = clr._load_dset('indexes/chrom_offset')
     cweights = 1. / np.concatenate([
         [(1 - (hi - lo)/n_bins)] * (hi - lo) for lo, hi in
-            zip(chrom_offsets[:-1], chrom_offsets[1:])
+        zip(chrom_offsets[:-1], chrom_offsets[1:])
     ])
 
     for _ in range(max_iters):
         marg = (
-            split(clr, spans=spans, map=map, use_lock=use_lock)
+            split(clr, spans=spans, map=map, use_lock=use_lock)  # noqa
                 .prepare(_init)
                 .pipe(filters)
                 .pipe(_zero_cis)
@@ -223,7 +222,6 @@ def _balance_transonly(bias, clr, spans, filters, chunksize, map, tol, max_iters
         bias /= np.sqrt(scale)
 
     return bias, scale, var
-
 
 
 def balance_cooler(clr, chunksize=None, map=map, tol=1e-5,
@@ -276,15 +274,17 @@ def balance_cooler(clr, chunksize=None, map=map, tol=1e-5,
     max_iters : int, optional
         Iteration limit.
     rescale_marginals : bool, optional
-        Normalize the balancing weights such that the balanced matrix has rows /
-        columns that sum to 1.0. The scale factor is stored in the ``stats``
+        Normalize the balancing weights such that the balanced matrix has rows
+        / columns that sum to 1.0. The scale factor is stored in the ``stats``
         output dictionary.
     x0 : 1D array, optional
         Initial weight vector to use. Default is to start with ones(n_bins).
     store : bool, optional
-        Whether to store the results in the file when finished. Default is False.
+        Whether to store the results in the file when finished. Default is
+        False.
     store_name : str, optional
-        Name of the column of the bin table to save to. Default name is 'weight'.
+        Name of the column of the bin table to save to. Default name is
+        'weight'.
 
     Returns
     -------
@@ -325,7 +325,7 @@ def balance_cooler(clr, chunksize=None, map=map, tol=1e-5,
     if min_nnz > 0:
         filters = [_binarize] + base_filters
         marg_nnz = (
-            split(clr, spans=spans, map=map, use_lock=use_lock)
+            split(clr, spans=spans, map=map, use_lock=use_lock) # noqa
                 .prepare(_init)
                 .pipe(filters)
                 .pipe(_marginalize)
@@ -335,7 +335,7 @@ def balance_cooler(clr, chunksize=None, map=map, tol=1e-5,
 
     filters = base_filters
     marg = (
-        split(clr, spans=spans, map=map, use_lock=use_lock)
+        split(clr, spans=spans, map=map, use_lock=use_lock) # noqa
             .prepare(_init)
             .pipe(filters)
             .pipe(_marginalize)
@@ -352,7 +352,7 @@ def balance_cooler(clr, chunksize=None, map=map, tol=1e-5,
         for lo, hi in zip(offsets[:-1], offsets[1:]):
             c_marg = marg[lo:hi]
             marg[lo:hi] /= np.median(c_marg[c_marg > 0])
-        logNzMarg = np.log(marg[marg>0])
+        logNzMarg = np.log(marg[marg > 0])
         med_logNzMarg = np.median(logNzMarg)
         dev_logNzMarg = mad(logNzMarg)
         cutoff = np.exp(med_logNzMarg - mad_max * dev_logNzMarg)

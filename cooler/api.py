@@ -46,7 +46,8 @@ class Cooler(object):
     when performing operations. This allows :py:class:`Cooler` objects to be
     serialized for multiprocess and distributed computations.
 
-    Metadata is accessible as a dictionary through the :py:attr:`info` property.
+    Metadata is accessible as a dictionary through the :py:attr:`info`
+    property.
 
     Table selectors, created using :py:meth:`chroms`, :py:meth:`bins`, and
     :py:meth:`pixels`, perform range queries over table rows,
@@ -259,8 +260,8 @@ class Cooler(object):
         Parameters
         ----------
         join : bool, optional
-            Whether to expand bin ID columns into chrom, start, and end columns.
-            Default is ``False``.
+            Whether to expand bin ID columns into chrom, start, and end
+            columns. Default is ``False``.
 
         Returns
         -------
@@ -293,8 +294,8 @@ class Cooler(object):
         Parameters
         ----------
         field : str, optional
-            Which column of the pixel table to fill the matrix with. By default,
-            the 'count' column is used.
+            Which column of the pixel table to fill the matrix with. By
+            default, the 'count' column is used.
         balance : bool, optional
             Whether to apply pre-calculated matrix balancing weights to the
             selection. Default is True and uses a column named 'weight'.
@@ -307,12 +308,12 @@ class Cooler(object):
             Return a DataFrame of the corresponding rows from the pixel table
             instead of a rectangular sparse matrix. False by default.
         join : bool, optional
-            If requesting pixels, specifies whether to expand the bin ID columns
-            into (chrom, start, end). Has no effect when requesting a
+            If requesting pixels, specifies whether to expand the bin ID
+            columns into (chrom, start, end). Has no effect when requesting a
             rectangular matrix. Default is True.
         ignore_index : bool, optional
-            If requesting pixels, don't populate the index column with the pixel
-            IDs to improve performance. Default is True.
+            If requesting pixels, don't populate the index column with the
+            pixel IDs to improve performance. Default is True.
         divisive_weights : bool, optional
             Force balancing weights to be interpreted as divisive (True) or
             multiplicative (False). Weights are always assumed to be
@@ -327,8 +328,9 @@ class Cooler(object):
         -----
         If ``as_pixels=True``, only data explicitly stored in the pixel table
         will be returned: if the cooler's storage mode is symmetric-upper,
-        lower triangular elements will not be generated. If ``as_pixels=False``,
-        those missing non-zero elements will automatically be filled in.
+        lower triangular elements will not be generated. If
+        ``as_pixels=False``, those missing non-zero elements will
+        automatically be filled in.
 
         """
         if balance in _4DN_DIVISIVE_WEIGHTS and divisive_weights is None:
@@ -337,7 +339,8 @@ class Cooler(object):
         def _slice(field, i0, i1, j0, j1):
             with open_hdf5(self.store, **self.open_kws) as h5:
                 grp = h5[self.root]
-                return matrix(grp, i0, i1, j0, j1, field, balance, sparse,
+                return matrix(
+                    grp, i0, i1, j0, j1, field, balance, sparse,
                     as_pixels, join, ignore_index, divisive_weights, max_chunk,
                     self._is_symm_upper)
 
@@ -352,7 +355,8 @@ class Cooler(object):
                 j0, j1 = region_to_extent(grp, self._chromids, region2)
                 return i0, i1, j0, j1
 
-        return RangeSelector2D(field, _slice, _fetch, (self._info['nbins'],) * 2)
+        return RangeSelector2D(
+            field, _slice, _fetch, (self._info['nbins'],) * 2)
 
     def __repr__(self):
         if isinstance(self.store, six.string_types):
@@ -409,8 +413,8 @@ def chroms(h5, lo=0, hi=None, fields=None, **kwargs):
     """
     if fields is None:
         fields = (pd.Index(['name', 'length'])
-                        .append(pd.Index(h5['chroms'].keys()))
-                        .drop_duplicates())
+                    .append(pd.Index(h5['chroms'].keys()))
+                    .drop_duplicates())
     return get(h5['chroms'], lo, hi, fields, **kwargs)
 
 
@@ -434,8 +438,8 @@ def bins(h5, lo=0, hi=None, fields=None, **kwargs):
     """
     if fields is None:
         fields = (pd.Index(['chrom', 'start', 'end'])
-                        .append(pd.Index(h5['bins'].keys()))
-                        .drop_duplicates())
+                    .append(pd.Index(h5['bins'].keys()))
+                    .drop_duplicates())
 
     # If convert_enum is not explicitly set to False, chrom IDs will get
     # converted to categorical chromosome names, provided the ENUM header
@@ -487,8 +491,8 @@ def pixels(h5, lo=0, hi=None, fields=None, join=True, **kwargs):
     """
     if fields is None:
         fields = (pd.Index(['bin1_id', 'bin2_id'])
-                        .append(pd.Index(h5['pixels'].keys()))
-                        .drop_duplicates())
+                    .append(pd.Index(h5['pixels'].keys()))
+                    .drop_duplicates())
 
     df = get(h5['pixels'], lo, hi, fields, **kwargs)
 
@@ -567,19 +571,22 @@ def annotate(pixels, bins, replace=False):
             suffixes=('1', '2'))
 
     # rearrange columns
-    pixels = pixels[list(pixels.columns[ncols:]) + list(pixels.columns[:ncols])]
+    pixels = pixels[list(pixels.columns[ncols:]) +
+                    list(pixels.columns[:ncols])]
 
     # drop bin IDs
     if replace:
-        cols_to_drop = [col for col in ('bin1_id', 'bin2_id') if col in columns]
+        cols_to_drop = [
+            col for col in ('bin1_id', 'bin2_id') if col in columns
+        ]
         pixels = pixels.drop(cols_to_drop, axis=1)
 
     return pixels
 
 
 def matrix(h5, i0, i1, j0, j1, field=None, balance=True, sparse=False,
-           as_pixels=False, join=True, ignore_index=True, divisive_weights=False,
-           max_chunk=500000000, is_upper=True):
+           as_pixels=False, join=True, ignore_index=True,
+           divisive_weights=False, max_chunk=500000000, is_upper=True):
     """
     Two-dimensional range query on the Hi-C contact heatmap.
     Depending on the options, returns either a 2D NumPy array, a rectangular
@@ -636,7 +643,8 @@ def matrix(h5, i0, i1, j0, j1, field=None, balance=True, sparse=False,
 
     if balance and name not in h5['bins']:
         raise ValueError(
-            "No column 'bins/{}' found. Use ``cooler.balance_cooler`` to ".format(name) +
+            "No column 'bins/{}'".format(name) +
+            "found. Use ``cooler.balance_cooler`` to " +
             "calculate balancing weights or set balance=False.")
 
     if as_pixels:
@@ -646,7 +654,7 @@ def matrix(h5, i0, i1, j0, j1, field=None, balance=True, sparse=False,
 
         cols = ['bin1_id', 'bin2_id', field]
         df = pd.DataFrame(dict(zip(cols, [i, j, v])),
-                              columns=cols, index=index)
+                          columns=cols, index=index)
 
         if balance:
             weights = Cooler(h5).bins()[[name]]

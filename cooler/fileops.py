@@ -48,8 +48,10 @@ class TreeNode(object):
             if self.level is None or self.depth < self.level:
                 depth = self.depth + 1
                 children = self.obj.values()
-                return [self.__class__(o, depth=depth, level=self.level)
-                            for o in children]
+                return [
+                    self.__class__(o, depth=depth, level=self.level)
+                    for o in children
+                ]
         return []
 
     def get_text(self):
@@ -86,7 +88,7 @@ def _is_cooler(grp):
         keys = ('chroms', 'bins', 'pixels', 'indexes')
         if not all(name in grp.keys() for name in keys):
             warnings.warn(
-                'Cooler path /{} appears to be corrupt'.format(pth))
+                'Cooler path {} appears to be corrupt'.format(grp.name))
         return True
     return False
 
@@ -110,7 +112,6 @@ def is_multires_file(filepath, min_version=1):
     Returns False if the file doesn't exist.
 
     """
-    filepath, grouppath = parse_cooler_uri(uri)
     if not h5py.is_hdf5(filepath):
         return False
 
@@ -124,7 +125,6 @@ def is_multires_file(filepath, min_version=1):
             return True
 
     return False
-
 
 
 def list_coolers(filepath):
@@ -145,6 +145,7 @@ def list_coolers(filepath):
         raise OSError("'{}' is not an HDF5 file.".format(filepath))
 
     listing = []
+
     def _check_cooler(pth, grp):
         if _is_cooler(grp):
             listing.append('/' + pth if not pth.startswith('/') else pth)
@@ -175,6 +176,7 @@ def ls(uri):
         raise OSError("'{}' is not an HDF5 file.".format(filepath))
 
     listing = []
+
     def _check_all(pth, grp):
         listing.append('/' + pth if not pth.startswith('/') else pth)
 
@@ -199,7 +201,7 @@ def _copy(src_uri, dst_uri, overwrite, link, rename, soft_link):
         write_mode = 'r+'
 
     with h5py.File(src_path, 'r+') as src, \
-         h5py.File(dst_path, write_mode) as dst:
+         h5py.File(dst_path, write_mode) as dst: # noqa
 
         if src_path == dst_path:
             if link or rename:
@@ -229,20 +231,23 @@ def _copy(src_uri, dst_uri, overwrite, link, rename, soft_link):
 def cp(src_uri, dst_uri, overwrite=False):
     """Copy a group or dataset from one file to another or within the same file.
     """
-    _copy(src_uri, dst_uri, overwrite, link=False, rename=False, soft_link=False)
+    _copy(src_uri, dst_uri, overwrite, link=False, rename=False,
+          soft_link=False)
 
 
 def mv(src_uri, dst_uri, overwrite=False):
     """Rename a group or dataset within the same file.
     """
-    _copy(src_uri, dst_uri, overwrite, link=False, rename=True, soft_link=False)
+    _copy(src_uri, dst_uri, overwrite, link=False, rename=True,
+          soft_link=False)
 
 
 def ln(src_uri, dst_uri, soft=False, overwrite=False):
     """Create a hard link to a group or dataset in the same file. Also
     supports soft links (in the same file) or external links (different files).
     """
-    _copy(src_uri, dst_uri, overwrite, link=not soft, rename=False, soft_link=soft)
+    _copy(src_uri, dst_uri, overwrite, link=not soft, rename=False,
+          soft_link=soft)
 
 
 def _tree_html(node, root=False, expand=False):
@@ -437,7 +442,7 @@ def read_attr_tree(group, level):
     def _getdict(node, root=False):
         attrs = node.obj.attrs
         result = {'@attrs': {k: _decode_attr_value(v)
-                                for k, v in attrs.items()}}
+                             for k, v in attrs.items()}}
         children = node.get_children()
         if children:
             for child in children:
@@ -456,7 +461,6 @@ def pprint_attr_tree(uri, level):
         s = StringIO()
         yaml.dump(read_attr_tree(grp, level), s)
         return s.getvalue()
-
 
 
 # if not h5py.is_hdf5(filepath):
