@@ -10,6 +10,9 @@ Date: 2019-08-12
 ### Bug fixes
 * Fixed a related regression that affected selection of the `chrom` column.
 
+Post-release `v0.8.6.post0`: requirements files added to MANIFEST.in
+
+
 ## [v0.8.5](https://github.com/mirnylab/cooler/compare/v0.8.4...v0.8.5)
 
 Date: 2019-04-08
