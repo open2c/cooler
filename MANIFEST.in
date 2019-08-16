@@ -1,6 +1,9 @@
 include CHANGES.md
+include CONTRIBUTING.md
 include README.md
 include LICENSE
+include requirements.txt
+include requirements-dev.txt
 
 graft tests
 graft docs

@@ -27,7 +27,7 @@ build: clean-build
 publish: build
 	twine upload dist/*
 
-publish-test:
+publish-test: build
 	twine upload --repository-url https://test.pypi.org/legacy/ dist/*
 
 docs-init:
