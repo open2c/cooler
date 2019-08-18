@@ -45,7 +45,7 @@ def parse_kv_list_param(arg, item_sep=",", kv_sep="="):
         arg = arg.replace(item_sep, ",")
     arg = "{" + arg.replace(kv_sep, ": ") + "}"
     try:
-        result = yaml.load(StringIO(arg))
+        result = yaml.safe_load(StringIO(arg))
     except yaml.YAMLError:
         raise click.BadParameter("Error parsing key-value pairs: {}".format(arg))
     return result
