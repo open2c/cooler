@@ -6,7 +6,7 @@ import tempfile
 
 import numpy as np
 import pandas as pd
-from cooler.create import sanitize_pixels, sanitize_records, BadInputError
+from cooler.create import sanitize_records, BadInputError  # sanitize_pixels
 import cooler
 import pytest
 

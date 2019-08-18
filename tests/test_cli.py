@@ -12,7 +12,6 @@ from glob import glob
 import os.path as op
 import tempfile
 import json
-import os
 
 from pandas.api import types
 import numpy as np
@@ -22,11 +21,6 @@ from _common import cooler_cmp
 from click.testing import CliRunner
 import cooler
 import pytest
-import click
-
-tmp = tempfile.gettempdir()
-testdir = op.realpath(op.dirname(__file__))
-datadir = op.join(testdir, "data")
 
 
 ### INGEST AND AGGREGATION ###
@@ -35,6 +29,21 @@ from cooler.cli.load import load
 from cooler.cli.merge import merge
 from cooler.cli.coarsen import coarsen
 from cooler.cli.zoomify import zoomify
+
+
+### COMPUTE ###
+from cooler.cli.balance import balance
+
+
+### OUTPUT ###
+from cooler.cli.info import info
+from cooler.cli.dump import dump
+# from cooler.cli.show import show
+
+
+tmp = tempfile.gettempdir()
+testdir = op.realpath(op.dirname(__file__))
+datadir = op.join(testdir, "data")
 
 
 def _run_cload_pairs(runner, binsize, extra_args):
@@ -75,8 +84,8 @@ def _cmp_pixels_2_bg(f_out, f_ref, one_based_ref=True):
     assert np.all(out_df == ref_df)
 
 
-#'--no-symmetric-upper'
-#'--input-copy-status', 'unique|duplex',
+# '--no-symmetric-upper'
+# '--input-copy-status', 'unique|duplex',
 @pytest.mark.parametrize(
     "ref,extra_args",
     [
@@ -93,9 +102,9 @@ def test_cload_symm_asymm(ref, extra_args):
         _cmp_pixels_2_bg("toy.2.cool", op.join(datadir, "toy.{}.2.bg2".format(ref)))
 
 
-#'--temp-dir', '',
-#'--no-delete-temp',
-#'--max-merge', '',
+# '--temp-dir', '',
+# '--no-delete-temp',
+# '--max-merge', '',
 @pytest.mark.parametrize(
     "ref,extra_args", [("symm.upper", ["--temp-dir", ".", "--no-delete-temp"])]
 )
@@ -108,8 +117,8 @@ def test_cload_mergepass(ref, extra_args):
         assert len(cooler.fileops.list_coolers(glob("*.cool")[0])) > 0
 
 
-#'--field', '',
-#'--no-count', '',
+# '--field', '',
+# '--no-count', '',
 def test_cload_field():
     runner = CliRunner()
     with runner.isolated_filesystem():
@@ -160,10 +169,10 @@ def test_cload_field():
         # assert 'score' in pixels.columns and types.is_float_dtype(pixels.dtypes['score'])
 
 
-#'--metadata', '',
-#'--zero-based',
-#'--comment-char', '',
-#'--storage-options', '',
+# '--metadata', '',
+# '--zero-based',
+# '--comment-char', '',
+# '--storage-options', '',
 def test_cload_other_options():
     runner = CliRunner()
     with runner.isolated_filesystem():
@@ -203,8 +212,8 @@ def _run_load(runner, matrix_file, format, binsize, extra_args):
     return runner.invoke(load, args)
 
 
-#'--no-symmetric-upper'
-#'--input-copy-status', 'unique|duplex',
+# '--no-symmetric-upper'
+# '--input-copy-status', 'unique|duplex',
 @pytest.mark.parametrize(
     "ref,extra_args",
     [
@@ -225,7 +234,7 @@ def test_load_symm_asymm(ref, extra_args):
         _cmp_pixels_2_bg("toy.2.cool", ref)
 
 
-#'--field', '',
+# '--field', '',
 def test_load_field():
     runner = CliRunner()
     with runner.isolated_filesystem():
@@ -295,10 +304,6 @@ def test_zoomify():
         # assert np.allclose(pix1, pix2)
 
 
-### COMPUTE ###
-from cooler.cli.balance import balance
-
-
 def test_balance():
     runner = CliRunner()
     with runner.isolated_filesystem():
@@ -322,12 +327,6 @@ def test_balance():
         )
         assert result.exit_code == 0
         assert len(result.output.split("\n")) == 32
-
-
-### OUTPUT ###
-from cooler.cli.info import info
-from cooler.cli.dump import dump
-from cooler.cli.show import show
 
 
 def test_info():

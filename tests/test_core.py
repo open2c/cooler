@@ -60,8 +60,8 @@ def test_region_string_parser():
 
 
 def test_selector1d():
-    slicer = lambda fields, lo, hi: (lo, hi)
-    fetcher = lambda x: x
+    slicer = lambda fields, lo, hi: (lo, hi)  # noqa
+    fetcher = lambda x: x  # noqa
     nmax = 50
 
     s = cooler.core.RangeSelector1D(None, slicer, fetcher, nmax)
@@ -89,8 +89,8 @@ def test_selector1d():
 
 
 def test_selector2d():
-    slicer = lambda field, i0, i1, j0, j1: (i0, i1, j0, j1)
-    fetcher = lambda x: x
+    slicer = lambda field, i0, i1, j0, j1: (i0, i1, j0, j1)  # noqa
+    fetcher = lambda x: x  # noqa
     nmax = 50
 
     s = cooler.core.RangeSelector2D(None, slicer, fetcher, (nmax, nmax))
