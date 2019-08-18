@@ -8,6 +8,7 @@
 [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/mirnylab/cooler-binder/master)
 [![Join the chat at https://gitter.im/mirnylab/cooler](https://badges.gitter.im/mirnylab/cooler.svg)](https://gitter.im/mirnylab/cooler?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 [![DOI](https://zenodo.org/badge/49553222.svg)](https://zenodo.org/badge/latestdoi/49553222)
+[![CodeCov](https://codecov.io/gh/mirnylab/cooler/branch/master/graph/badge.svg)](https://codecov.io/gh/mirnylab/cooler)
 
 ## A cool place to store your Hi-C
 
