@@ -9,16 +9,14 @@ import pytest
 testdir = os.path.dirname(os.path.realpath(__file__))
 
 
-@pytest.mark.parametrize("fp,tol", [(
-    os.path.join(testdir, 'data', 'hg19.GM12878-MboI.matrix.2000kb.cool'),
-    1e-2
-)])
+@pytest.mark.parametrize(
+    "fp,tol",
+    [(os.path.join(testdir, "data", "hg19.GM12878-MboI.matrix.2000kb.cool"), 1e-2)],
+)
 def test_balancing(fp, tol):
     weights, stats = cooler.ice.iterative_correction(
-        cooler.Cooler(fp),
-        ignore_diags=1,
-        min_nnz=10,
-        tol=tol)
+        cooler.Cooler(fp), ignore_diags=1, min_nnz=10, tol=tol
+    )
 
     # Extract matrix and apply weights
     mat = cooler.Cooler(fp).matrix(balance=False, sparse=True)[:, :]
@@ -45,20 +43,17 @@ def test_balancing(fp, tol):
 
 
 @pytest.mark.filterwarnings("ignore")
-@pytest.mark.parametrize("fp,tol", [(
-    os.path.join(testdir, 'data', 'hg19.GM12878-MboI.matrix.2000kb.cool'),
-    1e-2
-)])
+@pytest.mark.parametrize(
+    "fp,tol",
+    [(os.path.join(testdir, "data", "hg19.GM12878-MboI.matrix.2000kb.cool"), 1e-2)],
+)
 def test_balancing_cisonly(fp, tol):
 
-    with h5py.File(fp, 'r') as h5:
-        chrom_offsets = h5['indexes/chrom_offset'][:]
+    with h5py.File(fp, "r") as h5:
+        chrom_offsets = h5["indexes/chrom_offset"][:]
         weights, stats = cooler.ice.iterative_correction(
-            cooler.Cooler(h5),
-            ignore_diags=1,
-            min_nnz=10,
-            tol=tol,
-            cis_only=True)
+            cooler.Cooler(h5), ignore_diags=1, min_nnz=10, tol=tol, cis_only=True
+        )
 
     # Extract matrix and apply weights
     mat = cooler.Cooler(fp).matrix(balance=False, sparse=True)[:, :]
@@ -76,7 +71,8 @@ def test_balancing_cisonly(fp, tol):
     # Filter out trans data
     spans = list(zip(chrom_offsets[:-1], chrom_offsets[1:]))
     from scipy.linalg import block_diag
-    blocks = [np.ones((hi -lo,) * 2) for lo, hi in spans]
+
+    blocks = [np.ones((hi - lo,) * 2) for lo, hi in spans]
     mask = block_diag(*blocks).astype(bool)
     arr[~mask] = 0
 

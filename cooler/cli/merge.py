@@ -2,33 +2,38 @@
 from __future__ import division, print_function
 
 from ._util import parse_field_param
-from . import cli, get_logger
+from . import cli
 import click
 
 from ..reduce import merge_coolers
 
+
 @cli.command()
 @click.argument(
     "out_path",
-    type=click.Path(exists=False))
+    type=click.Path(exists=False)
+)
 @click.argument(
     "in_paths",
     nargs=-1,
-    type=click.Path(exists=False))
+    type=click.Path(exists=False)
+)
 @click.option(
     "--chunksize", "-c",
     help="Size of the merge buffer in number of pixel table rows.",
     type=int,
     default=int(20e6),
-    show_default=True)
+    show_default=True,
+)
 @click.option(
     "--field",
     help="Specify the names of value columns to merge as '<name>'. "
-         "Repeat the `--field` option for each one. "
-         "Use '<name>,dtype=<dtype>' to specify the dtype. Include "
-         "',agg=<agg>' to specify an aggregation function different from 'sum'.",
+    "Repeat the `--field` option for each one. "
+    "Use '<name>,dtype=<dtype>' to specify the dtype. Include "
+    "',agg=<agg>' to specify an aggregation function different from 'sum'.",
     type=str,
-    multiple=True)
+    multiple=True,
+)
 def merge(out_path, in_paths, chunksize, field):
     """
     Merge multiple coolers with identical axes.
@@ -51,7 +56,7 @@ def merge(out_path, in_paths, chunksize, field):
     Additional columns in the the input files are not transferred to the output.
 
     """
-    logger = get_logger(__name__)
+    # logger = get_logger(__name__)
 
     if len(field):
         field_specifiers = [
@@ -63,8 +68,8 @@ def merge(out_path, in_paths, chunksize, field):
     else:
         # If no other fields are given, 'count' is implicitly chosen.
         # Default aggregation. Dtype will be inferred.
-        columns, dtypes, agg = ['count'], None, None
+        columns, dtypes, agg = ["count"], None, None
 
-    merge_coolers(out_path, in_paths, mergebuf=chunksize, columns=columns,
-           dtypes=dtypes, agg=agg)
-
+    merge_coolers(
+        out_path, in_paths, mergebuf=chunksize, columns=columns, dtypes=dtypes, agg=agg
+    )

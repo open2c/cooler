@@ -3,7 +3,6 @@ from __future__ import division, print_function
 import sys
 
 import numpy as np
-import h5py
 
 from . import cli
 import click
@@ -23,12 +22,11 @@ def get_matrix_size(c, row_region, col_region):
 
 
 def load_matrix(c, row_region, col_region, field, balanced, scale):
-    mat = (c.matrix(balance=balanced, field=field)
-            .fetch(row_region, col_region))
+    mat = c.matrix(balance=balanced, field=field).fetch(row_region, col_region)
 
-    if scale == 'log2':
+    if scale == "log2":
         mat = np.log2(mat)
-    elif scale == 'log10':
+    elif scale == "log10":
         mat = np.log10(mat)
 
     return mat
@@ -36,6 +34,7 @@ def load_matrix(c, row_region, col_region, field, balanced, scale):
 
 def interactive(ax, c, row_chrom, col_chrom, field, balanced, scale):
     import matplotlib.pyplot as plt
+
     # The code is heavily insired by
     # https://gist.github.com/mdboom/048aa35df685fe694330764894f0e40a
 
@@ -63,118 +62,132 @@ def interactive(ax, c, row_chrom, col_chrom, field, balanced, scale):
 
         extent = get_extent(ax)
         extent = round_trim_extent(extent, binsize, row_chrom_len, col_chrom_len)
-        if extent == plotstate['prev_extent']:
+        if extent == plotstate["prev_extent"]:
             return
 
-        plotstate['prev_extent'] = extent
+        plotstate["prev_extent"] = extent
         new_col_region = col_chrom, int(extent[0]), int(extent[1])
         new_row_region = row_chrom, int(extent[3]), int(extent[2])
 
         im = ax.images[-1]
         nelem = get_matrix_size(c, new_row_region, new_col_region)
-        if nelem  >= MAX_MATRIX_SIZE_INTERACTIVE:
+        if nelem >= MAX_MATRIX_SIZE_INTERACTIVE:
             # requested area too large
             im.set_data(np.ones(1)[:, None] * np.nan)
 
-            if not plotstate['placeholders']:
+            if not plotstate["placeholders"]:
                 box, = plt.plot(
                     [0, col_chrom_len, col_chrom_len, 0, 0, col_chrom_len],
                     [0, row_chrom_len, 0, 0, row_chrom_len, row_chrom_len],
-                    c='k',
-                    lw=0.5
+                    c="k",
+                    lw=0.5,
                 )
                 txt = plt.text(
-                    0.5, 0.5,
-                    'The requested region is too large\n'
-                    'to display at this resolution.',
-                    horizontalalignment='center',
-                    verticalalignment='center',
-                    transform=ax.transAxes
+                    0.5,
+                    0.5,
+                    "The requested region is too large\n"
+                    "to display at this resolution.",
+                    horizontalalignment="center",
+                    verticalalignment="center",
+                    transform=ax.transAxes,
                 )
-                plotstate['placeholders'] = [box, txt]
+                plotstate["placeholders"] = [box, txt]
         else:
             # remove placeholders if any and update
-            while plotstate['placeholders']:
-                plotstate['placeholders'].pop().remove()
+            while plotstate["placeholders"]:
+                plotstate["placeholders"].pop().remove()
 
             im.set_data(
-                load_matrix(c, new_row_region, new_col_region, field, balanced, scale))
+                load_matrix(c, new_row_region, new_col_region, field, balanced, scale)
+            )
 
         im.set_extent(extent)
         ax.figure.canvas.draw_idle()
 
-    binsize = c.info['bin-size']
+    binsize = c.info["bin-size"]
     row_chrom_len = c.chromsizes[row_chrom]
     col_chrom_len = c.chromsizes[col_chrom]
-    plotstate = {
-        'placeholders': [],
-        'prev_extent': get_extent(plt.gca())
-    }
-    plt.gcf().canvas.mpl_connect('button_release_event', update_heatmap)
+    plotstate = {"placeholders": [], "prev_extent": get_extent(plt.gca())}
+    plt.gcf().canvas.mpl_connect("button_release_event", update_heatmap)
     plt.show()
 
 
 @cli.command()
 @click.argument(
     "cool_uri",
-    metavar="COOL_PATH")
+    metavar="COOL_PATH"
+)
 @click.argument(
     "range",
-    type=str)
+    type=str
+)
 @click.option(
     "--range2", "-r2",
     type=str,
     help="The coordinates of a genomic region shown along the column dimension. "
-         "If omitted, the column range is the same as the row range. "
-         "Use to display asymmetric matrices or trans interactions.")
+    "If omitted, the column range is the same as the row range. "
+    "Use to display asymmetric matrices or trans interactions.",
+)
 @click.option(
     "--balanced", "-b",
     is_flag=True,
     default=False,
     help="Show the balanced contact matrix. "
-         "If not provided, display the unbalanced counts.")
+    "If not provided, display the unbalanced counts.",
+)
 @click.option(
     "--out", "-o",
     help="Save the image of the contact matrix to a file. "
-         "If not specified, the matrix is displayed in an interactive window. "
-         "The figure format is deduced from the extension of the file, "
-         "the supported formats are png, jpg, svg, pdf, ps and eps.")
+    "If not specified, the matrix is displayed in an interactive window. "
+    "The figure format is deduced from the extension of the file, "
+    "the supported formats are png, jpg, svg, pdf, ps and eps.",
+)
 @click.option(
     "--dpi",
     type=int,
-    help="The DPI of the figure, if saving to a file")
-@click.option('--scale', '-s',
-    type=click.Choice(['linear', 'log2', 'log10']),
+    help="The DPI of the figure, if saving to a file"
+)
+@click.option(
+    "--scale", "-s",
+    type=click.Choice(["linear", "log2", "log10"]),
     help="Scale transformation of the colormap: linear, log2 or log10. "
-         "Default is log10.",
-    default='log10')
+    "Default is log10.",
+    default="log10",
+)
 @click.option(
     "--force", "-f",
     is_flag=True,
     default=False,
     help="Force display very large matrices (>=10^8 pixels). "
-         "Use at your own risk as it may cause performance issues.")
+    "Use at your own risk as it may cause performance issues.",
+)
 @click.option(
     "--zmin",
     type=float,
     help="The minimal value of the color scale. Units must match those of the colormap scale. "
-         "To provide a negative value use a equal sign and quotes, e.g. -zmin='-0.5'")
+    "To provide a negative value use a equal sign and quotes, e.g. -zmin='-0.5'",
+)
 @click.option(
     "--zmax",
     type=float,
     help="The maximal value of the color scale. Units must match those of the colormap scale. "
-         "To provide a negative value use a equal sign and quotes, e.g. -zmax='-0.5'")
+    "To provide a negative value use a equal sign and quotes, e.g. -zmax='-0.5'",
+)
 @click.option(
     "--cmap",
     default="YlOrRd",
     help="The colormap used to display the contact matrix. "
-         "See the full list at http://matplotlib.org/examples/color/colormaps_reference.html")
+    "See the full list at http://matplotlib.org/examples/color/colormaps_reference.html",
+)
 @click.option(
     "--field",
-    default='count',
+    default="count",
     show_default=True,
-    help="Pixel values to display.")
-def show(cool_uri, range, range2, balanced, out, dpi, scale, force, zmin, zmax, cmap, field):
+    help="Pixel values to display."
+)
+def show(
+    cool_uri, range, range2, balanced, out, dpi, scale, force, zmin, zmax, cmap, field
+):
     """
     Display and browse a cooler in matplotlib.
 
@@ -186,8 +199,9 @@ def show(cool_uri, range, range2, balanced, out, dpi, scale, force, zmin, zmax, 
     """
     try:
         import matplotlib as mpl
+
         if out is not None:
-            mpl.use('Agg')
+            mpl.use("Agg")
         import matplotlib.pyplot as plt
     except ImportError:
         print("Install matplotlib to use cooler show", file=sys.stderr)
@@ -201,34 +215,40 @@ def show(cool_uri, range, range2, balanced, out, dpi, scale, force, zmin, zmax, 
     row_chrom, row_lo, row_hi = util.parse_region(row_region, chromsizes)
     col_chrom, col_lo, col_hi = util.parse_region(col_region, chromsizes)
 
-    if ((get_matrix_size(c, row_region, col_region) >= MAX_MATRIX_SIZE_FILE)
-        and not force):
+    if (
+        get_matrix_size(c, row_region, col_region) >= MAX_MATRIX_SIZE_FILE
+    ) and not force:
         print(
             "The matrix of the selected region is too large. "
             "Try using lower resolution, selecting a smaller region, or use "
             "the '--force' flag to override this safety limit.",
-            file=sys.stderr)
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     plt.figure(figsize=(11, 10))
-    plt.gcf().canvas.set_window_title('Contact matrix'.format())
-    plt.title('')
+    plt.gcf().canvas.set_window_title("Contact matrix".format())
+    plt.title("")
     plt.imshow(
         load_matrix(c, row_region, col_region, field, balanced, scale),
-        interpolation='none',
+        interpolation="none",
         extent=[col_lo, col_hi, row_hi, row_lo],
         vmin=zmin,
         vmax=zmax,
-        cmap=cmap)
+        cmap=cmap,
+    )
 
     # If plotting into a file, plot and quit
-    plt.ylabel('{} coordinate'.format(row_chrom))
-    plt.xlabel('{} coordinate'.format(col_chrom))
+    plt.ylabel("{} coordinate".format(row_chrom))
+    plt.xlabel("{} coordinate".format(col_chrom))
     cb = plt.colorbar()
     cb.set_label(
-        {'linear': 'relative contact frequency',
-         'log2'  : 'log 2 ( relative contact frequency )',
-         'log10' : 'log 10 ( relative contact frequency )'}[scale])
+        {
+            "linear": "relative contact frequency",
+            "log2": "log 2 ( relative contact frequency )",
+            "log10": "log 10 ( relative contact frequency )",
+        }[scale]
+    )
 
     if out:
         plt.savefig(out, dpi=dpi)

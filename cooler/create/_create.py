@@ -40,7 +40,7 @@ from . import (
     PIXEL_DTYPES,
 )
 
-logger = get_logger('cooler.create')
+logger = get_logger("cooler.create")
 
 
 def write_chroms(grp, chroms, h5opts):
@@ -58,21 +58,21 @@ def write_chroms(grp, chroms, h5opts):
 
     """
     n_chroms = len(chroms)
-    names = np.array(chroms['name'], dtype=CHROM_DTYPE)  # auto-adjusts char length
-    grp.create_dataset('name',
-                       shape=(n_chroms,),
-                       dtype=names.dtype,
-                       data=names,
-                       **h5opts)
-    grp.create_dataset('length',
-                       shape=(n_chroms,),
-                       dtype=CHROMSIZE_DTYPE,
-                       data=chroms['length'],
-                       **h5opts)
+    names = np.array(chroms["name"], dtype=CHROM_DTYPE)  # auto-adjusts char length
+    grp.create_dataset(
+        "name", shape=(n_chroms,), dtype=names.dtype, data=names, **h5opts
+    )
+    grp.create_dataset(
+        "length",
+        shape=(n_chroms,),
+        dtype=CHROMSIZE_DTYPE,
+        data=chroms["length"],
+        **h5opts
+    )
 
     # Extra columns
     columns = list(chroms.keys())
-    for col in ['name', 'length']:
+    for col in ["name", "length"]:
         columns.remove(col)
     if columns:
         put(grp, chroms[columns])
@@ -102,7 +102,7 @@ def write_bins(grp, bins, chromnames, h5opts, chrom_as_enum=True):
     idmap = dict(zip(chromnames, range(n_chroms)))
 
     # Convert chrom names to enum
-    chrom_ids = [idmap[chrom] for chrom in bins['chrom']]
+    chrom_ids = [idmap[chrom] for chrom in bins["chrom"]]
     if chrom_as_enum:
         chrom_dtype = h5py.special_dtype(enum=(CHROMID_DTYPE, idmap))
     else:
@@ -110,41 +110,33 @@ def write_bins(grp, bins, chromnames, h5opts, chrom_as_enum=True):
 
     # Store bins
     try:
-        chrom_dset = grp.create_dataset('chrom',
-                           shape=(n_bins,),
-                           dtype=chrom_dtype,
-                           data=chrom_ids,
-                           **h5opts)
+        chrom_dset = grp.create_dataset(
+            "chrom", shape=(n_bins,), dtype=chrom_dtype, data=chrom_ids, **h5opts
+        )
     except ValueError:
         # If too many scaffolds for HDF5 enum header,
         # try storing chrom IDs as raw int instead
         if chrom_as_enum:
             chrom_as_enum = False
             chrom_dtype = CHROMID_DTYPE
-            chrom_dset = grp.create_dataset('chrom',
-                               shape=(n_bins,),
-                               dtype=chrom_dtype,
-                               data=chrom_ids,
-                               **h5opts)
+            chrom_dset = grp.create_dataset(
+                "chrom", shape=(n_bins,), dtype=chrom_dtype, data=chrom_ids, **h5opts
+            )
         else:
             raise
     if not chrom_as_enum:
-        chrom_dset.attrs['enum_path'] = u'/chroms/name'
+        chrom_dset.attrs["enum_path"] = u"/chroms/name"
 
-    grp.create_dataset('start',
-                       shape=(n_bins,),
-                       dtype=COORD_DTYPE,
-                       data=bins['start'],
-                       **h5opts)
-    grp.create_dataset('end',
-                       shape=(n_bins,),
-                       dtype=COORD_DTYPE,
-                       data=bins['end'],
-                       **h5opts)
+    grp.create_dataset(
+        "start", shape=(n_bins,), dtype=COORD_DTYPE, data=bins["start"], **h5opts
+    )
+    grp.create_dataset(
+        "end", shape=(n_bins,), dtype=COORD_DTYPE, data=bins["end"], **h5opts
+    )
 
     # Extra columns
     columns = list(bins.keys())
-    for col in ['chrom', 'start', 'end']:
+    for col in ["chrom", "start", "end"]:
         columns.remove(col)
     if columns:
         put(grp, bins[columns])
@@ -153,25 +145,31 @@ def write_bins(grp, bins, chromnames, h5opts, chrom_as_enum=True):
 def prepare_pixels(grp, n_bins, max_size, columns, dtypes, h5opts):
     columns = list(columns)
     init_size = min(5 * n_bins, max_size)
-    grp.create_dataset('bin1_id',
-                       dtype=dtypes.get('bin1_id', BIN_DTYPE),
-                       shape=(init_size,),
-                       maxshape=(max_size,),
-                       **h5opts)
-    grp.create_dataset('bin2_id',
-                       dtype=dtypes.get('bin2_id', BIN_DTYPE),
-                       shape=(init_size,),
-                       maxshape=(max_size,),
-                       **h5opts)
+    grp.create_dataset(
+        "bin1_id",
+        dtype=dtypes.get("bin1_id", BIN_DTYPE),
+        shape=(init_size,),
+        maxshape=(max_size,),
+        **h5opts
+    )
+    grp.create_dataset(
+        "bin2_id",
+        dtype=dtypes.get("bin2_id", BIN_DTYPE),
+        shape=(init_size,),
+        maxshape=(max_size,),
+        **h5opts
+    )
 
-    if 'count'in columns:
-        grp.create_dataset('count',
-                           dtype=dtypes.get('count', COUNT_DTYPE),
-                           shape=(init_size,),
-                           maxshape=(max_size,),
-                           **h5opts)
+    if "count" in columns:
+        grp.create_dataset(
+            "count",
+            dtype=dtypes.get("count", COUNT_DTYPE),
+            shape=(init_size,),
+            maxshape=(max_size,),
+            **h5opts
+        )
 
-    for col in ['bin1_id', 'bin2_id', 'count']:
+    for col in ["bin1_id", "bin2_id", "count"]:
         try:
             columns.remove(col)
         except ValueError:
@@ -179,11 +177,13 @@ def prepare_pixels(grp, n_bins, max_size, columns, dtypes, h5opts):
 
     if columns:
         for col in columns:
-            grp.create_dataset(col,
-                               dtype=dtypes.get(col, float),
-                               shape=(init_size,),
-                               maxshape=(max_size,),
-                               **h5opts)
+            grp.create_dataset(
+                col,
+                dtype=dtypes.get(col, float),
+                shape=(init_size,),
+                maxshape=(max_size,),
+                **h5opts
+            )
 
 
 def write_pixels(filepath, grouppath, columns, iterable, h5opts, lock):
@@ -221,17 +221,17 @@ def write_pixels(filepath, grouppath, columns, iterable, h5opts, lock):
 
             logger.debug("writing chunk {}".format(i))
 
-            with h5py.File(filepath, 'r+') as fw:
+            with h5py.File(filepath, "r+") as fw:
                 grp = fw[grouppath]
                 dsets = [grp[col] for col in columns]
 
                 n = len(chunk[columns[0]])
                 for col, dset in zip(columns, dsets):
                     dset.resize((nnz + n,))
-                    dset[nnz:nnz+n] = chunk[col]
+                    dset[nnz : nnz + n] = chunk[col]
                 nnz += n
-                if 'count' in chunk:
-                    total += chunk['count'].sum()
+                if "count" in chunk:
+                    total += chunk["count"].sum()
 
                 fw.flush()
 
@@ -243,22 +243,22 @@ def write_pixels(filepath, grouppath, columns, iterable, h5opts, lock):
 
 
 def index_pixels(grp, n_bins, nnz):
-    bin1 = grp['bin1_id']
+    bin1 = grp["bin1_id"]
     bin1_offset = np.zeros(n_bins + 1, dtype=BIN1OFFSET_DTYPE)
     curr_val = 0
     for start, length, value in zip(*rlencode(bin1, 1000000)):
-        bin1_offset[curr_val:value + 1] = start
+        bin1_offset[curr_val : value + 1] = start
         curr_val = value + 1
     bin1_offset[curr_val:] = nnz
     return bin1_offset
 
 
 def index_bins(grp, n_chroms, n_bins):
-    chrom_ids = grp['chrom']
+    chrom_ids = grp["chrom"]
     chrom_offset = np.zeros(n_chroms + 1, dtype=CHROMOFFSET_DTYPE)
     curr_val = 0
     for start, length, value in zip(*rlencode(chrom_ids)):
-        chrom_offset[curr_val:value + 1] = start
+        chrom_offset[curr_val : value + 1] = start
         curr_val = value + 1
     chrom_offset[curr_val:] = n_bins
     return chrom_offset
@@ -285,13 +285,15 @@ def write_indexes(grp, chrom_offset, bin1_offset, h5opts):
         shape=(len(chrom_offset),),
         dtype=CHROMOFFSET_DTYPE,
         data=chrom_offset,
-        **h5opts)
+        **h5opts
+    )
     grp.create_dataset(
         "bin1_offset",
         shape=(len(bin1_offset),),
         dtype=BIN1OFFSET_DTYPE,
         data=bin1_offset,
-        **h5opts)
+        **h5opts
+    )
 
 
 def write_info(grp, info):
@@ -314,53 +316,48 @@ def write_info(grp, info):
         number of non-zero pixels
 
     """
-    assert 'nbins' in info
-    assert 'nnz' in info
-    info.setdefault('genome-assembly', 'unknown')
-    info['metadata'] = json.dumps(info.get('metadata', {}))
-    info['creation-date'] = datetime.now().isoformat()
-    info['generated-by'] = six.text_type('cooler-' + __version__)
-    info['format'] = MAGIC
-    info['format-version'] = six.text_type(__format_version__)
-    info['format-url'] = URL
+    assert "nbins" in info
+    assert "nnz" in info
+    info.setdefault("genome-assembly", "unknown")
+    info["metadata"] = json.dumps(info.get("metadata", {}))
+    info["creation-date"] = datetime.now().isoformat()
+    info["generated-by"] = six.text_type("cooler-" + __version__)
+    info["format"] = MAGIC
+    info["format-version"] = six.text_type(__format_version__)
+    info["format-url"] = URL
     grp.attrs.update(info)
 
 
 def _rename_chroms(grp, rename_dict, h5opts):
-    chroms = get(grp['chroms']).set_index('name')
+    chroms = get(grp["chroms"]).set_index("name")
     n_chroms = len(chroms)
-    new_names = np.array(chroms.rename(rename_dict).index.values,
-                         dtype=CHROM_DTYPE)  # auto-adjusts char length
+    new_names = np.array(
+        chroms.rename(rename_dict).index.values, dtype=CHROM_DTYPE
+    )  # auto-adjusts char length
 
-    del grp['chroms/name']
-    grp['chroms'].create_dataset('name',
-                       shape=(n_chroms,),
-                       dtype=new_names.dtype,
-                       data=new_names,
-                       **h5opts)
+    del grp["chroms/name"]
+    grp["chroms"].create_dataset(
+        "name", shape=(n_chroms,), dtype=new_names.dtype, data=new_names, **h5opts
+    )
 
-    bins = get(grp['bins'])
+    bins = get(grp["bins"])
     n_bins = len(bins)
     idmap = dict(zip(new_names, range(n_chroms)))
-    if is_categorical(bins['chrom']) or is_integer(bins['chrom']):
-        chrom_ids = bins['chrom'].cat.codes
+    if is_categorical(bins["chrom"]) or is_integer(bins["chrom"]):
+        chrom_ids = bins["chrom"].cat.codes
         chrom_dtype = h5py.special_dtype(enum=(CHROMID_DTYPE, idmap))
-        del grp['bins/chrom']
+        del grp["bins/chrom"]
         try:
-            chrom_dset = grp['bins'].create_dataset('chrom',
-                               shape=(n_bins,),
-                               dtype=chrom_dtype,
-                               data=chrom_ids,
-                               **h5opts)
+            grp["bins"].create_dataset(
+                "chrom", shape=(n_bins,), dtype=chrom_dtype, data=chrom_ids, **h5opts
+            )
         except ValueError:
             # If HDF5 enum header would be too large,
             # try storing chrom IDs as raw int instead
             chrom_dtype = CHROMID_DTYPE
-            chrom_dset = grp['bins'].create_dataset('chrom',
-                               shape=(n_bins,),
-                               dtype=chrom_dtype,
-                               data=chrom_ids,
-                               **h5opts)
+            grp["bins"].create_dataset(
+                "chrom", shape=(n_bins,), dtype=chrom_dtype, data=chrom_ids, **h5opts
+            )
 
 
 def rename_chroms(clr, rename_dict, h5opts=None):
@@ -381,21 +378,22 @@ def rename_chroms(clr, rename_dict, h5opts=None):
     """
     h5opts = _set_h5opts(h5opts)
 
-    with clr.open('r+') as f:
+    with clr.open("r+") as f:
         _rename_chroms(f, rename_dict, h5opts)
     clr._refresh()
 
 
 def _get_dtypes_arg(dtypes, kwargs):
-    if 'dtype' in kwargs:
+    if "dtype" in kwargs:
         if dtypes is None:
-            dtypes = kwargs.pop('dtype')
+            dtypes = kwargs.pop("dtype")
             warnings.warn("Use dtypes= instead of dtype=", FutureWarning)
         else:
             raise ValueError(
                 'Received both "dtypes" and "dtype" arguments. '
                 'Please use "dtypes" to provide a column name -> dtype mapping. '
-                '"dtype" remains as an alias but is deprecated.')
+                '"dtype" remains as an alias but is deprecated.'
+            )
     return dtypes
 
 
@@ -403,22 +401,46 @@ def _set_h5opts(h5opts):
     result = {}
     if h5opts is not None:
         result.update(h5opts)
-    available_opts = {'chunks', 'maxshape', 'compression', 'compression_opts',
-        'scaleoffset', 'shuffle', 'fletcher32' , 'fillvalue', 'track_times'}
+    available_opts = {
+        "chunks",
+        "maxshape",
+        "compression",
+        "compression_opts",
+        "scaleoffset",
+        "shuffle",
+        "fletcher32",
+        "fillvalue",
+        "track_times",
+    }
     for key in result.keys():
         if key not in available_opts:
             raise ValueError("Unknown storage option '{}'.".format(key))
-    result.setdefault('compression', 'gzip')
-    if result['compression'] == 'gzip' and 'compression_opts' not in result:
-        result['compression_opts'] = 6
-    result.setdefault('shuffle', True)
+    result.setdefault("compression", "gzip")
+    if result["compression"] == "gzip" and "compression_opts" not in result:
+        result["compression_opts"] = 6
+    result.setdefault("shuffle", True)
     return result
 
 
-def create(cool_uri, bins, pixels, columns=None, dtypes=None, metadata=None,
-           assembly=None, symmetric_upper=True, mode=None, h5opts=None,
-           boundscheck=True, triucheck=True, dupcheck=True,
-           ensure_sorted=False, lock=None, append=False, **kwargs):
+def create(
+    cool_uri,
+    bins,
+    pixels,
+    columns=None,
+    dtypes=None,
+    metadata=None,
+    assembly=None,
+    symmetric_upper=True,
+    mode=None,
+    h5opts=None,
+    boundscheck=True,
+    triucheck=True,
+    dupcheck=True,
+    ensure_sorted=False,
+    lock=None,
+    append=False,
+    **kwargs
+):
     """
     Create a new Cooler.
 
@@ -438,7 +460,7 @@ def create(cool_uri, bins, pixels, columns=None, dtypes=None, metadata=None,
     file_path, group_path = parse_cooler_uri(cool_uri)
 
     if mode is None:
-        mode = 'a' if append else 'w'
+        mode = "a" if append else "w"
 
     h5opts = _set_h5opts(h5opts)
 
@@ -446,20 +468,22 @@ def create(cool_uri, bins, pixels, columns=None, dtypes=None, metadata=None,
         raise ValueError(
             "Second positional argument must be a pandas DataFrame. "
             "Note that the `chromsizes` argument is now deprecated: "
-            "see documentation for `create`.")
+            "see documentation for `create`."
+        )
 
     dtypes = _get_dtypes_arg(dtypes, kwargs)
 
-    for col in ['chrom', 'start', 'end']:
+    for col in ["chrom", "start", "end"]:
         if col not in bins.columns:
             raise ValueError("Missing column from bin table: '{}'.".format(col))
 
-    # Populate expected pixel column names. Include user-provided value columns.
+    # Populate expected pixel column names. Include user-provided value
+    # columns.
     if columns is None:
-        columns = ['bin1_id', 'bin2_id', 'count']
+        columns = ["bin1_id", "bin2_id", "count"]
     else:
         columns = list(columns)
-        for col in ['bin1_id', 'bin2_id']:  # don't include count!
+        for col in ["bin1_id", "bin2_id"]:  # don't include count!
             if col not in columns:
                 columns.insert(0, col)
 
@@ -489,8 +513,7 @@ def create(cool_uri, bins, pixels, columns=None, dtypes=None, metadata=None,
         input_columns = infer_meta(pixels).columns
     elif isinstance(pixels, dict):
         iterable = (pixels,)
-        input_columns = infer_meta(
-            [(k, v.dtype) for (k, v) in pixels.items()]).columns
+        input_columns = infer_meta([(k, v.dtype) for (k, v) in pixels.items()]).columns
     else:
         iterable = pixels
         input_columns = None
@@ -499,13 +522,14 @@ def create(cool_uri, bins, pixels, columns=None, dtypes=None, metadata=None,
     if input_columns is not None:
         for col in columns:
             if col not in input_columns:
-                col_type = 'Standard' if col in PIXEL_FIELDS else 'User'
+                col_type = "Standard" if col in PIXEL_FIELDS else "User"
                 raise ValueError(
-                    "{} column not found in input: '{}'".format(col_type, col))
+                    "{} column not found in input: '{}'".format(col_type, col)
+                )
 
     # Prepare chroms and bins
     bins = bins.copy()
-    bins['chrom'] = bins['chrom'].astype(object)
+    bins["chrom"] = bins["chrom"].astype(object)
     chromsizes = get_chromsizes(bins)
     try:
         chromsizes = six.iteritems(chromsizes)
@@ -513,29 +537,31 @@ def create(cool_uri, bins, pixels, columns=None, dtypes=None, metadata=None,
         pass
     chromnames, lengths = zip(*chromsizes)
     chroms = pd.DataFrame(
-        {'name': chromnames, 'length': lengths},
-        columns=['name', 'length'])
+        {"name": chromnames, "length": lengths}, columns=["name", "length"]
+    )
     binsize = get_binsize(bins)
     n_chroms = len(chroms)
     n_bins = len(bins)
 
     if not symmetric_upper and triucheck:
         warnings.warn(
-            "Creating a non-symmetric matrix, but `triucheck` was set to True. "
-            "Changing to False.")
+            "Creating a non-symmetric matrix, but `triucheck` was set to "
+            "True. Changing to False."
+        )
         triucheck = False
 
     # Chain input validation to the end of the pipeline
     if boundscheck or triucheck or dupcheck or ensure_sorted:
         validator = validate_pixels(
-            n_bins, boundscheck, triucheck, dupcheck, ensure_sorted)
+            n_bins, boundscheck, triucheck, dupcheck, ensure_sorted
+        )
         iterable = map(validator, iterable)
 
     # Create root group
     with h5py.File(file_path, mode) as f:
         logger.info('Creating cooler at "{}::{}"'.format(file_path, group_path))
-        if group_path is '/':
-            for name in ['chroms', 'bins', 'pixels', 'indexes']:
+        if group_path == "/":
+            for name in ["chroms", "bins", "pixels", "indexes"]:
                 if name in f:
                     del f[name]
         else:
@@ -546,18 +572,18 @@ def create(cool_uri, bins, pixels, columns=None, dtypes=None, metadata=None,
                 f.create_group(group_path)
 
     # Write chroms, bins and pixels
-    with h5py.File(file_path, 'r+') as f:
+    with h5py.File(file_path, "r+") as f:
         h5 = f[group_path]
 
-        logger.info('Writing chroms')
-        grp = h5.create_group('chroms')
+        logger.info("Writing chroms")
+        grp = h5.create_group("chroms")
         write_chroms(grp, chroms, h5opts)
 
-        logger.info('Writing bins')
-        grp = h5.create_group('bins')
-        write_bins(grp, bins, chroms['name'], h5opts)
+        logger.info("Writing bins")
+        grp = h5.create_group("bins")
+        write_bins(grp, bins, chroms["name"], h5opts)
 
-        grp = h5.create_group('pixels')
+        grp = h5.create_group("pixels")
         if symmetric_upper:
             max_size = n_bins * (n_bins - 1) // 2 + n_bins
         else:
@@ -571,43 +597,54 @@ def create(cool_uri, bins, pixels, columns=None, dtypes=None, metadata=None,
     # only. After it closes the file and releases the lock, the reading
     # processes will have to re-acquire the lock and re-open the file to obtain
     # the updated file state for reading.
-    logger.info('Writing pixels')
-    target = posixpath.join(group_path, 'pixels')
+    logger.info("Writing pixels")
+    target = posixpath.join(group_path, "pixels")
     nnz, ncontacts = write_pixels(
-        file_path, target, meta.columns, iterable, h5opts, lock)
+        file_path, target, meta.columns, iterable, h5opts, lock
+    )
 
     # Write indexes
-    with h5py.File(file_path, 'r+') as f:
+    with h5py.File(file_path, "r+") as f:
         h5 = f[group_path]
 
-        logger.info('Writing indexes')
-        grp = h5.create_group('indexes')
+        logger.info("Writing indexes")
+        grp = h5.create_group("indexes")
 
-        chrom_offset = index_bins(h5['bins'], n_chroms, n_bins)
-        bin1_offset = index_pixels(h5['pixels'], n_bins, nnz)
+        chrom_offset = index_bins(h5["bins"], n_chroms, n_bins)
+        bin1_offset = index_pixels(h5["pixels"], n_bins, nnz)
         write_indexes(grp, chrom_offset, bin1_offset, h5opts)
 
-        logger.info('Writing info')
+        logger.info("Writing info")
         info = {}
-        info['bin-type'] = u"fixed" if binsize is not None else u"variable"
-        info['bin-size'] = binsize if binsize is not None else u"null"
-        info['storage-mode'] = u"symmetric-upper" if symmetric_upper else u"square"
-        info['nchroms'] = n_chroms
-        info['nbins'] = n_bins
-        info['sum'] = ncontacts
-        info['nnz'] = nnz
+        info["bin-type"] = u"fixed" if binsize is not None else u"variable"
+        info["bin-size"] = binsize if binsize is not None else u"null"
+        info["storage-mode"] = u"symmetric-upper" if symmetric_upper else u"square"
+        info["nchroms"] = n_chroms
+        info["nbins"] = n_bins
+        info["sum"] = ncontacts
+        info["nnz"] = nnz
         if assembly is not None:
-            info['genome-assembly'] = assembly
+            info["genome-assembly"] = assembly
         if metadata is not None:
-            info['metadata'] = metadata
+            info["metadata"] = metadata
         write_info(h5, info)
 
-    logger.info('Done')
+    logger.info("Done")
 
 
-def create_from_unordered(cool_uri, bins, chunks, columns=None, dtypes=None,
-                          mode=None, mergebuf=int(20e6), delete_temp=True,
-                          temp_dir=None, max_merge=200, **kwargs):
+def create_from_unordered(
+    cool_uri,
+    bins,
+    chunks,
+    columns=None,
+    dtypes=None,
+    mode=None,
+    mergebuf=int(20e6),
+    delete_temp=True,
+    temp_dir=None,
+    max_merge=200,
+    **kwargs
+):
     """
     Create a Cooler in two passes via an external sort mechanism. In the first
     pass, a sequence of data chunks are processed and sorted in memory and saved
@@ -618,16 +655,17 @@ def create_from_unordered(cool_uri, bins, chunks, columns=None, dtypes=None,
     """
     from ..api import Cooler
     from ..reduce import CoolerMerger
-    chromsizes = get_chromsizes(bins)
+
+    # chromsizes = get_chromsizes(bins)
     bins = bins.copy()
-    bins['chrom'] = bins['chrom'].astype(object)
+    bins["chrom"] = bins["chrom"].astype(object)
 
     if columns is not None:
-        columns = [col for col in columns if col not in {'bin1_id', 'bin2_id'}]
+        columns = [col for col in columns if col not in {"bin1_id", "bin2_id"}]
 
     if temp_dir is None:
         temp_dir = op.dirname(parse_cooler_uri(cool_uri)[0])
-    elif temp_dir == '-':
+    elif temp_dir == "-":
         temp_dir = None  # makes tempfile module use the system dir
 
     dtypes = _get_dtypes_arg(dtypes, kwargs)
@@ -636,17 +674,15 @@ def create_from_unordered(cool_uri, bins, chunks, columns=None, dtypes=None,
 
     # Sort pass
     tf = tempfile.NamedTemporaryFile(
-        suffix='.multi.cool',
-        delete=delete_temp,
-        dir=temp_dir)
+        suffix=".multi.cool", delete=delete_temp, dir=temp_dir
+    )
     temp_files.append(tf)
     uris = []
     for i, chunk in enumerate(chunks):
-        uri = tf.name + '::' + str(i)
+        uri = tf.name + "::" + str(i)
         uris.append(uri)
-        logger.info('Writing chunk {}: {}'.format(i, uri))
-        create(uri, bins, chunk,
-               columns=columns, dtypes=dtypes, mode='a', **kwargs)
+        logger.info("Writing chunk {}: {}".format(i, uri))
+        create(uri, bins, chunk, columns=columns, dtypes=dtypes, mode="a", **kwargs)
 
     # Merge passes
     n = len(uris)
@@ -656,21 +692,26 @@ def create_from_unordered(cool_uri, bins, chunks, columns=None, dtypes=None,
         edges = np.linspace(0, n, int(np.sqrt(n)), dtype=int)
 
         tf2 = tempfile.NamedTemporaryFile(
-            suffix='.multi.cool',
-            delete=delete_temp,
-            dir=temp_dir)
+            suffix=".multi.cool", delete=delete_temp, dir=temp_dir
+        )
         temp_files.append(tf2)
         uris2 = []
         for lo, hi in zip(edges[:-1], edges[1:]):
             chunk_subset = CoolerMerger(
-                [Cooler(uri) for uri in uris[lo:hi]],
-                mergebuf,
-                columns=columns)
-            uri = tf2.name + '::' + "{}-{}".format(lo, hi)
+                [Cooler(uri) for uri in uris[lo:hi]], mergebuf, columns=columns
+            )
+            uri = tf2.name + "::" + "{}-{}".format(lo, hi)
             uris2.append(uri)
-            logger.info('Merging chunks {}-{}: {}'.format(lo, hi, uri))
-            create(uri, bins, chunk_subset,
-                   columns=columns, dtypes=dtypes, mode='a', **kwargs)
+            logger.info("Merging chunks {}-{}: {}".format(lo, hi, uri))
+            create(
+                uri,
+                bins,
+                chunk_subset,
+                columns=columns,
+                dtypes=dtypes,
+                mode="a",
+                **kwargs
+            )
 
         final_uris = uris2
     else:
@@ -679,18 +720,15 @@ def create_from_unordered(cool_uri, bins, chunks, columns=None, dtypes=None,
 
     # Do the final merge pass
     chunks = CoolerMerger(
-        [Cooler(uri) for uri in final_uris],
-        mergebuf,
-        columns=columns)
-    logger.info('Merging into {}'.format(cool_uri))
-    create(cool_uri, bins, chunks, columns=columns, dtypes=dtypes, mode=mode,
-           **kwargs)
+        [Cooler(uri) for uri in final_uris], mergebuf, columns=columns
+    )
+    logger.info("Merging into {}".format(cool_uri))
+    create(cool_uri, bins, chunks, columns=columns, dtypes=dtypes, mode=mode, **kwargs)
 
     del temp_files
 
 
-def append(cool_uri, table, data, chunked=False, force=False, h5opts=None,
-           lock=None):
+def append(cool_uri, table, data, chunked=False, force=False, h5opts=None, lock=None):
     """
     Append one or more data columns to an existing table.
 
@@ -721,10 +759,7 @@ def append(cool_uri, table, data, chunked=False, force=False, h5opts=None,
     file_path, group_path = parse_cooler_uri(cool_uri)
 
     try:
-        from dask.dataframe import (
-            DataFrame as dask_df,
-            Series as dask_series
-        )
+        from dask.dataframe import DataFrame as dask_df, Series as dask_series
     except (ImportError, AttributeError):
         dask_df = ()
         dask_series = ()
@@ -737,14 +772,15 @@ def append(cool_uri, table, data, chunked=False, force=False, h5opts=None,
     except AttributeError:
         names = data.columns
 
-    with h5py.File(file_path, 'r+') as f:
+    with h5py.File(file_path, "r+") as f:
         h5 = f[group_path]
         for name in names:
             if name in h5[table]:
                 if not force:
                     raise ValueError(
-                        "'{}' column already exists. ".format(name) +
-                        "Use --force option to overwrite.")
+                        "'{}' column already exists. ".format(name)
+                        + "Use --force option to overwrite."
+                    )
                 else:
                     del h5[table][name]
 
@@ -786,12 +822,28 @@ def append(cool_uri, table, data, chunked=False, force=False, h5opts=None,
                     lock.release()
 
 
-def create_cooler(cool_uri, bins, pixels, columns=None, dtypes=None,
-                  metadata=None, assembly=None, ordered=False,
-                  symmetric_upper=True, mode=None, mergebuf=int(20e6),
-                  delete_temp=True, temp_dir=None, max_merge=200,
-                  boundscheck=True, dupcheck=True, triucheck=True,
-                  ensure_sorted=False, h5opts=None, lock=None):
+def create_cooler(
+    cool_uri,
+    bins,
+    pixels,
+    columns=None,
+    dtypes=None,
+    metadata=None,
+    assembly=None,
+    ordered=False,
+    symmetric_upper=True,
+    mode=None,
+    mergebuf=int(20e6),
+    delete_temp=True,
+    temp_dir=None,
+    max_merge=200,
+    boundscheck=True,
+    dupcheck=True,
+    triucheck=True,
+    ensure_sorted=False,
+    h5opts=None,
+    lock=None,
+):
     """
     Create a cooler from bins and pixels at the specified URI.
 
@@ -905,12 +957,14 @@ def create_cooler(cool_uri, bins, pixels, columns=None, dtypes=None,
     """
     # dispatch to the approprate creation method
     if isinstance(pixels, (pd.DataFrame, dict)):
-        pixels = pd.DataFrame(pixels).sort_values(['bin1_id', 'bin2_id'])
+        pixels = pd.DataFrame(pixels).sort_values(["bin1_id", "bin2_id"])
         ordered = True
 
     if ordered:
         create(
-            cool_uri, bins, pixels,
+            cool_uri,
+            bins,
+            pixels,
             columns=columns,
             dtypes=dtypes,
             metadata=metadata,
@@ -922,10 +976,13 @@ def create_cooler(cool_uri, bins, pixels, columns=None, dtypes=None,
             triucheck=triucheck,
             ensure_sorted=ensure_sorted,
             h5opts=h5opts,
-            lock=lock)
+            lock=lock,
+        )
     else:
         create_from_unordered(
-            cool_uri, bins, pixels,
+            cool_uri,
+            bins,
+            pixels,
             columns=columns,
             dtypes=dtypes,
             metadata=metadata,
@@ -941,4 +998,5 @@ def create_cooler(cool_uri, bins, pixels, columns=None, dtypes=None,
             mergebuf=mergebuf,
             delete_temp=delete_temp,
             temp_dir=temp_dir,
-            max_merge=max_merge)
+            max_merge=max_merge,
+        )

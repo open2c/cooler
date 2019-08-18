@@ -1,20 +1,17 @@
 # -*- coding: utf-8 -*-
 """
-Experimental API for developing split-apply-combine style algorithms on coolers.
+Experimental API for developing split-apply-combine style algorithms on
+coolers.
 
 """
-from __future__ import division, print_function
+from __future__ import absolute_import, division, print_function
 from functools import partial, reduce
-from multiprocess import Pool, Lock
-
-import numpy as np
-import pandas
-import h5py
+from multiprocess import Lock
 
 from .util import partition
 from .core import get
 
-__all__ = ['partition', 'split', 'lock']
+__all__ = ["partition", "split", "lock"]
 
 """
 Two possible reasons for using a lock
@@ -34,9 +31,9 @@ See also:
 multiprocessing and concurrent reading are compatible as long as the fork
 happens before the child processes open the file. If an HDF5 file is already
 open before forking, the child processes inherit the same global HDF5 state,
-which leads to a race condition that causes simultaneous access to fail. One can
-either use a lock to prevent the race condition, or close and re-open the file
-in the workers after the fork.
+which leads to a race condition that causes simultaneous access to fail. One
+can either use a lock to prevent the race condition, or close and re-open the
+file in the workers after the fork.
 
 See also:
 * <https://groups.google.com/forum/#!topic/h5py/bJVtWdFtZQM>
@@ -113,6 +110,7 @@ class MultiplexDataPipe(object):
     405
 
     """
+
     def __init__(self, get, keys, map):
         """
 
@@ -143,7 +141,7 @@ class MultiplexDataPipe(object):
 
     def __reduce__(self):
         d = self.__dict__.copy()
-        d.pop('map', None)
+        d.pop("map", None)
         return d
 
     def __iter__(self):
@@ -257,18 +255,19 @@ class chunkgetter(object):
         try:
             if self.use_lock:
                 lock.acquire()
-            with self.cooler.open('r') as grp:
+            with self.cooler.open("r") as grp:
                 if self.include_chroms:
-                    chunk['chroms'] = get(grp['chroms'], as_dict=True)
+                    chunk["chroms"] = get(grp["chroms"], as_dict=True)
                 if self.include_bins:
-                    chunk['bins'] = get(grp['bins'], as_dict=True)
-                chunk['pixels'] = get(grp['pixels'], lo, hi, as_dict=True)
+                    chunk["bins"] = get(grp["bins"], as_dict=True)
+                chunk["pixels"] = get(grp["pixels"], lo, hi, as_dict=True)
         finally:
             if self.use_lock:
                 lock.release()
         return chunk
 
+
 def split(clr, map=map, chunksize=int(10e6), spans=None, **kwargs):
     if spans is None:
-        spans = partition(0, clr.info['nnz'], chunksize)
+        spans = partition(0, clr.info["nnz"], chunksize)
     return MultiplexDataPipe(chunkgetter(clr, **kwargs), spans, map)

@@ -13,39 +13,41 @@ from ..tools import lock
 
 @cli.command()
 @click.argument(
-    'cool_uri',
-    metavar="COOL_PATH")
+    "cool_uri",
+    metavar="COOL_PATH"
+)
 @click.option(
-    '--factor', '-k',
+    "--factor", "-k",
     help="Gridding factor. The contact matrix is coarsegrained by grouping "
-         "each chromosomal contact block into k-by-k element tiles",
+    "each chromosomal contact block into k-by-k element tiles",
     type=int,
     default=2,
-    show_default=True)
+    show_default=True,
+)
 @click.option(
-    '--nproc', '-n', '-p',
+    "--nproc", "-n", "-p",
     help="Number of processes to use for batch processing chunks of pixels "
-         "[default: 1, i.e. no process pool]",
+    "[default: 1, i.e. no process pool]",
     default=1,
-    type=int)
+    type=int,
+)
 @click.option(
-    '--chunksize', '-c',
+    "--chunksize", "-c",
     help="Number of pixels allocated to each process",
     type=int,
     default=int(10e6),
-    show_default=True)
+    show_default=True,
+)
 @click.option(
     "--field",
     help="Specify the names of value columns to merge as '<name>'. "
-         "Repeat the `--field` option for each one. "
-         "Use '<name>,dtype=<dtype>' to specify the dtype. Include "
-         "',agg=<agg>' to specify an aggregation function different from 'sum'.",
+    "Repeat the `--field` option for each one. "
+    "Use '<name>,dtype=<dtype>' to specify the dtype. Include "
+    "',agg=<agg>' to specify an aggregation function different from 'sum'.",
     type=str,
-    multiple=True)
-@click.option(
-    '--out', '-o',
-    required=True,
-    help="Output file or URI")
+    multiple=True,
+)
+@click.option("--out", "-o", required=True, help="Output file or URI")
 def coarsen(cool_uri, factor, nproc, chunksize, field, out):
     """
     Coarsen a cooler to a lower resolution.
@@ -70,12 +72,16 @@ def coarsen(cool_uri, factor, nproc, chunksize, field, out):
     else:
         # If no other fields are given, 'count' is implicitly chosen.
         # Default aggregation. Dtype will be inferred.
-        columns, dtypes, agg = ['count'], None, None
+        columns, dtypes, agg = ["count"], None, None
 
-    coarsen_cooler(cool_uri, out, factor,
-                   chunksize=chunksize,
-                   nproc=nproc,
-                   columns=columns,
-                   dtypes=dtypes,
-                   agg=agg,
-                   lock=lock if same_file else None)
+    coarsen_cooler(
+        cool_uri,
+        out,
+        factor,
+        chunksize=chunksize,
+        nproc=nproc,
+        columns=columns,
+        dtypes=dtypes,
+        agg=agg,
+        lock=lock if same_file else None,
+    )

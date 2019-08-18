@@ -4,10 +4,15 @@
 
 *.py[cod]
 __pycache__
-.cache
-.coverage
 
-# setup and build
+# test and coverage artifacts
+.cache
+.pytest_cache
+.coverage
+coverage.xml
+htmlcov/
+
+# setup and build artifacts
 docs/_*
 *.egg-info/
 dist/

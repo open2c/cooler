@@ -1,9 +1,7 @@
 # -*- coding: utf-8 -*-
-from __future__ import division, print_function
+from __future__ import absolute_import, division, print_function
 from multiprocess import Pool
-import warnings
 import sys
-import six
 
 import numpy as np
 import pandas as pd
@@ -21,7 +19,7 @@ from ..util import parse_cooler_uri, bedslice
 @click.argument(
     "cool_uri",
     type=str,
-    metavar='COOL_PATH') #click.Path(exists=True))
+    metavar='COOL_PATH')  # click.Path(exists=True))
 @click.option(
     "--nproc", "-p",
     help="Number of processes to split the work between.",
@@ -165,8 +163,8 @@ def balance(cool_uri, nproc, chunksize, mad_max, min_nnz, min_count, blacklist,
         grp = h5[group_path]
         if name in grp['bins'] and not stdout:
             if not force:
-                print("'{}' column already exists. ".format(name) +
-                      "Use --force option to overwrite.", file=sys.stderr)
+                print("'{}' column already exists. ".format(name)
+                      + "Use --force option to overwrite.", file=sys.stderr)
                 sys.exit(1)
             else:
                 del grp['bins'][name]
@@ -257,4 +255,3 @@ def balance(cool_uri, nproc, chunksize, mad_max, min_nnz, min_count, blacklist,
             h5opts = dict(compression='gzip', compression_opts=6)
             grp['bins'].create_dataset(name, data=bias, **h5opts)
             grp['bins'][name].attrs.update(stats)
-

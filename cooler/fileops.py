@@ -2,16 +2,14 @@
 from __future__ import absolute_import, print_function, division
 from datetime import datetime
 from textwrap import dedent
-import posixpath
-import tempfile
 import warnings
 import uuid
 import json
 import os
 
-from six.moves import map
 from six import PY2
 import six
+
 try:
     from json import JSONDecodeError
 except ImportError:
@@ -19,22 +17,16 @@ except ImportError:
 
 from asciitree import BoxStyle, LeftAligned
 from asciitree.traversal import Traversal
-from pandas.api.types import is_categorical, is_integer
-import pandas as pd
 import numpy as np
 import h5py
 
-from ._logging import get_logger
 from .util import parse_cooler_uri, natsorted
 from .create import MAGIC, URL
 
-__all__ = [
-    'is_cooler', 'is_multires_file', 'list_coolers', 'cp', 'mv', 'ln'
-]
+__all__ = ["is_cooler", "is_multires_file", "list_coolers", "cp", "mv", "ln"]
 
 
 class TreeNode(object):
-
     def __init__(self, obj, depth=0, level=None):
         self.obj = obj
         self.depth = depth
@@ -44,23 +36,23 @@ class TreeNode(object):
         return type(self.obj).__name__
 
     def get_children(self):
-        if hasattr(self.obj, 'values'):
+        if hasattr(self.obj, "values"):
             if self.level is None or self.depth < self.level:
                 depth = self.depth + 1
                 children = self.obj.values()
-                return [self.__class__(o, depth=depth, level=self.level)
-                            for o in children]
+                return [
+                    self.__class__(o, depth=depth, level=self.level) for o in children
+                ]
         return []
 
     def get_text(self):
         name = self.obj.name.split("/")[-1] or "/"
-        if hasattr(self.obj, 'shape'):
-            name += ' {} {}'.format(self.obj.shape, self.obj.dtype)
+        if hasattr(self.obj, "shape"):
+            name += " {} {}".format(self.obj.shape, self.obj.dtype)
         return name
 
 
 class AttrNode(TreeNode):
-
     def get_text(self):
         return self.obj.name.split("/")[-1] or "/"
 
@@ -68,6 +60,7 @@ class AttrNode(TreeNode):
 def visititems(group, func, level=None):
     """Like :py:method:`h5py.Group.visititems`, but much faster somehow.
     """
+
     def _visititems(node, func, result=None):
         children = node.get_children()
         if children:
@@ -75,18 +68,18 @@ def visititems(group, func, level=None):
                 result[child.obj.name] = func(child.obj.name, child.obj)
                 _visititems(child, func, result)
         return result
+
     root = TreeNode(group, level=level)
     return _visititems(root, func, {})
 
 
 def _is_cooler(grp):
-    fmt = grp.attrs.get('format', None)
-    url = grp.attrs.get('format-url', None)
+    fmt = grp.attrs.get("format", None)
+    url = grp.attrs.get("format-url", None)
     if fmt == MAGIC or url == URL:
-        keys = ('chroms', 'bins', 'pixels', 'indexes')
+        keys = ("chroms", "bins", "pixels", "indexes")
         if not all(name in grp.keys() for name in keys):
-            warnings.warn(
-                'Cooler path /{} appears to be corrupt'.format(pth))
+            warnings.warn("Cooler path {} appears to be corrupt".format(grp.name))
         return True
     return False
 
@@ -110,21 +103,19 @@ def is_multires_file(filepath, min_version=1):
     Returns False if the file doesn't exist.
 
     """
-    filepath, grouppath = parse_cooler_uri(uri)
     if not h5py.is_hdf5(filepath):
         return False
 
     with h5py.File(filepath) as f:
-        fmt = f.attrs.get('format', None)
-        if 'resolutions' in f.keys() and len(f['resolutions'].keys()) > 0:
-            name = next(list(f['resolutions'].keys()))
-            if fmt == 'HDF5::MCOOL' and _is_cooler(f['resolutions'][name]):
+        fmt = f.attrs.get("format", None)
+        if "resolutions" in f.keys() and len(f["resolutions"].keys()) > 0:
+            name = next(list(f["resolutions"].keys()))
+            if fmt == "HDF5::MCOOL" and _is_cooler(f["resolutions"][name]):
                 return True
-        elif '0' in f.keys() and _is_cooler(f['0']) and min_version < 2:
+        elif "0" in f.keys() and _is_cooler(f["0"]) and min_version < 2:
             return True
 
     return False
-
 
 
 def list_coolers(filepath):
@@ -145,12 +136,13 @@ def list_coolers(filepath):
         raise OSError("'{}' is not an HDF5 file.".format(filepath))
 
     listing = []
+
     def _check_cooler(pth, grp):
         if _is_cooler(grp):
-            listing.append('/' + pth if not pth.startswith('/') else pth)
+            listing.append("/" + pth if not pth.startswith("/") else pth)
 
-    with h5py.File(filepath, 'r') as f:
-        _check_cooler('/', f)
+    with h5py.File(filepath, "r") as f:
+        _check_cooler("/", f)
         visititems(f, _check_cooler)
 
     return natsorted(listing)
@@ -175,10 +167,11 @@ def ls(uri):
         raise OSError("'{}' is not an HDF5 file.".format(filepath))
 
     listing = []
-    def _check_all(pth, grp):
-        listing.append('/' + pth if not pth.startswith('/') else pth)
 
-    with h5py.File(filepath, 'r') as f:
+    def _check_all(pth, grp):
+        listing.append("/" + pth if not pth.startswith("/") else pth)
+
+    with h5py.File(filepath, "r") as f:
         _check_all(grouppath, f)
         visititems(f[grouppath], _check_all)
 
@@ -190,16 +183,16 @@ def _copy(src_uri, dst_uri, overwrite, link, rename, soft_link):
     dst_path, dst_group = parse_cooler_uri(dst_uri)
 
     if sum([link, rename, soft_link]) > 1:
-        raise ValueError(
-            'Must provide at most one of: "link", "rename", "soft_link"')
+        raise ValueError('Must provide at most one of: "link", "rename", "soft_link"')
 
     if not os.path.isfile(dst_path) or overwrite:
-        write_mode = 'w'
+        write_mode = "w"
     else:
-        write_mode = 'r+'
+        write_mode = "r+"
 
-    with h5py.File(src_path, 'r+') as src, \
-         h5py.File(dst_path, write_mode) as dst:
+    with h5py.File(src_path, "r+") as src, h5py.File(
+        dst_path, write_mode
+    ) as dst:  # noqa
 
         if src_path == dst_path:
             if link or rename:
@@ -216,14 +209,12 @@ def _copy(src_uri, dst_uri, overwrite, link, rename, soft_link):
             elif soft_link:
                 dst[dst_group] = h5py.ExternalLink(src_path, src_group)
             else:
-                if dst_group == '/':
+                if dst_group == "/":
                     for subgrp in src[src_group].keys():
-                        src.copy(src_group + '/' + subgrp, dst, subgrp)
+                        src.copy(src_group + "/" + subgrp, dst, subgrp)
                     dst[dst_group].attrs.update(src[src_group].attrs)
                 else:
-                    src.copy(
-                        src_group, dst,
-                        dst_group if dst_group != '/' else None)
+                    src.copy(src_group, dst, dst_group if dst_group != "/" else None)
 
 
 def cp(src_uri, dst_uri, overwrite=False):
@@ -246,50 +237,53 @@ def ln(src_uri, dst_uri, soft=False, overwrite=False):
 
 
 def _tree_html(node, root=False, expand=False):
-    result = ''
+    result = ""
     data_jstree = '{"type": "%s"}' % node.get_type()
     if root or (expand is True) or (isinstance(expand, int) and node.depth < expand):
-        css_class = 'jstree-open'
+        css_class = "jstree-open"
     else:
-        css_class = ''
+        css_class = ""
     result += "<li data-jstree='{}' class='{}'>".format(data_jstree, css_class)
-    result += '<span>{}</span>'.format(node.get_text())
+    result += "<span>{}</span>".format(node.get_text())
     children = node.get_children()
     if children:
-        result += '<ul>'
+        result += "<ul>"
         for child in children:
             result += _tree_html(child, expand=expand)
-        result += '</ul>'
-    result += '</li>'
+        result += "</ul>"
+    result += "</li>"
     return result
 
 
 def tree_html(group, expand, level):
-    tree_group_icon = 'fa fa-folder'
-    tree_array_icon = 'fa fa-table'
+    tree_group_icon = "fa fa-folder"
+    tree_array_icon = "fa fa-table"
     # alternatives...
     # tree_group_icon: 'jstree-folder'
     # tree_array_icon: 'jstree-file'
 
-    result = ''
+    result = ""
 
     # include CSS for jstree default theme
-    css_url = '//cdnjs.cloudflare.com/ajax/libs/jstree/3.3.3/themes/default/style.min.css'
+    css_url = (
+        "//cdnjs.cloudflare.com/ajax/libs/jstree/3.3.3/themes/default/style.min.css"
+    )
     result += '<link rel="stylesheet" href="{}"/>'.format(css_url)
 
     # construct the tree as HTML nested lists
     node_id = uuid.uuid4()
     result += '<div id="{}" class="zarr-tree">'.format(node_id)
-    result += '<ul>'
+    result += "<ul>"
 
     root = TreeNode(group, level=level)
     result += _tree_html(root, root=True, expand=expand)
 
-    result += '</ul>'
-    result += '</div>'
+    result += "</ul>"
+    result += "</div>"
 
     # construct javascript
-    result += dedent("""
+    result += dedent(
+        """
         <script>
             if (!require.defined('jquery')) {
                 require.config({
@@ -319,13 +313,14 @@ def tree_html(group, expand, level):
                 });
             });
         </script>
-    """ % (node_id, tree_group_icon, tree_array_icon))
+    """
+        % (node_id, tree_group_icon, tree_array_icon)
+    )
 
     return result
 
 
 class TreeTraversal(Traversal):
-
     def get_children(self, node):
         return node.get_children()
 
@@ -347,29 +342,23 @@ class TreeViewer(object):
     See: zarr.util.TreeViewer, zarr.util.tree_html
 
     """
+
     def __init__(self, group, expand=False, level=None, node_cls=TreeNode):
         self.group = group
         self.expand = expand
         self.level = level
 
-        self.text_kwargs = dict(
-            horiz_len=2,
-            label_space=1,
-            indent=1
-        )
+        self.text_kwargs = dict(horiz_len=2, label_space=1, indent=1)
 
         self.bytes_kwargs = dict(
-            UP_AND_RIGHT="+",
-            HORIZONTAL="-",
-            VERTICAL="|",
-            VERTICAL_AND_RIGHT="+"
+            UP_AND_RIGHT="+", HORIZONTAL="-", VERTICAL="|", VERTICAL_AND_RIGHT="+"
         )
 
         self.unicode_kwargs = dict(
             UP_AND_RIGHT=u"\u2514",
             HORIZONTAL=u"\u2500",
             VERTICAL=u"\u2502",
-            VERTICAL_AND_RIGHT=u"\u251C"
+            VERTICAL_AND_RIGHT=u"\u251C",
         )
 
         self.node_cls = node_cls
@@ -377,7 +366,7 @@ class TreeViewer(object):
     def __bytes__(self):
         drawer = LeftAligned(
             traverse=TreeTraversal(),
-            draw=BoxStyle(gfx=self.bytes_kwargs, **self.text_kwargs)
+            draw=BoxStyle(gfx=self.bytes_kwargs, **self.text_kwargs),
         )
         root = self.node_cls(self.group, level=self.level)
         result = drawer(root)
@@ -392,7 +381,7 @@ class TreeViewer(object):
     def __unicode__(self):
         drawer = LeftAligned(
             traverse=TreeTraversal(),
-            draw=BoxStyle(gfx=self.unicode_kwargs, **self.text_kwargs)
+            draw=BoxStyle(gfx=self.unicode_kwargs, **self.text_kwargs),
         )
         root = self.node_cls(self.group, level=self.level)
         return drawer(root)
@@ -409,19 +398,19 @@ class TreeViewer(object):
 
 def pprint_data_tree(uri, level):
     path, group = parse_cooler_uri(uri)
-    with h5py.File(path, 'r') as f:
+    with h5py.File(path, "r") as f:
         grp = f[group]
         return repr(TreeViewer(grp, level=level))
 
 
 def _decode_attr_value(obj):
-    if hasattr(obj, 'item'):
+    if hasattr(obj, "item"):
         o = np.asscalar(obj)
-    elif hasattr(obj, 'tolist'):
+    elif hasattr(obj, "tolist"):
         o = obj.tolist()
     elif isinstance(obj, six.string_types):
         try:
-            o = datetime.strptime(obj, '%Y-%m-%dT%H:%M:%S.%f')
+            o = datetime.strptime(obj, "%Y-%m-%dT%H:%M:%S.%f")
         except ValueError:
             try:
                 o = json.loads(obj)
@@ -433,11 +422,9 @@ def _decode_attr_value(obj):
 
 
 def read_attr_tree(group, level):
-
     def _getdict(node, root=False):
         attrs = node.obj.attrs
-        result = {'@attrs': {k: _decode_attr_value(v)
-                                for k, v in attrs.items()}}
+        result = {"@attrs": {k: _decode_attr_value(v) for k, v in attrs.items()}}
         children = node.get_children()
         if children:
             for child in children:
@@ -450,13 +437,13 @@ def read_attr_tree(group, level):
 def pprint_attr_tree(uri, level):
     import yaml
     from io import StringIO
+
     path, group = parse_cooler_uri(uri)
-    with h5py.File(path, 'r') as f:
+    with h5py.File(path, "r") as f:
         grp = f[group]
         s = StringIO()
         yaml.dump(read_attr_tree(grp, level), s)
         return s.getvalue()
-
 
 
 # if not h5py.is_hdf5(filepath):

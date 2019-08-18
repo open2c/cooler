@@ -1,0 +1,12 @@
+[run]
+source=
+    cooler/
+
+omit=
+    cooler/_version.py
+
+[report]
+exclude_lines =
+    pragma: no cover
+    return NotImplemented
+    raise NotImplementedError

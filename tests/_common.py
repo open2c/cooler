@@ -5,7 +5,6 @@ import os
 
 from pandas.api.types import is_numeric_dtype
 import numpy as np
-import h5py
 import cooler
 
 
@@ -30,21 +29,26 @@ def isolated_filesystem():
 def cooler_cmp(uri1, uri2):
     c1 = cooler.Cooler(uri1)
     c2 = cooler.Cooler(uri2)
-    with c1.open('r') as f1, \
-         c2.open('r') as f2:
-         for path in (
-                'chroms/name', 'chroms/length',
-                'bins/chrom', 'bins/start', 'bins/end',
-                'pixels/bin1_id', 'pixels/bin2_id', 'pixels/count'):
+    with c1.open("r") as f1, c2.open("r") as f2:
+        for path in (
+            "chroms/name",
+            "chroms/length",
+            "bins/chrom",
+            "bins/start",
+            "bins/end",
+            "pixels/bin1_id",
+            "pixels/bin2_id",
+            "pixels/count",
+        ):
             dset1, dset2 = f1[path], f2[path]
 
             dtype1 = dset1.dtype
             dtype2 = dset2.dtype
 
-            if dtype1.kind == 'S':
+            if dtype1.kind == "S":
                 # Null padding of ascii arrays is not guaranteed to be
                 # preserved so we only check the kind.
-                assert dtype2.kind == 'S'
+                assert dtype2.kind == "S"
             else:
                 assert dtype1 == dtype2
 

@@ -1,4 +1,4 @@
-from __future__ import division, print_function, absolute_import
+from __future__ import absolute_import, division, print_function
 from math import ceil
 
 import numpy as np
@@ -6,14 +6,13 @@ import pandas as pd
 import h5py
 import cooler
 
-import dask
 from dask.base import tokenize
 import dask.dataframe as dd
-import dask.array as da
+# import dask.array as da
 
 
 def get_group_info(path, grouppath, keys):
-    with h5py.File(path, 'r') as f:
+    with h5py.File(path, "r") as f:
         grp = f[grouppath]
 
         if keys is None:
@@ -29,12 +28,11 @@ def get_group_info(path, grouppath, keys):
 
         # Meta is an empty dataframe that serves as a compound "dtype"
         meta = pd.DataFrame(
-            {key: np.array([], dtype=grp[key].dtype) for key in keys},
-            columns=keys)
+            {key: np.array([], dtype=grp[key].dtype) for key in keys}, columns=keys
+        )
 
         for key in categoricals:
-            meta[key] = pd.Categorical([],
-                categories=categoricals[key], ordered=True)
+            meta[key] = pd.Categorical([], categories=categoricals[key], ordered=True)
 
     return nrows, keys, meta, categoricals
 
@@ -43,7 +41,7 @@ def slice_dataset(filepath, grouppath, key, slc, lock=None):
     try:
         if lock is not None:
             lock.acquire()
-        with h5py.File(filepath, 'r') as f:
+        with h5py.File(filepath, "r") as f:
             return f[grouppath][key][slc]
     finally:
         if lock is not None:
@@ -54,7 +52,7 @@ def slice_group(filepath, grouppath, keys, slc, lock=None):
     try:
         if lock is not None:
             lock.acquire()
-        with h5py.File(filepath, 'r') as f:
+        with h5py.File(filepath, "r") as f:
             return {key: f[grouppath][key][slc] for key in keys}
     finally:
         if lock is not None:
@@ -63,15 +61,11 @@ def slice_group(filepath, grouppath, keys, slc, lock=None):
 
 def restore_categories(data, categorical_columns):
     for key, category_dict in categorical_columns.items():
-        data[key] = pd.Categorical.from_codes(
-                data[key],
-                category_dict,
-                ordered=True)
+        data[key] = pd.Categorical.from_codes(data[key], category_dict, ordered=True)
     return data
 
 
-def read_table(group_uri, keys=None, chunksize=int(10e6), index=None,
-            lock=None):
+def read_table(group_uri, keys=None, chunksize=int(10e6), index=None, lock=None):
     """
     Create a dask dataframe around a column-oriented table in HDF5.
 
@@ -104,7 +98,7 @@ def read_table(group_uri, keys=None, chunksize=int(10e6), index=None,
 
     # Make a unique task name
     token = tokenize(filepath, grouppath, chunksize, keys)
-    task_name = 'daskify-h5py-table-' + token
+    task_name = "daskify-h5py-table-" + token
 
     # Partition the table
     divisions = (0,) + tuple(range(-1, nrows, chunksize))[1:]

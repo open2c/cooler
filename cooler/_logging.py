@@ -1,8 +1,9 @@
 import logging
+
 _loggers = {}
 
 
-def get_logger(name='cooler'):
+def get_logger(name="cooler"):
     # Based on ipython traitlets
     global _loggers
 

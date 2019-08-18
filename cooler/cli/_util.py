@@ -1,3 +1,4 @@
+from __future__ import absolute_import, division, print_function
 from contextlib import contextmanager
 from functools import wraps
 import multiprocess as mp
@@ -15,7 +16,7 @@ from .. import util
 
 
 class DelimitedTuple(click.types.ParamType):
-    def __init__(self, sep=',', type=str):
+    def __init__(self, sep=",", type=str):
         self.sep = sep
         self.type = click.types.convert_type(type)
 
@@ -30,29 +31,28 @@ class DelimitedTuple(click.types.ParamType):
         if value is None:
             return value
         elif isinstance(value, six.string_types):
-            parts = value.split(',')
+            parts = value.split(",")
         else:
             parts = value
         return tuple(self.type(x, param, ctx) for x in parts)
 
 
-def parse_kv_list_param(arg, item_sep=',', kv_sep='='):
+def parse_kv_list_param(arg, item_sep=",", kv_sep="="):
     import yaml
     from io import StringIO
 
-    if item_sep != ',':
-        arg = arg.replace(item_sep, ',')
-    arg = '{' + arg.replace(kv_sep, ': ') + '}'
+    if item_sep != ",":
+        arg = arg.replace(item_sep, ",")
+    arg = "{" + arg.replace(kv_sep, ": ") + "}"
     try:
-        result = yaml.load(StringIO(arg))
-    except yaml.YAMLError as e:
-        raise click.BadParameter(
-            "Error parsing key-value pairs: {}".format(arg))
+        result = yaml.safe_load(StringIO(arg))
+    except yaml.YAMLError:
+        raise click.BadParameter("Error parsing key-value pairs: {}".format(arg))
     return result
 
 
 def parse_field_param(arg, includes_colnum=True, includes_agg=True):
-    parts = arg.split(':')
+    parts = arg.split(":")
     prefix = parts[0]
     if len(parts) == 1:
         props = None
@@ -62,7 +62,7 @@ def parse_field_param(arg, includes_colnum=True, includes_agg=True):
         raise click.BadParameter(arg)
 
     if includes_colnum:
-        parts = prefix.split('=')
+        parts = prefix.split("=")
         name = parts[0]
         if len(parts) == 1:
             colnum = None
@@ -71,10 +71,10 @@ def parse_field_param(arg, includes_colnum=True, includes_agg=True):
                 colnum = int(parts[1]) - 1
             except ValueError:
                 raise click.BadParameter(
-                    "Not a number: '{}'".format(parts[1]), param_hint=arg)
+                    "Not a number: '{}'".format(parts[1]), param_hint=arg
+                )
             if colnum < 0:
-                raise click.BadParameter(
-                    "Field numbers start at 1.", param_hint=arg)
+                raise click.BadParameter("Field numbers start at 1.", param_hint=arg)
         else:
             raise click.BadParameter(arg)
     else:
@@ -84,19 +84,19 @@ def parse_field_param(arg, includes_colnum=True, includes_agg=True):
     dtype = None
     agg = None
     if props is not None:
-        for item in props.split(','):
+        for item in props.split(","):
             try:
-                prop, value = item.split('=')
+                prop, value = item.split("=")
             except ValueError:
                 raise click.BadParameter(arg)
-            if prop == 'dtype':
+            if prop == "dtype":
                 dtype = np.dtype(value)
-            elif prop == 'agg' and includes_agg:
+            elif prop == "agg" and includes_agg:
                 agg = value
             else:
                 raise click.BadParameter(
-                    "Invalid property: '{}'.".format(prop),
-                    param_hint=arg)
+                    "Invalid property: '{}'.".format(prop), param_hint=arg
+                )
     return name, colnum, dtype, agg
 
 
@@ -110,7 +110,8 @@ def parse_bins(arg):
             binsize = int(binsize)
         except ValueError:
             raise ValueError(
-                'Expected integer binsize argument (bp), got "{}"'.format(binsize))
+                'Expected integer binsize argument (bp), got "{}"'.format(binsize)
+            )
         chromsizes = util.read_chromsizes(chromsizes_file, all_names=True)
         bins = util.binnify(chromsizes, binsize)
 
@@ -119,26 +120,27 @@ def parse_bins(arg):
         try:
             bins = pd.read_csv(
                 arg,
-                sep='\t',
-                names=['chrom', 'start', 'end'],
+                sep="\t",
+                names=["chrom", "start", "end"],
                 usecols=[0, 1, 2],
-                dtype={'chrom': str})
+                dtype={"chrom": str},
+            )
         except pd.parser.CParserError as e:
-            raise ValueError(
-                'Failed to parse bins file "{}": {}'.format(arg, str(e)))
+            raise ValueError('Failed to parse bins file "{}": {}'.format(arg, str(e)))
 
         chromtable = (
-            bins.drop_duplicates(['chrom'], keep='last')[['chrom', 'end']]
-                .reset_index(drop=True)
-                .rename(columns={'chrom': 'name', 'end': 'length'})
+            bins.drop_duplicates(["chrom"], keep="last")[["chrom", "end"]]
+            .reset_index(drop=True)
+            .rename(columns={"chrom": "name", "end": "length"})
         )
-        chroms, lengths = list(chromtable['name']), list(chromtable['length'])
+        chroms, lengths = list(chromtable["name"]), list(chromtable["length"])
         chromsizes = pd.Series(index=chroms, data=lengths)
 
     else:
         raise ValueError(
-            'Expected BINS to be either <Path to bins file> or '
-            '<Path to chromsizes file>:<binsize in bp>.')
+            "Expected BINS to be either <Path to bins file> or "
+            "<Path to chromsizes file>:<binsize in bp>."
+        )
 
     return chromsizes, bins
 
@@ -190,6 +192,7 @@ def exit_on_broken_pipe(exit_code):
     [2] https://www.quora.com/How-can-you-avoid-a-broken-pipe-error-on-Python
 
     """
+
     def decorator(func):
         @wraps(func)
         def decorated(*args, **kwargs):
@@ -206,5 +209,7 @@ def exit_on_broken_pipe(exit_code):
                 else:
                     # Not a broken pipe error. Bubble up.
                     raise
+
         return decorated
+
     return decorator

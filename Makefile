@@ -7,7 +7,7 @@ install:
 	pip install -e .
 
 test:
-	nosetests
+	pytest
 
 clean-pyc:
 	find . -name '*.pyc' -exec rm --force {} +
@@ -17,6 +17,9 @@ clean-pyc:
 clean-build:
 	rm -rf build/
 	rm -rf dist/
+	rm .coverage
+	rm coverage.xml
+	rm -rf htmlcov/
 
 clean: clean-pyc clean-build
 
@@ -26,9 +29,6 @@ build: clean-build
 
 publish: build
 	twine upload dist/*
-	# python setup.py register
-	# python setup.py sdist upload
-	# python setup.py bdist_wheel upload
 
 publish-test: build
 	twine upload --repository-url https://test.pypi.org/legacy/ dist/*
