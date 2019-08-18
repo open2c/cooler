@@ -17,6 +17,9 @@ clean-pyc:
 clean-build:
 	rm -rf build/
 	rm -rf dist/
+	rm .coverage
+	rm coverage.xml
+	rm -rf htmlcov/
 
 clean: clean-pyc clean-build
 
