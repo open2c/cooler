@@ -15,13 +15,15 @@ However, coolers can be stored at any level of the HDF5 hierarchy and qualified 
 
 .. code-block:: python
     
-    >>> c1 = cooler.Cooler('data/WT.DpnII.multi.cool::10kb')
-    >>> c2 = cooler.Cooler('data/WT.DpnII.multi.cool::1kb')
+    >>> c1 = cooler.Cooler('data/WT.DpnII.mcool::resolutions/10000')
+    >>> c2 = cooler.Cooler('data/WT.DpnII.mcool::resolutions/1000')
 
+The current standard for Hi-C coolers is to name multi-resolution coolers under ``.mcool`` extension, 
+and store differrent resolutions in an HDF5 group ``resolutions``, as shown above. 
 
 Data selection
 --------------
-Several :class:`cooler.Cooler` methods return data selectors. They don't retrieve any data from disk until queried. There are several ways to query using selectors. Genomic range strings may be provided as 3-tuples ``(chrom: str, start: int, end: int)`` or in UCSC-style strings of the style ``{chrom}:{start}-{end}``. Unit prefixes ``k, M, G`` are supported in range strings.  For regions with start and end that are not multiples of the resolution, selectors return the range of shortest range bins that fully contains the open interval [start, end).
+Several :class:`cooler.Cooler` methods return data selectors. Those include selecting tables and matrices (see below). Data selectors don't retrieve any data from disk until queried. There are several ways to query using selectors. Genomic range strings may be provided as 3-tuples ``(chrom: str, start: int, end: int)`` or in UCSC-style strings of the style ``{chrom}:{start}-{end}``. Unit prefixes ``k, M, G`` are supported in range strings.  For regions with start and end that are not multiples of the resolution, selectors return the range of shortest range bins that fully contains the open interval [start, end).
 
 
 Table selectors (chroms, bins, pixels)
@@ -138,7 +140,8 @@ The matrix selector’s fetch method is intended to represent a **2D range query
     >>> A1 = c.matrix().fetch('chr1')
     >>> A2 = c.matrix().fetch('chr3:10,000,000-20,000,000')
     >>> A3 = c.matrix().fetch( ('chr3', 10000000, 20000000) )
-    >>> A4 = c.matrix().fetch('chr2', 'chr3')
+    >>> A4 = c.matrix().fetch('chr2', 'chr3')    
+    >>> A5 = c.matrix().fetch('chr3:10M-20M', 'chr3:35M-40M')
 
 
 Dask
