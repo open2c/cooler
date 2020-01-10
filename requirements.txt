@@ -12,3 +12,4 @@ pyfaidx
 pypairix
 asciitree
 pyyaml
+simplejson
