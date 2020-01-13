@@ -1,5 +1,17 @@
 # Release notes #
 
+## [v0.8.7](https://github.com/mirnylab/cooler/compare/v0.8.6...v0.8.7)
+
+Date: 2019-01-12
+
+### Maintenance
+* Code styling with black
+* Add coverage reporting
+
+### Bug fixes
+* Replace `json` with `simplejson` to deal with attrs stored as bytes
+
+
 ## [v0.8.6](https://github.com/mirnylab/cooler/compare/v0.8.5...v0.8.6)
 
 Date: 2019-08-12
