@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, division, print_function
 from multiprocess import Pool
-import json
+import simplejson as json
 import six
 import sys
 

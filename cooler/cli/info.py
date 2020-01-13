@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import division, print_function
-import json
+import simplejson as json
 import sys
 
 from ._util import exit_on_broken_pipe
@@ -47,7 +47,6 @@ def info(cool_uri, field, metadata, out):
         f = sys.stdout
     else:
         f = open(out, "wt")
-
     if metadata:
         json.dump(c.info["metadata"], f, indent=4)
         print(end="\n", file=f)

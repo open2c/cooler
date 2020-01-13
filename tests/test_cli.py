@@ -11,7 +11,8 @@ from io import StringIO
 from glob import glob
 import os.path as op
 import tempfile
-import json
+import simplejson as json
+
 
 from pandas.api import types
 import numpy as np

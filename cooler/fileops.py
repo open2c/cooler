@@ -4,14 +4,15 @@ from datetime import datetime
 from textwrap import dedent
 import warnings
 import uuid
-import json
+import simplejson as json
+
 import os
 
 from six import PY2
 import six
 
 try:
-    from json import JSONDecodeError
+    from simplejson import JSONDecodeError
 except ImportError:
     JSONDecodeError = ValueError  # PY35+
 

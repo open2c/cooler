@@ -10,7 +10,7 @@ import posixpath
 import tempfile
 import warnings
 import h5py
-import json
+import simplejson as json
 import six
 
 from .._version import __version__, __format_version__
