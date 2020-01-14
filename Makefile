@@ -17,8 +17,8 @@ clean-pyc:
 clean-build:
 	rm -rf build/
 	rm -rf dist/
-	rm .coverage
-	rm coverage.xml
+	rm -f .coverage
+	rm -f coverage.xml
 	rm -rf htmlcov/
 
 clean: clean-pyc clean-build
@@ -32,6 +32,7 @@ publish: build
 
 publish-test: build
 	twine upload --repository-url https://test.pypi.org/legacy/ dist/*
+	# pip install --extra-index-url https://test.pypi.org/simple/ cooler
 
 docs-init:
 	conda install --file docs/requirements.txt
