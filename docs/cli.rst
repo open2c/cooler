@@ -152,6 +152,7 @@ Bin any text file or stream of pairs.
 Pairs data need not be sorted. Accepts compressed files.
 To pipe input from stdin, set PAIRS_PATH to '-'.
 
+
 BINS : One of the following
 
     <TEXT:INTEGER> : 1. Path to a chromsizes file, 2. Bin size in bp
@@ -255,6 +256,7 @@ cooler cload pairix
 
 Bin a pairix-indexed contact list file.
 
+
 BINS : One of the following
 
     <TEXT:INTEGER> : 1. Path to a chromsizes file, 2. Bin size in bp
@@ -317,6 +319,7 @@ cooler cload tabix
 ------------------
 
 Bin a tabix-indexed contact list file.
+
 
 BINS : One of the following
 
@@ -388,6 +391,7 @@ cooler cload hiclib
 -------------------
 
 Bin a hiclib HDF5 contact list (frag) file.
+
 
 BINS : One of the following
 

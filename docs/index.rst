@@ -7,15 +7,14 @@
 Cooler
 ======
 
-Cooler is a Python support library for .cool files: an efficient storage format for high resolution genomic interaction matrices.
+Cooler is a Python support library for .cool/.mcool files: an efficient storage format for high resolution genomic interaction matrices.
 
-The cooler package aims to provide the following functionality:
+The cooler package aims to facilitate:
 
-* Build contact matrices at any genomic resolution.
-* Query contact matrices.
-* Export and visualize the data.
-* Perform scalable out-of-core operations on the data.
-* Provide a clean and well-documented Python API to interact with the data.
+* Creation, aggregation and manipulation of genomically-labeled sparse matrices.
+* Querying: sequential and range query patterns and tabular and sparse/dense array retrieval.
+* Scalable out-of-core operations on the data.
+* Data export and visualization.
 
 Follow cooler development on `GitHub <https://github.com/mirnylab/cooler>`_.
 
