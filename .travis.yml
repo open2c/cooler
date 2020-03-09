@@ -24,7 +24,7 @@ install:
   - conda info -a
 
   # Create test environment and install deps
-  - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION setuptools pip six numpy scipy pandas h5py dask
+  - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION setuptools pip six numpy scipy pandas h5py dask pysam
   - source activate test-environment
   - pip install mock pytest pytest-flake8 pytest-cov codecov
   - pip install -e .
