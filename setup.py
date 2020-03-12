@@ -58,12 +58,12 @@ tests_require = [
     'mock'
 ]
 
-
 extras_require = {
     'docs': [
         'Sphinx>=1.1',
         'numpydoc>=0.5'
-    ]
+    ],
+    'pysam': ['pysam']
 }
 
 

@@ -1,8 +1,8 @@
 Concepts
 ========
 
-URI String
-----------
+Resource String
+---------------
 The default location for a single-cooler .cool file is the root group ``/`` of the HDF5 file. It does not need to be explicitly specified.
 
 .. code-block:: python
