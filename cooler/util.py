@@ -619,7 +619,7 @@ def attrs_to_jsonable(attrs):
     out = dict(attrs)
     for k, v in attrs.items():
         try:
-            out[k] = np.asscalar(v)
+            out[k] = v.item()
         except ValueError:
             out[k] = v.tolist()
         except AttributeError:
