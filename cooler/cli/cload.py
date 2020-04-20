@@ -9,6 +9,7 @@ from cytoolz import compose
 import numpy as np
 import pandas as pd
 import h5py
+from pairtools._headerops import get_header
 
 from ._util import parse_bins, parse_kv_list_param, parse_field_param
 from . import cli, get_logger
@@ -485,7 +486,8 @@ def pairs(bins, pairs_path, cool_path, metadata, assembly, chunksize,
     if pairs_path == '-':
         f_in = sys.stdin
     else:
-        f_in = pairs_path
+        f_in = pd.io.common.get_handle(pairs_path, mode='r', compression='infer')[0]
+    f_in = get_header(f_in)[1] # We could save the header into metadata?
 
     reader = pd.read_csv(
         f_in,
@@ -493,7 +495,6 @@ def pairs(bins, pairs_path, cool_path, metadata, assembly, chunksize,
         usecols=[input_field_numbers[name] for name in input_field_names],
         names=input_field_names,
         dtype=input_field_dtypes,
-        comment=comment_char,
         iterator=True,
         chunksize=chunksize)
 

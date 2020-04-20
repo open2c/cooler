@@ -1,7 +1,7 @@
 six
 numpy>=1.9
 scipy>=0.16
-pandas>=0.19
+pandas>=1.0
 h5py>=2.5
 click>=7
 cytoolz
@@ -12,3 +12,4 @@ pypairix
 asciitree
 pyyaml
 simplejson
+pairtools
