@@ -246,10 +246,10 @@ def test_cload_pairix(bins_path, pairs_path, ref_path):
             op.join(testdir, "data", "toy.pairs"),
             op.join(testdir, "data", "toy.symm.upper.var.cool"),
         ),
-         (
+        (
             op.join(testdir, "data", "toy.bins.var.bed"),
             op.join(testdir, "data", "toy_hash.pairs"),
-            op.join(testdir, "data", "toy_hash.symm.upper.var.cool"),
+            op.join(testdir, "data", "toy.symm.upper.var.cool"),
         )
     ],
 )
@@ -313,7 +313,7 @@ def test_cload_field(bins_path, pairs_path):
         pos2=5,
     )
     cload_pairs.callback(
-        bins_path, pairs_path, testcool_path, field=("score=7:dtype=float",), **kwargs
+        bins_path, pairs_path, testcool_path, field=("score=8:dtype=float",), **kwargs
     )
     pixels = cooler.Cooler(testcool_path).pixels()[:]
     assert "count" in pixels.columns and types.is_integer_dtype(pixels.dtypes["count"])
