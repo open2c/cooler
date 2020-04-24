@@ -53,13 +53,13 @@ def _run_cload_pairs(runner, binsize, extra_args):
         op.join(datadir, "toy.pairs"),
         "toy.{}.cool".format(binsize),
         "-c1",
-        "1",
-        "-p1",
         "2",
-        "-c2",
+        "-p1",
         "3",
-        "-p2",
+        "-c2",
         "4",
+        "-p2",
+        "5",
         "--assembly",
         "toy",
         "--chunksize",
@@ -123,7 +123,7 @@ def test_cload_mergepass(ref, extra_args):
 def test_cload_field():
     runner = CliRunner()
     with runner.isolated_filesystem():
-        extra_args = ["--field", "score=7"]
+        extra_args = ["--field", "score=8"]
         result = _run_cload_pairs(runner, 2, extra_args)
         assert result.exit_code == 0
         pixels = cooler.Cooler("toy.2.cool").pixels()[:]
@@ -134,7 +134,7 @@ def test_cload_field():
             pixels.dtypes["score"]
         )
 
-        extra_args = ["--field", "count=7"]
+        extra_args = ["--field", "count=8"]
         result = _run_cload_pairs(runner, 2, extra_args)
         assert result.exit_code == 0
         pixels = cooler.Cooler("toy.2.cool").pixels()[:]
@@ -143,7 +143,7 @@ def test_cload_field():
         )
         assert np.allclose(pixels["count"][:], 0)
 
-        extra_args = ["--field", "count=7:dtype=float"]
+        extra_args = ["--field", "count=8:dtype=float"]
         result = _run_cload_pairs(runner, 2, extra_args)
         assert result.exit_code == 0
         pixels = cooler.Cooler("toy.2.cool").pixels()[:]
@@ -152,7 +152,7 @@ def test_cload_field():
         )
         assert np.allclose(pixels["count"][:], 0.2)
 
-        extra_args = ["--field", "count=7:agg=min,dtype=float"]
+        extra_args = ["--field", "count=8:agg=min,dtype=float"]
         result = _run_cload_pairs(runner, 2, extra_args)
         assert result.exit_code == 0
         pixels = cooler.Cooler("toy.2.cool").pixels()[:]

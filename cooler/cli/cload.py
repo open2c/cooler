@@ -21,6 +21,44 @@ from ..create import (
 )
 
 
+def get_header(instream, comment_char='#'): # Copied from pairtools._headerops
+    '''Returns a header from the stream and an the reaminder of the stream
+    with the actual data.
+    Parameters
+    ----------
+    instream : a file object
+        An input stream.
+    comment_char : str
+        The character prepended to header lines (use '@' when parsing sams, 
+        '#' when parsing pairsams).
+    Returns
+    -------
+    header : list
+        The header lines, stripped of terminal spaces and newline characters.
+    remainder_stream : stream/file-like object
+        Stream with the remaining lines.
+    
+    '''
+    header = []
+    if not comment_char:
+        raise ValueError('Please, provide a comment char!')
+    comment_byte = comment_char.encode()
+    # get peekable buffer for the instream
+    inbuffer = instream.buffer
+    current_peek = inbuffer.peek()
+    while current_peek.startswith(comment_byte):
+        # consuming a line from buffer guarantees
+        # that the remainder of the buffer starts 
+        # with the beginning of the line.
+        line = inbuffer.readline()
+        # append line to header, since it does start with header
+        header.append(line.decode().strip())
+        # peek into the remainder of the instream
+        current_peek = inbuffer.peek()
+    # apparently, next line does not start with the comment
+    # return header and the instream, advanced to the beginning of the data
+    return header, instream
+
 @cli.group()
 def cload():
     """
@@ -485,7 +523,9 @@ def pairs(bins, pairs_path, cool_path, metadata, assembly, chunksize,
     if pairs_path == '-':
         f_in = sys.stdin
     else:
-        f_in = pairs_path
+        f_in = pd.io.common.get_handle(pairs_path, mode='r',
+                                       compression='infer')[0]
+    f_in = get_header(f_in)[1] # We could save the header into metadata?
 
     reader = pd.read_csv(
         f_in,
@@ -493,7 +533,6 @@ def pairs(bins, pairs_path, cool_path, metadata, assembly, chunksize,
         usecols=[input_field_numbers[name] for name in input_field_names],
         names=input_field_names,
         dtype=input_field_dtypes,
-        comment=comment_char,
         iterator=True,
         chunksize=chunksize)
 

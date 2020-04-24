@@ -245,6 +245,11 @@ def test_cload_pairix(bins_path, pairs_path, ref_path):
             op.join(testdir, "data", "toy.bins.var.bed"),
             op.join(testdir, "data", "toy.pairs"),
             op.join(testdir, "data", "toy.symm.upper.var.cool"),
+        ),
+        (
+            op.join(testdir, "data", "toy.bins.var.bed"),
+            op.join(testdir, "data", "toy_hash.pairs"),
+            op.join(testdir, "data", "toy.symm.upper.var.cool"),
         )
     ],
 )
@@ -263,10 +268,10 @@ def test_cload_pairs(bins_path, pairs_path, ref_path):
         storage_options=None,
         no_count=False,
         max_merge=200,
-        chrom1=1,
-        pos1=2,
-        chrom2=3,
-        pos2=4,
+        chrom1=2,
+        pos1=3,
+        chrom2=4,
+        pos2=5,
     )
     cload_pairs.callback(bins_path, pairs_path, testcool_path, **kwargs)
     with h5py.File(testcool_path, "r") as f1, h5py.File(ref_path, "r") as f2:
@@ -302,13 +307,13 @@ def test_cload_field(bins_path, pairs_path):
         storage_options=None,
         no_count=True,
         max_merge=200,
-        chrom1=1,
-        pos1=2,
-        chrom2=3,
-        pos2=4,
+        chrom1=2,
+        pos1=3,
+        chrom2=4,
+        pos2=5,
     )
     cload_pairs.callback(
-        bins_path, pairs_path, testcool_path, field=("score=7:dtype=float",), **kwargs
+        bins_path, pairs_path, testcool_path, field=("score=8:dtype=float",), **kwargs
     )
     pixels = cooler.Cooler(testcool_path).pixels()[:]
     assert "count" in pixels.columns and types.is_integer_dtype(pixels.dtypes["count"])
@@ -343,10 +348,10 @@ def test_cload_custom_tempdir(bins_path, pairs_path):
             storage_options=None,
             no_count=True,
             max_merge=200,
-            chrom1=1,
-            pos1=2,
-            chrom2=3,
-            pos2=4,
+            chrom1=2,
+            pos1=3,
+            chrom2=4,
+            pos2=5,
         )
         pixels = cooler.Cooler(testcool_path).pixels()[:]
         assert "count" in pixels.columns and types.is_integer_dtype(
