@@ -17,6 +17,8 @@ from cooler.cli.cload import (
 from cooler.cli.load import load
 import pytest
 
+_pandas_major_version = int(pd.__version__.split('.')[0])
+
 tmp = tempfile.gettempdir()
 testdir = op.realpath(op.dirname(__file__))
 testcool_path = op.join(tmp, "test.cool")
@@ -238,6 +240,10 @@ def test_cload_pairix(bins_path, pairs_path, ref_path):
         pass
 
 
+@pytest.mark.skipif(
+    _pandas_major_version < 1,
+    reason="hash fix only works with pandas >= 1.0"
+)
 @pytest.mark.parametrize(
     "bins_path,pairs_path,ref_path",
     [
