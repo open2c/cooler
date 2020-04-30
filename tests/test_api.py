@@ -5,34 +5,35 @@ import pandas as pd
 import numpy as np
 import pandas
 
-import cooler.api
+from cooler import api
 
 testdir = op.realpath(op.dirname(__file__))
 
 
-def test_info():
-    pass
+def test_info(mock_cooler):
+    info = api.info(mock_cooler)
+    assert isinstance(info, dict)
 
 
-def test_get(mock_cooler):
-    table = cooler.api.get(mock_cooler["chroms"])
-    assert np.all(table["length"] == mock_cooler["chroms"]["length"])
+# def test_get(mock_cooler):
+#     table = api.get(mock_cooler["chroms"])
+#     assert np.all(table["length"] == mock_cooler["chroms"]["length"])
 
 
 def test_chromtable(mock_cooler):
-    table = cooler.api.chroms(mock_cooler)
+    table = api.chroms(mock_cooler)
     assert np.all(table["length"] == mock_cooler["chroms"]["length"])
 
 
 def test_bintable(mock_cooler):
     chromID_lookup = pd.Series({"chr1": 0, "chr2": 1})
     lo, hi = 2, 10
-    table = cooler.api.bins(mock_cooler, lo, hi)
+    table = api.bins(mock_cooler, lo, hi)
     assert np.all(chromID_lookup[table["chrom"]] == mock_cooler["bins"]["chrom"][lo:hi])
     assert np.all(table["start"] == mock_cooler["bins"]["start"][lo:hi])
     assert np.all(table["end"] == mock_cooler["bins"]["end"][lo:hi])
 
-    table = cooler.api.bins(mock_cooler, lo, hi, fields=["start", "end"])
+    table = api.bins(mock_cooler, lo, hi, fields=["start", "end"])
     assert np.all(table["start"] == mock_cooler["bins"]["start"][lo:hi])
     assert np.all(table["end"] == mock_cooler["bins"]["end"][lo:hi])
 
@@ -40,23 +41,23 @@ def test_bintable(mock_cooler):
 def test_bintable_many_contigs():
     # In a file with many contigs, bins/chrom does not have an ENUM header,
     # so chromosome names are taken from the chroms/name
-    c = cooler.api.Cooler(op.join(testdir, "data", "manycontigs.1.cool"))
+    c = api.Cooler(op.join(testdir, "data", "manycontigs.1.cool"))
     bins = c.bins()[:10]
     assert pd.api.types.is_categorical_dtype(bins["chrom"].dtype)
 
 
 def test_pixeltable(mock_cooler):
     lo, hi = 2, 10
-    table = cooler.api.pixels(mock_cooler, lo, hi, join=False)
+    table = api.pixels(mock_cooler, lo, hi, join=False)
     assert np.all(table["bin1_id"] == mock_cooler["pixels"]["bin1_id"][lo:hi])
     assert np.all(table["bin2_id"] == mock_cooler["pixels"]["bin2_id"][lo:hi])
 
-    table = cooler.api.pixels(mock_cooler, lo, hi, join=True)
+    table = api.pixels(mock_cooler, lo, hi, join=True)
     assert table.shape == (hi - lo, len(mock_cooler["pixels"]) + 4)
 
 
-def test_cooler(mock_cooler):
-    c = cooler.Cooler(mock_cooler)
+def test_cooler_class(mock_cooler):
+    c = api.Cooler(mock_cooler)
 
     # bin table
     table = c.bins().fetch("chr1")
@@ -78,24 +79,24 @@ def test_cooler(mock_cooler):
 
 
 def test_annotate(mock_cooler):
-    c = cooler.Cooler(mock_cooler)
+    c = api.Cooler(mock_cooler)
 
     # works with full bin table / view or only required bins
     df = c.matrix(as_pixels=True, balance=False).fetch("chr1")
-    df1 = cooler.annotate(df, c.bins()[:])
-    df2 = cooler.annotate(df, c.bins())
-    df3 = cooler.annotate(df, c.bins().fetch("chr1"))
+    df1 = api.annotate(df, c.bins()[:])
+    df2 = api.annotate(df, c.bins())
+    df3 = api.annotate(df, c.bins().fetch("chr1"))
     assert np.all(df1 == df2)
     assert np.all(df1 == df3)
 
     # works on empty dataframe
-    df4 = cooler.annotate(df[0:0], c.bins()[:])
+    df4 = api.annotate(df[0:0], c.bins()[:])
     assert np.all(df4.columns == df3.columns)
     assert len(df4) == 0
 
 
 def test_matrix_as_pixels():
-    c = cooler.Cooler(op.join(testdir, "data", "yeast.10kb.cool"))
+    c = api.Cooler(op.join(testdir, "data", "yeast.10kb.cool"))
     c.matrix(as_pixels=True, join=True, balance=True).fetch(
         "chrI:100345-220254", "chrII:200789-813183"
     )

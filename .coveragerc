@@ -4,6 +4,8 @@ source=
 
 omit=
     cooler/_version.py
+    cooler/sandbox/
+    cooler/io.py
 
 [report]
 exclude_lines =

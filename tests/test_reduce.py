@@ -1,11 +1,10 @@
-# -*- coding: utf-8 -*-
 import os.path as op
-
-from _common import isolated_filesystem, cooler_cmp
-from cooler.reduce import merge_coolers, coarsen_cooler, zoomify_cooler, legacy_zoomify
 import numpy as np
 import cooler
 import pytest
+
+from _common import isolated_filesystem, cooler_cmp
+from cooler.reduce import merge_coolers, coarsen_cooler, zoomify_cooler, legacy_zoomify
 
 
 testdir = op.realpath(op.dirname(__file__))
@@ -29,15 +28,6 @@ def test_merge(path1, path2):
         assert (
             merged.pixels()["count"][:].sum() == 2 * single.pixels()["count"][:].sum()
         )
-
-
-def test_recursive_agg():
-    infile = op.join(datadir, "hg19.GM12878-MboI.matrix.2000kb.cool")
-    chunksize = int(10e6)
-    # n_zooms = 2
-    n_cpus = 1
-    with isolated_filesystem():
-        legacy_zoomify(infile, "test.multires.cool", n_cpus, chunksize)
 
 
 @pytest.mark.parametrize(
@@ -90,6 +80,15 @@ def test_zoomify():
                 "test.2.mcool::resolutions/{}".format(res),
                 op.join(datadir, "toy.asymm.{}.cool".format(res)),
             )
+
+
+def test_legacy_zoomify():
+    infile = op.join(datadir, "hg19.GM12878-MboI.matrix.2000kb.cool")
+    chunksize = int(10e6)
+    # n_zooms = 2
+    n_cpus = 1
+    with isolated_filesystem():
+        legacy_zoomify(infile, "test.multires.cool", n_cpus, chunksize)
 
 
 # def test_zoomify():

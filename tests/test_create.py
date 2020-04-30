@@ -7,11 +7,11 @@ import os
 import numpy as np
 import pandas as pd
 import h5py
+import pytest
 
 from _common import isolated_filesystem
 import cooler.create
 import cooler
-import pytest
 
 
 tmp = tempfile.gettempdir()

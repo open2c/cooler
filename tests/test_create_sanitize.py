@@ -6,10 +6,10 @@ import tempfile
 
 import numpy as np
 import pandas as pd
-from cooler.create import sanitize_records, BadInputError  # sanitize_pixels
 import cooler
 import pytest
 
+from cooler.create import sanitize_records, BadInputError  # sanitize_pixels
 
 testdir = op.dirname(op.realpath(__file__))
 tmp = tempfile.gettempdir()
