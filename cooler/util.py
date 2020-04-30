@@ -435,65 +435,6 @@ def bedslice(grouped, chromsizes, region):
     return result
 
 
-def lexbisect(arrays, values, side="left", lo=0, hi=None):
-    """
-    Bisection search on lexically sorted arrays.
-
-    Parameters
-    ----------
-    arrays : sequence of k 1-D array-like
-        Each "array" can be any sequence that supports scalar integer indexing.
-        The arrays are assumed to have the same length and values lexsorted
-        from left to right.
-    values : sequence of k values
-        Values that would be inserted into the arrays.
-    side : {'left', 'right'}, optional
-        If ‘left’, the index of the first suitable location found is given.
-        If ‘right’, return the last such index. If there is no suitable index,
-        return either 0 or N (where N is the length of each array).
-    lo, hi : int, optional
-        Bound the slice to be searched (default 'lo' is 0 and 'hi' is N).
-
-    Returns
-    -------
-    i : int
-        Insertion index.
-
-    Examples
-    --------
-    >>> h5 = h5py.File('mytable.h5', 'r')  # doctest: +SKIP
-    >>> lexbisect([h5['chrom'], h5['start']], [1, 100000], side='right')  # doctest: +SKIP
-    2151688
-
-    """
-    arrays = tuple(arrays)
-    values = tuple(values)
-
-    if lo < 0:
-        raise ValueError("lo must be non-negative")
-    if hi is None:
-        hi = len(arrays[0])
-
-    if side == "left":
-        while lo < hi:
-            mid = (lo + hi) // 2
-            if tuple(arr[mid] for arr in arrays) < values:
-                lo = mid + 1
-            else:
-                hi = mid
-    elif side == "right":
-        while lo < hi:
-            mid = (lo + hi) // 2
-            if values < tuple(arr[mid] for arr in arrays):
-                hi = mid
-            else:
-                lo = mid + 1
-    else:
-        raise ValueError("side must be 'left' or 'right'")
-
-    return lo
-
-
 def asarray_or_dataset(x):
     return x if isinstance(x, h5py.Dataset) else np.asarray(x)
 
