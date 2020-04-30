@@ -206,6 +206,11 @@ def merge_coolers(
     kwargs
         Passed to ``cooler.create``.
 
+    Notes
+    -----
+    The default output file mode is 'w'. If appending output to an existing
+    file, pass `mode='a'`.
+
     See also
     --------
     cooler.coarsen_cooler

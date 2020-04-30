@@ -38,7 +38,7 @@ def test_cp():
         shutil.copyfile(src_file, test_file)
         fileops.cp(test_file + "::resolutions/2", test_file + "::abc/d")
         cooler_cmp(test_file + "::resolutions/2", test_file + "::abc/d")
-        with h5py.File(test_file) as f:
+        with h5py.File(test_file, mode='r') as f:
             assert "resolutions/2" in f
             assert "abc/d" in f
             assert f["resolutions/2"].id != f["abc/d"].id
@@ -51,7 +51,7 @@ def test_mv():
         shutil.copyfile(op.join(testdir, "data", "toy.symm.upper.2.mcool"), ref_file)
         shutil.copyfile(op.join(testdir, "data", "toy.symm.upper.2.mcool"), src_file)
         fileops.mv(src_file + "::resolutions/2", src_file + "::abc/d")
-        with h5py.File(src_file) as f:
+        with h5py.File(src_file, mode='r') as f:
             assert "resolutions/2" not in f
             assert "abc/d" in f
         cooler_cmp(ref_file + "::resolutions/2", src_file + "::abc/d")
@@ -65,7 +65,7 @@ def test_ln():
         test_file = "test.hardlink.mcool"
         shutil.copyfile(src_file, test_file)
         fileops.ln(test_file + "::resolutions/2", test_file + "::abc/d")
-        with h5py.File(test_file) as f:
+        with h5py.File(test_file, mode='r') as f:
             assert "resolutions/2" in f
             assert "abc/d" in f
             assert f["resolutions/2"].id == f["abc/d"].id
@@ -75,7 +75,7 @@ def test_ln():
         test_file = "test.softlink.mcool"
         shutil.copyfile(src_file, test_file)
         fileops.ln(test_file + "::resolutions/2", test_file + "::abc/d", soft=True)
-        with h5py.File(test_file) as f:
+        with h5py.File(test_file, mode='r') as f:
             assert "resolutions/2" in f
             assert "abc/d" in f
             assert f["resolutions/2"].id == f["abc/d"].id

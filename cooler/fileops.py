@@ -406,7 +406,7 @@ def pprint_data_tree(uri, level):
 
 def _decode_attr_value(obj):
     if hasattr(obj, "item"):
-        o = np.asscalar(obj)
+        o = obj.item()
     elif hasattr(obj, "tolist"):
         o = obj.tolist()
     elif isinstance(obj, six.string_types):
