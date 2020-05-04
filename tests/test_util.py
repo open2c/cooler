@@ -240,7 +240,7 @@ def test_cmd_exists():
     util.cmd_exists('ls')
 
 
-@pytest.skipif(six.PY2, reason="Scipy on Py2 is too old")
+@pytest.mark.skipif(six.PY2, reason="Scipy on Py2 is too old")
 def test_mad():
     from scipy.stats import median_absolute_deviation
     x = np.arange(50)
