@@ -131,9 +131,8 @@ class CoolerMerger(ContactBinner):
         else:
             bins = coolers[0].bins()[["chrom", "start", "end"]][:]
             for i in range(1, len(coolers)):
-                if not np.all(
-                    coolers[i].bins()[["chrom", "start", "end"]][:] == bins
-                ):  # noqa
+                bins2 = coolers[i].bins()[["chrom", "start", "end"]][:]
+                if (len(bins2) != len(bins)) or not np.all(bins2 == bins):
                     raise ValueError("Coolers must have same bin structure")
 
     def __iter__(self):
@@ -230,7 +229,7 @@ def merge_coolers(
     elif not any(is_symm):
         symmetric_upper = False
     else:
-        ValueError("Cannot merge symmetric and non-symmetric coolers.")
+        raise ValueError("Cannot merge symmetric and non-symmetric coolers.")
 
     if columns is None:
         columns = ["count"]
@@ -269,7 +268,7 @@ def merge_coolers(
     )
 
 
-def _optimal_prune_partition(edges, maxlen):
+def _optimal_prune_partition(edges, maxlen):  # pragma: no cover
     """Given an integer interval partition ``edges``, find the coarsened
     partition with the longest subintervals such that no new subinterval
     created by removing edges exceeds ``maxlen``.
@@ -510,7 +509,7 @@ class CoolerCoarsener(ContactBinner):
     def aggregate(self, span):
         try:
             chunk = self._aggregate(span)
-        except MemoryError as e:
+        except MemoryError as e:  # pragma: no cover
             raise RuntimeError(str(e))
         return chunk
 
@@ -605,7 +604,7 @@ def coarsen_cooler(
                 "input '{}'.".format(col, clr.filename)
             )
         else:
-            dtypes[col] = input_dtypes[col]
+            dtypes.setdefault(col, input_dtypes[col])
 
     try:
         # Note: fork before opening to prevent inconsistent global HDF5 state
