@@ -3,9 +3,11 @@ source=
     cooler/
 
 omit=
+	cooler/__main__.py
     cooler/_version.py
-    cooler/sandbox/
+    cooler/sandbox/*
     cooler/io.py
+    cooler/cli/csort.py
 
 [report]
 exclude_lines =

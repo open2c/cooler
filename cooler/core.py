@@ -298,7 +298,7 @@ class CSRReader(object):
         return i, j, v
 
 
-def _check_bounds(lo, hi, N):
+def _check_bounds(lo, hi, N):  # pragma: no cover
     if hi > N:
         raise IndexError("slice index ({}) out of range".format(hi))
     if lo < 0:

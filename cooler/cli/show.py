@@ -32,7 +32,7 @@ def load_matrix(c, row_region, col_region, field, balanced, scale):
     return mat
 
 
-def interactive(ax, c, row_chrom, col_chrom, field, balanced, scale):
+def interactive(ax, c, row_chrom, col_chrom, field, balanced, scale):  # pragma: no cover
     import matplotlib.pyplot as plt
 
     # The code is heavily insired by
@@ -203,7 +203,7 @@ def show(
         if out is not None:
             mpl.use("Agg")
         import matplotlib.pyplot as plt
-    except ImportError:
+    except ImportError:  # pragma: no cover
         print("Install matplotlib to use cooler show", file=sys.stderr)
         sys.exit(1)
 

@@ -568,14 +568,7 @@ def attrs_to_jsonable(attrs):
     return out
 
 
-def unstar(func):
-    def unstarred(args):
-        return func(*args)
-
-    return unstarred
-
-
-def infer_meta(x, index=None):
+def infer_meta(x, index=None):  # pragma: no cover
     """
     Extracted and modified from dask/dataframe/utils.py :
         make_meta (BSD licensed)
@@ -692,7 +685,7 @@ def infer_meta(x, index=None):
 
 def get_meta(
     columns, dtype=None, index_columns=None, index_names=None, default_dtype=np.object
-):
+):  # pragma: no cover
     """
     Extracted and modified from pandas/io/parsers.py :
         _get_empty_meta (BSD licensed).

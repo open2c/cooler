@@ -1,10 +1,16 @@
 import os.path as op
 import numpy as np
+import h5py
 import cooler
 import pytest
 
 from _common import isolated_filesystem, cooler_cmp
-from cooler.reduce import merge_coolers, coarsen_cooler, zoomify_cooler, legacy_zoomify
+from cooler.reduce import (
+    merge_coolers,
+    coarsen_cooler,
+    zoomify_cooler,
+    legacy_zoomify
+)
 
 
 testdir = op.realpath(op.dirname(__file__))
@@ -17,6 +23,10 @@ datadir = op.join(testdir, "data")
         (
             op.join(datadir, "hg19.GM12878-MboI.matrix.2000kb.cool"),
             op.join(datadir, "hg19.GM12878-MboI.matrix.2000kb.cool"),
+        ),
+        (
+            op.join(datadir, "toy.asymm.2.cool"),
+            op.join(datadir, "toy.asymm.2.cool")
         )
     ],
 )
@@ -30,6 +40,51 @@ def test_merge(path1, path2):
         )
 
 
+def test_merge2():
+    with isolated_filesystem():
+        path1 = op.join(datadir, "toy.symm.upper.2.cool")
+        path2 = op.join(datadir, "toy.symm.upper.2.cool")
+        merge_coolers(
+            "test.cool", [path1, path2], mergebuf=3, agg={'count': 'mean'}
+        )
+        single = cooler.Cooler(path1)
+        merged = cooler.Cooler("test.cool")
+        assert (
+            merged.pixels()["count"][:].sum() == single.pixels()["count"][:].sum()
+        )
+
+        # different resolution
+        path1 = op.join(datadir, "toy.symm.upper.2.cool")
+        path2 = op.join(datadir, "toy.symm.upper.4.cool")
+        with pytest.raises(ValueError):
+            merge_coolers("test.cool", [path1, path2], mergebuf=3)
+
+        # incompatible bins
+        path1 = op.join(datadir, "toy.symm.upper.var.cool")
+        path2 = op.join(datadir, "toy.symm.upper.2.cool")
+        with pytest.raises(ValueError):
+            merge_coolers("test.cool", [path1, path2], mergebuf=3)
+
+        path2 = op.join(datadir, "toy.symm.upper.var.cool")
+        path1 = op.join(datadir, "toy.symm.upper.2.cool")
+        with pytest.raises(ValueError):
+            merge_coolers("test.cool", [path1, path2], mergebuf=3)
+
+        # incompatible symmetry
+        path1 = op.join(datadir, "toy.symm.upper.2.cool")
+        path2 = op.join(datadir, "toy.asymm.2.cool")
+        with pytest.raises(ValueError):
+            merge_coolers("test.cool", [path1, path2], mergebuf=3)
+
+        # missing value column
+        path1 = op.join(datadir, "toy.symm.upper.2.cool")
+        path2 = op.join(datadir, "toy.symm.upper.2.cool")
+        with pytest.raises(ValueError):
+            merge_coolers(
+                "test.cool", [path1, path2], mergebuf=3, columns=["missing"]
+            )
+
+
 @pytest.mark.parametrize(
     "input_uri,factor,ref_uri",
     [
@@ -38,7 +93,11 @@ def test_merge(path1, path2):
             2,
             op.join(datadir, "toy.symm.upper.4.cool"),
         ),
-        (op.join(datadir, "toy.asymm.2.cool"), 2, op.join(datadir, "toy.asymm.4.cool")),
+        (
+            op.join(datadir, "toy.asymm.2.cool"),
+            2,
+            op.join(datadir, "toy.asymm.4.cool")
+        ),
         (
             op.join(datadir, "toy.symm.upper.var.cool"),
             2,
@@ -47,10 +106,40 @@ def test_merge(path1, path2):
     ],
 )
 def test_coarsen(input_uri, factor, ref_uri):
-    kwargs = dict(chunksize=10, nproc=1, columns=None, dtypes=None, agg=None)
+
     with isolated_filesystem():
+        kwargs = dict(
+            chunksize=10, nproc=1, columns=None, dtypes=None, agg=None
+        )
         coarsen_cooler(input_uri, "test.cool", factor, **kwargs)
         cooler_cmp("test.cool", ref_uri)
+
+        # custom dtype
+        kwargs = dict(
+            chunksize=10, nproc=1, columns=None, dtypes={'count': np.float64}
+        )
+        coarsen_cooler(input_uri, "test.cool", factor, **kwargs)
+        with h5py.File('test.cool', 'r') as f:
+            assert f['pixels/count'].dtype.kind == 'f'
+
+        # custom aggregator
+        kwargs = dict(
+            chunksize=10, nproc=1, columns=None, dtypes=None, agg={'count': 'mean'}
+        )
+        coarsen_cooler(input_uri, "test.cool", factor, **kwargs)
+
+        # parallel
+        kwargs = dict(
+            chunksize=10, nproc=2, columns=None, dtypes=None, agg=None
+        )
+        coarsen_cooler(input_uri, "test.cool", factor, **kwargs)
+
+        # raise on missing value column
+        kwargs = dict(
+            chunksize=10, nproc=2, columns=['missing'], dtypes=None, agg=None
+        )
+        with pytest.raises(ValueError):
+            coarsen_cooler(input_uri, "test.cool", factor, **kwargs)
 
 
 def test_coarsen_partitions_correctly():
@@ -79,6 +168,28 @@ def test_zoomify():
             cooler_cmp(
                 "test.2.mcool::resolutions/{}".format(res),
                 op.join(datadir, "toy.asymm.{}.cool".format(res)),
+            )
+
+        # include base resolution
+        zoomify_cooler(
+            op.join(datadir, "toy.asymm.2.cool"),
+            "test.2.mcool",
+            resolutions=[2, 4, 8, 16, 32],
+            **kwargs
+        )
+        for res in [2, 4, 8, 16, 32]:
+            cooler_cmp(
+                "test.2.mcool::resolutions/{}".format(res),
+                op.join(datadir, "toy.asymm.{}.cool".format(res)),
+            )
+
+        # impossible resolution to obtain
+        with pytest.raises(ValueError):
+            zoomify_cooler(
+                op.join(datadir, "toy.asymm.2.cool"),
+                "test.2.mcool",
+                resolutions=[4, 5, 32],
+                **kwargs
             )
 
 

@@ -11,8 +11,31 @@ from cooler import fileops
 testdir = op.realpath(op.dirname(__file__))
 
 
-def test_ls():
-    listing = fileops.list_coolers(op.join(testdir, "data", "toy.symm.upper.2.mcool"))
+def test_is_cooler():
+    assert not fileops.is_cooler(op.join(testdir, "data", "toy.chrom.sizes"))
+    assert fileops.is_cooler(op.join(testdir, "data", "toy.symm.upper.2.cool"))
+    assert not fileops.is_cooler(op.join(testdir, "data", "toy.symm.upper.2.mcool"))
+    assert fileops.is_cooler(
+        op.join(testdir, "data", "toy.symm.upper.2.mcool") + '::resolutions/2'
+    )
+
+
+def test_is_multires_file():
+    assert not fileops.is_multires_file(
+        op.join(testdir, "data", "toy.chrom.sizes")
+    )
+    assert not fileops.is_multires_file(
+        op.join(testdir, "data", "toy.symm.upper.2.cool")
+    )
+    assert fileops.is_multires_file(
+        op.join(testdir, "data", "toy.symm.upper.2.mcool")
+    )
+
+
+def test_list_coolers():
+    listing = fileops.list_coolers(
+        op.join(testdir, "data", "toy.symm.upper.2.mcool")
+    )
     paths = set(listing)
     for path in (
         "/resolutions/2",
@@ -24,6 +47,34 @@ def test_ls():
         assert path in paths
 
 
+def test_ls_attr_tree():
+    src_file = op.join(testdir, "data", "toy.symm.upper.2.mcool")
+    with h5py.File(src_file, "r") as f:
+        attr_dict = fileops.read_attr_tree(f, level=None)
+    assert attr_dict["@attrs"]["format"] == "HDF5::MCOOL"
+
+
+def test_ls_data_tree():
+    with isolated_filesystem():
+        src_file = op.join(testdir, "data", "toy.symm.upper.2.mcool")
+        listing = fileops.ls(src_file + '::' + 'resolutions/2')
+        for path in [
+            "/resolutions/2",
+            "/resolutions/2/chroms",
+            "/resolutions/2/chroms/name",
+            "/resolutions/2/chroms/length",
+            "/resolutions/2/bins",
+            "/resolutions/2/bins/chrom",
+            "/resolutions/2/bins/start",
+            "/resolutions/2/bins/end",
+            "/resolutions/2/pixels",
+            "/resolutions/2/pixels/bin1_id",
+            "/resolutions/2/pixels/bin2_id",
+            "/resolutions/2/pixels/count",
+        ]:
+            assert path in listing
+
+
 def test_cp():
     with isolated_filesystem():
         src_file = op.join(testdir, "data", "toy.symm.upper.2.mcool")
@@ -32,6 +83,8 @@ def test_cp():
         src_uri = src_file + "::resolutions/2"
         fileops.cp(src_uri, "test.2.cool")
         cooler_cmp(src_uri, "test.2.cool")
+        fileops.cp(src_uri, "test.2.cool::/nested/")
+        cooler_cmp(src_uri, "test.2.cool::nested")
 
         # within-file
         test_file = "test.src.mcool"
@@ -89,8 +142,11 @@ def test_ln():
         cooler_cmp(test_file + "::resolutions/2", dst_file + "::abc/d")
 
 
-def test_read_attr_tree():
+def test_print_trees():
     src_file = op.join(testdir, "data", "toy.symm.upper.2.mcool")
-    with h5py.File(src_file, "r") as f:
-        attr_dict = fileops.read_attr_tree(f, level=None)
-    assert attr_dict["@attrs"]["format"] == "HDF5::MCOOL"
+    fileops.pprint_attr_tree(src_file, level=3)
+    fileops.pprint_data_tree(src_file, level=3)
+
+    with h5py.File(src_file) as f:
+        t = fileops.TreeViewer(f)
+        t._ipython_display_()

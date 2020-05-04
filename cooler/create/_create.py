@@ -502,7 +502,7 @@ def create(
     # Determine the appropriate iterable
     try:
         from dask.dataframe import DataFrame as dask_df
-    except (ImportError, AttributeError):
+    except (ImportError, AttributeError):  # pragma: no cover
         dask_df = ()
 
     if isinstance(pixels, dask_df):
@@ -728,7 +728,7 @@ def create_from_unordered(
     del temp_files
 
 
-def append(cool_uri, table, data, chunked=False, force=False, h5opts=None, lock=None):
+def append(cool_uri, table, data, chunked=False, force=False, h5opts=None, lock=None):  # pragma: no cover
     """
     Append one or more data columns to an existing table.
 
