@@ -416,17 +416,19 @@ def test_create_cooler_from_dask():
         names=['bin1_id', 'bin2_id', 'count']
     )
     pixels = dd.from_pandas(pixels, npartitions=10)
-    cooler.create.create_cooler(
-        "test.cool",
-        bins,
-        pixels,
-        ordered=True
-    )
 
-    # TODO: unordered with dask is broken...
-    # cooler.create.create_cooler(
-    #     "test.cool",
-    #     bins,
-    #     pixels,
-    #     ordered=False
-    # )
+    with isolated_filesystem():
+        cooler.create.create_cooler(
+            "test.cool",
+            bins,
+            pixels,
+            ordered=True
+        )
+
+        # TODO: unordered with dask is broken...
+        # cooler.create.create_cooler(
+        #     "test.cool",
+        #     bins,
+        #     pixels,
+        #     ordered=False
+        # )
