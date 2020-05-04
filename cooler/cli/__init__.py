@@ -41,7 +41,7 @@ def cli(verbose, debug):
     # Set verbosity level
     if verbose > 0:
         root_logger.setLevel(logging.DEBUG)
-        if verbose > 1:
+        if verbose > 1:  # pragma: no cover
             try:
                 import psutil
                 import atexit
@@ -92,7 +92,7 @@ def cli(verbose, debug):
         root_logger.setLevel(logging.INFO)
 
     # Set hook for postmortem debugging
-    if debug:
+    if debug:  # pragma: no cover
         import traceback
 
         try:

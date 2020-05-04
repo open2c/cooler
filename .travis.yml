@@ -2,9 +2,9 @@ language: python
 python:
   # We don't actually use the Travis Python, but this keeps it organized.
   - "2.7"
-  - "3.5"
   - "3.6"
   - "3.7"
+  - "3.8"
 install:
   # http://conda.pydata.org/docs/travis.html
   - sudo apt-get update
@@ -24,8 +24,10 @@ install:
   - conda info -a
 
   # Create test environment and install deps
-  - conda create -c bioconda -q -n test-environment python=$TRAVIS_PYTHON_VERSION setuptools pip six numpy scipy pandas h5py dask pysam
+  - conda create -c bioconda -q -n test-environment python=$TRAVIS_PYTHON_VERSION numpy cython h5py
   - source activate test-environment
+  - pip install six scipy pandas pysam dask[array,dataframe]
+  - pip install psutil ipytree matplotlib
   - pip install mock pytest pytest-flake8 pytest-cov codecov
   - pip install -e .
 

@@ -68,7 +68,7 @@ def cp(src_uri, dst_uri, overwrite):
     #             dst_group, dst_path),
     #         abort=True)
     #     del dst[dst_group]
-    fileops.cp(src_uri, dst_uri, overwrite)
+    fileops.cp(src_uri, dst_uri, overwrite=overwrite)
 
 
 @cli.command()
@@ -101,7 +101,7 @@ def ln(src_uri, dst_uri, overwrite, soft):
     files).
 
     """
-    fileops.ln(src_uri, dst_uri, overwrite, soft)
+    fileops.ln(src_uri, dst_uri, overwrite=overwrite, soft=soft)
 
 
 @cli.command()
@@ -124,7 +124,7 @@ def mv(src_uri, dst_uri, overwrite):
     Rename a cooler within the same file.
 
     """
-    fileops.mv(src_uri, dst_uri, overwrite)
+    fileops.mv(src_uri, dst_uri, overwrite=overwrite)
 
 
 @cli.command()

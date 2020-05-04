@@ -491,3 +491,18 @@ def test_load_zero_one_based_coo():
     # output
     out_df = cooler.Cooler(testcool_path).pixels()[:]
     assert np.all(out_df == ref_df)
+
+
+def test_array_loader():
+    chromsizes = cooler.util.read_chromsizes(
+        op.join(testdir, "data", "toy.chrom.sizes")
+    )
+    bins = cooler.util.binnify(chromsizes, 10)
+    n = len(bins)
+    array = np.ones((n, n))
+    iterator = cooler.create.ArrayLoader(bins, array, chunksize=100)
+    list(iterator)
+
+    array = np.ones((n + 1, n + 1))
+    with pytest.raises(ValueError):
+        cooler.create.ArrayLoader(bins, array, chunksize=100)

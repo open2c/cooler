@@ -4,35 +4,34 @@ import os.path as op
 import pandas as pd
 import numpy as np
 import pandas
+import h5py
 
-import cooler.api
+from cooler import api
+import pytest
 
 testdir = op.realpath(op.dirname(__file__))
+datadir = op.join(testdir, "data")
 
 
-def test_info():
-    pass
-
-
-def test_get(mock_cooler):
-    table = cooler.api.get(mock_cooler["chroms"])
-    assert np.all(table["length"] == mock_cooler["chroms"]["length"])
+def test_info(mock_cooler):
+    info = api.info(mock_cooler)
+    assert isinstance(info, dict)
 
 
 def test_chromtable(mock_cooler):
-    table = cooler.api.chroms(mock_cooler)
+    table = api.chroms(mock_cooler)
     assert np.all(table["length"] == mock_cooler["chroms"]["length"])
 
 
 def test_bintable(mock_cooler):
     chromID_lookup = pd.Series({"chr1": 0, "chr2": 1})
     lo, hi = 2, 10
-    table = cooler.api.bins(mock_cooler, lo, hi)
+    table = api.bins(mock_cooler, lo, hi)
     assert np.all(chromID_lookup[table["chrom"]] == mock_cooler["bins"]["chrom"][lo:hi])
     assert np.all(table["start"] == mock_cooler["bins"]["start"][lo:hi])
     assert np.all(table["end"] == mock_cooler["bins"]["end"][lo:hi])
 
-    table = cooler.api.bins(mock_cooler, lo, hi, fields=["start", "end"])
+    table = api.bins(mock_cooler, lo, hi, fields=["start", "end"])
     assert np.all(table["start"] == mock_cooler["bins"]["start"][lo:hi])
     assert np.all(table["end"] == mock_cooler["bins"]["end"][lo:hi])
 
@@ -40,62 +39,148 @@ def test_bintable(mock_cooler):
 def test_bintable_many_contigs():
     # In a file with many contigs, bins/chrom does not have an ENUM header,
     # so chromosome names are taken from the chroms/name
-    c = cooler.api.Cooler(op.join(testdir, "data", "manycontigs.1.cool"))
-    bins = c.bins()[:10]
+    clr = api.Cooler(op.join(datadir, "manycontigs.1.cool"))
+    bins = clr.bins()[:10]
     assert pd.api.types.is_categorical_dtype(bins["chrom"].dtype)
+
+    bins = clr.bins()[['chrom', 'start']][:10]
+    assert pd.api.types.is_categorical_dtype(bins["chrom"].dtype)
+
+    chroms = clr.bins()['chrom'][:10]
+    clr.bins()['start'][:10]
+    assert pd.api.types.is_categorical_dtype(chroms.dtype)
 
 
 def test_pixeltable(mock_cooler):
     lo, hi = 2, 10
-    table = cooler.api.pixels(mock_cooler, lo, hi, join=False)
+    table = api.pixels(mock_cooler, lo, hi, join=False)
     assert np.all(table["bin1_id"] == mock_cooler["pixels"]["bin1_id"][lo:hi])
     assert np.all(table["bin2_id"] == mock_cooler["pixels"]["bin2_id"][lo:hi])
 
-    table = cooler.api.pixels(mock_cooler, lo, hi, join=True)
+    table = api.pixels(mock_cooler, lo, hi, join=True)
     assert table.shape == (hi - lo, len(mock_cooler["pixels"]) + 4)
 
 
-def test_cooler(mock_cooler):
-    c = cooler.Cooler(mock_cooler)
+def test_annotate(mock_cooler):
+    clr = api.Cooler(mock_cooler)
+
+    # works with full bin table / view or only required bins
+    df = clr.matrix(as_pixels=True, balance=False).fetch("chr1")
+    df1 = api.annotate(df, clr.bins()[:])
+    df2 = api.annotate(df, clr.bins())
+    df3 = api.annotate(df, clr.bins().fetch("chr1"))
+    assert np.all(df1 == df2)
+    assert np.all(df1 == df3)
+
+    # works on empty dataframe
+    df4 = api.annotate(df[0:0], clr.bins()[:])
+    assert np.all(df4.columns == df3.columns)
+    assert len(df4) == 0
+
+
+def test_matrix():
+    clr = api.Cooler(op.join(datadir, "yeast.10kb.cool"))
+    region = ("chrI:100345-220254", "chrII:200789-813183")
+    # numpy array
+    clr.matrix(balance=False).fetch(*region)
+    clr.matrix(balance=True).fetch(*region)
+    clr.matrix(balance="weight").fetch(*region)
+    clr.matrix(balance="weight", divisive_weights=True).fetch(*region)
+    # sparse coo_matrix
+    clr.matrix(sparse=True, balance=False).fetch(*region)
+    clr.matrix(sparse=True, balance=True).fetch(*region)
+    clr.matrix(sparse=True, balance="weight").fetch(*region)
+    clr.matrix(
+        sparse=True, balance="weight", divisive_weights=True
+    ).fetch(*region)
+    # dataframe
+    clr.matrix(as_pixels=True, join=False, balance=False).fetch(*region)
+    clr.matrix(as_pixels=True, join=False, balance=True).fetch(*region)
+    clr.matrix(as_pixels=True, join=True, balance=True).fetch(*region)
+    clr.matrix(as_pixels=True, join=True, balance=True).fetch(*region)
+    clr.matrix(as_pixels=True, join=True, balance="weight").fetch(*region)
+    clr.matrix(
+        as_pixels=True, join=True, balance="weight", divisive_weights=True
+    ).fetch(*region)
+
+    # Unbalanced and asymmetric cooler
+    clr = api.Cooler(op.join(datadir, "toy.asymm.2.cool"))
+    region = ("chr2", "chr1:2-24")
+    # numpy array
+    clr.matrix(balance=False).fetch(*region)
+    with pytest.raises(ValueError):
+        clr.matrix(balance=True).fetch(*region)
+    # sparse coo_matrix
+    clr.matrix(sparse=True, balance=False).fetch(*region)
+    with pytest.raises(ValueError):
+        clr.matrix(sparse=True, balance=True).fetch(*region)
+    # dataframe
+    clr.matrix(as_pixels=True, join=False, balance=False).fetch(*region)
+    with pytest.raises(ValueError):
+        clr.matrix(
+            as_pixels=True, join=True, balance="weight", divisive_weights=True
+        ).fetch(*region)
+
+
+def test_cooler_class(mock_cooler):
+    clr = api.Cooler(mock_cooler)
+    assert clr.shape == (20, 20)
+
+    # chrom table
+    table = clr.chroms()[:]
+    assert (
+        table["name"].tolist()
+        == mock_cooler["chroms"]["name"].astype('U').tolist()
+    )
+    assert np.all(table["length"] == mock_cooler["chroms"]["length"])
 
     # bin table
-    table = c.bins().fetch("chr1")
+    table = clr.bins().fetch("chr1")
     assert np.all(table["start"] == mock_cooler["bins"]["start"][0:10])
     assert np.all(table["end"] == mock_cooler["bins"]["end"][0:10])
 
+    # pixel table
+    table = clr.pixels().fetch("chr1")
+
     # offsets
-    assert c.offset("chr1") == 0
-    assert c.extent("chr1") == (0, 10)
+    assert clr.offset("chr1") == 0
+    assert clr.extent("chr1") == (0, 10)
 
     # 2D range queries as rectangular or triangular
-    A1 = np.triu(c.matrix(balance=False).fetch("chr2"))
-    df = c.matrix(as_pixels=True, join=False, balance=False).fetch("chr2")
-    i0 = c.offset("chr2")
+    A1 = np.triu(clr.matrix(balance=False).fetch("chr2"))
+    df = clr.matrix(as_pixels=True, join=False, balance=False).fetch("chr2")
+    i0 = clr.offset("chr2")
     i, j, v = df["bin1_id"], df["bin2_id"], df["count"]
     mat = sps.coo_matrix((v, (i - i0, j - i0)), (A1.shape))
     A2 = np.triu(mat.toarray())
     assert np.all(A1 == A2)
 
 
-def test_annotate(mock_cooler):
-    c = cooler.Cooler(mock_cooler)
+def test_cooler_class2():
+    path = op.join(datadir, "toy.symm.upper.2.cool")
+    with h5py.File(path, 'r') as f:
+        clr = api.Cooler(f)
+        repr(clr)
+        assert clr.root == '/'
+        assert clr.filename == path
+        assert isinstance(clr.store, h5py.File)
+        with clr.open('r') as f:
+            pass
 
-    # works with full bin table / view or only required bins
-    df = c.matrix(as_pixels=True, balance=False).fetch("chr1")
-    df1 = cooler.annotate(df, c.bins()[:])
-    df2 = cooler.annotate(df, c.bins())
-    df3 = cooler.annotate(df, c.bins().fetch("chr1"))
-    assert np.all(df1 == df2)
-    assert np.all(df1 == df3)
+    with pytest.raises(KeyError):
+        api.Cooler(path + '::/does/not/exist')
 
-    # works on empty dataframe
-    df4 = cooler.annotate(df[0:0], c.bins()[:])
-    assert np.all(df4.columns == df3.columns)
-    assert len(df4) == 0
+    clr = api.Cooler(path)
+    clr._load_dset('indexes/chrom_offset')
+    clr._load_dset('indexes/bin1_offset')
+    clr._load_attrs('bins/chrom')
 
+    with clr.open('r') as f:
+        pass
 
-def test_matrix_as_pixels():
-    c = cooler.Cooler(op.join(testdir, "data", "yeast.10kb.cool"))
-    c.matrix(as_pixels=True, join=True, balance=True).fetch(
-        "chrI:100345-220254", "chrII:200789-813183"
-    )
+    assert clr.storage_mode == 'symmetric-upper'
+    assert clr.binsize == 2
+    assert len(clr.chromsizes) == 2
+    assert clr.info['nchroms'] == 2
+    assert clr.chromnames == ['chr1', 'chr2']
+    assert repr(clr) == '<Cooler "{}::{}">'.format('toy.symm.upper.2.cool', '/')

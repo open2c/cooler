@@ -1,5 +1,7 @@
 # Release notes #
 
+## Upcoming release...
+
 ## [v0.8.7](https://github.com/mirnylab/cooler/compare/v0.8.6...v0.8.7)
 
 Date: 2019-01-12
