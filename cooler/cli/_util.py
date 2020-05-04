@@ -39,7 +39,7 @@ class DelimitedTuple(click.types.ParamType):
 
 def parse_kv_list_param(arg, item_sep=",", kv_sep="="):
     import yaml
-    from io import StringIO
+    from six import StringIO
 
     if item_sep != ",":
         arg = arg.replace(item_sep, ",")

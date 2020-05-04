@@ -408,7 +408,7 @@ def read_attr_tree(group, level):
 
 def pprint_attr_tree(uri, level):
     import yaml
-    from io import StringIO
+    from six import StringIO
 
     path, group = parse_cooler_uri(uri)
     with h5py.File(path, "r") as f:
