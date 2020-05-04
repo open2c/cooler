@@ -298,20 +298,19 @@ def _sanitize_pixels(
     bin2_field="bin2_id",
     sided_fields=(),
     suffixes=("1", "2"),
-    validate=True,
     sort=True,
 ):
     if is_one_based:
-        chunk["bin1_id"] -= 1
-        chunk["bin2_id"] -= 1
+        chunk[bin1_field] -= 1
+        chunk[bin2_field] -= 1
 
     if tril_action is not None:
-        is_tril = chunk["bin1_id"] > chunk["bin2_id"]
+        is_tril = chunk[bin1_field] > chunk[bin2_field]
         if np.any(is_tril):
             if tril_action == "reflect":
-                chunk.loc[is_tril, "bin1_id"], chunk.loc[is_tril, "bin2_id"] = (
-                    chunk.loc[is_tril, "bin2_id"],
-                    chunk.loc[is_tril, "bin1_id"],
+                chunk.loc[is_tril, bin1_field], chunk.loc[is_tril, bin2_field] = (
+                    chunk.loc[is_tril, bin2_field],
+                    chunk.loc[is_tril, bin1_field],
                 )
                 for field in sided_fields:
                     chunk.loc[is_tril, field + suffixes[0]], chunk.loc[
@@ -327,7 +326,7 @@ def _sanitize_pixels(
             else:
                 raise ValueError("Unknown tril_action value: '{}'".format(tril_action))
 
-    return chunk.sort_values(["bin1_id", "bin2_id"]) if sort else chunk
+    return chunk.sort_values([bin1_field, bin2_field]) if sort else chunk
 
 
 def _validate_pixels(chunk, n_bins, boundscheck, triucheck, dupcheck, ensure_sorted):
@@ -411,9 +410,6 @@ def sanitize_pixels(bins, **kwargs):
         ('_x', '_y'), etc.
     sort : bool
         Whether to sort the output dataframe by bin_id and bin2_id.
-    validate : bool
-        Whether to do type- and bounds-checking on the bin IDs.
-        Raises BadInputError.
 
     Returns
     -------
@@ -425,15 +421,6 @@ def sanitize_pixels(bins, **kwargs):
     chromsizes = get_chromsizes(bins)
     kwargs["gs"] = GenomeSegmentation(chromsizes, bins)
     return partial(_sanitize_pixels, **kwargs)
-
-
-def _aggregate_records(chunk, sort, agg, rename):
-    return (
-        chunk.groupby(["bin1_id", "bin2_id"], sort=sort)
-        .aggregate(agg)
-        .rename(columns=rename)
-        .reset_index()
-    )
 
 
 def aggregate_records(sort=True, count=True, agg=None, rename=None):
@@ -484,8 +471,6 @@ def aggregate_records(sort=True, count=True, agg=None, rename=None):
         )
 
     return _aggregate_records
-
-    # return partial(_aggregate_records, sort=sort, agg=agg, rename=rename)
 
 
 class ContactBinner(object):
@@ -546,7 +531,7 @@ class HDF5Aggregator(ContactBinner):
         )
         return pd.DataFrame(data)
 
-    def aggregate(self, chrom):
+    def aggregate(self, chrom):  # pragma: no cover
         h5pairs = self.h5
         C1, P1, C2, P2 = self.C1, self.P1, self.C2, self.P2
         chunksize = self.chunksize
@@ -677,7 +662,7 @@ class TabixAggregator(ContactBinner):
             "ordering of read ends in the contact list file."
         )
 
-    def aggregate(self, grange):
+    def aggregate(self, grange):  # pragma: no cover
         chrom1, start, end = grange
         import pysam
 
@@ -834,7 +819,7 @@ class PairixAggregator(ContactBinner):
                     "Did not find contig " + " '{}' in contact list file.".format(chrom)
                 )
 
-    def aggregate(self, grange):
+    def aggregate(self, grange):  # pragma: no cover
         chrom1, start, end = grange
         import pypairix
 
@@ -924,92 +909,7 @@ class PairixAggregator(ContactBinner):
                 yield {k: v.values for k, v in six.iteritems(df)}
 
 
-class SparseLoader(ContactBinner):
-    """
-    Load binned contacts from a single 3-column sparse matrix text file.
-
-    """
-
-    FIELD_NUMBERS = OrderedDict([("bin1_id", 0), ("bin2_id", 1), ("count", 2)])
-
-    FIELD_DTYPES = OrderedDict([("bin1_id", int), ("bin2_id", int), ("count", int)])
-
-    def __init__(
-        self,
-        filepath,
-        bins,
-        chunksize,
-        field_numbers=None,
-        field_dtypes=None,
-        one_based=False,
-    ):
-        """
-        Parameters
-        ----------
-        filepath : str
-            Path to tsv file
-        chunksize : number of rows of the matrix file to read at a time
-
-        """
-        self._map = map
-        self.filepath = filepath
-        self.chunksize = chunksize
-        self.one_based_bin_ids = one_based
-        self.n_bins = len(bins)
-
-        # Assign the column numbers
-        self.field_numbers = self.FIELD_NUMBERS.copy()
-        if field_numbers is not None:
-            self.field_numbers.update(field_numbers)
-        self.columns = list(self.field_numbers.keys())
-        self.usecols = list(self.field_numbers.values())
-
-        # Assign the column dtypes. Assume additional value fields are float.
-        self.out_columns = ["bin1_id", "bin2_id", "count"]
-        self.dtypes = self.FIELD_DTYPES.copy()
-        for col in self.columns:
-            if col not in self.dtypes:
-                self.out_columns.append(col)
-                self.dtypes[col] = float
-
-        # Override defaults
-        if field_dtypes is not None:
-            self.dtypes.update(field_dtypes)
-
-    def __iter__(self):
-        n_bins = self.n_bins
-
-        iterator = pd.read_csv(
-            self.filepath,
-            sep="\t",
-            iterator=True,
-            comment="#",
-            chunksize=self.chunksize,
-            usecols=self.usecols,
-            names=self.columns,
-            dtype=self.dtypes,
-        )
-
-        for chunk in iterator:
-            if np.any(chunk["bin1_id"] > chunk["bin2_id"]):
-                raise ValueError("Found bin1_id greater than bin2_id")
-            if self.one_based_bin_ids:
-                # convert to zero-based
-                if np.any(chunk["bin1_id"] <= 0) or np.any(chunk["bin2_id"] <= 0):
-                    raise ValueError(
-                        "Found bin ID <= 0. Are you sure bin IDs are one-based?"
-                    )
-                chunk["bin1_id"] -= 1
-                chunk["bin2_id"] -= 1
-            if np.any(chunk["bin1_id"] >= n_bins) or np.any(chunk["bin2_id"] >= n_bins):
-                raise ValueError(
-                    "Found a bin ID that exceeds the declared number of bins. "
-                    "Check whether your bin table is correct."
-                )
-            yield {k: v.values for k, v in six.iteritems(chunk)}
-
-
-class SparseBlockLoader(ContactBinner):
+class SparseBlockLoader(ContactBinner):  # pragma: no cover
     """
 
     """
@@ -1112,7 +1012,7 @@ class ArrayLoader(ContactBinner):
             }
 
 
-class ArrayBlockLoader(ContactBinner):
+class ArrayBlockLoader(ContactBinner):  # pragma: no cover
     """
 
     """
