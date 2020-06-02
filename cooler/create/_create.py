@@ -439,6 +439,8 @@ def create(
     ensure_sorted=False,
     lock=None,
     append=False,
+    append_scool=False,
+    scool_root_uri=None,
     **kwargs
 ):
     """
@@ -470,7 +472,10 @@ def create(
             "Note that the `chromsizes` argument is now deprecated: "
             "see documentation for `create`."
         )
-
+    if append_scool == True and scool_root_uri is None:
+        raise ValueError(
+            "If the parameter `append_scool` is set, the parameter `scool_root_uri` must be defined."
+        )
     dtypes = _get_dtypes_arg(dtypes, kwargs)
 
     for col in ["chrom", "start", "end"]:
@@ -572,23 +577,46 @@ def create(
                 f.create_group(group_path)
 
     # Write chroms, bins and pixels
-    with h5py.File(file_path, "r+") as f:
-        h5 = f[group_path]
+    if append_scool:
+        src_path, src_group = parse_cooler_uri(scool_root_uri)
+        dst_path, dst_group = parse_cooler_uri(cool_uri)
+        with h5py.File(src_path, "r+") as src, h5py.File(dst_path, "r+") as dst:
+            
+            dst["chroms"] = src["chroms"]
+            dst["bins"] = src["bins"]
 
-        logger.info("Writing chroms")
-        grp = h5.create_group("chroms")
-        write_chroms(grp, chroms, h5opts)
+            h5 = f[group_path]
+            grp = h5.create_group("pixels")
+            if symmetric_upper:
+                max_size = n_bins * (n_bins - 1) // 2 + n_bins
+            else:
+                max_size = n_bins * n_bins
+            prepare_pixels(grp, n_bins, max_size, meta.columns, dict(meta.dtypes), h5opts)
+            # logger.info("Writing chroms")
+            # grp = h5.create_group("chroms")
+            # write_chroms(grp, chroms, h5opts)
 
-        logger.info("Writing bins")
-        grp = h5.create_group("bins")
-        write_bins(grp, bins, chroms["name"], h5opts)
+            # logger.info("Writing bins")
+            # grp = h5.create_group("bins")
+            # write_bins(grp, bins, chroms["name"], h5opts)
+    else:
+        with h5py.File(file_path, "r+") as f:
+            h5 = f[group_path]
 
-        grp = h5.create_group("pixels")
-        if symmetric_upper:
-            max_size = n_bins * (n_bins - 1) // 2 + n_bins
-        else:
-            max_size = n_bins * n_bins
-        prepare_pixels(grp, n_bins, max_size, meta.columns, dict(meta.dtypes), h5opts)
+            logger.info("Writing chroms")
+            grp = h5.create_group("chroms")
+            write_chroms(grp, chroms, h5opts)
+
+            logger.info("Writing bins")
+            grp = h5.create_group("bins")
+            write_bins(grp, bins, chroms["name"], h5opts)
+
+            grp = h5.create_group("pixels")
+            if symmetric_upper:
+                max_size = n_bins * (n_bins - 1) // 2 + n_bins
+            else:
+                max_size = n_bins * n_bins
+            prepare_pixels(grp, n_bins, max_size, meta.columns, dict(meta.dtypes), h5opts)
 
     # Multiprocess HDF5 reading is supported only if the same HDF5 file is not
     # open in write mode anywhere. To read and write to the same file, pass a
@@ -1000,3 +1028,139 @@ def create_cooler(
             temp_dir=temp_dir,
             max_merge=max_merge,
         )
+
+def create_scool(cool_uri, bins, pixels_list, cell_name_list, columns=None,
+    dtypes=None,
+    metadata=None,
+    assembly=None,
+    ordered=False,
+    symmetric_upper=True,
+    mergebuf=int(20e6),
+    delete_temp=True,
+    temp_dir=None,
+    max_merge=200,
+    boundscheck=True,
+    dupcheck=True,
+    triucheck=True,
+    ensure_sorted=False,
+    h5opts=None,
+    lock=None,):
+
+    file_path, group_path = parse_cooler_uri(cool_uri)
+    # Prepare chroms and bins
+    bins = bins.copy()
+    bins["chrom"] = bins["chrom"].astype(object)
+    chromsizes = get_chromsizes(bins)
+    try:
+        chromsizes = six.iteritems(chromsizes)
+    except AttributeError:
+        pass
+    chromnames, lengths = zip(*chromsizes)
+    chroms = pd.DataFrame(
+        {"name": chromnames, "length": lengths}, columns=["name", "length"]
+    )
+    binsize = get_binsize(bins)
+    n_chroms = len(chroms)
+    n_bins = len(bins)
+
+    # Create root group
+    with h5py.File(file_path, 'w') as f:
+        logger.info('Creating cooler at "{}::{}"'.format(file_path, group_path))
+        if group_path == "/":
+            for name in ["chroms", "bins"]:
+                if name in f:
+                    del f[name]
+        else:
+            try:
+                f.create_group(group_path)
+            except ValueError:
+                del f[group_path]
+                f.create_group(group_path)
+
+    with h5py.File(file_path, "r+") as f:
+        h5 = f[group_path]
+
+        logger.info("Writing chroms")
+        grp = h5.create_group("chroms")
+        write_chroms(grp, chroms, h5opts)
+
+        logger.info("Writing bins")
+        grp = h5.create_group("bins")
+        write_bins(grp, bins, chroms["name"], h5opts)
+
+    with h5py.File(file_path, "r+") as f:
+        h5 = f[group_path]
+
+        logger.info("Writing info")
+        info = {}
+        info["bin-type"] = u"fixed" if binsize is not None else u"variable"
+        info["bin-size"] = binsize if binsize is not None else u"null"
+        info["nchroms"] = n_chroms
+        info["ncells"] = len(pixels_list)
+        if assembly is not None:
+            info["genome-assembly"] = assembly
+        if metadata is not None:
+            info["metadata"] = metadata
+        write_info(h5, info)
+
+    for cell_pixel, cell_name in zip(pixels_list, cell_name_list):
+        create(cool_uri+'::/cells/'+cell_name, bins, cell_pixel, columns=columns,
+            dtypes=dtypes,
+            metadata=metadata,
+            assembly=assembly,
+            ordered=ordered,
+            symmetric_upper=symmetric_upper,
+            mode='a',
+            boundscheck=boundscheck,
+            dupcheck=dupcheck,
+            triucheck=triucheck,
+            ensure_sorted=ensure_sorted,
+            h5opts=h5opts,
+            lock=lock,
+            mergebuf=mergebuf,
+            delete_temp=delete_temp,
+            temp_dir=temp_dir,
+            max_merge=max_merge,)
+
+
+def add_cells_to_scool(cool_uri, pixels_list, cell_uri_list, columns=None,
+    dtypes=None,
+    metadata=None,
+    assembly=None,
+    ordered=False,
+    symmetric_upper=True,
+    mergebuf=int(20e6),
+    delete_temp=True,
+    temp_dir=None,
+    max_merge=200,
+    boundscheck=True,
+    dupcheck=True,
+    triucheck=True,
+    ensure_sorted=False,
+    h5opts=None,
+    lock=None,):
+    file_path, group_path = parse_cooler_uri(cool_uri)
+    for cell_pixel, cell_name in zip(pixels_list, cell_name_list):
+        create(file_path+'::/cells/'+cell_name, bins, cell_pixel, columns=columns,
+            dtypes=dtypes,
+            metadata=metadata,
+            assembly=assembly,
+            ordered=ordered,
+            symmetric_upper=symmetric_upper,
+            mode='a',
+            boundscheck=boundscheck,
+            dupcheck=dupcheck,
+            triucheck=triucheck,
+            ensure_sorted=ensure_sorted,
+            h5opts=h5opts,
+            lock=lock,
+            mergebuf=mergebuf,
+            delete_temp=delete_temp,
+            temp_dir=temp_dir,
+            max_merge=max_merge,)
+    cooler_file = cooler.Cooler(self.matrixFileName)
+    with h5py.File(file_path, "r+") as f:
+        h5 = f[group_path]
+        info_scool = info(h5)
+        info_scool['ncells'] = len(pixels_list) + int(info_scool['ncells'])
+        write_info(h5, info_scool)

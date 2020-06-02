@@ -432,3 +432,51 @@ def test_create_cooler_from_dask():
         #     pixels,
         #     ordered=False
         # )
+
+def test_create_scool(fp):
+    import dask.dataframe as dd
+
+    c = cooler.Cooler(fp)
+    # chromsizes = c.chromsizes
+    bins = c.bins()[:]
+    pixels = c.pixels()[:]
+
+    # create
+    cooler.create.screate(op.join(tmp, "test.df.2000kb.cool"), bins, pixels)
+    cooler.create.create(
+        op.join(tmp, "test.dict.2000kb.cool"),
+        bins,
+        {k: v for k, v in iteritems(pixels)},
+    )
+    cooler.create.create(op.join(tmp, "test.iter_df.2000kb.cool"), bins, [pixels])
+    cooler.create.create(
+        op.join(tmp, "test.iter_dict.2000kb.cool"),
+        bins,
+        [{k: v for k, v in iteritems(pixels)}],
+    )
+    ddf = dd.from_pandas(pixels, npartitions=3)
+    cooler.create.create(op.join(tmp, "test.ddf.2000kb.cool"), bins, ddf)
+
+    # Append
+    cooler.create.append(
+        op.join(tmp, "test.df.2000kb.cool"),
+        "bins",
+        {"start_1based": bins.apply(lambda x: x.start + 1, axis=1)},
+    )
+    cooler.create.append(op.join(tmp, "test.df.2000kb.cool"), "bins", {"ones": 1})
+    series = ddf["count"] / ddf["count"].sum()
+    series.name = "normed"
+    cooler.create.append(op.join(tmp, "test.df.2000kb.cool"), "pixels", series)
+    cooler.create.append(
+        op.join(tmp, "test.df.2000kb.cool"), "pixels", series, force=True
+    )
+    cooler.create.append(
+        op.join(tmp, "test.df.2000kb.cool"),
+        "bins",
+        {"twos": [np.ones(1000, dtype=int) * 2, np.ones(561, dtype=int) * 2]},
+        chunked=True,
+        force=True,
+    )
+    c2 = cooler.Cooler(op.join(tmp, "test.df.2000kb.cool"))
+    assert len(c2.bins().columns) == 6
+    assert len(c2.pixels().columns) == 4

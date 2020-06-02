@@ -28,4 +28,4 @@ from ._ingest import (
     ContactBinner,
 )
 
-from ._create import create_cooler, create, create_from_unordered, append, rename_chroms
+from ._create import create_cooler, create, create_from_unordered, append, rename_chroms, create_scool, add_cells_to_scool
