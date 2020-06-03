@@ -433,50 +433,23 @@ def test_create_cooler_from_dask():
         #     ordered=False
         # )
 
+
+@pytest.mark.parametrize(
+    "fp", [op.join(datadir, "hg19.GM12878-MboI.matrix.2000kb.cool")]
+)
 def test_create_scool(fp):
-    import dask.dataframe as dd
+    outfile_scool = tempfile.NamedTemporaryFile(suffix='.scool', delete=True)
 
     c = cooler.Cooler(fp)
     # chromsizes = c.chromsizes
     bins = c.bins()[:]
     pixels = c.pixels()[:]
 
-    # create
-    cooler.create.screate(op.join(tmp, "test.df.2000kb.cool"), bins, pixels)
-    cooler.create.create(
-        op.join(tmp, "test.dict.2000kb.cool"),
-        bins,
-        {k: v for k, v in iteritems(pixels)},
-    )
-    cooler.create.create(op.join(tmp, "test.iter_df.2000kb.cool"), bins, [pixels])
-    cooler.create.create(
-        op.join(tmp, "test.iter_dict.2000kb.cool"),
-        bins,
-        [{k: v for k, v in iteritems(pixels)}],
-    )
-    ddf = dd.from_pandas(pixels, npartitions=3)
-    cooler.create.create(op.join(tmp, "test.ddf.2000kb.cool"), bins, ddf)
+    cooler.create_scool(outfile_scool.name, bins, [pixels, pixels, pixels], ['cell1', 'cell2', 'cell3'])
 
-    # Append
-    cooler.create.append(
-        op.join(tmp, "test.df.2000kb.cool"),
-        "bins",
-        {"start_1based": bins.apply(lambda x: x.start + 1, axis=1)},
-    )
-    cooler.create.append(op.join(tmp, "test.df.2000kb.cool"), "bins", {"ones": 1})
-    series = ddf["count"] / ddf["count"].sum()
-    series.name = "normed"
-    cooler.create.append(op.join(tmp, "test.df.2000kb.cool"), "pixels", series)
-    cooler.create.append(
-        op.join(tmp, "test.df.2000kb.cool"), "pixels", series, force=True
-    )
-    cooler.create.append(
-        op.join(tmp, "test.df.2000kb.cool"),
-        "bins",
-        {"twos": [np.ones(1000, dtype=int) * 2, np.ones(561, dtype=int) * 2]},
-        chunked=True,
-        force=True,
-    )
-    c2 = cooler.Cooler(op.join(tmp, "test.df.2000kb.cool"))
-    assert len(c2.bins().columns) == 6
-    assert len(c2.pixels().columns) == 4
+    content_of_scool = cooler.fileops.list_coolers(outfile_scool.name)
+
+    content_expected = ['/', '/cells/cell1', '/cells/cell2', '/cells/cell3']
+
+    for content in content_expected:
+        assert content in content_of_scool

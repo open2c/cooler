@@ -12,7 +12,7 @@ A cool place to store your Hi-C.
 """
 from ._version import __version__, __format_version__
 from .api import Cooler, annotate
-from .create import create_cooler, rename_chroms, create_scool, add_cells_to_scool
+from .create import create_cooler, rename_chroms, create_scool
 from .reduce import merge_coolers, coarsen_cooler, zoomify_cooler
 from .balance import balance_cooler
 from .util import binnify, read_chromsizes, fetch_chromsizes
