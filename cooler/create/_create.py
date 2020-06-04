@@ -1130,6 +1130,8 @@ def create_scool(cool_uri, bins, pixels_list, cell_name_list, columns=None,
         write_info(h5, info, True)
 
     for cell_pixel, cell_name in zip(pixels_list, cell_name_list):
+        if '/' in cell_name:
+            cell_name = cell_name.split('/')[-1]
         create(cool_uri+'::/cells/'+cell_name, bins, cell_pixel, columns=columns,
             dtypes=dtypes,
             metadata=metadata,
