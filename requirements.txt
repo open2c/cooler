@@ -6,7 +6,7 @@ h5py>=2.5
 click>=7
 cytoolz
 multiprocess
-biopython
+biopython<1.77
 pyfaidx
 pypairix
 asciitree
