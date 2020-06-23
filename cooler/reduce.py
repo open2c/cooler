@@ -342,6 +342,97 @@ def get_quadtree_depth(chromsizes, base_binsize, bins_per_tile):
     return n_zoom_levels
 
 
+def geomprog(start, mul):
+    """
+    Generate a geometric progression of integers.
+
+    Beginning with integer ``start``, yield an unbounded geometric progression
+    with integer ratio ``mul``.
+
+    """
+    start, mul = int(start), int(mul)
+    yield start
+    while True:
+        start *= mul
+        yield start
+
+
+def niceprog(start):
+    """
+    Generate a nice progression of integers.
+
+    Beginning with integer ``start``, yield a sequence of "nicely" spaced
+    integers: an unbounded geometric progression with ratio 10, interspersed
+    with steps of ratios 2 and 5.
+
+    """
+    start = int(start)
+    yield start
+    while True:
+        for mul in (2, 5, 10):
+            yield start * mul
+        start *= 10
+
+
+def preferred_sequence(start, stop, style='nice'):
+    """
+    Return a sequence of integers with a "preferred" stepping pattern.
+
+    Parameters
+    ----------
+    start : int
+        Starting value in the progression.
+    stop : int
+        Upper bound of progression, inclusive. Values will not exceed this.
+    style : {'nice', 'binary'}
+        Style of progression. 'nice' gives geometric steps of 10 with 2 and 5
+        in between. 'binary' gives geometric steps of 2.
+
+    Returns
+    ------
+    list of int
+
+    Examples
+    --------
+    For certain values of `start` (n * 10^i), nice stepping produces familiar
+    "preferred" sequences [1]_:
+
+    Note denominations in Dollars (1-2-5)
+
+        >>> preferred_sequence(1, 100, 'nice')
+        [1, 2, 5, 10, 20, 50, 100]
+
+
+    Coin denominations in Cents
+
+        >>> preferred_sequence(5, 100, 'nice')
+        [5, 10, 25, 50, 100]
+
+    .. [1] https://en.wikipedia.org/wiki/Preferred_number#1-2-5_series
+
+    """
+    if start > stop:
+        return []
+
+    if style == 'binary':
+        gen = geomprog(start, 2)
+    elif style == 'nice':
+        gen = niceprog(start)
+    else:
+        ValueError(
+            "Expected style value of 'binary' or 'nice'; got '{}'.".format(style)
+        )
+
+    seq = [next(gen)]
+    while True:
+        n = next(gen)
+        if n > stop:
+            break
+        seq.append(n)
+
+    return seq
+
+
 def get_multiplier_sequence(resolutions, bases=None):
     """
     From a set of target resolutions and one or more base resolutions

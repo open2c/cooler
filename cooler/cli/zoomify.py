@@ -1,10 +1,12 @@
 # -*- coding: utf-8 -*-
 from __future__ import division, print_function
+from math import ceil
 import shlex
+import sys
+import warnings
 
 from ._util import parse_field_param
 from . import cli, get_logger
-from click.testing import CliRunner
 import click
 
 from ..reduce import (
@@ -12,10 +14,42 @@ from ..reduce import (
     zoomify_cooler,
     get_quadtree_depth,
     HIGLASS_TILE_DIM,
+    preferred_sequence
 )
 from ..util import parse_cooler_uri
 from ..tools import lock
 from .. import api
+
+
+def invoke_balance(args, resolutions, outfile):
+    from .balance import balance as balance_cmd
+
+    logger = get_logger(__name__)
+    if args is None:
+        args = []
+    else:
+        args = shlex.split(args)
+    logger.debug("Balancing args: {}".format(args))
+
+    for res in resolutions:
+        uri = outfile + "::resolutions/" + str(res)
+        if "weight" in api.Cooler(uri).bins():
+            continue
+        logger.info("Balancing zoom level with bin size {}".format(res))
+
+        try:
+            balance_cmd.main(
+                args=[uri] + args, prog_name='cooler'
+            )
+        except SystemExit as e:
+            exc_info = sys.exc_info()
+            exit_code = e.code
+
+            if exit_code is None:
+                exit_code = 0
+
+            if exit_code != 0:
+                raise e
 
 
 @cli.command()
@@ -76,7 +110,9 @@ from .. import api
     is_flag=True,
     default=False,
 )
+@click.pass_context
 def zoomify(
+    ctx,
     cool_uri,
     nproc,
     chunksize,
@@ -94,8 +130,6 @@ def zoomify(
     COOL_PATH : Path to a COOL file or Cooler URI.
 
     """
-    from .balance import balance as balance_cmd
-
     logger = get_logger(__name__)
     infile, _ = parse_cooler_uri(cool_uri)
 
@@ -113,7 +147,7 @@ def zoomify(
         )
 
         if balance:
-            runner = CliRunner()
+            from .balance import balance as balance_cmd
 
             if balance_args is None:
                 balance_args = []
@@ -127,16 +161,62 @@ def zoomify(
                     if "weight" in api.Cooler(uri).bins():
                         continue
                 logger.info("Balancing zoom level {}, bin size {}".format(level, res))
-                result = runner.invoke(balance_cmd, args=[uri] + balance_args)
-                if result.exit_code != 0:
-                    raise result.exception
+                try:
+                    balance_cmd.main(
+                        args=[uri] + balance_args, prog_name='cooler'
+                    )
+                except SystemExit as e:
+                    exc_info = sys.exc_info()
+                    exit_code = e.code
+
+                    if exit_code is None:
+                        exit_code = 0
+
+                    if exit_code != 0:
+                        raise e
+
     else:
-        if resolutions is not None:
-            resolutions = [int(s.strip()) for s in resolutions.split(",")]
+
+        clr = api.Cooler(cool_uri)
+        genome_length = clr.chromsizes.values.sum()
+
+        # Determine the coarsest resolution based on fitting the entire genome
+        # in a single 256 x 256 tile.
+        if clr.binsize:
+            maxres = int(ceil(genome_length / HIGLASS_TILE_DIM))
+            curres = clr.binsize
         else:
-            clr = api.Cooler(cool_uri)
-            n_zooms = get_quadtree_depth(clr.chromsizes, clr.binsize, HIGLASS_TILE_DIM)
-            resolutions = [clr.binsize * 2 ** i for i in range(n_zooms)]
+            mean_fragsize = clr.bins()[['end', 'start']][:].diff(axis=1).mean()
+            maxres = int(ceil(genome_length / mean_fragsize / HIGLASS_TILE_DIM))
+            curres = 1
+
+        # Default is to use a binary geometric progression
+        if resolutions is None:
+            resolutions = 'b'
+
+        # Parse and expand user-provided resolutions
+        resolutions, rstring = [], resolutions
+        for res in [s.strip().lower() for s in rstring.split(",")]:
+            if 'n' in res or 'b' in res and maxres < curres:
+                warnings.warn(
+                    "Map is already < 256 x 256. Provide resolutions "
+                    "explicitly if you want to coarsen more."
+                )
+            if res == 'n':
+                r = preferred_sequence(curres, maxres, 'nice')
+            elif res == 'b':
+                r = preferred_sequence(curres, maxres, 'binary')
+            elif res == '4dn':
+                r = [1000, 2000] + preferred_sequence(5000, maxres, 'nice')
+            elif res.endswith('n'):
+                res = int(res.split('n')[0])
+                r = preferred_sequence(res, maxres, 'nice')
+            elif res.endswith('n'):
+                res = int(res.split('b')[0])
+                r = preferred_sequence(res, maxres, 'binary')
+            else:
+                r = [int(res)]
+            resolutions.extend(r)
 
         if len(field):
             field_specifiers = [
@@ -151,6 +231,8 @@ def zoomify(
             # Default aggregation. Dtype will be inferred.
             columns, dtypes, agg = ["count"], None, None
 
+        # logger.info("Applying resolutions {}".format(resolutions))
+
         zoomify_cooler(
             [cool_uri] + list(base_uri),
             outfile,
@@ -164,19 +246,4 @@ def zoomify(
         )
 
         if balance:
-            runner = CliRunner()
-
-            if balance_args is None:
-                balance_args = []
-            else:
-                balance_args = shlex.split(balance_args)
-            logger.debug("Balancing args: {}".format(balance_args))
-
-            for res in resolutions:
-                uri = outfile + "::resolutions/" + str(res)
-                if "weight" in api.Cooler(uri).bins():
-                    continue
-                logger.info("Balancing zoom level with bin size {}".format(res))
-                result = runner.invoke(balance_cmd, args=[uri] + balance_args)
-                if result.exit_code != 0:
-                    raise result.exception
+            invoke_balance(balance_args, resolutions, outfile)

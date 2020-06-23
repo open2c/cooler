@@ -3,12 +3,12 @@
 <a href="https://mirnylab.github.io/cooler"><img width="25%" src="https://github.com/mirnylab/cooler/raw/master/docs/cooler_logo.png" alt="Cooler"></a>
 
 [![Build Status](https://travis-ci.org/mirnylab/cooler.svg?branch=master)](https://travis-ci.org/mirnylab/cooler)
+[![CodeCov](https://codecov.io/gh/mirnylab/cooler/branch/master/graph/badge.svg)](https://codecov.io/gh/mirnylab/cooler)
 [![Documentation Status](https://readthedocs.org/projects/cooler/badge/?version=latest)](http://cooler.readthedocs.org/en/latest/)
 [![install with bioconda](https://img.shields.io/badge/install%20with-bioconda-brightgreen.svg?style=flat-square)](http://bioconda.github.io/recipes/cooler/README.html)
 [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/mirnylab/cooler-binder/master)
 [![Join the chat at https://gitter.im/mirnylab/cooler](https://badges.gitter.im/mirnylab/cooler.svg)](https://gitter.im/mirnylab/cooler?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 [![DOI](https://zenodo.org/badge/49553222.svg)](https://zenodo.org/badge/latestdoi/49553222)
-[![CodeCov](https://codecov.io/gh/mirnylab/cooler/branch/master/graph/badge.svg)](https://codecov.io/gh/mirnylab/cooler)
 
 ## A cool place to store your Hi-C
 

@@ -6,9 +6,9 @@ python:
   - "3.7"
   - "3.8"
 install:
-  # http://conda.pydata.org/docs/travis.html
   - sudo apt-get update
   - sudo apt-get install -y pigz tabix
+
   # We do this conditionally because it saves us some downloading if the version is the same.
   - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
       wget https://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh;
@@ -20,14 +20,15 @@ install:
   - hash -r
   - conda config --set always_yes yes --set changeps1 no
   - conda update -q conda
+
   # Useful for debugging any issues with conda
   - conda info -a
 
   # Create test environment and install deps
-  - conda create -c bioconda -q -n test-environment python=$TRAVIS_PYTHON_VERSION numpy cython h5py
+  - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION numpy cython h5py
   - source activate test-environment
-  - pip install six scipy pandas pysam dask[array,dataframe]
-  - pip install psutil ipytree matplotlib
+  - pip install six scipy pandas dask[array,dataframe]
+  - pip install pysam psutil ipytree matplotlib
   - pip install mock pytest pytest-flake8 pytest-cov codecov
   - pip install -e .
 
