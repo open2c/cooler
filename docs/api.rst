@@ -68,6 +68,8 @@ cooler
 .. autofunction:: cooler.merge_coolers
 .. autofunction:: cooler.coarsen_cooler
 .. autofunction:: cooler.zoomify_cooler
+.. autofunction:: cooler.balance_cooler
+.. autofunction:: cooler.rename_chroms
 
 ----
 

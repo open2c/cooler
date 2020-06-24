@@ -18,6 +18,7 @@ classifiers = """\
     Programming Language :: Python :: 3.5
     Programming Language :: Python :: 3.6
     Programming Language :: Python :: 3.7
+    Programming Language :: Python :: 3.8
 """
 
 
@@ -51,19 +52,16 @@ def get_requirements(path):
 
 
 install_requires = get_requirements('requirements.txt')
-
-
-tests_require = [
-    'pytest',
-    'mock'
-]
-
 extras_require = {
-    'docs': [
-        'Sphinx>=1.1',
-        'numpydoc>=0.5'
+    'tests': ['pytest', 'mock', 'pytest-flake8', 'pytest-cov', 'codecov'],
+    'docs': get_requirements(os.path.join('docs', 'requirements.txt')),
+    'all': [
+        'biopython<1.77',
+        'dask[array,dataframe]',
+        'ipytree',
+        'psutil',
+        'pysam',
     ],
-    'pysam': ['pysam']
 }
 
 
@@ -82,7 +80,6 @@ setup(
     zip_safe=False,
     classifiers=[s.strip() for s in classifiers.split('\n') if s],
     install_requires=install_requires,
-    tests_require=tests_require,
     extras_require=extras_require,
     entry_points={
         'console_scripts': [
