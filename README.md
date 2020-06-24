@@ -42,6 +42,8 @@ Requirements:
 
 See the [docs](http://cooler.readthedocs.org/en/latest/) for more information.
 
+**NOTE: Python 2.7 support will sunset with cooler 0.8.**
+
 
 ### Contributing
 
