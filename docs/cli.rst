@@ -666,7 +666,7 @@ COOL_PATH : Path to a COOL file or Cooler URI.
 
 .. option:: -r, --resolutions <resolutions>
 
-    Comma-separated list of target resolutions.
+    Comma-separated list of target resolutions. Use suffixes B or N to specify a progression: B for binary (geometric steps of factor 2), N for nice (geometric steps of factor 10 interleaved with steps of 2 and 5). Examples: 1000B=1000,2000,4000,8000,... 1000N=1000,2000,5000,10000,... 5000N=5000,10000,25000,50000,... 4DN is an alias for 1000,2000,5000N [default: B]
 
 .. option:: --balance
 
