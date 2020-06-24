@@ -2,9 +2,26 @@
 
 ## Upcoming release...
 
+## [v0.8.8](https://github.com/mirnylab/cooler/compare/v0.8.7...v0.8.8)
+
+Date : 2020-06-23
+
+### Maintenance
+* Improved code coverage
+* Added missing autodoc for cooler balance
+* Dropped pysam and biopython as hard dependencies
+* Officially sunsetting Python 2.7 support
+
+### Enhancements
+* Added zoom progressions (#203)
+
+### Bug fixes
+* Allow hashes in read IDs in cload pairs (#193)
+
+
 ## [v0.8.7](https://github.com/mirnylab/cooler/compare/v0.8.6...v0.8.7)
 
-Date: 2019-01-12
+Date: 2020-01-12
 
 ### Maintenance
 * Code styling with black
