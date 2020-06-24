@@ -28,7 +28,7 @@ install:
   - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION numpy cython h5py
   - source activate test-environment
   - pip install six scipy pandas dask[array,dataframe]
-  - pip install pysam psutil ipytree matplotlib
+  - pip install 'biopython<1.77' pysam psutil ipytree matplotlib
   - pip install mock pytest pytest-flake8 pytest-cov codecov
   - pip install -e .
 
