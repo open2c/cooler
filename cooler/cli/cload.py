@@ -1,8 +1,5 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function
 from multiprocess import Pool
 import simplejson as json
-import six
 import sys
 
 from cytoolz import compose
@@ -209,8 +206,6 @@ def tabix(bins, pairs_path, cool_path, metadata, assembly, nproc, zero_based, ma
             pool = Pool(nproc)
             logger.info("Using {} cores".format(nproc))
             map = pool.imap
-        else:
-            map = six.moves.map
 
         opts = {}
         if 'chrom2' in kwargs:
@@ -287,8 +282,6 @@ def pairix(bins, pairs_path, cool_path, metadata, assembly, nproc, zero_based, m
             pool = Pool(nproc)
             logger.info("Using {} cores".format(nproc))
             map = pool.imap
-        else:
-            map = six.moves.map
 
         iterator = PairixAggregator(
             pairs_path,

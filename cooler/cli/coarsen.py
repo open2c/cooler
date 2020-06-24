@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import division, print_function
 import os.path as op
 
 from ._util import parse_field_param

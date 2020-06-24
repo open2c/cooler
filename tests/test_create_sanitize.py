@@ -1,6 +1,4 @@
-# -*- coding: utf-8 -*-
-from __future__ import division, print_function
-from six import StringIO
+from io import StringIO
 import os.path as op
 
 import numpy as np

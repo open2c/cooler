@@ -1,4 +1,3 @@
-from __future__ import absolute_import, division
 from io import StringIO
 import os.path as op
 import numpy as np

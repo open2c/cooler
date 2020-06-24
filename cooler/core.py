@@ -1,10 +1,7 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, print_function, division
 from pandas.api.types import is_categorical
 import pandas as pd
 import numpy as np
 import h5py
-import six
 
 
 def get(grp, lo=0, hi=None, fields=None, convert_enum=True, as_dict=False):
@@ -42,7 +39,7 @@ def get(grp, lo=0, hi=None, fields=None, convert_enum=True, as_dict=False):
     series = False
     if fields is None:
         fields = list(grp.keys())
-    elif isinstance(fields, six.string_types):
+    elif isinstance(fields, str):
         fields = [fields]
         series = True
 
@@ -114,7 +111,7 @@ def put(grp, df, lo=0, store_categories=True, h5opts=None):
         df = df.to_frame()
 
     # fields = df.keys()
-    for field, data in six.iteritems(df):
+    for field, data in df.items():
 
         if np.isscalar(data):
             data = np.array([data])
@@ -184,7 +181,7 @@ def delete(grp, fields=None):
     """
     if fields is None:
         fields = list(grp.keys())
-    elif isinstance(fields, six.string_types):
+    elif isinstance(fields, str):
         fields = [fields]
     for field in fields:
         if field in grp.keys():

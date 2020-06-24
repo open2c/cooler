@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import division, print_function
-
 from ._util import parse_field_param
 from . import cli
 import click

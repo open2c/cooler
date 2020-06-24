@@ -37,12 +37,12 @@ $ conda install -c conda-forge -c bioconda cooler
 
 Requirements:
 
-- Python 2.7/3.4+
+- Python 3.6+
 - libhdf5 and Python packages `numpy`, `scipy`, `pandas`, `h5py`. We highly recommend using the `conda` package manager to install scientific packages like these. To get it, you can either install the full [Anaconda](https://www.continuum.io/downloads) Python distribution or just the standalone [conda](http://conda.pydata.org/miniconda.html) package manager.
 
 See the [docs](http://cooler.readthedocs.org/en/latest/) for more information.
 
-**NOTE: Python 2.7 support will sunset with cooler 0.8.**
+Note: Python 2.7 support has ceased as of cooler 0.9.
 
 
 ### Contributing

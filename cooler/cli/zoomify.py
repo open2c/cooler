@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import division, print_function
 from math import ceil
 import shlex
 import sys

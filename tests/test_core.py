@@ -1,4 +1,3 @@
-from __future__ import division, print_function
 from io import BytesIO
 from scipy import sparse
 import numpy as np

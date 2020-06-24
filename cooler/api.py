@@ -1,7 +1,4 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function
 import simplejson as json
-import six
 import os
 
 from pandas.api.types import is_integer_dtype
@@ -67,7 +64,7 @@ class Cooler(object):
     """
 
     def __init__(self, store, root=None, **kwargs):
-        if isinstance(store, six.string_types):
+        if isinstance(store, str):
             if root is None:
                 self.filename, self.root = parse_cooler_uri(store)
             elif h5py.is_hdf5(store):
@@ -390,7 +387,7 @@ class Cooler(object):
         return RangeSelector2D(field, _slice, _fetch, (self._info["nbins"],) * 2)
 
     def __repr__(self):
-        if isinstance(self.store, six.string_types):
+        if isinstance(self.store, str):
             filename = os.path.basename(self.store)
             container = "{}::{}".format(filename, self.root)
         else:
@@ -414,7 +411,7 @@ def info(h5):
     """
     d = {}
     for k, v in h5.attrs.items():
-        if isinstance(v, six.string_types):
+        if isinstance(v, str):
             try:
                 v = json.loads(v)
             except ValueError:
@@ -485,7 +482,7 @@ def bins(h5, lo=0, hi=None, fields=None, **kwargs):
     # convert integer chrom IDs to categorical chromosome names.
     if "chrom" in fields:
         convert_enum = kwargs.get("convert_enum", True)
-        if isinstance(fields, six.string_types):
+        if isinstance(fields, str):
             chrom_col = out
         else:
             chrom_col = out["chrom"]
@@ -493,7 +490,7 @@ def bins(h5, lo=0, hi=None, fields=None, **kwargs):
         if is_integer_dtype(chrom_col.dtype) and convert_enum:
             chromnames = chroms(h5, fields="name")
             chrom_col = pd.Categorical.from_codes(chrom_col, chromnames, ordered=True)
-            if isinstance(fields, six.string_types):
+            if isinstance(fields, str):
                 out = pd.Series(chrom_col, out.index)
             else:
                 out["chrom"] = chrom_col

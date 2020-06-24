@@ -1,4 +1,3 @@
-from __future__ import absolute_import, division, print_function
 from contextlib import contextmanager
 from functools import wraps
 import multiprocess as mp
@@ -10,7 +9,6 @@ import os
 import pandas as pd
 import numpy as np
 import click
-import six
 
 from .. import util
 
@@ -30,7 +28,7 @@ class DelimitedTuple(click.types.ParamType):
         # needs to be able to deal with param and context being None
         if value is None:
             return value
-        elif isinstance(value, six.string_types):
+        elif isinstance(value, str):
             parts = value.split(",")
         else:
             parts = value
@@ -39,7 +37,7 @@ class DelimitedTuple(click.types.ParamType):
 
 def parse_kv_list_param(arg, item_sep=",", kv_sep="="):
     import yaml
-    from six import StringIO
+    from io import StringIO
 
     if item_sep != ",":
         arg = arg.replace(item_sep, ",")

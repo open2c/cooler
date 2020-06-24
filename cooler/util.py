@@ -1,8 +1,5 @@
-# -*- coding: utf-8 -*-
-from __future__ import division, print_function
 from collections import OrderedDict, defaultdict
 from contextlib import contextmanager
-import six
 import re
 import os
 
@@ -156,7 +153,7 @@ def parse_region(reg, chromsizes=None):
     A well-formed genomic region triple (str, int, int)
 
     """
-    if isinstance(reg, six.string_types):
+    if isinstance(reg, str):
         chrom, start, end = parse_region_string(reg)
     else:
         chrom, start, end = reg
@@ -231,7 +228,7 @@ def read_chromsizes(
     * `GRC assembly terminology <https://www.ncbi.nlm.nih.gov/grc/help/definitions>`_
 
     """
-    if isinstance(filepath_or, six.string_types) and filepath_or.endswith(".gz"):
+    if isinstance(filepath_or, str) and filepath_or.endswith(".gz"):
         kwargs.setdefault("compression", "gzip")
     chromtable = pd.read_csv(
         filepath_or,
@@ -523,7 +520,7 @@ def open_hdf5(fp, mode="r", *args, **kwargs):
         * w- or x  Fail if exists, create otherwise
 
     """
-    if isinstance(fp, six.string_types):
+    if isinstance(fp, str):
         own_fh = True
         fh = h5py.File(fp, mode, *args, **kwargs)
     else:
@@ -708,7 +705,7 @@ def get_meta(
         dtype = defaultdict(lambda: default_dtype)
 
         # Convert column indexes to column names.
-        for k, v in six.iteritems(_dtype):
+        for k, v in _dtype.items():
             col = columns[k] if is_integer(k) else k
             dtype[col] = v
 

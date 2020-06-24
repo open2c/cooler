@@ -1,7 +1,4 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, print_function, division
 from datetime import datetime
-from six.moves import map
 from pandas.api.types import is_categorical, is_integer
 import os.path as op
 import pandas as pd
@@ -11,7 +8,6 @@ import tempfile
 import warnings
 import h5py
 import simplejson as json
-import six
 
 from .._version import __version__, __format_version__
 from .._logging import get_logger
@@ -213,7 +209,7 @@ def write_pixels(filepath, grouppath, columns, iterable, h5opts, lock):
     for i, chunk in enumerate(iterable):
 
         if isinstance(chunk, pd.DataFrame):
-            chunk = {k: v.values for k, v in six.iteritems(chunk)}
+            chunk = {k: v.values for k, v in chunk.items()}
 
         try:
             if lock is not None:
@@ -321,9 +317,9 @@ def write_info(grp, info):
     info.setdefault("genome-assembly", "unknown")
     info["metadata"] = json.dumps(info.get("metadata", {}))
     info["creation-date"] = datetime.now().isoformat()
-    info["generated-by"] = six.text_type("cooler-" + __version__)
+    info["generated-by"] = "cooler-" + __version__
     info["format"] = MAGIC
-    info["format-version"] = six.text_type(__format_version__)
+    info["format-version"] = __format_version__
     info["format-url"] = URL
     grp.attrs.update(info)
 
@@ -532,7 +528,7 @@ def create(
     bins["chrom"] = bins["chrom"].astype(object)
     chromsizes = get_chromsizes(bins)
     try:
-        chromsizes = six.iteritems(chromsizes)
+        chromsizes = chromsizes.items()
     except AttributeError:
         pass
     chromnames, lengths = zip(*chromsizes)

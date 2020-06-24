@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import division, print_function
-from six import iteritems
 from io import BytesIO
 import tempfile
 import os.path as op
@@ -36,13 +33,13 @@ def test_create_append(fp):
     cooler.create.create(
         op.join(tmp, "test.dict.2000kb.cool"),
         bins,
-        {k: v for k, v in iteritems(pixels)},
+        {k: v for k, v in pixels.items()},
     )
     cooler.create.create(op.join(tmp, "test.iter_df.2000kb.cool"), bins, [pixels])
     cooler.create.create(
         op.join(tmp, "test.iter_dict.2000kb.cool"),
         bins,
-        [{k: v for k, v in iteritems(pixels)}],
+        [{k: v for k, v in pixels.items()}],
     )
     ddf = dd.from_pandas(pixels, npartitions=3)
     cooler.create.create(op.join(tmp, "test.ddf.2000kb.cool"), bins, ddf)
