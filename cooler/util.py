@@ -357,8 +357,11 @@ def digest(fasta_records, enzyme):
         Dataframe with columns: ``chrom``, ``start``, ``end``.
 
     """
-    import Bio.Restriction as biorst
-    import Bio.Seq as bioseq
+    try:
+        import Bio.Restriction as biorst
+        import Bio.Seq as bioseq
+    except ImportError:
+        raise ImportError("Biopython is required to find restriction fragments.")
 
     # http://biopython.org/DIST/docs/cookbook/Restriction.html#mozTocId447698
     chroms = fasta_records.keys()
