@@ -13,7 +13,7 @@ import h5py
 import simplejson as json
 import six
 
-from .._version import __version__, __format_version__
+from .._version import __version__, __format_version__, __format_version_scool__
 from .._logging import get_logger
 from ..core import put, get
 from ..util import (
@@ -27,6 +27,7 @@ from ..util import (
 from ._ingest import validate_pixels
 from . import (
     MAGIC,
+    MAGIC_SCOOL,
     URL,
     CHROM_DTYPE,
     CHROMID_DTYPE,
@@ -323,8 +324,13 @@ def write_info(grp, info, scool=False):
     info["metadata"] = json.dumps(info.get("metadata", {}))
     info["creation-date"] = datetime.now().isoformat()
     info["generated-by"] = six.text_type("cooler-" + __version__)
-    info["format"] = MAGIC
-    info["format-version"] = six.text_type(__format_version__)
+    if scool:
+        info["format"] = MAGIC_SCOOL
+        info["format-version"] = six.text_type(__format_version_scool__)
+
+    else:
+        info["format"] = MAGIC
+        info["format-version"] = six.text_type(__format_version__)
     info["format-url"] = URL
     grp.attrs.update(info)
 
@@ -583,8 +589,21 @@ def create(
         dst_path, dst_group = parse_cooler_uri(cool_uri)
        
         with h5py.File(src_path, "r+") as src, h5py.File(dst_path, "r+") as dst:
+
             dst[dst_group]["chroms"] = src["chroms"]
-            dst[dst_group]["bins"] = src["bins"]
+
+            # hard link to root bins table, but only the three main datasets
+            dst[dst_group]["bins/chrom"] = src["bins/chrom"]
+            dst[dst_group]["bins/start"]= src["bins/start"]
+            dst[dst_group]["bins/end"]= src["bins/end"]
+
+            # create per cell the additional columns e.g. 'weight'
+            # these columns are individual for each cell
+            columns = list(bins.keys())
+            for col in ["chrom", "start", "end"]:
+                columns.remove(col)
+            if columns:
+                put(dst[dst_group]['bins'], bins[columns])
         with h5py.File(file_path, "r+") as f:
             h5 = f[group_path]
             grp = h5.create_group("pixels")
@@ -1023,7 +1042,7 @@ def create_cooler(
             max_merge=max_merge,
         )
 
-def create_scool(cool_uri, bins, pixels_list, cell_name_list, columns=None,
+def create_scool(cool_uri, bins_dict, cell_name_pixels_dict, columns=None,
     dtypes=None,
     metadata=None,
     assembly=None,
@@ -1041,9 +1060,14 @@ def create_scool(cool_uri, bins, pixels_list, cell_name_list, columns=None,
     lock=None,
     **kwargs):
 
+    # print('len pixels_list {}; len cell_name_list {}'.format(len(pixels_list), len(cell_name_list)))
     file_path, group_path = parse_cooler_uri(cool_uri)
+    bins = None
     h5opts = _set_h5opts(h5opts)
-
+    if len(bins_dict) == 0:
+        raise ValueError("At least one bin must be given.")
+    else:
+        bins = bins_dict[next(iter(bins_dict))][["chrom", "start", "end"]]
     if not isinstance(bins, pd.DataFrame):
         raise ValueError(
             "Second positional argument must be a pandas DataFrame. "
@@ -1121,7 +1145,7 @@ def create_scool(cool_uri, bins, pixels_list, cell_name_list, columns=None,
         info["bin-type"] = u"fixed" if binsize is not None else u"variable"
         info["bin-size"] = binsize if binsize is not None else u"null"
         info["nchroms"] = n_chroms
-        info["ncells"] = len(pixels_list)
+        info["ncells"] = len(cell_name_pixels_dict)
         info["nbins"] = n_bins
         if assembly is not None:
             info["genome-assembly"] = assembly
@@ -1129,10 +1153,20 @@ def create_scool(cool_uri, bins, pixels_list, cell_name_list, columns=None,
             info["metadata"] = metadata
         write_info(h5, info, True)
 
-    for cell_pixel, cell_name in zip(pixels_list, cell_name_list):
-        if '/' in cell_name:
-            cell_name = cell_name.split('/')[-1]
-        create(cool_uri+'::/cells/'+cell_name, bins, cell_pixel, columns=columns,
+    # sort bins_dict and cell_name_pixels_dict
+    # to guarantee matching keys
+    bins_dict_key_list = sorted(bins_dict)
+    cell_name_pixels_key_list = sorted(cell_name_pixels_dict)
+    for key_bins, key_pixel in zip(bins_dict_key_list, cell_name_pixels_key_list):
+        if key_bins != key_pixel:
+            raise ValueError('Bins and pixel dict are not in the same order!')
+    # for cell_pixel, cell_name in zip(pixels_list, cell_name_list):
+        if '/' in key_pixel:
+            cell_name = key_pixel.split('/')[-1]
+        else:
+            cell_name = key_pixel
+        print('create cell: {}'.format(cool_uri+'::/cells/'+cell_name))
+        create(cool_uri+'::/cells/'+cell_name, bins_dict[key_bins], cell_name_pixels_dict[key_pixel], columns=columns,
             dtypes=dtypes,
             metadata=metadata,
             assembly=assembly,
