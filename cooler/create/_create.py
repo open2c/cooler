@@ -670,8 +670,6 @@ def create(
             info["metadata"] = metadata
         write_info(h5, info)
 
-    logger.info("Done")
-
 
 def create_from_unordered(
     cool_uri,
@@ -1165,7 +1163,6 @@ def create_scool(cool_uri, bins_dict, cell_name_pixels_dict, columns=None,
             cell_name = key_pixel.split('/')[-1]
         else:
             cell_name = key_pixel
-        print('create cell: {}'.format(cool_uri+'::/cells/'+cell_name))
         create(cool_uri+'::/cells/'+cell_name, bins_dict[key_bins], cell_name_pixels_dict[key_pixel], columns=columns,
             dtypes=dtypes,
             metadata=metadata,
