@@ -1057,7 +1057,126 @@ def create_scool(cool_uri, bins_dict, cell_name_pixels_dict, columns=None,
     h5opts=None,
     lock=None,
     **kwargs):
+     """
+    This function creates a scool file i.e. it stores for each given cell
+    cool matrix under **/cells**, all cells must have the same dimensions.
 
+    The cells are regular cool files, the input must therefore be a bins table and pixel
+    table like for a regular cool file. However, the bin table and pixel table must be
+    given as the value of a key-value pair where the key is the cell name. 
+
+    Number of elements in bins_dict and cell_name_pixels_dict must be the same, and 
+    have the same keys.
+
+    Because the number of pixels is often very large, the input pixels are
+    normally provided as an iterable (e.g., an iterator or generator) of
+    DataFrame **chunks** that fit in memory.
+
+    .. versionadded:: 0.9.0
+
+    Parameters
+    ----------
+    cool_uri : str
+        Path to scooler file or URI string. If the file does not exist,
+        it will be created.
+    bins_dict : dictionary 
+        Cell name as key and the bins tables values. The bin tables as a pandas.DataFrame.
+        Segmentation of the chromosomes into genomic bins as a BED-like
+        DataFrame with columns ``chrom``, ``start`` and ``end``. May contain
+        additional columns.
+    cell_name_pixels_dict : dictionary
+        Cell name as key and pixel table as pandas.DataFrame as value.
+        A table, given as a dataframe or a column-oriented dict, containing
+        columns labeled ``bin1_id``, ``bin2_id`` and ``count``, sorted by
+        (``bin1_id``, ``bin2_id``). If additional columns are included in the
+        pixel table, their names and dtypes must be specified using the
+        ``columns`` and ``dtypes`` arguments. For larger input data, an
+        **iterable** can be provided that yields the pixel data as a sequence
+        of chunks. If the input is a dask DataFrame, it will also be processed
+        one chunk at a time.
+    columns : sequence of str, optional
+        Customize which value columns from the input pixels to store in the
+        cooler. Non-standard value columns will be given dtype ``float64``
+        unless overriden using the ``dtypes`` argument. If ``None``, we only
+        attempt to store a value column named ``"count"``.
+    dtypes : dict, optional
+        Dictionary mapping column names to dtypes. Can be used to override the
+        default dtypes of ``bin1_id``, ``bin2_id`` or ``count`` or assign
+        dtypes to custom value columns. Non-standard value columns given in
+        ``dtypes`` must also be provided in the ``columns`` argument or they
+        will be ignored.
+    metadata : dict, optional
+        Experiment metadata to store in the file. Must be JSON compatible.
+    assembly : str, optional
+        Name of genome assembly.
+    ordered : bool, optional [default: False]
+        If the input chunks of pixels are provided with correct triangularity
+        and in ascending order of (``bin1_id``, ``bin2_id``), set this to
+        ``True`` to write the cooler in one step.
+        If ``False`` (default), we create the cooler in two steps using an
+        external sort mechanism. See Notes for more details.
+    symmetric_upper : bool, optional [default: True]
+        If True, sets the file's storage-mode property to ``symmetric-upper``:
+        use this only if the input data references the upper triangle of a
+        symmetric matrix! For all other cases, set this option to False.
+    
+
+    Other parameters
+    ----------------
+    mergebuf : int, optional
+        Maximum number of records to buffer in memory at any give time during
+        the merge step.
+    delete_temp : bool, optional
+        Whether to delete temporary files when finished.
+        Useful for debugging. Default is False.
+    temp_dir : str, optional
+        Create temporary files in a specified directory instead of the same
+        directory as the output file. Pass ``-`` to use the system default.
+    max_merge : int, optional
+        If merging more than ``max_merge`` chunks, do the merge recursively in
+        two passes.
+    h5opts : dict, optional
+        HDF5 dataset filter options to use (compression, shuffling,
+        checksumming, etc.). Default is to use autochunking and GZIP
+        compression, level 6.
+    lock : multiprocessing.Lock, optional
+        Optional lock to control concurrent access to the output file.
+    ensure_sorted : bool, optional
+        Ensure that each input chunk is properly sorted.
+    boundscheck : bool, optional
+        Input validation: Check that all bin IDs lie in the expected range.
+    dupcheck : bool, optional
+        Input validation: Check that no duplicate pixels exist within any chunk.
+    triucheck : bool, optional
+        Input validation: Check that ``bin1_id`` <= ``bin2_id`` when creating
+        coolers in symmetric-upper mode.
+
+    See also
+    --------
+    cooler.create.create_cool
+    cooler.create.sanitize_records
+    cooler.create.sanitize_pixels
+
+    Notes
+    -----
+
+    If the pixel chunks are provided in the correct order required for the
+    output to be properly sorted, then the cooler can be created in a single
+    step by setting ``ordered=True``.
+
+    If not, the cooler is created in two steps via an external sort mechanism.
+    In the first pass, the sequence of pixel chunks are processed and sorted in
+    memory and saved to temporary coolers. In the second pass, the temporary
+    coolers are merged into the output file. This way the individual chunks do
+    not need to be provided in any particular order. When ``ordered=False``,
+    the following options for the merge step are available: ``mergebuf``,
+    ``delete_temp``, ``temp_dir``, ``max_merge``.
+
+    Each chunk of pixels will go through a validation pipeline, which can be
+    customized with the following options: ``boundscheck``, ``triucheck``,
+    ``dupcheck``, ``ensure_sorted``.
+
+    """
     # print('len pixels_list {}; len cell_name_list {}'.format(len(pixels_list), len(cell_name_list)))
     file_path, group_path = parse_cooler_uri(cool_uri)
     bins = None
