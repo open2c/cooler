@@ -450,16 +450,16 @@ def test_create_scool(fp):
     bins_cell1 = deepcopy(bins)
     bins_cell2 = deepcopy(bins)
     bins_cell3 = deepcopy(bins)
-    bins_cell1['weight'] = np.array([0]*len(bins_cell1["start"]))
-    bins_cell2['weight'] = np.array([1]*len(bins_cell1["start"]))
-    bins_cell3['weight'] = np.array([2]*len(bins_cell1["start"]))
+    bins_cell1['weight'] = np.array([0] * len(bins_cell1["start"]))
+    bins_cell2['weight'] = np.array([1] * len(bins_cell1["start"]))
+    bins_cell3['weight'] = np.array([2] * len(bins_cell1["start"]))
 
-    bins_cell1['KR'] = np.array([3]*len(bins_cell1["start"]))
-    bins_cell2['KR'] = np.array([4]*len(bins_cell1["start"]))
-    bins_cell3['KR'] = np.array([5]*len(bins_cell1["start"]))
+    bins_cell1['KR'] = np.array([3] * len(bins_cell1["start"]))
+    bins_cell2['KR'] = np.array([4] * len(bins_cell1["start"]))
+    bins_cell3['KR'] = np.array([5] * len(bins_cell1["start"]))
 
-    name_pixel_dict = {'cell1': pixels, 'cell2': pixels, 'cell3':pixels}
-    name_bins_dict = {'cell1': bins_cell1, 'cell2': bins_cell2, 'cell3':bins_cell3}
+    name_pixel_dict = {'cell1': pixels, 'cell2': pixels, 'cell3': pixels}
+    name_bins_dict = {'cell1': bins_cell1, 'cell2': bins_cell2, 'cell3': bins_cell3}
 
     cooler.create_scool(outfile_scool.name, name_bins_dict, name_pixel_dict)
 
