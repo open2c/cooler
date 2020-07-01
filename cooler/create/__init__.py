@@ -2,6 +2,8 @@ from __future__ import absolute_import, print_function, division
 import numpy as np
 
 MAGIC = u"HDF5::Cooler"
+MAGIC_SCOOL = u"HDF5::SCOOL"
+
 URL = u"https://github.com/mirnylab/cooler"
 CHROM_DTYPE = np.dtype("S")
 CHROMID_DTYPE = np.int32
