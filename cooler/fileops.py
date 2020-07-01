@@ -19,7 +19,7 @@ import numpy as np
 import h5py
 
 from .util import parse_cooler_uri, natsorted
-from .create import MAGIC, URL
+from .create import MAGIC, URL, MAGIC_SCOOL
 
 __all__ = ["is_cooler", "is_multires_file", "list_coolers", "cp", "mv", "ln"]
 
@@ -105,7 +105,12 @@ def visititems(group, func, level=None):
 def _is_cooler(grp):
     fmt = grp.attrs.get("format", None)
     url = grp.attrs.get("format-url", None)
-    if fmt == MAGIC or url == URL:
+    if fmt == MAGIC_SCOOL:
+        keys = ("chroms", "bins", "cells")
+        if not all(name in grp.keys() for name in keys):
+            warnings.warn("Scooler path {} appears to be corrupt".format(grp.name))
+        return True
+    elif fmt == MAGIC or url == URL:
         keys = ("chroms", "bins", "pixels", "indexes")
         if not all(name in grp.keys() for name in keys):
             warnings.warn("Cooler path {} appears to be corrupt".format(grp.name))
