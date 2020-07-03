@@ -2,5 +2,5 @@
 dask[array,dataframe]
 pytest
 mock
-pytest-flaek8
+pytest-flake8
 pytest-cov

@@ -1057,7 +1057,7 @@ def create_scool(cool_uri, bins_dict, cell_name_pixels_dict, columns=None,
     h5opts=None,
     lock=None,
     **kwargs):
-     """
+    """
     This function creates a scool file i.e. it stores for each given cell
     cool matrix under **/cells**, all cells must have the same dimensions.
 
