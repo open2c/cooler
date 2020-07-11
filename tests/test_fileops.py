@@ -160,8 +160,8 @@ def test_is_scool_file():
 def test_list_scool_cells():
     src_file = op.join(testdir, "data", 'scool_test_file.scool')
     paths = ['/cells/GSM2687248_41669_ACAGTG-R1-DpnII.100000.cool', '/cells/GSM2687249_41670_GGCTAC-R1-DpnII.100000.cool',
-                '/cells/GSM2687250_41671_TTAGGC-R1-DpnII.100000.cool', '/cells/GSM2687251_41672_AGTTCC-R1-DpnII.100000.cool',
-                '/cells/GSM2687252_41673_CCGTCC-R1-DpnII.100000.cool']
+             '/cells/GSM2687250_41671_TTAGGC-R1-DpnII.100000.cool', '/cells/GSM2687251_41672_AGTTCC-R1-DpnII.100000.cool',
+             '/cells/GSM2687252_41673_CCGTCC-R1-DpnII.100000.cool']
     cell_paths = fileops.list_scool_cells(src_file)
     assert len(cell_paths) == 5
     for cell in paths:

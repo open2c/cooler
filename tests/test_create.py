@@ -438,8 +438,6 @@ def test_create_cooler_from_dask():
     "fp", [op.join(datadir, "hg19.GM12878-MboI.matrix.2000kb.cool")]
 )
 def test_create_scool(fp):
-    outfile_scool = tempfile.NamedTemporaryFile(suffix='.scool', delete=False)
-
     c = cooler.Cooler(fp)
     # chromsizes = c.chromsizes
     bins = c.bins()[:]
