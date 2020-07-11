@@ -104,7 +104,6 @@ def visititems(group, func, level=None):
 
 def _is_cooler(grp):
     fmt = grp.attrs.get("format", None)
-    url = grp.attrs.get("format-url", None)
     if fmt == MAGIC:
         keys = ("chroms", "bins", "pixels", "indexes")
         if not all(name in grp.keys() for name in keys):
@@ -167,11 +166,8 @@ def is_scool_file(filepath):
             if "cells" in f.keys() and len(f["cells"].keys()) > 0:
                 for cells in f["cells"].keys():
                     if not _is_cooler(f["cells"][cells]):
-                        print('one cell not cool')
                         return False
                 return True
-        else:
-            print('magic key wrong')
     return False
 
 
@@ -233,6 +229,7 @@ def list_scool_cells(filepath):
         return natsorted(listing)
     else:
         raise OSError("'{}' is not a scool file.".format(filepath))
+    return False
 
 
 def ls(uri):
