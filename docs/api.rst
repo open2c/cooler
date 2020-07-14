@@ -70,6 +70,8 @@ cooler
 .. autofunction:: cooler.zoomify_cooler
 .. autofunction:: cooler.balance_cooler
 .. autofunction:: cooler.rename_chroms
+.. autofunction:: cooler.create_scooler
+
 
 ----
 

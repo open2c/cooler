@@ -279,3 +279,93 @@ In addition, a multi-resolution cooler file may indicate to clients that it is u
 
   .. versionchanged:: 0.8
     Both the legacy layout and the new mcool layout are supported by `HiGlass <http://higlass.io/app/>`_. Prior to cooler 0.8, the new layout was produced only when requesting a specific list of resolutions. As of cooler 0.8, the new layout is always produced by the :command:`cooler zoomify` command unless the ``--legacy`` option is given. Files produced by :py:func:`cooler.zoomify_cooler`, `hic2cool <https://github.com/4dn-dcic/hic2cool/>`_, and the mcools from the `4DN data portal <https://data.4dnucleome.org/>`_ also follow the new layout.
+
+
+
+Single-cell single-resolution
+-----------------------------
+
+* A single-cell cooler file contains all cool matrices of a single-cell Hi-C data set. All cells are stored in the group called ``/cells``, they all share the content of the bins table
+i.e. ``bins['chrom'``], ``bins['start']`` and ``bins['end']`` are hardlinked to each `bin` table of a cell. The access to an individual cell is given with the regular cooler interface.
+Conventional file extension: ``.scool``.
+
+:: 
+
+  XYZ.scool
+  /
+   ├── bins
+   ├── chroms
+   └── cells
+       ├── cell_id1
+       │   ├── bins
+       │   ├── chroms
+       │   ├── pixels
+       │   └── indexes
+       ├── cell_id2
+       │   ├── bins
+       │   ├── chroms
+       │   ├── pixels
+       │   └── indexes
+       ├── cell_id3
+       │   ├── bins
+       │   ├── chroms
+       │   ├── pixels
+       │   └── indexes
+       ├── cell_id4
+       │   ├── bins
+       │   ├── chroms
+       │   ├── pixels
+       │   └── indexes
+       .
+       .
+       .
+
+In addition, a single-cell single-resolution cooler file may indicate to clients that it is using this layout with the following ``/``-level attributes:
+
+.. describe:: format : string (constant)
+
+    "HDF5::SCOOL"
+
+.. describe:: format-version : int
+
+    1
+
+.. describe:: bin-type : { "fixed", "variable" }
+
+    Indicates whether the resolution is constant along both axes.
+
+.. describe:: bin-size : int
+
+    The bin resolution
+
+.. describe:: creation-data : string
+
+    The date the scool file was created
+
+.. describe:: format-url : string
+
+    A URL with the source code and document
+
+.. describe:: generated-by : string
+
+    The software that was used to create this scool file
+
+.. describe:: genome-assembly : string
+
+    The genome assembly
+
+.. describe:: metadata : string
+
+    Additional metadata
+
+.. describe:: nbins : int
+
+    The number of bins 
+
+.. describe:: ncells : int
+
+    The number of stored cells
+
+.. describe:: nchroms : int
+
+    The number of chromosomes of the cells

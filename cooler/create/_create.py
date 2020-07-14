@@ -13,7 +13,7 @@ import h5py
 import simplejson as json
 import six
 
-from .._version import __version__, __format_version__
+from .._version import __version__, __format_version__, __format_version_scool__
 from .._logging import get_logger
 from ..core import put, get
 from ..util import (
@@ -27,6 +27,7 @@ from ..util import (
 from ._ingest import validate_pixels
 from . import (
     MAGIC,
+    MAGIC_SCOOL,
     URL,
     CHROM_DTYPE,
     CHROMID_DTYPE,
@@ -296,7 +297,7 @@ def write_indexes(grp, chrom_offset, bin1_offset, h5opts):
     )
 
 
-def write_info(grp, info):
+def write_info(grp, info, scool=False):
     """
     Write the file description and metadata attributes.
 
@@ -317,13 +318,19 @@ def write_info(grp, info):
 
     """
     assert "nbins" in info
-    assert "nnz" in info
+    if not scool:
+        assert "nnz" in info
     info.setdefault("genome-assembly", "unknown")
     info["metadata"] = json.dumps(info.get("metadata", {}))
     info["creation-date"] = datetime.now().isoformat()
     info["generated-by"] = six.text_type("cooler-" + __version__)
-    info["format"] = MAGIC
-    info["format-version"] = six.text_type(__format_version__)
+    if scool:
+        info["format"] = MAGIC_SCOOL
+        info["format-version"] = six.text_type(__format_version_scool__)
+
+    else:
+        info["format"] = MAGIC
+        info["format-version"] = six.text_type(__format_version__)
     info["format-url"] = URL
     grp.attrs.update(info)
 
@@ -439,6 +446,8 @@ def create(
     ensure_sorted=False,
     lock=None,
     append=False,
+    append_scool=False,
+    scool_root_uri=None,
     **kwargs
 ):
     """
@@ -470,7 +479,10 @@ def create(
             "Note that the `chromsizes` argument is now deprecated: "
             "see documentation for `create`."
         )
-
+    if append_scool == True and scool_root_uri is None:
+        raise ValueError(
+            "If the parameter `append_scool` is set, the parameter `scool_root_uri` must be defined."
+        )
     dtypes = _get_dtypes_arg(dtypes, kwargs)
 
     for col in ["chrom", "start", "end"]:
@@ -572,23 +584,52 @@ def create(
                 f.create_group(group_path)
 
     # Write chroms, bins and pixels
-    with h5py.File(file_path, "r+") as f:
-        h5 = f[group_path]
+    if append_scool:
+        src_path, src_group = parse_cooler_uri(scool_root_uri)
+        dst_path, dst_group = parse_cooler_uri(cool_uri)
+       
+        with h5py.File(src_path, "r+") as src, h5py.File(dst_path, "r+") as dst:
 
-        logger.info("Writing chroms")
-        grp = h5.create_group("chroms")
-        write_chroms(grp, chroms, h5opts)
+            dst[dst_group]["chroms"] = src["chroms"]
 
-        logger.info("Writing bins")
-        grp = h5.create_group("bins")
-        write_bins(grp, bins, chroms["name"], h5opts)
+            # hard link to root bins table, but only the three main datasets
+            dst[dst_group]["bins/chrom"] = src["bins/chrom"]
+            dst[dst_group]["bins/start"]= src["bins/start"]
+            dst[dst_group]["bins/end"]= src["bins/end"]
 
-        grp = h5.create_group("pixels")
-        if symmetric_upper:
-            max_size = n_bins * (n_bins - 1) // 2 + n_bins
-        else:
-            max_size = n_bins * n_bins
-        prepare_pixels(grp, n_bins, max_size, meta.columns, dict(meta.dtypes), h5opts)
+            # create per cell the additional columns e.g. 'weight'
+            # these columns are individual for each cell
+            columns = list(bins.keys())
+            for col in ["chrom", "start", "end"]:
+                columns.remove(col)
+            if columns:
+                put(dst[dst_group]['bins'], bins[columns])
+        with h5py.File(file_path, "r+") as f:
+            h5 = f[group_path]
+            grp = h5.create_group("pixels")
+            if symmetric_upper:
+                max_size = n_bins * (n_bins - 1) // 2 + n_bins
+            else:
+                max_size = n_bins * n_bins
+            prepare_pixels(grp, n_bins, max_size, meta.columns, dict(meta.dtypes), h5opts)
+    else:
+        with h5py.File(file_path, "r+") as f:
+            h5 = f[group_path]
+
+            logger.info("Writing chroms")
+            grp = h5.create_group("chroms")
+            write_chroms(grp, chroms, h5opts)
+
+            logger.info("Writing bins")
+            grp = h5.create_group("bins")
+            write_bins(grp, bins, chroms["name"], h5opts)
+
+            grp = h5.create_group("pixels")
+            if symmetric_upper:
+                max_size = n_bins * (n_bins - 1) // 2 + n_bins
+            else:
+                max_size = n_bins * n_bins
+            prepare_pixels(grp, n_bins, max_size, meta.columns, dict(meta.dtypes), h5opts)
 
     # Multiprocess HDF5 reading is supported only if the same HDF5 file is not
     # open in write mode anywhere. To read and write to the same file, pass a
@@ -628,8 +669,6 @@ def create(
         if metadata is not None:
             info["metadata"] = metadata
         write_info(h5, info)
-
-    logger.info("Done")
 
 
 def create_from_unordered(
@@ -1000,3 +1039,265 @@ def create_cooler(
             temp_dir=temp_dir,
             max_merge=max_merge,
         )
+
+def create_scool(cool_uri, bins_dict, cell_name_pixels_dict, columns=None,
+    dtypes=None,
+    metadata=None,
+    assembly=None,
+    ordered=False,
+    symmetric_upper=True,
+    mergebuf=int(20e6),
+    delete_temp=True,
+    temp_dir=None,
+    max_merge=200,
+    boundscheck=True,
+    dupcheck=True,
+    triucheck=True,
+    ensure_sorted=False,
+    h5opts=None,
+    lock=None,
+    **kwargs):
+    """
+    This function creates a scool file i.e. it stores for each given cell
+    cool matrix under **/cells**, all cells must have the same dimensions.
+
+    The cells are regular cool files, the input must therefore be a bins table and pixel
+    table like for a regular cool file. However, the bin table and pixel table must be
+    given as the value of a key-value pair where the key is the cell name. 
+
+    Number of elements in bins_dict and cell_name_pixels_dict must be the same, and 
+    have the same keys.
+
+    Because the number of pixels is often very large, the input pixels are
+    normally provided as an iterable (e.g., an iterator or generator) of
+    DataFrame **chunks** that fit in memory.
+
+    .. versionadded:: 0.9.0
+
+    Parameters
+    ----------
+    cool_uri : str
+        Path to scooler file or URI string. If the file does not exist,
+        it will be created.
+    bins_dict : dictionary 
+        Cell name as key and the bins tables values. The bin tables as a pandas.DataFrame.
+        Segmentation of the chromosomes into genomic bins as a BED-like
+        DataFrame with columns ``chrom``, ``start`` and ``end``. May contain
+        additional columns.
+    cell_name_pixels_dict : dictionary
+        Cell name as key and pixel table as pandas.DataFrame as value.
+        A table, given as a dataframe or a column-oriented dict, containing
+        columns labeled ``bin1_id``, ``bin2_id`` and ``count``, sorted by
+        (``bin1_id``, ``bin2_id``). If additional columns are included in the
+        pixel table, their names and dtypes must be specified using the
+        ``columns`` and ``dtypes`` arguments. For larger input data, an
+        **iterable** can be provided that yields the pixel data as a sequence
+        of chunks. If the input is a dask DataFrame, it will also be processed
+        one chunk at a time.
+    columns : sequence of str, optional
+        Customize which value columns from the input pixels to store in the
+        cooler. Non-standard value columns will be given dtype ``float64``
+        unless overriden using the ``dtypes`` argument. If ``None``, we only
+        attempt to store a value column named ``"count"``.
+    dtypes : dict, optional
+        Dictionary mapping column names to dtypes. Can be used to override the
+        default dtypes of ``bin1_id``, ``bin2_id`` or ``count`` or assign
+        dtypes to custom value columns. Non-standard value columns given in
+        ``dtypes`` must also be provided in the ``columns`` argument or they
+        will be ignored.
+    metadata : dict, optional
+        Experiment metadata to store in the file. Must be JSON compatible.
+    assembly : str, optional
+        Name of genome assembly.
+    ordered : bool, optional [default: False]
+        If the input chunks of pixels are provided with correct triangularity
+        and in ascending order of (``bin1_id``, ``bin2_id``), set this to
+        ``True`` to write the cooler in one step.
+        If ``False`` (default), we create the cooler in two steps using an
+        external sort mechanism. See Notes for more details.
+    symmetric_upper : bool, optional [default: True]
+        If True, sets the file's storage-mode property to ``symmetric-upper``:
+        use this only if the input data references the upper triangle of a
+        symmetric matrix! For all other cases, set this option to False.
+    
+
+    Other parameters
+    ----------------
+    mergebuf : int, optional
+        Maximum number of records to buffer in memory at any give time during
+        the merge step.
+    delete_temp : bool, optional
+        Whether to delete temporary files when finished.
+        Useful for debugging. Default is False.
+    temp_dir : str, optional
+        Create temporary files in a specified directory instead of the same
+        directory as the output file. Pass ``-`` to use the system default.
+    max_merge : int, optional
+        If merging more than ``max_merge`` chunks, do the merge recursively in
+        two passes.
+    h5opts : dict, optional
+        HDF5 dataset filter options to use (compression, shuffling,
+        checksumming, etc.). Default is to use autochunking and GZIP
+        compression, level 6.
+    lock : multiprocessing.Lock, optional
+        Optional lock to control concurrent access to the output file.
+    ensure_sorted : bool, optional
+        Ensure that each input chunk is properly sorted.
+    boundscheck : bool, optional
+        Input validation: Check that all bin IDs lie in the expected range.
+    dupcheck : bool, optional
+        Input validation: Check that no duplicate pixels exist within any chunk.
+    triucheck : bool, optional
+        Input validation: Check that ``bin1_id`` <= ``bin2_id`` when creating
+        coolers in symmetric-upper mode.
+
+    See also
+    --------
+    cooler.create.create_cool
+    cooler.create.sanitize_records
+    cooler.create.sanitize_pixels
+
+    Notes
+    -----
+
+    If the pixel chunks are provided in the correct order required for the
+    output to be properly sorted, then the cooler can be created in a single
+    step by setting ``ordered=True``.
+
+    If not, the cooler is created in two steps via an external sort mechanism.
+    In the first pass, the sequence of pixel chunks are processed and sorted in
+    memory and saved to temporary coolers. In the second pass, the temporary
+    coolers are merged into the output file. This way the individual chunks do
+    not need to be provided in any particular order. When ``ordered=False``,
+    the following options for the merge step are available: ``mergebuf``,
+    ``delete_temp``, ``temp_dir``, ``max_merge``.
+
+    Each chunk of pixels will go through a validation pipeline, which can be
+    customized with the following options: ``boundscheck``, ``triucheck``,
+    ``dupcheck``, ``ensure_sorted``.
+
+    """
+    # print('len pixels_list {}; len cell_name_list {}'.format(len(pixels_list), len(cell_name_list)))
+    file_path, group_path = parse_cooler_uri(cool_uri)
+    bins = None
+    h5opts = _set_h5opts(h5opts)
+    if len(bins_dict) == 0:
+        raise ValueError("At least one bin must be given.")
+    else:
+        bins = bins_dict[next(iter(bins_dict))][["chrom", "start", "end"]]
+    if not isinstance(bins, pd.DataFrame):
+        raise ValueError(
+            "Second positional argument must be a pandas DataFrame. "
+            "Note that the `chromsizes` argument is now deprecated: "
+            "see documentation for `create`."
+        )
+
+    dtypes = _get_dtypes_arg(dtypes, kwargs)
+
+    for col in ["chrom", "start", "end"]:
+        if col not in bins.columns:
+            raise ValueError("Missing column from bin table: '{}'.".format(col))
+
+
+    # Populate dtypes for expected pixel columns, and apply user overrides.
+    if dtypes is None:
+        dtypes = dict(PIXEL_DTYPES)
+    else:
+        dtypes_ = dict(dtypes)
+        dtypes = dict(PIXEL_DTYPES)
+        dtypes.update(dtypes_)
+
+    # Determine the appropriate iterable
+    try:
+        from dask.dataframe import DataFrame as dask_df
+    except (ImportError, AttributeError):  # pragma: no cover
+        dask_df = ()
+
+    # Prepare chroms and bins
+    bins = bins.copy()
+    bins["chrom"] = bins["chrom"].astype(object)
+    chromsizes = get_chromsizes(bins)
+    try:
+        chromsizes = six.iteritems(chromsizes)
+    except AttributeError:
+        pass
+    chromnames, lengths = zip(*chromsizes)
+    chroms = pd.DataFrame(
+        {"name": chromnames, "length": lengths}, columns=["name", "length"]
+    )
+    binsize = get_binsize(bins)
+    n_chroms = len(chroms)
+    n_bins = len(bins)
+
+    # Create root group
+    with h5py.File(file_path, 'w') as f:
+        logger.info('Creating cooler at "{}::{}"'.format(file_path, group_path))
+        if group_path == "/":
+            for name in ["chroms", "bins"]:
+                if name in f:
+                    del f[name]
+        else:
+            try:
+                f.create_group(group_path)
+            except ValueError:
+                del f[group_path]
+                f.create_group(group_path)
+
+    with h5py.File(file_path, "r+") as f:
+        h5 = f[group_path]
+
+        logger.info("Writing chroms")
+        grp = h5.create_group("chroms")
+        write_chroms(grp, chroms, h5opts)
+
+        logger.info("Writing bins")
+        grp = h5.create_group("bins")
+        write_bins(grp, bins, chroms["name"], h5opts)
+
+    with h5py.File(file_path, "r+") as f:
+        h5 = f[group_path]
+
+        logger.info("Writing info")
+        info = {}
+        info["bin-type"] = u"fixed" if binsize is not None else u"variable"
+        info["bin-size"] = binsize if binsize is not None else u"null"
+        info["nchroms"] = n_chroms
+        info["ncells"] = len(cell_name_pixels_dict)
+        info["nbins"] = n_bins
+        if assembly is not None:
+            info["genome-assembly"] = assembly
+        if metadata is not None:
+            info["metadata"] = metadata
+        write_info(h5, info, True)
+
+    # sort bins_dict and cell_name_pixels_dict
+    # to guarantee matching keys
+    bins_dict_key_list = sorted(bins_dict)
+    cell_name_pixels_key_list = sorted(cell_name_pixels_dict)
+    for key_bins, key_pixel in zip(bins_dict_key_list, cell_name_pixels_key_list):
+        if key_bins != key_pixel:
+            raise ValueError('Bins and pixel dict are not in the same order!')
+    # for cell_pixel, cell_name in zip(pixels_list, cell_name_list):
+        if '/' in key_pixel:
+            cell_name = key_pixel.split('/')[-1]
+        else:
+            cell_name = key_pixel
+        create(cool_uri+'::/cells/'+cell_name, bins_dict[key_bins], cell_name_pixels_dict[key_pixel], columns=columns,
+            dtypes=dtypes,
+            metadata=metadata,
+            assembly=assembly,
+            ordered=ordered,
+            symmetric_upper=symmetric_upper,
+            mode='a',
+            boundscheck=boundscheck,
+            dupcheck=dupcheck,
+            triucheck=triucheck,
+            ensure_sorted=ensure_sorted,
+            h5opts=h5opts,
+            lock=lock,
+            mergebuf=mergebuf,
+            delete_temp=delete_temp,
+            temp_dir=temp_dir,
+            max_merge=max_merge,
+            append_scool=True,
+            scool_root_uri=cool_uri)
