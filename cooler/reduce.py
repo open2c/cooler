@@ -12,6 +12,7 @@ import pandas as pd
 import numpy as np
 import h5py
 
+from ._version import __format_version_mcool__
 from ._logging import get_logger
 from .create import ContactBinner, create
 from .util import parse_cooler_uri, GenomeSegmentation
@@ -851,7 +852,10 @@ def zoomify_cooler(
         )
 
     with h5py.File(outfile, "r+") as fw:
-        fw.attrs.update({"format": u"HDF5::MCOOL", "format-version": 2})
+        fw.attrs.update({
+            "format": u"HDF5::MCOOL",
+            "format-version": __format_version_mcool__
+        })
 
 
 def legacy_zoomify(input_uri, outfile, nproc, chunksize, lock=None):
