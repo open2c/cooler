@@ -1230,8 +1230,7 @@ def create_scool(
     # Append single cells
     for key in cell_names:
         if '/' in key:
-            # kill any slashes in the name, not just the leading one
-            cell_name = key.replace('/', '')
+            cell_name = key.split('/')[-1]
         else:
             cell_name = key
 
