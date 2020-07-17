@@ -126,7 +126,7 @@ source_suffix = {
     ".md": "markdown",
 }
 
-source_parsers = {".md": "recommonmark.parser.CommonMarkParser"}
+# source_parsers = {".md": "recommonmark.parser.CommonMarkParser"}
 
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = "sphinx"

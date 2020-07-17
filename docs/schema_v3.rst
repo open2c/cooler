@@ -282,11 +282,11 @@ In addition, a multi-resolution cooler file may indicate to clients that it is u
 
 
 
-Single-cell single-resolution
------------------------------
+Single-cell (single-resolution)
+-------------------------------
 
-A single-cell cooler file contains all cool matrices of a single-cell Hi-C data set. All cells are stored in the group called ``/cells``, they all share the content of the bins table
-i.e. ``bins['chrom']``, ``bins['start']`` and ``bins['end']`` are hardlinked to each `bin` table of a cell. The access to an individual cell is given with the regular cooler interface.
+A single-cell cooler file contains all the matrices of a single-cell Hi-C data set. All cells are stored under a group called ``/cells``, and all cells share the primary bin table columns 
+i.e. ``bins['chrom']``, ``bins['start']`` and ``bins['end']`` which are `hardlinked <http://docs.h5py.org/en/stable/high/group.html#hard-links>`_ to the root-level bin table. Any individual cell can be accessed using the regular :class:`cooler.Cooler` interface.
 Conventional file extension: ``.scool``.
 
 :: 
@@ -338,34 +338,14 @@ In addition, a single-cell single-resolution cooler file may indicate to clients
 
     The bin resolution
 
-.. describe:: creation-data : string
-
-    The date the scool file was created
-
-.. describe:: format-url : string
-
-    A URL with the source code and document
-
-.. describe:: generated-by : string
-
-    The software that was used to create this scool file
-
-.. describe:: genome-assembly : string
-
-    The genome assembly
-
-.. describe:: metadata : string
-
-    Additional metadata
-
 .. describe:: nbins : int
 
     The number of bins 
 
-.. describe:: ncells : int
-
-    The number of stored cells
-
 .. describe:: nchroms : int
 
     The number of chromosomes of the cells
+
+.. describe:: ncells : int
+
+    The number of stored cells
