@@ -1083,27 +1083,23 @@ def create_scool(
     lock=None,
     **kwargs):
     r"""
-    Create a single-cell (scool) file, i.e. for each given cell store a
-    cooler matrix under **/cells**, all cells having the same dimensions.
+    Create a single-cell (scool) file.
 
-    The cells are regular cool files, the input must therefore be a bins table
-    and pixel table like for a regular cool file. However, the bin table and
-    pixel table must be given as the value of a key-value pair where the key is
-    the cell name.
+    For each cell store a cooler matrix under **/cells**, where all matrices
+    have the same dimensions.
 
-    Number of elements in bins_dict and cell_name_pixels_dict must be the same,
-    and have the same keys.
+    Each cell is a regular cooler data collection, so the input must be a
+    bin table and pixel table for each cell. The pixel tables are provided as
+    a dictionary where the key is a unique cell name. The bin tables can be
+    provided as a dict with the same keys or a single common bin table can be
+    given.
 
-    Because the number of pixels is often very large, the input pixels are
-    normally provided as an iterable (e.g., an iterator or generator) of
-    DataFrame **chunks** that fit in memory.
-
-    .. versionadded:: 0.9.0
+    .. versionadded:: 0.8.9
 
     Parameters
     ----------
     cool_uri : str
-        Path to scooler file or URI string. If the file does not exist,
+        Path to scool file or URI string. If the file does not exist,
         it will be created.
     bins : :class:`pandas.DataFrame` or Dict[str, DataFrame]
         A single bin table or dictionary of cell names to bins tables. A bin
