@@ -32,6 +32,7 @@ Creation/reduction
     cooler.merge_coolers
     cooler.coarsen_cooler
     cooler.zoomify_cooler
+    cooler.create_scool
 
 Manipulation
 ~~~~~~~~~~~~
@@ -70,7 +71,7 @@ cooler
 .. autofunction:: cooler.zoomify_cooler
 .. autofunction:: cooler.balance_cooler
 .. autofunction:: cooler.rename_chroms
-.. autofunction:: cooler.create_scooler
+.. autofunction:: cooler.create_scool
 
 
 ----

@@ -216,9 +216,8 @@ Learn more about the `Dask <https://dask.org/>`_ project.
 Create a scool file
 -------------------
 
-The creation of a scool file is similar to a cool file. Each cell needs to have a bin, a pixel table and a name.
-All cells must have the same dimensions, and the bins and pixels needs to be stored in two dicts with the cell names 
-as keys.
+The creation of a single-cell cooler file is similar to a regular cooler file. Each cell needs to have a name, bin table and a pixel table.
+All cells must have the same dimensions, and the bins and pixels needs to be provided as two dicts with the cell names as keys.
 
 
 .. code-block:: python

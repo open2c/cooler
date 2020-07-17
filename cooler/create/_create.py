@@ -587,7 +587,7 @@ def create(
     if append_scool:
         src_path, src_group = parse_cooler_uri(scool_root_uri)
         dst_path, dst_group = parse_cooler_uri(cool_uri)
-       
+
         with h5py.File(src_path, "r+") as src, h5py.File(dst_path, "r+") as dst:
 
             dst[dst_group]["chroms"] = src["chroms"]
@@ -861,55 +861,7 @@ def append(cool_uri, table, data, chunked=False, force=False, h5opts=None, lock=
                     lock.release()
 
 
-def create_cooler(
-    cool_uri,
-    bins,
-    pixels,
-    columns=None,
-    dtypes=None,
-    metadata=None,
-    assembly=None,
-    ordered=False,
-    symmetric_upper=True,
-    mode=None,
-    mergebuf=int(20e6),
-    delete_temp=True,
-    temp_dir=None,
-    max_merge=200,
-    boundscheck=True,
-    dupcheck=True,
-    triucheck=True,
-    ensure_sorted=False,
-    h5opts=None,
-    lock=None,
-):
-    """
-    Create a cooler from bins and pixels at the specified URI.
-
-    Because the number of pixels is often very large, the input pixels are
-    normally provided as an iterable (e.g., an iterator or generator) of
-    DataFrame **chunks** that fit in memory.
-
-    .. versionadded:: 0.8.0
-
-    Parameters
-    ----------
-    cool_uri : str
-        Path to cooler file or URI string. If the file does not exist,
-        it will be created.
-    bins : pandas.DataFrame
-        Segmentation of the chromosomes into genomic bins as a BED-like
-        DataFrame with columns ``chrom``, ``start`` and ``end``. May contain
-        additional columns.
-    pixels : DataFrame, dictionary, or iterable of either
-        A table, given as a dataframe or a column-oriented dict, containing
-        columns labeled ``bin1_id``, ``bin2_id`` and ``count``, sorted by
-        (``bin1_id``, ``bin2_id``). If additional columns are included in the
-        pixel table, their names and dtypes must be specified using the
-        ``columns`` and ``dtypes`` arguments. For larger input data, an
-        **iterable** can be provided that yields the pixel data as a sequence
-        of chunks. If the input is a dask DataFrame, it will also be processed
-        one chunk at a time.
+_DOC_OTHER_PARAMS = """
     columns : sequence of str, optional
         Customize which value columns from the input pixels to store in the
         cooler. Non-standard value columns will be given dtype ``float64``
@@ -969,12 +921,9 @@ def create_cooler(
     triucheck : bool, optional
         Input validation: Check that ``bin1_id`` <= ``bin2_id`` when creating
         coolers in symmetric-upper mode.
+""".strip()
 
-    See also
-    --------
-    cooler.create.sanitize_records
-    cooler.create.sanitize_pixels
-
+_DOC_NOTES = """
     Notes
     -----
     If the pixel chunks are provided in the correct order required for the
@@ -992,6 +941,75 @@ def create_cooler(
     Each chunk of pixels will go through a validation pipeline, which can be
     customized with the following options: ``boundscheck``, ``triucheck``,
     ``dupcheck``, ``ensure_sorted``.
+""".strip()
+
+
+def _format_docstring(**kwargs):
+    def decorate(func):
+        func.__doc__ = func.__doc__.format(**kwargs)
+        return func
+    return decorate
+
+
+@_format_docstring(other_parameters=_DOC_OTHER_PARAMS, notes=_DOC_NOTES)
+def create_cooler(
+    cool_uri,
+    bins,
+    pixels,
+    columns=None,
+    dtypes=None,
+    metadata=None,
+    assembly=None,
+    ordered=False,
+    symmetric_upper=True,
+    mode="w",
+    mergebuf=int(20e6),
+    delete_temp=True,
+    temp_dir=None,
+    max_merge=200,
+    boundscheck=True,
+    dupcheck=True,
+    triucheck=True,
+    ensure_sorted=False,
+    h5opts=None,
+    lock=None,
+):
+    r"""
+    Create a cooler from bins and pixels at the specified URI.
+
+    Because the number of pixels is often very large, the input pixels are
+    normally provided as an iterable (e.g., an iterator or generator) of
+    DataFrame **chunks** that fit in memory.
+
+    .. versionadded:: 0.8.0
+
+    Parameters
+    ----------
+    cool_uri : str
+        Path to cooler file or URI string. If the file does not exist,
+        it will be created.
+    bins : pandas.DataFrame
+        Segmentation of the chromosomes into genomic bins as a BED-like
+        DataFrame with columns ``chrom``, ``start`` and ``end``. May contain
+        additional columns.
+    pixels : DataFrame, dictionary, or iterable of either
+        A table, given as a dataframe or a column-oriented dict, containing
+        columns labeled ``bin1_id``, ``bin2_id`` and ``count``, sorted by
+        (``bin1_id``, ``bin2_id``). If additional columns are included in the
+        pixel table, their names and dtypes must be specified using the
+        ``columns`` and ``dtypes`` arguments. For larger input data, an
+        **iterable** can be provided that yields the pixel data as a sequence
+        of chunks. If the input is a dask DataFrame, it will also be processed
+        one chunk at a time.
+    {other_parameters}
+
+    See also
+    --------
+    cooler.create_scool
+    cooler.create.sanitize_records
+    cooler.create.sanitize_pixels
+
+    {notes}
 
     """
     # dispatch to the approprate creation method
@@ -1040,12 +1058,19 @@ def create_cooler(
             max_merge=max_merge,
         )
 
-def create_scool(cool_uri, bins_dict, cell_name_pixels_dict, columns=None,
+
+@_format_docstring(other_parameters=_DOC_OTHER_PARAMS, notes=_DOC_NOTES)
+def create_scool(
+    cool_uri,
+    bins,
+    cell_name_pixels_dict,
+    columns=None,
     dtypes=None,
     metadata=None,
     assembly=None,
     ordered=False,
     symmetric_upper=True,
+    mode="w",
     mergebuf=int(20e6),
     delete_temp=True,
     temp_dir=None,
@@ -1057,16 +1082,17 @@ def create_scool(cool_uri, bins_dict, cell_name_pixels_dict, columns=None,
     h5opts=None,
     lock=None,
     **kwargs):
-    """
-    This function creates a scool file i.e. it stores for each given cell
-    cool matrix under **/cells**, all cells must have the same dimensions.
+    r"""
+    Create a single-cell (scool) file, i.e. for each given cell store a
+    cooler matrix under **/cells**, all cells having the same dimensions.
 
-    The cells are regular cool files, the input must therefore be a bins table and pixel
-    table like for a regular cool file. However, the bin table and pixel table must be
-    given as the value of a key-value pair where the key is the cell name. 
+    The cells are regular cool files, the input must therefore be a bins table
+    and pixel table like for a regular cool file. However, the bin table and
+    pixel table must be given as the value of a key-value pair where the key is
+    the cell name.
 
-    Number of elements in bins_dict and cell_name_pixels_dict must be the same, and 
-    have the same keys.
+    Number of elements in bins_dict and cell_name_pixels_dict must be the same,
+    and have the same keys.
 
     Because the number of pixels is often very large, the input pixels are
     normally provided as an iterable (e.g., an iterator or generator) of
@@ -1079,13 +1105,12 @@ def create_scool(cool_uri, bins_dict, cell_name_pixels_dict, columns=None,
     cool_uri : str
         Path to scooler file or URI string. If the file does not exist,
         it will be created.
-    bins_dict : dictionary 
-        Cell name as key and the bins tables values. The bin tables as a pandas.DataFrame.
-        Segmentation of the chromosomes into genomic bins as a BED-like
-        DataFrame with columns ``chrom``, ``start`` and ``end``. May contain
-        additional columns.
-    cell_name_pixels_dict : dictionary
-        Cell name as key and pixel table as pandas.DataFrame as value.
+    bins : :class:`pandas.DataFrame` or Dict[str, DataFrame]
+        A single bin table or dictionary of cell names to bins tables. A bin
+        table is a dataframe with columns ``chrom``, ``start`` and ``end``.
+        May contain additional columns.
+    cell_name_pixels_dict : Dict[str, DataFrame]
+        Cell name as key and pixel table DataFrame as value.
         A table, given as a dataframe or a column-oriented dict, containing
         columns labeled ``bin1_id``, ``bin2_id`` and ``count``, sorted by
         (``bin1_id``, ``bin2_id``). If additional columns are included in the
@@ -1094,110 +1119,42 @@ def create_scool(cool_uri, bins_dict, cell_name_pixels_dict, columns=None,
         **iterable** can be provided that yields the pixel data as a sequence
         of chunks. If the input is a dask DataFrame, it will also be processed
         one chunk at a time.
-    columns : sequence of str, optional
-        Customize which value columns from the input pixels to store in the
-        cooler. Non-standard value columns will be given dtype ``float64``
-        unless overriden using the ``dtypes`` argument. If ``None``, we only
-        attempt to store a value column named ``"count"``.
-    dtypes : dict, optional
-        Dictionary mapping column names to dtypes. Can be used to override the
-        default dtypes of ``bin1_id``, ``bin2_id`` or ``count`` or assign
-        dtypes to custom value columns. Non-standard value columns given in
-        ``dtypes`` must also be provided in the ``columns`` argument or they
-        will be ignored.
-    metadata : dict, optional
-        Experiment metadata to store in the file. Must be JSON compatible.
-    assembly : str, optional
-        Name of genome assembly.
-    ordered : bool, optional [default: False]
-        If the input chunks of pixels are provided with correct triangularity
-        and in ascending order of (``bin1_id``, ``bin2_id``), set this to
-        ``True`` to write the cooler in one step.
-        If ``False`` (default), we create the cooler in two steps using an
-        external sort mechanism. See Notes for more details.
-    symmetric_upper : bool, optional [default: True]
-        If True, sets the file's storage-mode property to ``symmetric-upper``:
-        use this only if the input data references the upper triangle of a
-        symmetric matrix! For all other cases, set this option to False.
-    
-
-    Other parameters
-    ----------------
-    mergebuf : int, optional
-        Maximum number of records to buffer in memory at any give time during
-        the merge step.
-    delete_temp : bool, optional
-        Whether to delete temporary files when finished.
-        Useful for debugging. Default is False.
-    temp_dir : str, optional
-        Create temporary files in a specified directory instead of the same
-        directory as the output file. Pass ``-`` to use the system default.
-    max_merge : int, optional
-        If merging more than ``max_merge`` chunks, do the merge recursively in
-        two passes.
-    h5opts : dict, optional
-        HDF5 dataset filter options to use (compression, shuffling,
-        checksumming, etc.). Default is to use autochunking and GZIP
-        compression, level 6.
-    lock : multiprocessing.Lock, optional
-        Optional lock to control concurrent access to the output file.
-    ensure_sorted : bool, optional
-        Ensure that each input chunk is properly sorted.
-    boundscheck : bool, optional
-        Input validation: Check that all bin IDs lie in the expected range.
-    dupcheck : bool, optional
-        Input validation: Check that no duplicate pixels exist within any chunk.
-    triucheck : bool, optional
-        Input validation: Check that ``bin1_id`` <= ``bin2_id`` when creating
-        coolers in symmetric-upper mode.
+    {other_parameters}
 
     See also
     --------
-    cooler.create.create_cool
-    cooler.create.sanitize_records
-    cooler.create.sanitize_pixels
+    cooler.create_cooler
+    cooler.zoomify_cooler
 
-    Notes
-    -----
-
-    If the pixel chunks are provided in the correct order required for the
-    output to be properly sorted, then the cooler can be created in a single
-    step by setting ``ordered=True``.
-
-    If not, the cooler is created in two steps via an external sort mechanism.
-    In the first pass, the sequence of pixel chunks are processed and sorted in
-    memory and saved to temporary coolers. In the second pass, the temporary
-    coolers are merged into the output file. This way the individual chunks do
-    not need to be provided in any particular order. When ``ordered=False``,
-    the following options for the merge step are available: ``mergebuf``,
-    ``delete_temp``, ``temp_dir``, ``max_merge``.
-
-    Each chunk of pixels will go through a validation pipeline, which can be
-    customized with the following options: ``boundscheck``, ``triucheck``,
-    ``dupcheck``, ``ensure_sorted``.
+    {notes}
 
     """
-    # print('len pixels_list {}; len cell_name_list {}'.format(len(pixels_list), len(cell_name_list)))
     file_path, group_path = parse_cooler_uri(cool_uri)
-    bins = None
     h5opts = _set_h5opts(h5opts)
-    if len(bins_dict) == 0:
-        raise ValueError("At least one bin must be given.")
+
+    if isinstance(bins, pd.DataFrame):
+        bins_dict = {cell_name: bins for cell_name in cell_name_pixels_dict}
+        cell_names = sorted(cell_name_pixels_dict)
     else:
-        bins = bins_dict[next(iter(bins_dict))][["chrom", "start", "end"]]
-    if not isinstance(bins, pd.DataFrame):
-        raise ValueError(
-            "Second positional argument must be a pandas DataFrame. "
-            "Note that the `chromsizes` argument is now deprecated: "
-            "see documentation for `create`."
-        )
+        # Assume bins is a dict of cell name -> dataframe
+        bins_dict = bins
+        if len(bins_dict) == 0:
+            raise ValueError("At least one bin must be given.")
+        else:
+            bins = bins_dict[next(iter(bins_dict))][["chrom", "start", "end"]]
+
+        # Sort bins_dict and cell_name_pixels_dict to guarantee matching keys
+        bins_keys = sorted(bins_dict)
+        cell_names = sorted(cell_name_pixels_dict)
+        for key_bins, key_pixels in zip(bins_keys, cell_names):
+            if key_bins != key_pixels:
+                raise ValueError('Bins and pixel dicts do not have matching keys')
 
     dtypes = _get_dtypes_arg(dtypes, kwargs)
 
     for col in ["chrom", "start", "end"]:
         if col not in bins.columns:
             raise ValueError("Missing column from bin table: '{}'.".format(col))
-
 
     # Populate dtypes for expected pixel columns, and apply user overrides.
     if dtypes is None:
@@ -1230,7 +1187,7 @@ def create_scool(cool_uri, bins_dict, cell_name_pixels_dict, columns=None,
     n_bins = len(bins)
 
     # Create root group
-    with h5py.File(file_path, 'w') as f:
+    with h5py.File(file_path, mode) as f:
         logger.info('Creating cooler at "{}::{}"'.format(file_path, group_path))
         if group_path == "/":
             for name in ["chroms", "bins"]:
@@ -1270,19 +1227,18 @@ def create_scool(cool_uri, bins_dict, cell_name_pixels_dict, columns=None,
             info["metadata"] = metadata
         write_info(h5, info, True)
 
-    # sort bins_dict and cell_name_pixels_dict
-    # to guarantee matching keys
-    bins_dict_key_list = sorted(bins_dict)
-    cell_name_pixels_key_list = sorted(cell_name_pixels_dict)
-    for key_bins, key_pixel in zip(bins_dict_key_list, cell_name_pixels_key_list):
-        if key_bins != key_pixel:
-            raise ValueError('Bins and pixel dict are not in the same order!')
-    # for cell_pixel, cell_name in zip(pixels_list, cell_name_list):
-        if '/' in key_pixel:
-            cell_name = key_pixel.split('/')[-1]
+    # Append single cells
+    for key in cell_names:
+        if '/' in key:
+            cell_name = key.split('/')[-1]
         else:
-            cell_name = key_pixel
-        create(cool_uri+'::/cells/'+cell_name, bins_dict[key_bins], cell_name_pixels_dict[key_pixel], columns=columns,
+            cell_name = key
+
+        create(
+            cool_uri + '::/cells/' + cell_name,
+            bins_dict[key],
+            cell_name_pixels_dict[key],
+            columns=columns,
             dtypes=dtypes,
             metadata=metadata,
             assembly=assembly,
@@ -1300,4 +1256,5 @@ def create_scool(cool_uri, bins_dict, cell_name_pixels_dict, columns=None,
             temp_dir=temp_dir,
             max_merge=max_merge,
             append_scool=True,
-            scool_root_uri=cool_uri)
+            scool_root_uri=cool_uri
+        )

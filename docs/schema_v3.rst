@@ -285,8 +285,8 @@ In addition, a multi-resolution cooler file may indicate to clients that it is u
 Single-cell single-resolution
 -----------------------------
 
-* A single-cell cooler file contains all cool matrices of a single-cell Hi-C data set. All cells are stored in the group called ``/cells``, they all share the content of the bins table
-i.e. ``bins['chrom'``], ``bins['start']`` and ``bins['end']`` are hardlinked to each `bin` table of a cell. The access to an individual cell is given with the regular cooler interface.
+A single-cell cooler file contains all cool matrices of a single-cell Hi-C data set. All cells are stored in the group called ``/cells``, they all share the content of the bins table
+i.e. ``bins['chrom']``, ``bins['start']`` and ``bins['end']`` are hardlinked to each `bin` table of a cell. The access to an individual cell is given with the regular cooler interface.
 Conventional file extension: ``.scool``.
 
 :: 

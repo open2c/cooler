@@ -461,10 +461,13 @@ def test_create_scool(fp):
 
     with isolated_filesystem():
         cooler.create_scool('outfile_test.scool', name_bins_dict, name_pixel_dict)
-
         content_of_scool = cooler.fileops.list_scool_cells('outfile_test.scool')
-
         content_expected = ['/cells/cell1', '/cells/cell2', '/cells/cell3']
+        for content in content_expected:
+            assert content in content_of_scool
 
+        cooler.create_scool('outfile_test.scool', bins, name_pixel_dict)
+        content_of_scool = cooler.fileops.list_scool_cells('outfile_test.scool')
+        content_expected = ['/cells/cell1', '/cells/cell2', '/cells/cell3']
         for content in content_expected:
             assert content in content_of_scool

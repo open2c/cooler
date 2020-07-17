@@ -3,6 +3,7 @@ import numpy as np
 
 MAGIC = u"HDF5::Cooler"
 MAGIC_SCOOL = u"HDF5::SCOOL"
+MAGIC_MCOOL = u"HDF5::MCOOL"
 
 URL = u"https://github.com/mirnylab/cooler"
 CHROM_DTYPE = np.dtype("S")
