@@ -279,3 +279,73 @@ In addition, a multi-resolution cooler file may indicate to clients that it is u
 
   .. versionchanged:: 0.8
     Both the legacy layout and the new mcool layout are supported by `HiGlass <http://higlass.io/app/>`_. Prior to cooler 0.8, the new layout was produced only when requesting a specific list of resolutions. As of cooler 0.8, the new layout is always produced by the :command:`cooler zoomify` command unless the ``--legacy`` option is given. Files produced by :py:func:`cooler.zoomify_cooler`, `hic2cool <https://github.com/4dn-dcic/hic2cool/>`_, and the mcools from the `4DN data portal <https://data.4dnucleome.org/>`_ also follow the new layout.
+
+
+
+Single-cell (single-resolution)
+-------------------------------
+
+A single-cell cooler file contains all the matrices of a single-cell Hi-C data set. All cells are stored under a group called ``/cells``, and all cells share the primary bin table columns 
+i.e. ``bins['chrom']``, ``bins['start']`` and ``bins['end']`` which are `hardlinked <http://docs.h5py.org/en/stable/high/group.html#hard-links>`_ to the root-level bin table. Any individual cell can be accessed using the regular :class:`cooler.Cooler` interface.
+Conventional file extension: ``.scool``.
+
+:: 
+
+  XYZ.scool
+  /
+   ├── bins
+   ├── chroms
+   └── cells
+       ├── cell_id1
+       │   ├── bins
+       │   ├── chroms
+       │   ├── pixels
+       │   └── indexes
+       ├── cell_id2
+       │   ├── bins
+       │   ├── chroms
+       │   ├── pixels
+       │   └── indexes
+       ├── cell_id3
+       │   ├── bins
+       │   ├── chroms
+       │   ├── pixels
+       │   └── indexes
+       ├── cell_id4
+       │   ├── bins
+       │   ├── chroms
+       │   ├── pixels
+       │   └── indexes
+       .
+       .
+       .
+
+In addition, a single-cell single-resolution cooler file may indicate to clients that it is using this layout with the following ``/``-level attributes:
+
+.. describe:: format : string (constant)
+
+    "HDF5::SCOOL"
+
+.. describe:: format-version : int
+
+    1
+
+.. describe:: bin-type : { "fixed", "variable" }
+
+    Indicates whether the resolution is constant along both axes.
+
+.. describe:: bin-size : int
+
+    The bin resolution
+
+.. describe:: nbins : int
+
+    The number of bins 
+
+.. describe:: nchroms : int
+
+    The number of chromosomes of the cells
+
+.. describe:: ncells : int
+
+    The number of stored cells

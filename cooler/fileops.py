@@ -19,7 +19,7 @@ import numpy as np
 import h5py
 
 from .util import parse_cooler_uri, natsorted
-from .create import MAGIC, URL
+from .create import MAGIC, URL, MAGIC_SCOOL
 
 __all__ = ["is_cooler", "is_multires_file", "list_coolers", "cp", "mv", "ln"]
 
@@ -104,8 +104,7 @@ def visititems(group, func, level=None):
 
 def _is_cooler(grp):
     fmt = grp.attrs.get("format", None)
-    url = grp.attrs.get("format-url", None)
-    if fmt == MAGIC or url == URL:
+    if fmt == MAGIC:
         keys = ("chroms", "bins", "pixels", "indexes")
         if not all(name in grp.keys() for name in keys):
             warnings.warn("Cooler path {} appears to be corrupt".format(grp.name))
@@ -117,7 +116,7 @@ def is_cooler(uri):
     """
     Determine if a URI string references a cooler data collection.
     Returns False if the file or group path doesn't exist.
-
+    
     """
     filepath, grouppath = parse_cooler_uri(uri)
     if not h5py.is_hdf5(filepath):
@@ -144,6 +143,31 @@ def is_multires_file(filepath, min_version=1):
         elif "0" in f.keys() and _is_cooler(f["0"]) and min_version < 2:
             return True
 
+    return False
+
+
+def is_scool_file(filepath):
+    """
+    Determine if a file is a single-cell cooler file.
+    Returns False if the file doesn't exist.
+
+    """
+    if not h5py.is_hdf5(filepath):
+        raise OSError("'{}' is not an HDF5 file.".format(filepath))
+        return False
+
+    with h5py.File(filepath) as f:
+        fmt = f.attrs.get("format", None)
+        if fmt == MAGIC_SCOOL:
+            keys = ("chroms", "bins", "cells")
+            if not all(name in f.keys() for name in keys):
+                warnings.warn("Scooler path {} appears to be corrupt".format(grp.name))
+                return False
+            if "cells" in f.keys() and len(f["cells"].keys()) > 0:
+                for cells in f["cells"].keys():
+                    if not _is_cooler(f["cells"][cells]):
+                        return False
+                return True
     return False
 
 
@@ -175,6 +199,37 @@ def list_coolers(filepath):
         visititems(f, _check_cooler)
 
     return natsorted(listing)
+
+
+def list_scool_cells(filepath):
+    """
+    List the paths to all single-cell cool matrices in a file scool file.
+
+    Parameters
+    ----------
+    filepath : str
+
+    Returns
+    -------
+    list
+        Cooler group paths of all cells in the file.
+
+    """
+    if is_scool_file(filepath):
+
+        listing = []
+        def _check_cooler(pth, grp):
+            if _is_cooler(grp):
+                listing.append("/" + pth if not pth.startswith("/") else pth)
+        with h5py.File(filepath, "r") as f:
+            _check_cooler("/", f)
+            visititems(f, _check_cooler)
+        if '/' in listing:
+            listing.remove('/')
+        return natsorted(listing)
+    else:
+        raise OSError("'{}' is not a scool file.".format(filepath))
+    return False
 
 
 def ls(uri):
