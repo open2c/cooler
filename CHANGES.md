@@ -1,6 +1,11 @@
 # Release notes #
 
-## Upcoming release...
+## [v0.8.10](https://github.com/mirnylab/cooler/compare/v0.8.9...v0.8.10)
+
+Date : 2020-09-25
+
+### Bug fixes
+* Fixed the new header parsing in `cooler cload pairs` to handle esoteric file stream implementations. Specifically `GzipFile` had stopped working. By @golobor
 
 ## [v0.8.9](https://github.com/mirnylab/cooler/compare/v0.8.8...v0.8.9)
 
