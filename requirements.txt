@@ -4,7 +4,7 @@ scipy>=0.16
 pandas
 h5py>=2.5
 click>=7
-cytoolz
+cytoolz<0.11
 multiprocess
 pyfaidx
 pypairix
