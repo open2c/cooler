@@ -1,6 +1,6 @@
 # Cooler
 
-<a href="https://mirnylab.github.io/cooler"><img width="25%" src="https://github.com/mirnylab/cooler/raw/master/docs/cooler_logo.png" alt="Cooler"></a>
+<a href="https://mirnylab.github.io/cooler"><img width="25%" src="https://github.com/open2c/cooler/raw/master/docs/cooler_logo.png" alt="Cooler"></a>
 
 [![Build Status](https://travis-ci.org/mirnylab/cooler.svg?branch=master)](https://travis-ci.org/mirnylab/cooler)
 [![CodeCov](https://codecov.io/gh/mirnylab/cooler/branch/master/graph/badge.svg)](https://codecov.io/gh/mirnylab/cooler)
@@ -19,7 +19,7 @@ The cooler file format is an implementation of a genomic matrix data model using
 To get started:
 
 - [Install](#Installation) cooler
-- Read the [documentation](http://cooler.readthedocs.org/en/latest/) and see the Jupyter Notebook [walkthrough](https://github.com/mirnylab/cooler-binder).
+- Read the [documentation](http://cooler.readthedocs.org/en/latest/) and see the Jupyter Notebook [walkthrough](https://github.com/open2c/cooler-binder).
 - _cool_ files from published Hi-C data sets are available at `ftp://cooler.csail.mit.edu/coolers`.
 - Many more multires (_mcool_) files are available on the [4DN data portal](https://data.4dnucleome.org/visualization/index).
 
@@ -47,7 +47,7 @@ See the [docs](http://cooler.readthedocs.org/en/latest/) for more information.
 
 ### Contributing
 
-Interested in contributing to cooler? That's great! To get started, check out the [contributing guide](https://github.com/mirnylab/cooler/blob/master/CONTRIBUTING.md).
+Interested in contributing to cooler? That's great! To get started, check out the [contributing guide](https://github.com/open2c/cooler/blob/master/CONTRIBUTING.md).
 
 
 ### Citing
@@ -72,7 +72,7 @@ BSD (3 Clause)
 
 ### Related projects
 
-- Process Hi-C data with [distiller](https://github.com/mirnylab/distiller)!
-- Downstream analysis with [cooltools](https://github.com/mirnylab/cooltools)!
+- Process Hi-C data with [distiller](https://github.com/open2c/distiller)!
+- Downstream analysis with [cooltools](https://github.com/open2c/cooltools)!
 - Visualize your cooler data with [HiGlass](http://higlass.io)!
 

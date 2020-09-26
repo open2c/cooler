@@ -115,7 +115,7 @@ Quick reference
 
     Show the version and exit.
 
-See the cooler_cli.ipynb Jupyter Notebook for specific examples on usage: (https://github.com/mirnylab/cooler-binder).
+See the cooler_cli.ipynb Jupyter Notebook for specific examples on usage: (https://github.com/open2c/cooler-binder).
 
 ----
 
@@ -403,7 +403,7 @@ PAIRS_PATH : Path to contacts (i.e. read pairs) file.
 
 COOL_PATH : Output COOL file path or URI.
 
-hiclib on BitBucket: <https://bitbucket.org/mirnylab/hiclib>.
+hiclib on BitBucket: <https://github.com/mirnylab/hiclib-legacy>.
 
 .. program:: cooler cload hiclib
 .. code-block:: shell

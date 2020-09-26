@@ -4,7 +4,7 @@
 What is cooler?
 ===============
 
-Cooler is the :ref:`implementation <schema>` of a data model for genomically-labeled sparse 2D arrays (matrices) with identical axes in HDF5. It is also the name of the `Python package <https://github.com/mirnylab/cooler>`_ that supports the format.
+Cooler is the :ref:`implementation <schema>` of a data model for genomically-labeled sparse 2D arrays (matrices) with identical axes in HDF5. It is also the name of the `Python package <https://github.com/open2c/cooler>`_ that supports the format.
 
 We use the term genomically-labeled array to refer to a data structure that assigns unique quantitative values to tuples of *genomic bins* obtained from an interval partition of a reference genome assembly. The tuples of bins make up the coordinates of the array’s elements. By omitting elements possessing zero or no value, the representation becomes sparse.
 

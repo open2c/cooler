@@ -140,7 +140,7 @@ def hiclib(bins, pairs_path, cool_path, metadata, assembly, chunksize):
 
     {}
 
-    hiclib on BitBucket: <https://bitbucket.org/mirnylab/hiclib>.
+    hiclib on BitBucket: <https://github.com/mirnylab/hiclib-legacy>.
 
     """
 

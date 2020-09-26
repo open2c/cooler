@@ -5,7 +5,7 @@ MAGIC = u"HDF5::Cooler"
 MAGIC_SCOOL = u"HDF5::SCOOL"
 MAGIC_MCOOL = u"HDF5::MCOOL"
 
-URL = u"https://github.com/mirnylab/cooler"
+URL = u"https://github.com/open2c/cooler"
 CHROM_DTYPE = np.dtype("S")
 CHROMID_DTYPE = np.int32
 CHROMSIZE_DTYPE = np.int32
