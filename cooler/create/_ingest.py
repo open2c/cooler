@@ -309,15 +309,15 @@ def _sanitize_pixels(
         if np.any(is_tril):
             if tril_action == "reflect":
                 chunk.loc[is_tril, bin1_field], chunk.loc[is_tril, bin2_field] = (
-                    chunk.loc[is_tril, bin2_field],
-                    chunk.loc[is_tril, bin1_field],
+                    chunk.loc[is_tril, bin2_field].copy(),
+                    chunk.loc[is_tril, bin1_field].copy(),
                 )
                 for field in sided_fields:
                     chunk.loc[is_tril, field + suffixes[0]], chunk.loc[
                         is_tril, field + suffixes[1]
                     ] = (
-                        chunk.loc[is_tril, field + suffixes[1]],
-                        chunk.loc[is_tril, field + suffixes[0]],
+                        chunk.loc[is_tril, field + suffixes[1]].copy(),
+                        chunk.loc[is_tril, field + suffixes[0]].copy(),
                     )
             elif tril_action == "drop":
                 chunk = chunk[~is_tril]
