@@ -21,7 +21,7 @@ This project has a number of requirements for all code contributed.
 After forking and cloning the repository, install in "editable" (i.e. development) mode using the `-e` option:
 
 ```sh
-git clone https://github.com/mirnylab/cooler.git
+git clone https://github.com/open2c/cooler.git
 cd cooler
 pip install -e .[all]
 ```

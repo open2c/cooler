@@ -255,6 +255,11 @@ def test_cload_pairix(bins_path, pairs_path, ref_path):
             op.join(testdir, "data", "toy.bins.var.bed"),
             op.join(testdir, "data", "toy_hash.pairs"),
             op.join(testdir, "data", "toy.symm.upper.var.cool"),
+        ),
+        (
+            op.join(testdir, "data", "toy.bins.var.bed"),
+            op.join(testdir, "data", "toy_hash.pairs.gz"),
+            op.join(testdir, "data", "toy.symm.upper.var.cool"),
         )
     ],
 )

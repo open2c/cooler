@@ -35,7 +35,7 @@ Command line interface
 
 See:
 
-- Jupyter Notebook `CLI walkthrough <https://github.com/mirnylab/cooler-binder/blob/master/cooler_cli.ipynb>`_.
+- Jupyter Notebook `CLI walkthrough <https://github.com/open2c/cooler-binder/blob/master/cooler_cli.ipynb>`_.
 - The `CLI Reference <http://cooler.readthedocs.io/en/latest/cli.html>`_ for more information.
 
 
@@ -68,7 +68,7 @@ Python API
 
 See: 
 
-- Jupyter Notebook `API walkthrough <https://github.com/mirnylab/cooler-binder/blob/master/cooler_api.ipynb>`_.
+- Jupyter Notebook `API walkthrough <https://github.com/open2c/cooler-binder/blob/master/cooler_api.ipynb>`_.
 - The :ref:`api-reference` for more information.
 
 The :py:mod:`cooler` library provides a thin wrapper over the excellent NumPy-aware `h5py <http://docs.h5py.org/en/latest/>`_ Python interface to HDF5. It supports creation of cooler files and the following types of **range queries** on the data:

@@ -1,13 +1,13 @@
 # Cooler
 
-<a href="https://mirnylab.github.io/cooler"><img width="25%" src="https://github.com/mirnylab/cooler/raw/master/docs/cooler_logo.png" alt="Cooler"></a>
+<a href="https://open2c.github.io/cooler"><img width="25%" src="https://github.com/open2c/cooler/raw/master/docs/cooler_logo.png" alt="Cooler"></a>
 
-[![Build Status](https://travis-ci.org/mirnylab/cooler.svg?branch=master)](https://travis-ci.org/mirnylab/cooler)
-[![CodeCov](https://codecov.io/gh/mirnylab/cooler/branch/master/graph/badge.svg)](https://codecov.io/gh/mirnylab/cooler)
+[![Build Status](https://travis-ci.org/open2c/cooler.svg?branch=master)](https://travis-ci.org/open2c/cooler)
+[![CodeCov](https://codecov.io/gh/open2c/cooler/branch/master/graph/badge.svg)](https://codecov.io/gh/open2c/cooler)
 [![Documentation Status](https://readthedocs.org/projects/cooler/badge/?version=latest)](http://cooler.readthedocs.org/en/latest/)
 [![install with bioconda](https://img.shields.io/badge/install%20with-bioconda-brightgreen.svg?style=flat-square)](http://bioconda.github.io/recipes/cooler/README.html)
-[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/mirnylab/cooler-binder/master)
-[![Join the chat at https://gitter.im/mirnylab/cooler](https://badges.gitter.im/mirnylab/cooler.svg)](https://gitter.im/mirnylab/cooler?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/open2c/cooler-binder/master)
+[![Join the chat on Slack](https://img.shields.io/badge/chat-slack-%233F0F3F?logo=slack)](https://bit.ly/2UaOpAe)
 [![DOI](https://zenodo.org/badge/49553222.svg)](https://zenodo.org/badge/latestdoi/49553222)
 
 ## A cool place to store your Hi-C
@@ -19,7 +19,7 @@ The cooler file format is an implementation of a genomic matrix data model using
 To get started:
 
 - [Install](#Installation) cooler
-- Read the [documentation](http://cooler.readthedocs.org/en/latest/) and see the Jupyter Notebook [walkthrough](https://github.com/mirnylab/cooler-binder).
+- Read the [documentation](http://cooler.readthedocs.org/en/latest/) and see the Jupyter Notebook [walkthrough](https://github.com/open2c/cooler-binder).
 - _cool_ files from published Hi-C data sets are available at `ftp://cooler.csail.mit.edu/coolers`.
 - Many more multires (_mcool_) files are available on the [4DN data portal](https://data.4dnucleome.org/visualization/index).
 
@@ -47,7 +47,7 @@ Note: Python 2.7 support has ceased as of cooler 0.9.
 
 ### Contributing
 
-Interested in contributing to cooler? That's great! To get started, check out the [contributing guide](https://github.com/mirnylab/cooler/blob/master/CONTRIBUTING.md).
+Interested in contributing to cooler? That's great! To get started, check out the [contributing guide](https://github.com/open2c/cooler/blob/master/CONTRIBUTING.md).
 
 
 ### Citing
@@ -72,7 +72,7 @@ BSD (3 Clause)
 
 ### Related projects
 
-- Process Hi-C data with [distiller](https://github.com/mirnylab/distiller)!
-- Downstream analysis with [cooltools](https://github.com/mirnylab/cooltools)!
+- Process Hi-C data with [distiller](https://github.com/open2c/distiller)!
+- Downstream analysis with [cooltools](https://github.com/open2c/cooltools)!
 - Visualize your cooler data with [HiGlass](http://higlass.io)!
 

@@ -1,8 +1,21 @@
 # Release notes #
 
-## Upcoming release...
+## [v0.8.10](https://github.com/open2c/cooler/compare/v0.8.9...v0.8.10)
 
-## [v0.8.8](https://github.com/mirnylab/cooler/compare/v0.8.7...v0.8.8)
+Date : 2020-09-25
+
+### Bug fixes
+* Fixed the new header parsing in `cooler cload pairs` to handle esoteric file stream implementations. Specifically `GzipFile` had stopped working. By @golobor
+
+## [v0.8.9](https://github.com/open2c/cooler/compare/v0.8.8...v0.8.9)
+
+Date : 2020-07-17
+
+### Enhancements
+* Added single-cell cooler file flavor (.scool) (#201)
+
+
+## [v0.8.8](https://github.com/open2c/cooler/compare/v0.8.7...v0.8.8)
 
 Date : 2020-06-23
 
@@ -19,7 +32,7 @@ Date : 2020-06-23
 * Allow hashes in read IDs in cload pairs (#193)
 
 
-## [v0.8.7](https://github.com/mirnylab/cooler/compare/v0.8.6...v0.8.7)
+## [v0.8.7](https://github.com/open2c/cooler/compare/v0.8.6...v0.8.7)
 
 Date: 2020-01-12
 
@@ -31,7 +44,7 @@ Date: 2020-01-12
 * Replace `json` with `simplejson` to deal with attrs stored as bytes
 
 
-## [v0.8.6](https://github.com/mirnylab/cooler/compare/v0.8.5...v0.8.6)
+## [v0.8.6](https://github.com/open2c/cooler/compare/v0.8.5...v0.8.6)
 
 Date: 2019-08-12
 
@@ -44,7 +57,7 @@ Date: 2019-08-12
 Post-release `v0.8.6.post0`: requirements files added to MANIFEST.in
 
 
-## [v0.8.5](https://github.com/mirnylab/cooler/compare/v0.8.4...v0.8.5)
+## [v0.8.5](https://github.com/open2c/cooler/compare/v0.8.4...v0.8.5)
 
 Date: 2019-04-08
 
@@ -52,7 +65,7 @@ Date: 2019-04-08
 * Fixed a regression that prevented selection of bins excluding the `chrom` column.
 
 
-## [v0.8.4](https://github.com/mirnylab/cooler/compare/v0.8.3...v0.8.4)
+## [v0.8.4](https://github.com/open2c/cooler/compare/v0.8.3...v0.8.4)
 
 Date: 2019-04-04
 
@@ -68,7 +81,7 @@ Date: 2019-04-04
 * `Cooler.bins()` selector will always properly convert bins/chrom integer IDs to categorical chromosome names when the number of contigs is very large and therefore the HDF5 ENUM header is missing. Before this would only happen when explicitly requesting `convert_enum=True`.
 
 
-## [v0.8.3](https://github.com/mirnylab/cooler/compare/v0.8.2...v0.8.3)
+## [v0.8.3](https://github.com/open2c/cooler/compare/v0.8.2...v0.8.3)
 
 Date: 2019-02-11
 
@@ -77,7 +90,7 @@ Date: 2019-02-11
 * `create_cooler` no longer requires a "count" column when specifying custom value columns
 
 
-## [v0.8.2](https://github.com/mirnylab/cooler/compare/v0.8.1...v0.8.2)
+## [v0.8.2](https://github.com/open2c/cooler/compare/v0.8.1...v0.8.2)
 
 Date: 2019-01-20
 
@@ -92,7 +105,7 @@ New options for `cooler dump` pixel output:
 * A bug was introduced into the matrix-as-pixels selector in 0.8.0 that also affected `cooler dump`. The behavior has been restored to that in 0.7.
 
 
-## [v0.8.1](https://github.com/mirnylab/cooler/compare/v0.8.0...v0.8.1)
+## [v0.8.1](https://github.com/open2c/cooler/compare/v0.8.0...v0.8.1)
 
 Date: 2019-01-02
 
@@ -107,7 +120,7 @@ Date: 2019-01-02
 * Restore but deprecate `cooler.io.ls` for backwards compatibility.
 
 
-## [v0.8.0](https://github.com/mirnylab/cooler/compare/v0.7.11...v0.8.0)
+## [v0.8.0](https://github.com/open2c/cooler/compare/v0.7.11...v0.8.0)
 
 Date: 2018-12-31
 
@@ -155,7 +168,7 @@ This is a major release from 0.7 and includes an updated format version, and sev
 * Unit tests refactored and re-written for pytest.
 
 
-## [v0.7.11](https://github.com/mirnylab/cooler/compare/v0.7.10...v0.7.11)
+## [v0.7.11](https://github.com/open2c/cooler/compare/v0.7.10...v0.7.11)
 
 Date: 2018-08-17
 
@@ -168,7 +181,7 @@ Bug fixes
 * Fix `--count-as-float` regression in load/cload.
 
 
-## [v0.7.10](https://github.com/mirnylab/cooler/compare/v0.7.9...v0.7.10)
+## [v0.7.10](https://github.com/open2c/cooler/compare/v0.7.9...v0.7.10)
 
 Date: 2018-05-07
 
@@ -177,7 +190,7 @@ Date: 2018-05-07
 * Start using shuffle filter by default
 
 
-## [v0.7.9](https://github.com/mirnylab/cooler/compare/v0.7.8...v0.7.9)
+## [v0.7.9](https://github.com/open2c/cooler/compare/v0.7.8...v0.7.9)
 
 Date: 2018-03-30
 
@@ -185,7 +198,7 @@ Date: 2018-03-30
 * Fixed error introduced into cload pairix in last release.
 
 
-## [v0.7.8](https://github.com/mirnylab/cooler/compare/v0.7.7...v0.7.8)
+## [v0.7.8](https://github.com/open2c/cooler/compare/v0.7.7...v0.7.8)
 
 Date: 2018-03-18
 
@@ -201,7 +214,7 @@ Date: 2018-03-18
 * Added extra checks in `cload pairix` and `cload tabix`. #62, #75
 
 
-## [v0.7.7](https://github.com/mirnylab/cooler/compare/v0.7.6...v0.7.7)
+## [v0.7.7](https://github.com/open2c/cooler/compare/v0.7.6...v0.7.7)
 
 Date: 2018-03-16
 
@@ -220,7 +233,7 @@ Date: 2018-03-16
 * Fix argmax deprecation. #99
 
 
-## [v0.7.6](https://github.com/mirnylab/cooler/compare/v0.7.5...v0.7.6)
+## [v0.7.6](https://github.com/open2c/cooler/compare/v0.7.5...v0.7.6)
 
 Date: 2017-10-31
 
@@ -239,7 +252,7 @@ Date: 2017-10-31
 Happy Halloween!
 
 
-## [v0.7.5](https://github.com/mirnylab/cooler/compare/v0.7.4...v0.7.5)
+## [v0.7.5](https://github.com/open2c/cooler/compare/v0.7.4...v0.7.5)
 
 Date: 2017-07-13
 
@@ -247,7 +260,7 @@ Date: 2017-07-13
 * Add transform options to higlass API
 
 
-## [v0.7.4](https://github.com/mirnylab/cooler/compare/v0.7.3...v0.7.4)
+## [v0.7.4](https://github.com/open2c/cooler/compare/v0.7.3...v0.7.4)
 
 Date: 2017-05-25
 
@@ -255,14 +268,14 @@ Date: 2017-05-25
 * Fix special cases where cooler.io.create and append would not work with certain inputs
 
 
-## [v0.7.3](https://github.com/mirnylab/cooler/compare/v0.7.2...v0.7.3)
+## [v0.7.3](https://github.com/open2c/cooler/compare/v0.7.2...v0.7.3)
 
 Date: 2017-05-22
 
 * Added function to print higlass zoom resolutions for a given genome and base resolution.
 
 
-## [v0.7.2](https://github.com/mirnylab/cooler/compare/v0.7.1...v0.7.2)
+## [v0.7.2](https://github.com/open2c/cooler/compare/v0.7.1...v0.7.2)
 
 Date: 2017-05-09
 
@@ -270,7 +283,7 @@ Date: 2017-05-09
 * Restore zoom binsize metadata to higlass files
 
 
-## [v0.7.1](https://github.com/mirnylab/cooler/compare/v0.7.0...v0.7.1)
+## [v0.7.1](https://github.com/open2c/cooler/compare/v0.7.0...v0.7.1)
 
 Date: 2017-04-29
 
@@ -279,7 +292,7 @@ Date: 2017-04-29
 * Eliminate hard dependence on dask to make pip installs simpler. Conda package will retain dask as a run time requirement.
 
 
-## [v0.7.0](https://github.com/mirnylab/cooler/compare/v0.6.6...v0.7.0)
+## [v0.7.0](https://github.com/open2c/cooler/compare/v0.6.6...v0.7.0)
 
 Date: 2017-04-27
 
@@ -311,7 +324,7 @@ Date: 2017-04-27
 * `Cooler.open` function now correctly opens the specific root group of the Cooler and behaves like a proper context manager in all cases
 
 
-## [v0.6.6](https://github.com/mirnylab/cooler/compare/v0.6.5...v0.6.6)
+## [v0.6.6](https://github.com/open2c/cooler/compare/v0.6.5...v0.6.6)
 
 Date: 2017-03-21
 
@@ -319,14 +332,14 @@ Date: 2017-03-21
 * Improved pairix and tabix iterators, dropped need for slow first pass over contacts
 
 
-## [v0.6.5](https://github.com/mirnylab/cooler/compare/v0.6.4...v0.6.5)
+## [v0.6.5](https://github.com/open2c/cooler/compare/v0.6.4...v0.6.5)
 
 Date: 2017-03-18
 
 * Fixed pairix aggregator to properly deal with autoflipping of pairs
 
 
-## [v0.6.4](https://github.com/mirnylab/cooler/compare/v0.6.3...v0.6.4)
+## [v0.6.4](https://github.com/open2c/cooler/compare/v0.6.3...v0.6.4)
 
 Date: 2017-03-17
 
@@ -334,7 +347,7 @@ Date: 2017-03-17
 * Fixed pairix aggregator to properly deal with autoflipping of pairs
 
 
-## [v0.6.3](https://github.com/mirnylab/cooler/compare/v0.6.2...v0.6.3)
+## [v0.6.3](https://github.com/open2c/cooler/compare/v0.6.2...v0.6.3)
 
 Date: 2017-02-22
 
@@ -343,7 +356,7 @@ Date: 2017-02-22
 * Return matrix scale factor in balance stats rather than the bias scale factor: #35.
 
 
-## [v0.6.2](https://github.com/mirnylab/cooler/compare/v0.6.1...v0.6.2)
+## [v0.6.2](https://github.com/open2c/cooler/compare/v0.6.1...v0.6.2)
 
 Date: 2017-02-12
 
@@ -353,14 +366,14 @@ Fixed regressions in
 * cooler show
 
 
-## [v0.6.1](https://github.com/mirnylab/cooler/compare/v0.6.0...v0.6.1)
+## [v0.6.1](https://github.com/open2c/cooler/compare/v0.6.0...v0.6.1)
 
 Date: 2017-02-06
 
 * This fixes stale build used in bdist_wheel packaging that broke 0.6.0. #29
 
 
-## [v0.6.0](https://github.com/mirnylab/cooler/compare/v0.5.3...v0.6.0)
+## [v0.6.0](https://github.com/open2c/cooler/compare/v0.5.3...v0.6.0)
 
 Date: 2017-02-03
 
@@ -390,7 +403,7 @@ Date: 2017-02-03
 * Fixed bug in `csort` that led to incorrect triangularity of trans read pairs.
 
 
-## [v0.5.3](https://github.com/mirnylab/cooler/compare/v0.5.2...v0.5.3)
+## [v0.5.3](https://github.com/open2c/cooler/compare/v0.5.2...v0.5.3)
 
 Date: 2016-09-10
 
@@ -401,7 +414,7 @@ Date: 2016-09-10
 * `cooler cload` raises a warning when bin file lists a contig missing from the contact list
 
 
-## [v0.5.2](https://github.com/mirnylab/cooler/compare/v0.5.1...v0.5.2)
+## [v0.5.2](https://github.com/open2c/cooler/compare/v0.5.1...v0.5.2)
 
 Date: 2016-08-26
 
@@ -410,7 +423,7 @@ Date: 2016-08-26
 * Fix typo in setup.py and add pysam to dependencies.
 
 
-## [v0.5.1](https://github.com/mirnylab/cooler/compare/v0.5.0...v0.5.1)
+## [v0.5.1](https://github.com/open2c/cooler/compare/v0.5.0...v0.5.1)
 
 Date: 2016-08-24
 
@@ -419,7 +432,7 @@ Date: 2016-08-24
 * Rename `cooler binnify` to `cooler makebins`. Binnify sounds like "aggregate" which is what `cload` does.
 
 
-## [v0.5.0](https://github.com/mirnylab/cooler/compare/v0.4.0...v0.5.0)
+## [v0.5.0](https://github.com/open2c/cooler/compare/v0.4.0...v0.5.0)
 
 Date: 2016-08-24
 
@@ -429,7 +442,7 @@ Date: 2016-08-24
 * Minor bug fixes.
 
 
-## [v0.4.0](https://github.com/mirnylab/cooler/compare/v0.3.0...v0.4.0)
+## [v0.4.0](https://github.com/open2c/cooler/compare/v0.3.0...v0.4.0)
 
 Date: 2016-08-18
 
@@ -450,7 +463,7 @@ Date: 2016-08-18
 * Added new scripts for contact aggregation, loading, dumping and balancing
 
 
-## [v0.3.0](https://github.com/mirnylab/cooler/compare/v0.2.1...v0.3.0)
+## [v0.3.0](https://github.com/open2c/cooler/compare/v0.2.1...v0.3.0)
 
 Date: 2016-02-18
 
@@ -460,21 +473,21 @@ Date: 2016-02-18
 * Genomic locus string parser now accepts ENSEMBL-style number-only chromosome names and FASTA-style sequence names containing pipes.
 
 
-## [v0.2.1](https://github.com/mirnylab/cooler/compare/v0.2...v0.2.1)
+## [v0.2.1](https://github.com/open2c/cooler/compare/v0.2...v0.2.1)
 
 Date: 2016-02-07
 
 * Fixed bintable region fetcher
 
 
-## [v0.2](https://github.com/mirnylab/cooler/compare/v0.1...v0.2)
+## [v0.2](https://github.com/open2c/cooler/compare/v0.1...v0.2)
 
 Date: 2016-01-17
 
 * First beta release
 
 
-## [v0.1](https://github.com/mirnylab/cooler/releases/tag/v0.1)
+## [v0.1](https://github.com/open2c/cooler/releases/tag/v0.1)
 
 Date: 2015-11-22
 

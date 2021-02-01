@@ -70,7 +70,7 @@ setup(
     long_description=get_long_description(),
     long_description_content_type='text/markdown',
     keywords=['genomics', 'bioinformatics', 'Hi-C', 'contact', 'matrix', 'format', 'hdf5'],
-    url='https://github.com/mirnylab/cooler',
+    url='https://github.com/open2c/cooler',
     packages=find_packages(),
     zip_safe=False,
     classifiers=[s.strip() for s in classifiers.split('\n') if s],

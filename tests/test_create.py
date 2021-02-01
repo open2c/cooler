@@ -429,3 +429,42 @@ def test_create_cooler_from_dask():
         #     pixels,
         #     ordered=False
         # )
+
+
+@pytest.mark.parametrize(
+    "fp", [op.join(datadir, "hg19.GM12878-MboI.matrix.2000kb.cool")]
+)
+def test_create_scool(fp):
+    c = cooler.Cooler(fp)
+    # chromsizes = c.chromsizes
+    bins = c.bins()[:]
+    pixels = c.pixels()[:]
+
+    # random and different content to prove only chrom, start, end is linked and the rest is independent for each cell
+    from copy import deepcopy
+    bins_cell1 = deepcopy(bins)
+    bins_cell2 = deepcopy(bins)
+    bins_cell3 = deepcopy(bins)
+    bins_cell1['weight'] = np.array([0] * len(bins_cell1["start"]))
+    bins_cell2['weight'] = np.array([1] * len(bins_cell1["start"]))
+    bins_cell3['weight'] = np.array([2] * len(bins_cell1["start"]))
+
+    bins_cell1['KR'] = np.array([3] * len(bins_cell1["start"]))
+    bins_cell2['KR'] = np.array([4] * len(bins_cell1["start"]))
+    bins_cell3['KR'] = np.array([5] * len(bins_cell1["start"]))
+
+    name_pixel_dict = {'cell1': pixels, 'cell2': pixels, 'cell3': pixels}
+    name_bins_dict = {'cell1': bins_cell1, 'cell2': bins_cell2, 'cell3': bins_cell3}
+
+    with isolated_filesystem():
+        cooler.create_scool('outfile_test.scool', name_bins_dict, name_pixel_dict)
+        content_of_scool = cooler.fileops.list_scool_cells('outfile_test.scool')
+        content_expected = ['/cells/cell1', '/cells/cell2', '/cells/cell3']
+        for content in content_expected:
+            assert content in content_of_scool
+
+        cooler.create_scool('outfile_test.scool', bins, name_pixel_dict)
+        content_of_scool = cooler.fileops.list_scool_cells('outfile_test.scool')
+        content_expected = ['/cells/cell1', '/cells/cell2', '/cells/cell3']
+        for content in content_expected:
+            assert content in content_of_scool

@@ -16,7 +16,7 @@ The cooler package aims to facilitate:
 * Scalable out-of-core operations on the data.
 * Data export and visualization.
 
-Follow cooler development on `GitHub <https://github.com/mirnylab/cooler>`_.
+Follow cooler development on `GitHub <https://github.com/open2c/cooler>`_.
 
 
 Contents:

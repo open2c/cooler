@@ -1,7 +1,10 @@
 import numpy as np
 
 MAGIC = u"HDF5::Cooler"
-URL = u"https://github.com/mirnylab/cooler"
+MAGIC_SCOOL = u"HDF5::SCOOL"
+MAGIC_MCOOL = u"HDF5::MCOOL"
+
+URL = u"https://github.com/open2c/cooler"
 CHROM_DTYPE = np.dtype("S")
 CHROMID_DTYPE = np.int32
 CHROMSIZE_DTYPE = np.int32
@@ -27,4 +30,4 @@ from ._ingest import (
     ContactBinner,
 )
 
-from ._create import create_cooler, create, create_from_unordered, append, rename_chroms
+from ._create import create_cooler, create, create_from_unordered, append, rename_chroms, create_scool

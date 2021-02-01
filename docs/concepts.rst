@@ -213,3 +213,25 @@ The experimental ``read_table`` function can be used to generate a dask datafram
 Learn more about the `Dask <https://dask.org/>`_ project.
 
 
+Create a scool file
+-------------------
+
+The creation of a single-cell cooler file is similar to a regular cooler file. Each cell needs to have a name, bin table and a pixel table.
+All cells must have the same dimensions, and the bins and pixels needs to be provided as two dicts with the cell names as keys.
+
+
+.. code-block:: python
+
+    >>> name_pixel_dict = {'cell1': pixels_cell1, 'cell2': pixels_cell2, 'cell3': pixels_cell3}
+    >>> name_bins_dict = {'cell1': bins_cell1, 'cell2': bins_cell2, 'cell3': bins_cell3}
+    >>> cooler.create_scool('single_cell_cool.scool', name_bins_dict, name_pixel_dict)
+
+To read the content, each individual cell must be handled as a regular cool file.
+
+.. code-block:: python
+
+    >> content_of_scool = cooler.fileops.list_coolers('single_cell_cool.scool')
+    ['/', '/cells/cell1', '/cells/cell2', '/cells/cell3']
+    >>> c1 = cooler.Cooler('single_cell_cool.scool::cells/cell1')
+    >>> c2 = cooler.Cooler('single_cell_cool.scool::cells/cell2')
+    >>> c3 = cooler.Cooler('single_cell_cool.scool::cells/cell3')
