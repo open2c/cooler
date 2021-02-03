@@ -33,10 +33,11 @@ def cli(verbose, debug):
 
     """
     set_logging_context("cli")
-    set_verbosity_level(verbose + 1)
+    set_verbosity_level(min(verbose + 1, 2))
     logger = get_logger()
 
-    if verbose > 1:  # pragma: no cover
+    if verbose >= 2:  # pragma: no cover
+        # Dump process info at exit
         try:
             import psutil
             import atexit
@@ -75,16 +76,19 @@ def cli(verbose, debug):
                     # 'uids',
                     "username",
                 ]
-                p = psutil.Process()
-                info_ = p.as_dict(process_attrs, ad_value="")
-                for key in process_attrs:
-                    logger.debug("PSINFO:'{}': {}".format(key, info_[key]))
+                try:
+                    p = psutil.Process()
+                    info_ = p.as_dict(process_attrs, ad_value="")
+                    for key in process_attrs:
+                        logger.debug("PSINFO:'{}': {}".format(key, info_[key]))
+                except psutil.NoSuchProcess:
+                    logger.error("PSINFO: Error - Process no longer exists.")
 
         except ImportError:
             logger.warning("Install psutil to see process information.")
 
-    # Set hook for postmortem debugging
     if debug:  # pragma: no cover
+        # Set hook for postmortem debugging
         import traceback
 
         try:
