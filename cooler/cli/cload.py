@@ -20,9 +20,13 @@ from ..create import (
     TabixAggregator, HDF5Aggregator, PairixAggregator,
 )
 
-_pandas_major_version = int(pd.__version__.split('.')[0])
-if _pandas_major_version > 0:
-    from pandas.io.common import get_handle
+_pandas_version = pd.__version__.split('.')
+if int(_pandas_version[0]) > 0:
+    from pandas.io.common import get_handle as _get_handle
+    if int(_pandas_version[1]) < 2:
+        get_handle = lambda *a, **kw: _get_handle(*a, **kw)[0]
+    else:
+        get_handle = lambda *a, **kw: _get_handle(*a, **kw).handle
 
 
 # Copied from pairtools._headerops
@@ -543,7 +547,7 @@ def pairs(bins, pairs_path, cool_path, metadata, assembly, chunksize,
         f_in = sys.stdin
         _, f_in = get_header(f_in)
     elif _pandas_major_version > 0:
-        f_in = get_handle(pairs_path, mode='r', compression='infer')[0]
+        f_in = get_handle(pairs_path, mode='r', compression='infer')
         _, f_in = get_header(f_in)
     else:
         f_in = pairs_path
