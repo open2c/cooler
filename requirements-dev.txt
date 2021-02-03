@@ -1,5 +1,5 @@
 -r requirements.txt
-biopython<1.77
+biopython
 dask[array,dataframe]
 ipytree
 matplotlib
