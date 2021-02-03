@@ -20,8 +20,8 @@ from ..create import (
     TabixAggregator, HDF5Aggregator, PairixAggregator,
 )
 
-_pandas_major_version = int(pd.__version__.split('.')[0])
-if _pandas_major_version > 0:
+_pandas_version = pd.__version__.split('.')
+if int(_pandas_version[0]) > 0:
     from pandas.io.common import get_handle
 
 
@@ -542,12 +542,17 @@ def pairs(bins, pairs_path, cool_path, metadata, assembly, chunksize,
     if pairs_path == '-':
         f_in = sys.stdin
         _, f_in = get_header(f_in)
-    elif _pandas_major_version > 0:
-        f_in = get_handle(pairs_path, mode='r', compression='infer')[0]
+    elif int(_pandas_version[0]) > 0:
+        if int(_pandas_version[1]) < 2:
+            f_in = get_handle(pairs_path, mode='r', compression='infer')[0]
+        else:
+            f_in = get_handle(pairs_path, mode='r', compression='infer').handle
+
         _, f_in = get_header(f_in)
     else:
         f_in = pairs_path
         kwargs['comment'] = '#'
+
 
     reader = pd.read_csv(
         f_in,
