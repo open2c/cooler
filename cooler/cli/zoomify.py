@@ -88,8 +88,8 @@ def invoke_balance(args, resolutions, outfile):
 )
 @click.option(
     "--balance-args",
-    help="Additional arguments to pass to cooler balance. To deal with space ambiguity,"
-    "use quotes to pass multiple arguments, e.g. --balance-args '--nproc 8 --ignore-diags 3'"
+    help="Additional arguments to pass to cooler balance. To deal with space ambiguity, "
+    "use quotes to pass multiple arguments, e.g. --balance-args '--nproc 8 --ignore-diags 3' "
     "Note that nproc for balancing must be specified independently of zoomify arguments.",
     type=str
 )
