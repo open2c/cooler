@@ -144,21 +144,27 @@ def _sanitize_records(
             )
 
     # Handle lower triangle records
+    # Note: Swap assignment works as desired because boolean masks create copies
+    # See https://github.com/open2c/cooler/pull/229
     if tril_action is not None:
         is_tril = (chrom1_ids > chrom2_ids) | (
             (chrom1_ids == chrom2_ids) & (anchor1 > anchor2)
         )
         if np.any(is_tril):
             if tril_action == "reflect":
-                chrom1_ids[is_tril], chrom2_ids[is_tril] = (
+                (
+                    chrom1_ids[is_tril],
+                    chrom2_ids[is_tril]
+                ) = (
                     chrom2_ids[is_tril],
                     chrom1_ids[is_tril],
                 )
                 anchor1[is_tril], anchor2[is_tril] = anchor2[is_tril], anchor1[is_tril]
                 for field in sided_fields:
-                    chunk.loc[is_tril, field + suffixes[0]], chunk.loc[
-                        is_tril, field + suffixes[1]
-                    ] = (
+                    (
+                        chunk.loc[is_tril, field + suffixes[0]],
+                        chunk.loc[is_tril, field + suffixes[1]]
+                    ) = (
                         chunk.loc[is_tril, field + suffixes[1]],
                         chunk.loc[is_tril, field + suffixes[0]],
                     )
@@ -304,18 +310,24 @@ def _sanitize_pixels(
         chunk[bin1_field] -= 1
         chunk[bin2_field] -= 1
 
+    # Note: Swap assignment works as desired because boolean masks create copies
+    # See https://github.com/open2c/cooler/pull/229
     if tril_action is not None:
         is_tril = chunk[bin1_field] > chunk[bin2_field]
         if np.any(is_tril):
             if tril_action == "reflect":
-                chunk.loc[is_tril, bin1_field], chunk.loc[is_tril, bin2_field] = (
+                (
+                    chunk.loc[is_tril, bin1_field],
+                    chunk.loc[is_tril, bin2_field]
+                ) = (
                     chunk.loc[is_tril, bin2_field],
                     chunk.loc[is_tril, bin1_field],
                 )
                 for field in sided_fields:
-                    chunk.loc[is_tril, field + suffixes[0]], chunk.loc[
-                        is_tril, field + suffixes[1]
-                    ] = (
+                    (
+                        chunk.loc[is_tril, field + suffixes[0]],
+                        chunk.loc[is_tril, field + suffixes[1]]
+                    ) = (
                         chunk.loc[is_tril, field + suffixes[1]],
                         chunk.loc[is_tril, field + suffixes[0]],
                     )
