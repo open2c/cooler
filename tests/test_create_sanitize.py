@@ -220,13 +220,15 @@ def test_sanitize_pixels():
     sanitize_pixels(
         bins,
     )(chunk.copy())
+
+    # one-based bin IDs
     out = sanitize_pixels(
         bins,
         is_one_based=True,
     )(chunk.copy())
     assert (out['bin1_id'] == chunk['bin1_id'] - 1).all()
 
-    # tril action
+    # tril action: reflect (after swapping bin1, bin2)
     tril_chunk = chunk.copy()
     tril_chunk['bin2_id'] = chunk['bin1_id']
     tril_chunk['bin1_id'] = chunk['bin2_id']
@@ -238,11 +240,17 @@ def test_sanitize_pixels():
     assert len(out) == len(chunk)
     assert (out['foo2'] == chunk['foo1']).all()
     assert (out['foo1'] == chunk['foo2']).all()
+    assert (out['bin1_id'] == chunk['bin1_id']).all()
+    assert (out['bin2_id'] == chunk['bin2_id']).all()
+
+    # tril action: drop
     out = sanitize_pixels(
         bins,
         tril_action="drop",
     )(tril_chunk.copy())
     assert len(out) == 0
+
+    # tril action: raise
     with pytest.raises(BadInputError):
         sanitize_pixels(
             bins,

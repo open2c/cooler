@@ -1,5 +1,14 @@
 # Release notes #
 
+## [v0.8.11](https://github.com/open2c/cooler/compare/v0.8.10...v0.8.11)
+
+Date : 2021-04-01
+
+### Bug fixes
+
+* Hotfix `cooler cload pairs` file header parsing to work with the latest version of pandas (>=1.2).
+* Update CLI help for `--balance-args` to clarify usage. By @gfudenberg.
+
 ## [v0.8.10](https://github.com/open2c/cooler/compare/v0.8.9...v0.8.10)
 
 Date : 2020-09-25
