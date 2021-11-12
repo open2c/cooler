@@ -118,7 +118,7 @@ def configure(
     logger.propagate = propagate
 
 
-def set_logging_context(ctx):  # use this in cooler cli
+def set_logging_context(ctx):
     global _logging_context
 
     logger = logging.getLogger("cooler")
@@ -144,7 +144,7 @@ def get_logging_context():
     return _logging_context
 
 
-def set_verbosity_level(level):  # export this
+def set_verbosity_level(level):
     logger = logging.getLogger("cooler")
     try:
         loglevel = verbosity_to_loglevel[level]
@@ -160,7 +160,7 @@ def get_verbosity_level():
     return loglevel_to_verbosity[logger.level]
 
 
-def get_logger(name="cooler"):  # export this
+def get_logger(name="cooler"):
     # Based on ipython traitlets
     global _loggers, _logging_context
 
