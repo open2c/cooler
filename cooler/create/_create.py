@@ -1,5 +1,5 @@
 from datetime import datetime
-from pandas.api.types import is_categorical, is_integer
+from pandas.api.types import is_categorical_dtype, is_integer_dtype
 import os.path as op
 import pandas as pd
 import numpy as np
@@ -337,15 +337,17 @@ def _rename_chroms(grp, rename_dict, h5opts):
         chroms.rename(rename_dict).index.values, dtype=CHROM_DTYPE
     )  # auto-adjusts char length
 
+    # Replace chroms/name
     del grp["chroms/name"]
     grp["chroms"].create_dataset(
         "name", shape=(n_chroms,), dtype=new_names.dtype, data=new_names, **h5opts
     )
 
+    # Replace the bins/chroms enum mapping if applicable
     bins = get(grp["bins"])
     n_bins = len(bins)
-    idmap = dict(zip(new_names, range(n_chroms)))
-    if is_categorical(bins["chrom"]) or is_integer(bins["chrom"]):
+    if is_categorical_dtype(bins["chrom"]):
+        idmap = dict(zip(new_names, range(n_chroms)))
         chrom_ids = bins["chrom"].cat.codes
         chrom_dtype = h5py.special_dtype(enum=(CHROMID_DTYPE, idmap))
         del grp["bins/chrom"]

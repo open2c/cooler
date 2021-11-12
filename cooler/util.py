@@ -684,7 +684,7 @@ def infer_meta(x, index=None):  # pragma: no cover
 
 
 def get_meta(
-    columns, dtype=None, index_columns=None, index_names=None, default_dtype=np.object
+    columns, dtype=None, index_columns=None, index_names=None, default_dtype='object'
 ):  # pragma: no cover
     """
     Extracted and modified from pandas/io/parsers.py :
@@ -727,7 +727,7 @@ def get_meta(
 
 
 def check_bins(bins, chromsizes):
-    is_cat = pd.api.types.is_categorical(bins["chrom"])
+    is_cat = pd.api.types.is_categorical_dtype(bins["chrom"])
     bins = bins.copy()
     if not is_cat:
         bins["chrom"] = pd.Categorical(
