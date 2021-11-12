@@ -14,7 +14,8 @@ from .core import (
     RangeSelector1D,
     RangeSelector2D,
     CSRReader,
-    query_rect,
+    FullMatrixRangeQuery2D,
+    SymmUpperRangeQuery2D, 
 )
 from .util import parse_cooler_uri, parse_region, open_hdf5, closing_hdf5
 from .fileops import list_coolers
@@ -304,7 +305,7 @@ class Cooler(object):
         join=False,
         ignore_index=True,
         divisive_weights=None,
-        max_chunk=500000000,
+        chunksize=10000000,
     ):
         """ Contact matrix selector
 
@@ -369,7 +370,7 @@ class Cooler(object):
                     join,
                     ignore_index,
                     divisive_weights,
-                    max_chunk,
+                    chunksize,
                     self._is_symm_upper,
                 )
 
@@ -620,8 +621,8 @@ def matrix(
     join=True,
     ignore_index=True,
     divisive_weights=False,
-    max_chunk=500000000,
-    is_upper=True,
+    chunksize=10000000,
+    fill_lower=True,
 ):
     """
     Two-dimensional range query on the Hi-C contact heatmap.
@@ -684,13 +685,15 @@ def matrix(
             + "calculate balancing weights or set balance=False."
         )
 
-    if as_pixels:
-        reader = CSRReader(h5, field, max_chunk)
-        index = None if ignore_index else reader.index_col(i0, i1, j0, j1)
-        i, j, v = reader.query(i0, i1, j0, j1)
+    reader = CSRReader(h5['pixels'], h5['indexes/bin1_offset'][:])
 
-        cols = ["bin1_id", "bin2_id", field]
-        df = pd.DataFrame(dict(zip(cols, [i, j, v])), columns=cols, index=index)
+    if as_pixels:
+        # The historical behavior for as_pixels is to return only explicitly stored 
+        # pixels so we ignore the ``fill_lower`` parameter in this case.
+        engine = FullMatrixRangeQuery2D(
+            reader, chunksize, (i0, i1, j0, j1), field, return_index=not ignore_index
+        )
+        df = engine.to_frame()
 
         if balance:
             weights = Cooler(h5).bins()[[name]]
@@ -707,12 +710,11 @@ def matrix(
         return df
 
     elif sparse:
-        reader = CSRReader(h5, field, max_chunk)
-        if is_upper:
-            i, j, v = query_rect(reader.query, i0, i1, j0, j1, duplex=True)
+        if fill_lower:
+            engine = SymmUpperRangeQuery2D(reader, chunksize, (i0, i1, j0, j1), field)
         else:
-            i, j, v = reader.query(i0, i1, j0, j1)
-        mat = coo_matrix((v, (i - i0, j - j0)), (i1 - i0, j1 - j0))
+            engine = FullMatrixRangeQuery2D(reader, chunksize, (i0, i1, j0, j1), field)
+        mat = engine.to_sparse_matrix()
 
         if balance:
             weights = h5["bins"][name]
@@ -726,12 +728,11 @@ def matrix(
         return mat
 
     else:
-        reader = CSRReader(h5, field, max_chunk)
-        if is_upper:
-            i, j, v = query_rect(reader.query, i0, i1, j0, j1, duplex=True)
+        if fill_lower:
+            engine = SymmUpperRangeQuery2D(reader, chunksize, (i0, i1, j0, j1), field)
         else:
-            i, j, v = reader.query(i0, i1, j0, j1)
-        arr = coo_matrix((v, (i - i0, j - j0)), (i1 - i0, j1 - j0)).toarray()
+            engine = FullMatrixRangeQuery2D(reader, chunksize, (i0, i1, j0, j1), field)
+        arr = engine.to_array()
 
         if balance:
             weights = h5["bins"][name]
