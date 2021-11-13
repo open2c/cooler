@@ -42,25 +42,36 @@ def cli(verbose, debug):
             import psutil
             import atexit
 
-            @atexit.register
-            def process_dump_at_exit():
-                process_attrs = [
+            attrs_available = set([
+                x for x in dir(psutil.Process)
+                if not x.startswith('_')
+                and x not in {
+                    'send_signal', 'suspend',
+                    'resume', 'terminate', 'kill', 'wait',
+                    'is_running', 'as_dict', 'parent', 'parents',
+                    'children', 'rlimit',
+                    'memory_info_ex', 'oneshot'
+                }
+            ])
+
+            attrs = [
+                attr for attr in [
                     "cmdline",
-                    # 'connections',
+                    'connections',
                     "cpu_affinity",
                     "cpu_num",
                     "cpu_percent",
                     "cpu_times",
                     "create_time",
                     "cwd",
-                    # 'environ',
+                    'environ',
                     "exe",
-                    # 'gids',
+                    'gids',
                     "io_counters",
                     "ionice",
                     "memory_full_info",
-                    # 'memory_info',
-                    # 'memory_maps',
+                    'memory_info',
+                    'memory_maps',
                     "memory_percent",
                     "name",
                     "nice",
@@ -72,15 +83,22 @@ def cli(verbose, debug):
                     "ppid",
                     "status",
                     "terminal",
-                    "threads",
-                    # 'uids',
+                    # "threads",  # RuntimeError on MacOS Big Sur
+                    "uids",
                     "username",
                 ]
+                if attr in attrs_available
+            ]
+
+            @atexit.register
+            def process_dump_at_exit():
                 try:
-                    p = psutil.Process()
-                    info_ = p.as_dict(process_attrs, ad_value="")
-                    for key in process_attrs:
-                        logger.debug("PSINFO:'{}': {}".format(key, info_[key]))
+                    process = psutil.Process()
+                    process_info = process.as_dict(attrs, ad_value="")
+                    for attr in attrs:
+                        logger.debug(
+                            "PSINFO:'{}': {}".format(attr, process_info[attr])
+                        )
                 except psutil.NoSuchProcess:
                     logger.error("PSINFO: Error - Process no longer exists.")
 
