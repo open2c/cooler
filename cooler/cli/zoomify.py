@@ -15,7 +15,7 @@ from ..reduce import (
     preferred_sequence
 )
 from ..util import parse_cooler_uri
-from ..tools import lock
+from ..parallel import lock
 from .. import api
 
 
