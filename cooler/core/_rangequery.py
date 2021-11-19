@@ -277,6 +277,10 @@ class BaseRangeQuery2D:
         for task in self.tasks:
             yield task[0](*task[1:])
     
+    @property
+    def n_chunks(self):
+        return len(self.tasks)
+
     def get(self):
         dct = concat(*self.__iter__())
         if not dct:
