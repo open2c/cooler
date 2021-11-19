@@ -181,7 +181,10 @@ class Cooler(object):
         with open_hdf5(self.store, **self.open_kws) as h5:
             grp = h5[self.root]
             return region_to_offset(
-                grp, self._chromids, parse_region(region, self._chromsizes)
+                grp,
+                self._chromids,
+                parse_region(region, self._chromsizes),
+                self.binsize
             )
 
     def extent(self, region):
@@ -205,7 +208,10 @@ class Cooler(object):
         with open_hdf5(self.store, **self.open_kws) as h5:
             grp = h5[self.root]
             return region_to_extent(
-                grp, self._chromids, parse_region(region, self._chromsizes)
+                grp,
+                self._chromids,
+                parse_region(region, self._chromsizes),
+                self.binsize
             )
 
     @property
@@ -259,7 +265,10 @@ class Cooler(object):
             with open_hdf5(self.store, **self.open_kws) as h5:
                 grp = h5[self.root]
                 return region_to_extent(
-                    grp, self._chromids, parse_region(region, self._chromsizes)
+                    grp,
+                    self._chromids,
+                    parse_region(region, self._chromsizes),
+                    self.binsize,
                 )
 
         return RangeSelector1D(None, _slice, _fetch, self._info["nbins"])
@@ -288,7 +297,10 @@ class Cooler(object):
             with open_hdf5(self.store, **self.open_kws) as h5:
                 grp = h5[self.root]
                 i0, i1 = region_to_extent(
-                    grp, self._chromids, parse_region(region, self._chromsizes)
+                    grp,
+                    self._chromids,
+                    parse_region(region, self._chromsizes),
+                    self.binsize,
                 )
                 lo = grp["indexes"]["bin1_offset"][i0]
                 hi = grp["indexes"]["bin1_offset"][i1]
@@ -381,8 +393,12 @@ class Cooler(object):
                     region2 = region
                 region1 = parse_region(region, self._chromsizes)
                 region2 = parse_region(region2, self._chromsizes)
-                i0, i1 = region_to_extent(grp, self._chromids, region1)
-                j0, j1 = region_to_extent(grp, self._chromids, region2)
+                i0, i1 = region_to_extent(
+                    grp, self._chromids, region1, self.binsize
+                )
+                j0, j1 = region_to_extent(
+                    grp, self._chromids, region2, self.binsize
+                )
                 return i0, i1, j0, j1
 
         return RangeSelector2D(field, _slice, _fetch, (self._info["nbins"],) * 2)

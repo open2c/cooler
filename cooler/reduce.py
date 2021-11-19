@@ -12,7 +12,7 @@ from ._version import __format_version_mcool__
 from ._logging import get_logger
 from .create import ContactBinner, create
 from .util import parse_cooler_uri, GenomeSegmentation
-from .tools import lock
+from .parallel import lock
 
 
 __all__ = ["merge_coolers", "coarsen_cooler", "zoomify_cooler"]

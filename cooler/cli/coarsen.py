@@ -6,7 +6,7 @@ import click
 
 from ..util import parse_cooler_uri
 from ..reduce import coarsen_cooler
-from ..tools import lock
+from ..parallel import lock
 
 
 @cli.command()

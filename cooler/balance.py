@@ -5,7 +5,7 @@ import warnings
 import numpy as np
 
 from ._logging import get_logger
-from .tools import split, partition
+from .parallel import split, partition
 from .util import mad
 
 __all__ = ["balance_cooler"]
