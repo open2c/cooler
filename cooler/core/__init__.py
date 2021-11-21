@@ -4,6 +4,6 @@ from ._rangequery import (
 	region_to_offset, 
 	region_to_extent, 
 	CSRReader,
-	FullMatrixRangeQuery2D, 
-	SymmUpperRangeQuery2D,
+	DirectRangeQuery2D,
+	FillLowerRangeQuery2D,
 )
