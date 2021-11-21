@@ -273,6 +273,11 @@ class CSRReader:
 
 
 class BaseRangeQuery2D:
+    """
+    Mixin class for materializing 2D range queries from a sequence of
+    pre-assembled tasks.
+
+    """
     def __iter__(self):
         for task in self.tasks:
             yield task[0](*task[1:])
@@ -319,57 +324,43 @@ class BaseRangeQuery2D:
         from dask.base import tokenize
 
         meta = self.reader.get_frame_meta(self.field)
-        
         tasks = self.tasks
-        name = "cooler-slice-frame" + tokenize(self.bbox, self.field)
-        tasks = [(frame_slice_from_dict, task, self.field) for task in tasks]            
-        spans = [span for bbox in self._bboxes for span in self._get_spans(bbox)]
-        divisions = [spans[0][0]] + [span[1] - 1 for span in spans]
-        
-        keys = [(name, i) for i in range(len(self.tasks))]
-        dsk = dict(zip(keys, tasks))
-        
+        spans = [task[3] for task in tasks]
+
+        name = (
+            "cooler-" +
+            self.__class__.__name__ +
+            tokenize(self.bbox, self.field, self.return_index)
+        )
+        df_tasks = [(frame_slice_from_dict, task, self.field) for task in tasks]
+        divisions = [None] * (len(tasks) + 1)
+
+        keys = [(name, i) for i in range(len(df_tasks))]
+        dsk = dict(zip(keys, df_tasks))
+
         return DataFrame(dsk, name, meta, divisions)
 
 
-class FullMatrixRangeQuery2D(BaseRangeQuery2D):
-    def __init__(self, reader, chunksize, bbox, field, return_index=False):
-        self.reader = reader
-        self.chunksize = chunksize
-        self.field = field
-        self.return_index = return_index
-        self.bbox = bbox
-        self.tasks = [
-            (reader, field, bbox, span, False, return_index)
-            for span in reader.get_spans(bbox, chunksize)
-        ]
-
-
-class SymmUpperRangeQuery2D(BaseRangeQuery2D):
+class DirectRangeQuery2D(BaseRangeQuery2D):
     """
-    Execute a 2D range query from a symmetrized CSR matrix by subdividing it 
-    into a sequence of tasks. 
-    
-    Each task generates a dict containing a subset of pixels from a horizontal 
-    or L-shaped strip of the full query bounding box. Tasks can be executed 
-    eagerly or lazily.
+    Query engine for a matrix that interprets data exactly as stored.
 
     Parameters
     ----------
     reader : CSRReader
-        Reads pixel records from a symm-upper CSR matrix.
-
-    chunksize : int
-        Rough number of pixel records to read from disk at a time (before 
-        filtering).
-
-    bbox : 4-tuple
-        Query bounding box (row_start, row_stop, col_start, col_stop).
-        Interpreted as half-open intervals: 
-        [row_start, row_stop), [col_start, col_stop).
+        Reads pixel records from a CSR matrix.
 
     field : str
         Name of value column to select from.
+
+    bbox : 4-tuple
+        Query bounding box (row_start, row_stop, col_start, col_stop).
+        Interpreted as half-open intervals:
+        [row_start, row_stop), [col_start, col_stop).
+
+    chunksize : int
+        Rough number of pixel records to read from disk at a time (before
+        filtering).
 
     return_index : bool, optional
         Extract the pixel table index values along with the pixels.
@@ -385,12 +376,67 @@ class SymmUpperRangeQuery2D(BaseRangeQuery2D):
         See https://docs.dask.org/en/latest/spec.html for more details.
 
     """
-    def __init__(self, reader, chunksize, bbox, field, return_index=False):
+    def __init__(self, reader, field, bbox, chunksize, return_index=False):
         self.reader = reader
-        self.chunksize = chunksize
         self.field = field
-        self.return_index = return_index
         self.bbox = bbox
+        self.chunksize = chunksize
+        self.return_index = return_index
+        self.tasks = [
+            (reader, field, bbox, span, False, return_index)
+            for span in reader.get_spans(bbox, chunksize)
+        ]
+
+
+class FillLowerRangeQuery2D(BaseRangeQuery2D):
+    """
+    Query engine for a symmetric-upper matrix that generates the additional
+    tasks required to fill in any implicit lower triangle area inside the query
+    bounding box.
+
+    Parameters
+    ----------
+    reader : CSRReader
+        Reads pixel records from a symm-upper matrix.
+
+    field : str
+        Name of value column to select from.
+
+    bbox : 4-tuple
+        Query bounding box (row_start, row_stop, col_start, col_stop).
+        Interpreted as half-open intervals:
+        [row_start, row_stop), [col_start, col_stop).
+
+    chunksize : int
+        Rough number of pixel records to read from disk at a time (before
+        filtering).
+
+    return_index : bool, optional
+        Extract the pixel table index values along with the pixels.
+
+    Attributes
+    ----------
+    bbox
+    chunksize
+    field
+    return_index
+    tasks : list of tuple
+        Partial query tasks represented as tuples of (callable, *args) as in Dask.
+        See https://docs.dask.org/en/latest/spec.html for more details.
+
+    Notes
+    -----
+    Each task generates a dict containing a subset of pixels from a horizontal
+    or L-shaped strip of the full query bounding box. Tasks can be executed
+    eagerly or lazily.
+
+    """
+    def __init__(self, reader, field, bbox, chunksize, return_index=False):
+        self.reader = reader
+        self.field = field
+        self.bbox = bbox
+        self.chunksize = chunksize
+        self.return_index = return_index
         
         _fetch = self.reader
         _fetch_then_transpose = compose(transpose, self.reader)

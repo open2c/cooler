@@ -334,22 +334,22 @@ def test_slice_matrix(mock_cooler):
         )
 
         # query of data in storage (upper triangle)
-        query = core.FullMatrixRangeQuery2D(
+        query = core.DirectRangeQuery2D(
             reader,
-            chunksize=10,
-            bbox=(i0, i1, j0, j1),
             field="count",
+            bbox=(i0, i1, j0, j1),
+            chunksize=10,
             return_index=True
         )
         arr_triu = query.to_array()
         assert np.allclose(r_triu[i0:i1, j0:j1], arr_triu)
 
         # query with filled-in lower triangle
-        query = core.SymmUpperRangeQuery2D(
+        query = core.FillLowerRangeQuery2D(
             reader,
-            chunksize=10,
-            bbox=(i0, i1, j0, j1),
             field="count",
+            bbox=(i0, i1, j0, j1),
+            chunksize=10,
             return_index=True
         )
         arr_fill = query.to_array()

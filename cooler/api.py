@@ -14,8 +14,8 @@ from .core import (
     RangeSelector1D,
     RangeSelector2D,
     CSRReader,
-    FullMatrixRangeQuery2D,
-    SymmUpperRangeQuery2D, 
+    DirectRangeQuery2D,
+    FillLowerRangeQuery2D,
 )
 from .util import parse_cooler_uri, parse_region, open_hdf5, closing_hdf5
 from .fileops import list_coolers
@@ -706,8 +706,8 @@ def matrix(
     if as_pixels:
         # The historical behavior for as_pixels is to return only explicitly stored 
         # pixels so we ignore the ``fill_lower`` parameter in this case.
-        engine = FullMatrixRangeQuery2D(
-            reader, chunksize, (i0, i1, j0, j1), field, return_index=not ignore_index
+        engine = DirectRangeQuery2D(
+            reader, field, (i0, i1, j0, j1), chunksize, return_index=not ignore_index
         )
         df = engine.to_frame()
 
@@ -727,9 +727,9 @@ def matrix(
 
     elif sparse:
         if fill_lower:
-            engine = SymmUpperRangeQuery2D(reader, chunksize, (i0, i1, j0, j1), field)
+            engine = FillLowerRangeQuery2D(reader, field, (i0, i1, j0, j1), chunksize)
         else:
-            engine = FullMatrixRangeQuery2D(reader, chunksize, (i0, i1, j0, j1), field)
+            engine = DirectRangeQuery2D(reader, field, (i0, i1, j0, j1), chunksize)
         mat = engine.to_sparse_matrix()
 
         if balance:
@@ -745,9 +745,9 @@ def matrix(
 
     else:
         if fill_lower:
-            engine = SymmUpperRangeQuery2D(reader, chunksize, (i0, i1, j0, j1), field)
+            engine = FillLowerRangeQuery2D(reader, field, (i0, i1, j0, j1), chunksize)
         else:
-            engine = FullMatrixRangeQuery2D(reader, chunksize, (i0, i1, j0, j1), field)
+            engine = DirectRangeQuery2D(reader, field, (i0, i1, j0, j1), chunksize)
         arr = engine.to_array()
 
         if balance:

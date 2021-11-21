@@ -9,7 +9,7 @@ from . import cli
 import click
 
 from ..util import parse_region
-from ..core import region_to_extent, CSRReader, SymmUpperRangeQuery2D, FullMatrixRangeQuery2D
+from ..core import region_to_extent, CSRReader, DirectRangeQuery2D, FillLowerRangeQuery2D
 from .. import api
 
 
@@ -248,9 +248,9 @@ def dump(
             bbox = (0, n_bins, 0, n_bins)
 
         if fill_lower and clr.storage_mode == "symmetric-upper":
-            engine = SymmUpperRangeQuery2D(reader, chunksize, bbox, field)
+            engine = FillLowerRangeQuery2D(reader, field, bbox, chunksize)
         else:
-            engine = FullMatrixRangeQuery2D(reader, chunksize, bbox, field)
+            engine = DirectRangeQuery2D(reader, field, bbox, chunksize)
 
         chunks = (
             pd.DataFrame(
