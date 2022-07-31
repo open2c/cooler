@@ -59,7 +59,7 @@ class CSRReader(object):
         if (i1 - i0 > 0) or (j1 - j0 > 0):
 
             # coarsegrain the offsets to extract a big chunk of rows at a time
-            offsets = self.offset_selector[i0 : i1 + 1]
+            offsets = self.offset_selector[i0 : i1 + i1.dtype.type(1)]
             which_offsets = _prune_partition(offsets, chunksize)
 
             for o0, o1 in zip(which_offsets[:-1], which_offsets[1:]):

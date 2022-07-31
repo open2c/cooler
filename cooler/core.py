@@ -202,8 +202,8 @@ def _region_to_extent(h5, chrom_ids, region, binsize):
         chrom_lo = h5["indexes"]["chrom_offset"][cid]
         chrom_hi = h5["indexes"]["chrom_offset"][cid + 1]
         chrom_bins = h5["bins"]["start"][chrom_lo:chrom_hi]
-        yield chrom_lo + np.searchsorted(chrom_bins, start, "right") - 1
-        yield chrom_lo + np.searchsorted(chrom_bins, end, "left")
+        yield chrom_lo + chrom_lo.dtype.type(np.searchsorted(chrom_bins, start, "right") - 1)
+        yield chrom_lo + chrom_lo.dtype.type(np.searchsorted(chrom_bins, end, "left"))
 
 
 def region_to_offset(h5, chrom_ids, region, binsize=None):
@@ -238,7 +238,7 @@ class CSRReader(object):
 
     def index_col(self, i0, i1, j0, j1):
         """Retrieve pixel table row IDs corresponding to query rectangle."""
-        edges = self.h5["indexes"]["bin1_offset"][i0 : i1 + 1]
+        edges = self.h5["indexes"]["bin1_offset"][i0 : i1 + i1.dtype.type(1)]
         index = []
         for lo1, hi1 in zip(edges[:-1], edges[1:]):
             if hi1 - lo1 > 0:
@@ -257,7 +257,7 @@ class CSRReader(object):
 
         i, j, v = [], [], []
         if (i1 - i0 > 0) or (j1 - j0 > 0):
-            edges = h5["indexes"]["bin1_offset"][i0 : i1 + 1]
+            edges = h5["indexes"]["bin1_offset"][i0 : i1 + i1.dtype.type(1)]
             data = h5["pixels"][field]
             p0, p1 = edges[0], edges[-1]
 
