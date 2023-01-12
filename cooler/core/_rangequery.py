@@ -15,8 +15,8 @@ def _region_to_extent(h5, chrom_ids, region, binsize):
         chrom_lo = h5["indexes"]["chrom_offset"][cid]
         chrom_hi = h5["indexes"]["chrom_offset"][cid + 1]
         chrom_bins = h5["bins"]["start"][chrom_lo:chrom_hi]
-        yield chrom_lo + np.searchsorted(chrom_bins, start, "right") - 1
-        yield chrom_lo + np.searchsorted(chrom_bins, end, "left")
+        yield chrom_lo + chrom_lo.dtype.type(np.searchsorted(chrom_bins, start, "right") - 1)
+        yield chrom_lo + chrom_lo.dtype.type(np.searchsorted(chrom_bins, end, "left"))
 
 
 def region_to_offset(h5, chrom_ids, region, binsize=None):

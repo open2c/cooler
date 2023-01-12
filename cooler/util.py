@@ -684,7 +684,7 @@ def infer_meta(x, index=None):  # pragma: no cover
 
 
 def get_meta(
-    columns, dtype=None, index_columns=None, index_names=None, default_dtype='object'
+    columns, dtype=None, index_columns=None, index_names=None, default_dtype=np.object_
 ):  # pragma: no cover
     """
     Extracted and modified from pandas/io/parsers.py :

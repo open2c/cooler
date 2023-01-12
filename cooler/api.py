@@ -594,7 +594,7 @@ def annotate(pixels, bins, replace=False):
             lo = 0 if np.isnan(lo) else lo
             hi = 0 if np.isnan(hi) else hi
             if is_selector:
-                right = bins[lo:hi + 1]  # slicing works like iloc
+                right = bins[lo:hi + bin1.dtype.type(1)]  # slicing works like iloc
             else:
                 right = bins.loc[lo:hi]
         elif is_selector:
@@ -612,7 +612,7 @@ def annotate(pixels, bins, replace=False):
             lo = 0 if np.isnan(lo) else lo
             hi = 0 if np.isnan(hi) else hi
             if is_selector:
-                right = bins[lo:hi + 1]  # slicing works like iloc
+                right = bins[lo:hi + bin2.dtype.type(1)]  # slicing works like iloc
             else:
                 right = bins.loc[lo:hi]
         elif is_selector:
@@ -715,7 +715,7 @@ def matrix(
     reader = CSRReader(h5['pixels'], h5['indexes/bin1_offset'][:])
 
     if as_pixels:
-        # The historical behavior for as_pixels is to return only explicitly stored 
+        # The historical behavior for as_pixels is to return only explicitly stored
         # pixels so we ignore the ``fill_lower`` parameter in this case.
         engine = DirectRangeQuery2D(
             reader, field, (i0, i1, j0, j1), chunksize, return_index=not ignore_index

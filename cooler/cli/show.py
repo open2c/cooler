@@ -225,7 +225,7 @@ def show(
         sys.exit(1)
 
     plt.figure(figsize=(11, 10))
-    plt.gcf().canvas.manager.set_window_title("Contact matrix".format())
+    plt.get_current_fig_manager().set_window_title("Contact matrix".format())
     plt.title("")
     plt.imshow(
         load_matrix(c, row_region, col_region, field, balanced, scale),
