@@ -1,8 +1,5 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, print_function, division
 from datetime import datetime
-from six.moves import map
-from pandas.api.types import is_categorical, is_integer
+from pandas.api.types import is_categorical_dtype, is_integer_dtype
 import os.path as op
 import pandas as pd
 import numpy as np
@@ -11,7 +8,6 @@ import tempfile
 import warnings
 import h5py
 import simplejson as json
-import six
 
 from .._version import __version__, __format_version__, __format_version_scool__
 from .._logging import get_logger
@@ -214,7 +210,7 @@ def write_pixels(filepath, grouppath, columns, iterable, h5opts, lock):
     for i, chunk in enumerate(iterable):
 
         if isinstance(chunk, pd.DataFrame):
-            chunk = {k: v.values for k, v in six.iteritems(chunk)}
+            chunk = {k: v.values for k, v in chunk.items()}
 
         try:
             if lock is not None:
@@ -323,14 +319,13 @@ def write_info(grp, info, scool=False):
     info.setdefault("genome-assembly", "unknown")
     info["metadata"] = json.dumps(info.get("metadata", {}))
     info["creation-date"] = datetime.now().isoformat()
-    info["generated-by"] = six.text_type("cooler-" + __version__)
+    info["generated-by"] = "cooler-" + __version__
     if scool:
         info["format"] = MAGIC_SCOOL
-        info["format-version"] = six.text_type(__format_version_scool__)
-
+        info["format-version"] = __format_version_scool__
     else:
         info["format"] = MAGIC
-        info["format-version"] = six.text_type(__format_version__)
+        info["format-version"] = __format_version__
     info["format-url"] = URL
     grp.attrs.update(info)
 
@@ -342,15 +337,17 @@ def _rename_chroms(grp, rename_dict, h5opts):
         chroms.rename(rename_dict).index.values, dtype=CHROM_DTYPE
     )  # auto-adjusts char length
 
+    # Replace chroms/name
     del grp["chroms/name"]
     grp["chroms"].create_dataset(
         "name", shape=(n_chroms,), dtype=new_names.dtype, data=new_names, **h5opts
     )
 
+    # Replace the bins/chroms enum mapping if applicable
     bins = get(grp["bins"])
     n_bins = len(bins)
-    idmap = dict(zip(new_names, range(n_chroms)))
-    if is_categorical(bins["chrom"]) or is_integer(bins["chrom"]):
+    if is_categorical_dtype(bins["chrom"]):
+        idmap = dict(zip(new_names, range(n_chroms)))
         chrom_ids = bins["chrom"].cat.codes
         chrom_dtype = h5py.special_dtype(enum=(CHROMID_DTYPE, idmap))
         del grp["bins/chrom"]
@@ -544,7 +541,7 @@ def create(
     bins["chrom"] = bins["chrom"].astype(object)
     chromsizes = get_chromsizes(bins)
     try:
-        chromsizes = six.iteritems(chromsizes)
+        chromsizes = chromsizes.items()
     except AttributeError:
         pass
     chromnames, lengths = zip(*chromsizes)
@@ -1171,7 +1168,7 @@ def create_scool(
     bins["chrom"] = bins["chrom"].astype(object)
     chromsizes = get_chromsizes(bins)
     try:
-        chromsizes = six.iteritems(chromsizes)
+        chromsizes = chromsizes.items()
     except AttributeError:
         pass
     chromnames, lengths = zip(*chromsizes)

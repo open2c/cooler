@@ -3,7 +3,6 @@ import os.path as op
 import h5py
 import numpy as np
 import pandas as pd
-import six
 
 from cooler import util
 import pytest
@@ -240,11 +239,10 @@ def test_cmd_exists():
     util.cmd_exists('ls')
 
 
-@pytest.mark.skipif(six.PY2, reason="Scipy on Py2 is too old")
 def test_mad():
-    from scipy.stats import median_absolute_deviation
+    from scipy.stats import median_abs_deviation
     x = np.arange(50)
-    assert np.isclose(util.mad(x), median_absolute_deviation(x, scale=1))
+    assert np.isclose(util.mad(x), median_abs_deviation(x, scale=1))
 
 
 def test_hdf5_contextmanagers():
@@ -309,7 +307,7 @@ def test_check_bins():
     bins = util.binnify(chromsizes, 10)
     bins['chrom'] = bins['chrom'].astype(str)
     bins = util.check_bins(bins, chromsizes)
-    assert pd.api.types.is_categorical(bins["chrom"])
+    assert pd.api.types.is_categorical_dtype(bins["chrom"])
 
 
 def test_genome_segmentation():

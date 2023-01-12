@@ -1,4 +1,3 @@
-from __future__ import absolute_import, print_function, division
 import scipy.sparse as sps
 import os.path as op
 import pandas as pd
@@ -76,6 +75,28 @@ def test_annotate(mock_cooler):
     df4 = api.annotate(df[0:0], clr.bins()[:])
     assert np.all(df4.columns == df3.columns)
     assert len(df4) == 0
+
+
+def test_annotate_with_partial_bins():
+    # Addresses a bug where partial bin-table dataframes were sliced incorrectly,
+    # specifically when the pixel dataframe happened to be shorter than it. This
+    # led to incorrect NaNs in the join output.
+    #
+    # This is different from the case where there are pixels from bins that do
+    # not appear in the provided partial bin-table dataframe. This will lead to
+    # NaNs in the join but the result will be correct because those bins were
+    # missing from the input. However, we may want to raise an error in such
+    # cases, or disallow partial bin-table inputs entirely.
+    clr = api.Cooler(op.join(datadir, "hg19.GM12878-MboI.matrix.2000kb.cool"))
+    pix = clr.matrix(as_pixels=True, balance=False).fetch("chr2").iloc[:50]
+
+    bins_chr2 = clr.bins().fetch("chr2")
+    assert len(bins_chr2) > len(pix)
+
+    out = api.annotate(pix, bins_chr2)
+
+    for col in ['chrom1', 'start1', 'end1', 'chrom2', 'start2', 'end2']:
+        assert out[col].notnull().all()
 
 
 def test_matrix():

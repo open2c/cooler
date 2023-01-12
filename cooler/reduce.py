@@ -1,12 +1,8 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, print_function, division
-from collections import OrderedDict, defaultdict
 from bisect import bisect_right
-from six.moves import map
+from collections import OrderedDict, defaultdict
 import multiprocess as mp
 import warnings
 import math
-import six
 
 import pandas as pd
 import numpy as np
@@ -16,7 +12,7 @@ from ._version import __format_version_mcool__
 from ._logging import get_logger
 from .create import ContactBinner, create
 from .util import parse_cooler_uri, GenomeSegmentation
-from .tools import lock
+from .parallel import lock
 
 
 __all__ = ["merge_coolers", "coarsen_cooler", "zoomify_cooler"]
@@ -170,7 +166,7 @@ class CoolerMerger(ContactBinner):
                 .reset_index()
             )
 
-            yield {k: v.values for k, v in six.iteritems(df)}
+            yield {k: v.values for k, v in df.items()}
 
             starts = stops
 
@@ -536,7 +532,7 @@ class CoolerCoarsener(ContactBinner):
         # edges of this partition to make bigger groups of pixels. This way
         # we ensure that none of the original groups gets split.
         edges = []
-        for chrom, i in six.iteritems(self.gs.idmap):
+        for chrom, i in self.gs.idmap.items():
             # Respect chrom1 boundaries
             c0 = self.old_chrom_offset[i]
             c1 = self.old_chrom_offset[i + 1]
@@ -618,7 +614,7 @@ class CoolerCoarsener(ContactBinner):
                 if batchsize > 1:
                     lock.release()
             for df in results:
-                yield {k: v.values for k, v in six.iteritems(df)}
+                yield {k: v.values for k, v in df.items()}
 
 
 def coarsen_cooler(
@@ -787,7 +783,7 @@ def zoomify_cooler(
     # TODO: provide presets? {'pow2', '4dn'}
     from .api import Cooler
 
-    if isinstance(base_uris, six.string_types):
+    if isinstance(base_uris, str):
         base_uris = [base_uris]
 
     parsed_uris = {}

@@ -1,4 +1,3 @@
-from __future__ import absolute_import, division
 # from io import StringIO
 from glob import glob
 import os.path as op

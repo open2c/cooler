@@ -6,7 +6,6 @@ print(result.output)
 import traceback; traceback.print_tb(result.exception.__traceback__)
 
 """
-from __future__ import absolute_import, division
 import os.path as op
 
 from click.testing import CliRunner

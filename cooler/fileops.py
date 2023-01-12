@@ -1,12 +1,8 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, print_function, division
 from datetime import datetime
 # from textwrap import dedent
 import warnings
 import simplejson as json
 import os
-from six import PY2
-import six
 
 try:
     from simplejson import JSONDecodeError
@@ -42,7 +38,7 @@ def decode_attr_value(obj):
         o = obj.item()
     elif hasattr(obj, "tolist"):
         o = obj.tolist()
-    elif isinstance(obj, six.string_types):
+    elif isinstance(obj, str):
         try:
             o = datetime.strptime(obj, "%Y-%m-%dT%H:%M:%S.%f")
         except ValueError:
@@ -423,8 +419,7 @@ class TreeViewer(object):
 
         # Unicode characters slip in on Python 3.
         # So we need to straighten that out first.
-        if not PY2:
-            result = result.encode()
+        result = result.encode()
 
         return result
 
@@ -437,10 +432,7 @@ class TreeViewer(object):
         return drawer(root)
 
     def __repr__(self):
-        if PY2:  # pragma: py3 no cover
-            return self.__bytes__()
-        else:  # pragma: py2 no cover
-            return self.__unicode__()
+        return self.__unicode__()
 
     def _ipython_display_(self):
         tree = tree_widget(self.group, expand=self.expand, level=self.level)
@@ -463,7 +455,7 @@ def read_attr_tree(group, level):
 
 def pprint_attr_tree(uri, level):
     import yaml
-    from six import StringIO
+    from io import StringIO
 
     path, group = parse_cooler_uri(uri)
     with h5py.File(path, "r") as f:

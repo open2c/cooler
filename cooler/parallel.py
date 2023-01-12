@@ -1,10 +1,8 @@
-# -*- coding: utf-8 -*-
 """
 Experimental API for developing split-apply-combine style algorithms on
 coolers.
 
 """
-from __future__ import absolute_import, division, print_function
 from functools import partial, reduce
 from multiprocess import Lock
 

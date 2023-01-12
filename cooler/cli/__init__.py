@@ -1,10 +1,9 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function
 import logging
 import sys
 from .._version import __version__
-from .._logging import get_logger
+from .._logging import get_logger, set_logging_context, set_verbosity_level
 import click
+
 
 # Monkey patch
 click.core._verify_python3_env = lambda: None
@@ -33,66 +32,81 @@ def cli(verbose, debug):
     Type -h or --help after any subcommand for more information.
 
     """
-    # Initialize logging to stderr
-    logging.basicConfig(stream=sys.stderr)
-    logging.captureWarnings(True)
-    root_logger = get_logger()
+    set_logging_context("cli")
+    set_verbosity_level(min(verbose + 1, 2))
+    logger = get_logger()
 
-    # Set verbosity level
-    if verbose > 0:
-        root_logger.setLevel(logging.DEBUG)
-        if verbose > 1:  # pragma: no cover
-            try:
-                import psutil
-                import atexit
+    if verbose >= 2:  # pragma: no cover
+        # Dump process info at exit
+        try:
+            import psutil
+            import atexit
 
-                @atexit.register
-                def process_dump_at_exit():
-                    process_attrs = [
-                        "cmdline",
-                        # 'connections',
-                        "cpu_affinity",
-                        "cpu_num",
-                        "cpu_percent",
-                        "cpu_times",
-                        "create_time",
-                        "cwd",
-                        # 'environ',
-                        "exe",
-                        # 'gids',
-                        "io_counters",
-                        "ionice",
-                        "memory_full_info",
-                        # 'memory_info',
-                        # 'memory_maps',
-                        "memory_percent",
-                        "name",
-                        "nice",
-                        "num_ctx_switches",
-                        "num_fds",
-                        "num_threads",
-                        "open_files",
-                        "pid",
-                        "ppid",
-                        "status",
-                        "terminal",
-                        "threads",
-                        # 'uids',
-                        "username",
-                    ]
-                    p = psutil.Process()
-                    info_ = p.as_dict(process_attrs, ad_value="")
-                    for key in process_attrs:
-                        root_logger.debug("PSINFO:'{}': {}".format(key, info_[key]))
+            attrs_available = set([
+                x for x in dir(psutil.Process)
+                if not x.startswith('_')
+                and x not in {
+                    'send_signal', 'suspend',
+                    'resume', 'terminate', 'kill', 'wait',
+                    'is_running', 'as_dict', 'parent', 'parents',
+                    'children', 'rlimit',
+                    'memory_info_ex', 'oneshot'
+                }
+            ])
 
-            except ImportError:
-                root_logger.warning("Install psutil to see process information.")
+            attrs = [
+                attr for attr in [
+                    "cmdline",
+                    'connections',
+                    "cpu_affinity",
+                    "cpu_num",
+                    "cpu_percent",
+                    "cpu_times",
+                    "create_time",
+                    "cwd",
+                    'environ',
+                    "exe",
+                    'gids',
+                    "io_counters",
+                    "ionice",
+                    "memory_full_info",
+                    'memory_info',
+                    'memory_maps',
+                    "memory_percent",
+                    "name",
+                    "nice",
+                    "num_ctx_switches",
+                    "num_fds",
+                    "num_threads",
+                    "open_files",
+                    "pid",
+                    "ppid",
+                    "status",
+                    "terminal",
+                    # "threads",  # RuntimeError on MacOS Big Sur
+                    "uids",
+                    "username",
+                ]
+                if attr in attrs_available
+            ]
 
-    else:
-        root_logger.setLevel(logging.INFO)
+            @atexit.register
+            def process_dump_at_exit():
+                try:
+                    process = psutil.Process()
+                    process_info = process.as_dict(attrs, ad_value="")
+                    for attr in attrs:
+                        logger.debug(
+                            "PSINFO:'{}': {}".format(attr, process_info[attr])
+                        )
+                except psutil.NoSuchProcess:
+                    logger.error("PSINFO: Error - Process no longer exists.")
 
-    # Set hook for postmortem debugging
+        except ImportError:
+            logger.warning("Install psutil to see process information.")
+
     if debug:  # pragma: no cover
+        # Set hook for postmortem debugging
         import traceback
 
         try:

@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function
 from functools import partial
 from operator import add
 import warnings
@@ -7,7 +5,7 @@ import warnings
 import numpy as np
 
 from ._logging import get_logger
-from .tools import split, partition
+from .parallel import split, partition
 from .util import mad
 
 __all__ = ["balance_cooler"]

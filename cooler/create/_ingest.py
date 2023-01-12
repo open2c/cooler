@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Contact Binners
 ~~~~~~~~~~~~~~~
@@ -7,13 +6,11 @@ Binners are iterators that convert input data of various flavors into a
 properly sorted, chunked stream of binned contacts.
 
 """
-from __future__ import absolute_import, division, print_function
 from collections import OrderedDict, Counter
 from bisect import bisect_left
 from functools import partial
 import itertools
 import warnings
-import six
 
 from pandas.api.types import is_integer_dtype
 import numpy as np
@@ -611,7 +608,7 @@ class HDF5Aggregator(ContactBinner):
     def __iter__(self):
         for chrom in self.gs.contigs:
             for df in self.aggregate(chrom):
-                yield {k: v.values for k, v in six.iteritems(df)}
+                yield {k: v.values for k, v in df.items()}
 
 
 class TabixAggregator(ContactBinner):
@@ -749,7 +746,7 @@ class TabixAggregator(ContactBinner):
         granges = balanced_partition(self.gs, self.n_chunks, self.file_contigs)
         for df in self._map(self.aggregate, granges):
             if df is not None:
-                yield {k: v.values for k, v in six.iteritems(df)}
+                yield {k: v.values for k, v in df.items()}
 
 
 class PairixAggregator(ContactBinner):
@@ -858,7 +855,7 @@ class PairixAggregator(ContactBinner):
         rows = []
         for bin1_id, bin1 in these_bins.iterrows():
 
-            for chrom2, cid2 in six.iteritems(remaining_chroms):
+            for chrom2, cid2 in remaining_chroms.items():
 
                 chrom2_size = chromsizes[chrom2]
 
@@ -918,7 +915,7 @@ class PairixAggregator(ContactBinner):
         granges = balanced_partition(self.gs, self.n_chunks, self.file_contigs)
         for df in self._map(self.aggregate, granges):
             if df is not None:
-                yield {k: v.values for k, v in six.iteritems(df)}
+                yield {k: v.values for k, v in df.items()}
 
 
 class SparseBlockLoader(ContactBinner):  # pragma: no cover

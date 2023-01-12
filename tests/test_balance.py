@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import division, print_function
 import os
 import numpy as np
 import h5py

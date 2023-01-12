@@ -1,4 +1,3 @@
-from __future__ import division, print_function
 from io import BytesIO
 from scipy import sparse
 import numpy as np
@@ -7,6 +6,8 @@ import h5py
 import pytest
 
 from cooler import core
+from cooler.core._selectors import _IndexingMixin
+from cooler.core._rangequery import _comes_before, _contains
 
 
 def make_hdf5_table(mode):
@@ -160,23 +161,23 @@ def test_region_to_offset_extent(mock_cooler):
 
 
 def test_interval_ops():
-    assert core._comes_before(1, 5, 6, 10)
-    assert not core._comes_before(6, 10, 1, 5)
-    assert core._comes_before(1, 5, 6, 10, strict=True)
-    assert core._comes_before(1, 5, 5, 10, strict=True)
-    assert core._comes_before(1, 5, 3, 10)
-    assert not core._comes_before(1, 5, 3, 10, strict=True)
+    assert _comes_before(1, 5, 6, 10)
+    assert not _comes_before(6, 10, 1, 5)
+    assert _comes_before(1, 5, 6, 10, strict=True)
+    assert _comes_before(1, 5, 5, 10, strict=True)
+    assert _comes_before(1, 5, 3, 10)
+    assert not _comes_before(1, 5, 3, 10, strict=True)
 
-    assert core._contains(1, 10, 3, 5)
-    assert core._contains(1, 10, 3, 5, strict=True)
-    assert core._contains(1, 10, 3, 10)
-    assert not core._contains(1, 10, 3, 10, strict=True)
-    assert not core._contains(1, 5, 6, 10)
+    assert _contains(1, 10, 3, 5)
+    assert _contains(1, 10, 3, 5, strict=True)
+    assert _contains(1, 10, 3, 10)
+    assert not _contains(1, 10, 3, 10, strict=True)
+    assert not _contains(1, 5, 6, 10)
 
 
 def test_indexing_mixin():
 
-    class Impl(core._IndexingMixin):
+    class Impl(_IndexingMixin):
         def __init__(self, shape):
             self._shape = shape
 
@@ -315,16 +316,6 @@ def test_slice_matrix(mock_cooler):
         (1, 1, 1, 1),
     ]
     for i0, i1, j0, j1 in slices:
-        triu_reader = core.CSRReader(mock_cooler, "count", max_chunk=10)
-
-        # triangular query
-        index = triu_reader.index_col(i0, i1, j0, j1)
-        i, j, v = triu_reader.query(i0, i1, j0, j1)
-        assert len(index) == len(i)
-
-        # rectangular query
-        i, j, v = core.query_rect(triu_reader.query, i0, i1, j0, j1)
-        mat = sparse.coo_matrix((v, (i - i0, j - j0)), (i1 - i0, j1 - j0)).toarray()
         r = sparse.coo_matrix(
             (
                 (
@@ -334,8 +325,35 @@ def test_slice_matrix(mock_cooler):
             ),
             (mock_cooler.attrs["nbins"],) * 2,
         )
-        r_full = r.toarray() + r.toarray().T
-        assert np.allclose(r_full[i0:i1, j0:j1], mat)
+        r_triu = r.toarray()
+        r_fill = r.toarray() + r.toarray().T
+
+        reader = core.CSRReader(
+            mock_cooler["pixels"],
+            mock_cooler["indexes"]["bin1_offset"]
+        )
+
+        # query of data in storage (upper triangle)
+        query = core.DirectRangeQuery2D(
+            reader,
+            field="count",
+            bbox=(i0, i1, j0, j1),
+            chunksize=10,
+            return_index=True
+        )
+        arr_triu = query.to_array()
+        assert np.allclose(r_triu[i0:i1, j0:j1], arr_triu)
+
+        # query with filled-in lower triangle
+        query = core.FillLowerRangeQuery2D(
+            reader,
+            field="count",
+            bbox=(i0, i1, j0, j1),
+            chunksize=10,
+            return_index=True
+        )
+        arr_fill = query.to_array()
+        assert np.allclose(r_fill[i0:i1, j0:j1], arr_fill)
 
 
 def test_csr_reader():

@@ -1,7 +1,4 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function
 import simplejson as json
-import six
 import os
 
 from pandas.api.types import is_integer_dtype
@@ -17,7 +14,8 @@ from .core import (
     RangeSelector1D,
     RangeSelector2D,
     CSRReader,
-    query_rect,
+    DirectRangeQuery2D,
+    FillLowerRangeQuery2D,
 )
 from .util import parse_cooler_uri, parse_region, open_hdf5, closing_hdf5
 from .fileops import list_coolers
@@ -67,7 +65,7 @@ class Cooler(object):
     """
 
     def __init__(self, store, root=None, **kwargs):
-        if isinstance(store, six.string_types):
+        if isinstance(store, str):
             if root is None:
                 self.filename, self.root = parse_cooler_uri(store)
             elif h5py.is_hdf5(store):
@@ -183,7 +181,10 @@ class Cooler(object):
         with open_hdf5(self.store, **self.open_kws) as h5:
             grp = h5[self.root]
             return region_to_offset(
-                grp, self._chromids, parse_region(region, self._chromsizes)
+                grp,
+                self._chromids,
+                parse_region(region, self._chromsizes),
+                self.binsize
             )
 
     def extent(self, region):
@@ -207,7 +208,10 @@ class Cooler(object):
         with open_hdf5(self.store, **self.open_kws) as h5:
             grp = h5[self.root]
             return region_to_extent(
-                grp, self._chromids, parse_region(region, self._chromsizes)
+                grp,
+                self._chromids,
+                parse_region(region, self._chromsizes),
+                self.binsize
             )
 
     @property
@@ -261,7 +265,10 @@ class Cooler(object):
             with open_hdf5(self.store, **self.open_kws) as h5:
                 grp = h5[self.root]
                 return region_to_extent(
-                    grp, self._chromids, parse_region(region, self._chromsizes)
+                    grp,
+                    self._chromids,
+                    parse_region(region, self._chromsizes),
+                    self.binsize,
                 )
 
         return RangeSelector1D(None, _slice, _fetch, self._info["nbins"])
@@ -290,7 +297,10 @@ class Cooler(object):
             with open_hdf5(self.store, **self.open_kws) as h5:
                 grp = h5[self.root]
                 i0, i1 = region_to_extent(
-                    grp, self._chromids, parse_region(region, self._chromsizes)
+                    grp,
+                    self._chromids,
+                    parse_region(region, self._chromsizes),
+                    self.binsize,
                 )
                 lo = grp["indexes"]["bin1_offset"][i0]
                 hi = grp["indexes"]["bin1_offset"][i1]
@@ -307,7 +317,7 @@ class Cooler(object):
         join=False,
         ignore_index=True,
         divisive_weights=None,
-        max_chunk=500000000,
+        chunksize=10000000,
     ):
         """ Contact matrix selector
 
@@ -372,7 +382,7 @@ class Cooler(object):
                     join,
                     ignore_index,
                     divisive_weights,
-                    max_chunk,
+                    chunksize,
                     self._is_symm_upper,
                 )
 
@@ -383,14 +393,18 @@ class Cooler(object):
                     region2 = region
                 region1 = parse_region(region, self._chromsizes)
                 region2 = parse_region(region2, self._chromsizes)
-                i0, i1 = region_to_extent(grp, self._chromids, region1)
-                j0, j1 = region_to_extent(grp, self._chromids, region2)
+                i0, i1 = region_to_extent(
+                    grp, self._chromids, region1, self.binsize
+                )
+                j0, j1 = region_to_extent(
+                    grp, self._chromids, region2, self.binsize
+                )
                 return i0, i1, j0, j1
 
         return RangeSelector2D(field, _slice, _fetch, (self._info["nbins"],) * 2)
 
     def __repr__(self):
-        if isinstance(self.store, six.string_types):
+        if isinstance(self.store, str):
             filename = os.path.basename(self.store)
             container = "{}::{}".format(filename, self.root)
         else:
@@ -414,7 +428,7 @@ def info(h5):
     """
     d = {}
     for k, v in h5.attrs.items():
-        if isinstance(v, six.string_types):
+        if isinstance(v, str):
             try:
                 v = json.loads(v)
             except ValueError:
@@ -485,7 +499,7 @@ def bins(h5, lo=0, hi=None, fields=None, **kwargs):
     # convert integer chrom IDs to categorical chromosome names.
     if "chrom" in fields:
         convert_enum = kwargs.get("convert_enum", True)
-        if isinstance(fields, six.string_types):
+        if isinstance(fields, str):
             chrom_col = out
         else:
             chrom_col = out["chrom"]
@@ -493,7 +507,7 @@ def bins(h5, lo=0, hi=None, fields=None, **kwargs):
         if is_integer_dtype(chrom_col.dtype) and convert_enum:
             chromnames = chroms(h5, fields="name")
             chrom_col = pd.Categorical.from_codes(chrom_col, chromnames, ordered=True)
-            if isinstance(fields, six.string_types):
+            if isinstance(fields, str):
                 out = pd.Series(chrom_col, out.index)
             else:
                 out["chrom"] = chrom_col
@@ -570,17 +584,23 @@ def annotate(pixels, bins, replace=False):
     """
     columns = pixels.columns
     ncols = len(columns)
+    is_selector = isinstance(bins, RangeSelector1D)
 
     if "bin1_id" in columns:
         if len(bins) > len(pixels):
             bin1 = pixels["bin1_id"]
             lo = bin1.min()
-            hi = bin1.max() + bin1.dtype.type(1)
+            hi = bin1.max()
             lo = 0 if np.isnan(lo) else lo
             hi = 0 if np.isnan(hi) else hi
-            right = bins[lo:hi]
-        else:
+            if is_selector:
+                right = bins[lo:hi + bin1.dtype.type(1)]  # slicing works like iloc
+            else:
+                right = bins.loc[lo:hi]
+        elif is_selector:
             right = bins[:]
+        else:
+            right = bins
 
         pixels = pixels.merge(right, how="left", left_on="bin1_id", right_index=True)
 
@@ -588,12 +608,17 @@ def annotate(pixels, bins, replace=False):
         if len(bins) > len(pixels):
             bin2 = pixels["bin2_id"]
             lo = bin2.min()
-            hi = bin2.max() + bin2.dtype.type(1)
+            hi = bin2.max()
             lo = 0 if np.isnan(lo) else lo
             hi = 0 if np.isnan(hi) else hi
-            right = bins[lo:hi]
-        else:
+            if is_selector:
+                right = bins[lo:hi + bin2.dtype.type(1)]  # slicing works like iloc
+            else:
+                right = bins.loc[lo:hi]
+        elif is_selector:
             right = bins[:]
+        else:
+            right = bins
 
         pixels = pixels.merge(
             right, how="left", left_on="bin2_id", right_index=True, suffixes=("1", "2")
@@ -623,8 +648,8 @@ def matrix(
     join=True,
     ignore_index=True,
     divisive_weights=False,
-    max_chunk=500000000,
-    is_upper=True,
+    chunksize=10000000,
+    fill_lower=True,
 ):
     """
     Two-dimensional range query on the Hi-C contact heatmap.
@@ -687,13 +712,15 @@ def matrix(
             + "calculate balancing weights or set balance=False."
         )
 
-    if as_pixels:
-        reader = CSRReader(h5, field, max_chunk)
-        index = None if ignore_index else reader.index_col(i0, i1, j0, j1)
-        i, j, v = reader.query(i0, i1, j0, j1)
+    reader = CSRReader(h5['pixels'], h5['indexes/bin1_offset'][:])
 
-        cols = ["bin1_id", "bin2_id", field]
-        df = pd.DataFrame(dict(zip(cols, [i, j, v])), columns=cols, index=index)
+    if as_pixels:
+        # The historical behavior for as_pixels is to return only explicitly stored
+        # pixels so we ignore the ``fill_lower`` parameter in this case.
+        engine = DirectRangeQuery2D(
+            reader, field, (i0, i1, j0, j1), chunksize, return_index=not ignore_index
+        )
+        df = engine.to_frame()
 
         if balance:
             weights = Cooler(h5).bins()[[name]]
@@ -710,12 +737,11 @@ def matrix(
         return df
 
     elif sparse:
-        reader = CSRReader(h5, field, max_chunk)
-        if is_upper:
-            i, j, v = query_rect(reader.query, i0, i1, j0, j1, duplex=True)
+        if fill_lower:
+            engine = FillLowerRangeQuery2D(reader, field, (i0, i1, j0, j1), chunksize)
         else:
-            i, j, v = reader.query(i0, i1, j0, j1)
-        mat = coo_matrix((v, (i - i0, j - j0)), (i1 - i0, j1 - j0))
+            engine = DirectRangeQuery2D(reader, field, (i0, i1, j0, j1), chunksize)
+        mat = engine.to_sparse_matrix()
 
         if balance:
             weights = h5["bins"][name]
@@ -729,12 +755,11 @@ def matrix(
         return mat
 
     else:
-        reader = CSRReader(h5, field, max_chunk)
-        if is_upper:
-            i, j, v = query_rect(reader.query, i0, i1, j0, j1, duplex=True)
+        if fill_lower:
+            engine = FillLowerRangeQuery2D(reader, field, (i0, i1, j0, j1), chunksize)
         else:
-            i, j, v = reader.query(i0, i1, j0, j1)
-        arr = coo_matrix((v, (i - i0, j - j0)), (i1 - i0, j1 - j0)).toarray()
+            engine = DirectRangeQuery2D(reader, field, (i0, i1, j0, j1), chunksize)
+        arr = engine.to_array()
 
         if balance:
             weights = h5["bins"][name]

@@ -1,4 +1,3 @@
-from __future__ import absolute_import, division
 from io import StringIO
 import os.path as op
 import numpy as np
@@ -74,7 +73,7 @@ def test_dump():
         cooler_cmp(f_in, "out.cool")
 
         # duplexed output
-        result = runner.invoke(dump, [f_in, "--matrix", "-H"])
+        result = runner.invoke(dump, [f_in, "--fill-lower", "-H"])
         pixels2 = pd.read_csv(StringIO(result.output), sep="\t")
         assert len(pixels2) > len(pixels)
         upper = pixels2[pixels2["bin1_id"] <= pixels2["bin2_id"]].reset_index(drop=True)
@@ -96,14 +95,14 @@ def test_dump():
         pixels = pd.read_csv(StringIO(result.output), sep="\t")
         cooler.create_cooler("out.cool", bins, pixels, symmetric_upper=False)
         cooler_cmp(f_in, "out.cool")
-        result = runner.invoke(dump, [f_in, "--matrix", "-H"])
+        result = runner.invoke(dump, [f_in, "--fill-lower", "-H"])
         pixels2 = pd.read_csv(StringIO(result.output), sep="\t")
         assert np.allclose(pixels, pixels2)
 
-        # for square data, -m is a no-op
+        # for square data, -f (--fill-lower) is a no-op
         result = runner.invoke(dump, [f_in, "-H", "-r", "chr2", "-r2", "chr1"])
         lower1 = pd.read_csv(StringIO(result.output), sep="\t")
-        result = runner.invoke(dump, [f_in, "-m", "-H", "-r", "chr2", "-r2", "chr1"])
+        result = runner.invoke(dump, [f_in, "-f", "-H", "-r", "chr2", "-r2", "chr1"])
         lower2 = pd.read_csv(StringIO(result.output), sep="\t")
         assert np.allclose(lower1, lower2)
 

@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 import io
 import os
 import re
@@ -11,11 +10,7 @@ classifiers = """\
     Development Status :: 4 - Beta
     Operating System :: OS Independent
     Programming Language :: Python
-    Programming Language :: Python :: 2
-    Programming Language :: Python :: 2.7
     Programming Language :: Python :: 3
-    Programming Language :: Python :: 3.4
-    Programming Language :: Python :: 3.5
     Programming Language :: Python :: 3.6
     Programming Language :: Python :: 3.7
     Programming Language :: Python :: 3.8
@@ -57,7 +52,7 @@ extras_require = {
     'tests': ['pytest', 'mock', 'pytest-flake8', 'pytest-cov', 'codecov'],
     'docs': get_requirements(os.path.join('docs', 'requirements.txt')),
     'all': [
-        'biopython<1.77',
+        'biopython',
         'dask[array,dataframe]',
         'ipytree',
         'psutil',

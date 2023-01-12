@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import division, print_function
 import os.path as op
 
 from ._util import parse_field_param
@@ -8,7 +6,7 @@ import click
 
 from ..util import parse_cooler_uri
 from ..reduce import coarsen_cooler
-from ..tools import lock
+from ..parallel import lock
 
 
 @cli.command()
