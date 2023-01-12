@@ -584,17 +584,23 @@ def annotate(pixels, bins, replace=False):
     """
     columns = pixels.columns
     ncols = len(columns)
+    is_selector = isinstance(bins, RangeSelector1D)
 
     if "bin1_id" in columns:
         if len(bins) > len(pixels):
             bin1 = pixels["bin1_id"]
             lo = bin1.min()
-            hi = bin1.max() + 1
+            hi = bin1.max()
             lo = 0 if np.isnan(lo) else lo
             hi = 0 if np.isnan(hi) else hi
-            right = bins[lo:hi]
-        else:
+            if is_selector:
+                right = bins[lo:hi + 1]  # slicing works like iloc
+            else:
+                right = bins.loc[lo:hi]
+        elif is_selector:
             right = bins[:]
+        else:
+            right = bins
 
         pixels = pixels.merge(right, how="left", left_on="bin1_id", right_index=True)
 
@@ -602,12 +608,17 @@ def annotate(pixels, bins, replace=False):
         if len(bins) > len(pixels):
             bin2 = pixels["bin2_id"]
             lo = bin2.min()
-            hi = bin2.max() + 1
+            hi = bin2.max()
             lo = 0 if np.isnan(lo) else lo
             hi = 0 if np.isnan(hi) else hi
-            right = bins[lo:hi]
-        else:
+            if is_selector:
+                right = bins[lo:hi + 1]  # slicing works like iloc
+            else:
+                right = bins.loc[lo:hi]
+        elif is_selector:
             right = bins[:]
+        else:
+            right = bins
 
         pixels = pixels.merge(
             right, how="left", left_on="bin2_id", right_index=True, suffixes=("1", "2")
