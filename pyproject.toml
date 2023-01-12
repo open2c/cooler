@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[tool.distutils.bdist_wheel]
+universal = true
+
+[tool.coverage.run]
+source = ["cooler"]
+
+omit = [
+    "cooler/__main__.py",
+    "cooler/_version.py",
+    "cooler/sandbox/*",
+    "cooler/cli/csort.py"
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "return NotImplemented",
+    "raise NotImplementedError"
+]
+
+[tool.pytest.ini_options]
+addopts = "--cov cooler --cov-config .coveragerc --cov-report term-missing --cov-report html --cov-report=xml"
+filterwarnings = ["ignore::PendingDeprecationWarning"]
+testpaths = ["tests"]

@@ -1,5 +1,6 @@
 -r requirements.txt
 biopython
+coverage[toml]
 dask[array,dataframe]
 ipytree
 matplotlib
