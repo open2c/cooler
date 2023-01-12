@@ -148,7 +148,7 @@ def test_print_trees():
 
     with h5py.File(src_file) as f:
         t = fileops.TreeViewer(f)
-        t._ipython_display_()
+        t._repr_mimebundle_()
 
 
 def test_is_scool_file():

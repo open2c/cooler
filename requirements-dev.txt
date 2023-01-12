@@ -2,7 +2,8 @@
 biopython
 coverage[toml]
 dask[array,dataframe]
-ipytree
+ipytree>=0.2.2
+ipywidgets>=8.0.0
 matplotlib
 mock
 psutil

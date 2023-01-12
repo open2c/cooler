@@ -15,6 +15,8 @@ classifiers = """\
     Programming Language :: Python :: 3.7
     Programming Language :: Python :: 3.8
     Programming Language :: Python :: 3.9
+    Programming Language :: Python :: 3.10
+    Programming Language :: Python :: 3.11
 """
 
 
@@ -54,7 +56,8 @@ extras_require = {
     'all': [
         'biopython',
         'dask[array,dataframe]',
-        'ipytree',
+        'ipytree>=0.2.2',
+        'ipywidgets>=8.0.0',
         'psutil',
         'pysam',
     ],
