@@ -2,7 +2,6 @@ import simplejson as json
 import os
 
 from pandas.api.types import is_integer_dtype
-from scipy.sparse import coo_matrix
 import numpy as np
 import pandas as pd
 import h5py

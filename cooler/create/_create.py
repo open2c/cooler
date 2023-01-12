@@ -1,5 +1,5 @@
 from datetime import datetime
-from pandas.api.types import is_categorical_dtype, is_integer_dtype
+from pandas.api.types import is_categorical_dtype
 import os.path as op
 import pandas as pd
 import numpy as np
@@ -476,7 +476,7 @@ def create(
             "Note that the `chromsizes` argument is now deprecated: "
             "see documentation for `create`."
         )
-    if append_scool == True and scool_root_uri is None:
+    if append_scool and scool_root_uri is None:
         raise ValueError(
             "If the parameter `append_scool` is set, the parameter `scool_root_uri` must be defined."
         )
@@ -591,8 +591,8 @@ def create(
 
             # hard link to root bins table, but only the three main datasets
             dst[dst_group]["bins/chrom"] = src["bins/chrom"]
-            dst[dst_group]["bins/start"]= src["bins/start"]
-            dst[dst_group]["bins/end"]= src["bins/end"]
+            dst[dst_group]["bins/start"] = src["bins/start"]
+            dst[dst_group]["bins/end"] = src["bins/end"]
 
             # create per cell the additional columns e.g. 'weight'
             # these columns are individual for each cell
@@ -1078,7 +1078,8 @@ def create_scool(
     ensure_sorted=False,
     h5opts=None,
     lock=None,
-    **kwargs):
+    **kwargs
+):
     r"""
     Create a single-cell (scool) file.
 
@@ -1158,10 +1159,10 @@ def create_scool(
         dtypes.update(dtypes_)
 
     # Determine the appropriate iterable
-    try:
-        from dask.dataframe import DataFrame as dask_df
-    except (ImportError, AttributeError):  # pragma: no cover
-        dask_df = ()
+    # try:
+    #     from dask.dataframe import DataFrame as dask_df
+    # except (ImportError, AttributeError):  # pragma: no cover
+    #     dask_df = ()
 
     # Prepare chroms and bins
     bins = bins.copy()

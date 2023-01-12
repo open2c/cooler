@@ -152,7 +152,7 @@ def set_verbosity_level(level):
         raise ValueError(
             "Verbosity level must be one of: -2, -1, 0, 1, 2; got '{}'.".format(level)
         )
-    logger.setLevel(verbosity_to_loglevel[level])
+    logger.setLevel(loglevel)
 
 
 def get_verbosity_level():

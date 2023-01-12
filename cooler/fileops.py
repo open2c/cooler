@@ -11,11 +11,10 @@ except ImportError:
 
 from asciitree import BoxStyle, LeftAligned
 from asciitree.traversal import Traversal
-import numpy as np
 import h5py
 
 from .util import parse_cooler_uri, natsorted
-from .create import MAGIC, URL, MAGIC_SCOOL
+from .create import MAGIC, MAGIC_SCOOL
 
 __all__ = ["is_cooler", "is_multires_file", "list_coolers", "cp", "mv", "ln"]
 
@@ -112,7 +111,7 @@ def is_cooler(uri):
     """
     Determine if a URI string references a cooler data collection.
     Returns False if the file or group path doesn't exist.
-    
+
     """
     filepath, grouppath = parse_cooler_uri(uri)
     if not h5py.is_hdf5(filepath):
@@ -157,7 +156,7 @@ def is_scool_file(filepath):
         if fmt == MAGIC_SCOOL:
             keys = ("chroms", "bins", "cells")
             if not all(name in f.keys() for name in keys):
-                warnings.warn("Scooler path {} appears to be corrupt".format(grp.name))
+                warnings.warn("Scool file appears to be corrupt")
                 return False
             if "cells" in f.keys() and len(f["cells"].keys()) > 0:
                 for cells in f["cells"].keys():
@@ -211,12 +210,12 @@ def list_scool_cells(filepath):
         Cooler group paths of all cells in the file.
 
     """
-    if is_scool_file(filepath):
+    def _check_cooler(pth, grp):
+        if _is_cooler(grp):
+            listing.append("/" + pth if not pth.startswith("/") else pth)
 
+    if is_scool_file(filepath):
         listing = []
-        def _check_cooler(pth, grp):
-            if _is_cooler(grp):
-                listing.append("/" + pth if not pth.startswith("/") else pth)
         with h5py.File(filepath, "r") as f:
             _check_cooler("/", f)
             visititems(f, _check_cooler)

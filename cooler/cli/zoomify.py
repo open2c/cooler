@@ -1,6 +1,5 @@
 from math import ceil
 import shlex
-import sys
 import warnings
 
 from ._util import parse_field_param
@@ -10,7 +9,6 @@ import click
 from ..reduce import (
     legacy_zoomify,
     zoomify_cooler,
-    get_quadtree_depth,
     HIGLASS_TILE_DIM,
     preferred_sequence
 )
@@ -40,7 +38,7 @@ def invoke_balance(args, resolutions, outfile):
                 args=[uri] + args, prog_name='cooler'
             )
         except SystemExit as e:
-            exc_info = sys.exc_info()
+            # exc_info = sys.exc_info()
             exit_code = e.code
 
             if exit_code is None:
@@ -171,7 +169,7 @@ def zoomify(
                         args=[uri] + balance_args, prog_name='cooler'
                     )
                 except SystemExit as e:
-                    exc_info = sys.exc_info()
+                    # exc_info = sys.exc_info()
                     exit_code = e.code
 
                     if exit_code is None:

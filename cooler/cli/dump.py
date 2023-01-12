@@ -1,10 +1,9 @@
 import gzip
 import sys
 
-import numpy as np
 import pandas as pd
 
-from ._util import DelimitedTuple, exit_on_broken_pipe
+from ._util import DelimitedTuple
 from . import cli
 import click
 

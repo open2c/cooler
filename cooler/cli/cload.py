@@ -84,8 +84,9 @@ def cload():
     pass
 
 
+# flake8: noqa
 def register_subcommand(func):
-    return (  # noqa
+    return (
         cload.command()(
             click.argument(
                 "bins",
