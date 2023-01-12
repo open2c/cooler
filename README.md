@@ -2,13 +2,78 @@
 
 <a href="https://open2c.github.io/cooler"><img width="25%" src="https://github.com/open2c/cooler/raw/master/docs/cooler_logo.png" alt="Cooler"></a>
 
-[![Build Status](https://travis-ci.org/open2c/cooler.svg?branch=master)](https://travis-ci.org/open2c/cooler)
-[![CodeCov](https://codecov.io/gh/open2c/cooler/branch/master/graph/badge.svg)](https://codecov.io/gh/open2c/cooler)
-[![Documentation Status](https://readthedocs.org/projects/cooler/badge/?version=latest)](http://cooler.readthedocs.org/en/latest/)
-[![install with bioconda](https://img.shields.io/badge/install%20with-bioconda-brightgreen.svg?style=flat-square)](http://bioconda.github.io/recipes/cooler/README.html)
-[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/open2c/cooler-binder/master)
-[![Join the chat on Slack](https://img.shields.io/badge/chat-slack-%233F0F3F?logo=slack)](https://bit.ly/2UaOpAe)
-[![DOI](https://zenodo.org/badge/49553222.svg)](https://zenodo.org/badge/latestdoi/49553222)
+<table>
+    <tr>
+        <td>Latest Release</td>
+        <td>
+            <a href="https://pypi.org/project/cooler/">
+                <img src="https://badge.fury.io/py/cooler.svg" alt="latest release pypi" />
+            </a>
+            <a href="https://bioconda.github.io/recipes/cooler/README.html">
+                <img src="https://anaconda.org/bioconda/cooler/badges/version.svg" alt="latest release bioconda">
+            </a>
+        </td>
+    </tr>
+    <tr>
+        <td>License</td>
+        <td>
+            <a href="https://github.com/open2c/cooler/blob/master/LICENSE">
+                <img src="https://img.shields.io/pypi/l/cooler.svg" alt="license">
+            </a>
+        </td>
+    </tr>
+    <tr>
+        <td>Build Status</td>
+        <td>
+            <a href="https://github.com/open2c/cooler/blob/main/.github/workflows/lint-test-cov.yml">
+                <img src="https://github.com/open2c/cooler/actions/workflows/lint-test-cov.yml/badge.svg" alt="build status">
+            </a>
+        </td>
+    </tr>
+    <tr>
+        <td>Docs Status</td>
+        <td>
+            <a href="http://cooler.readthedocs.org/en/latest/">
+                <img src="https://readthedocs.org/projects/cooler/badge/?version=latest">
+            </a>
+        </td>
+    </tr>
+    <tr>
+        <td>Coverage</td>
+        <td>
+            <a href="https://codecov.io/gh/open2c/cooler">
+                <img src="https://codecov.io/gh/open2c/cooler/branch/master/graph/badge.svg" alt="coverage">
+            </a>
+        </td>
+    </tr>
+    <tr>
+        <td>Downloads</td>
+        <td>
+            <a href="https://pypi.org/project/cooler">
+                <img src="https://static.pepy.tech/personalized-badge/cooler?period=total&units=international_system&left_color=grey&right_color=blue&left_text=PyPI%20downloads" alt="pypi downloads">
+            </a>
+            <a href="http://bioconda.github.io/recipes/cooler/README.html">
+                <img src="https://img.shields.io/conda/dn/bioconda/cooler.svg?style=flat&label=Bioconda downloads" alt="bioconda downloads">
+            </a>
+        </td>
+    </tr>
+    <tr>
+        <td>Community</td>
+        <td>
+            <a href="https://bit.ly/open2c-slack">
+                <img src="https://img.shields.io/badge/chat-slack-%233F0F3F?logo=slack" alt="slack">
+            </a>
+        </td>
+    </tr>
+    <tr>
+        <td>Zenodo</td>
+        <td>
+            <a href="https://zenodo.org/badge/latestdoi/49553222">
+                <img src="https://zenodo.org/badge/49553222.svg" alt="zenodo doi">
+            </a>
+        </td>
+    </tr>
+</table>
 
 ## A cool place to store your Hi-C
 
