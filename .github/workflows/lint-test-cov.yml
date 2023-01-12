@@ -27,7 +27,8 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install flake8 codecov pytest pytest-flake8 pytest-cov
-        if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
+        pip install -r requirements-dev.txt
+        pip install -e .
     - name: Lint, testing and coverage with pytest
       run: |
         pytest
