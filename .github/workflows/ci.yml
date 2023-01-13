@@ -40,3 +40,7 @@ jobs:
     - name: Testing and coverage with pytest
       run: |
         pytest
+
+    - uses: codecov/codecov-action@v3
+      with:
+        verbose: true
