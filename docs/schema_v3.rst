@@ -47,7 +47,7 @@ URI syntax
 We identify a cooler data collection using a **URI string** to its top-level group, separating the system path to the container file from the **group path** within the container file by a double colon ``::``.
 
 ::
-  
+
   path/to/container.cool::/path/to/cooler/group
 
 For any URI, the leading slash after the ``::`` may be omitted. To reference the root group ``/``, the entire ``::/`` suffix may be omitted (i.e., just a file path).
@@ -136,12 +136,12 @@ Indexes are stored as 1D arrays in a separate group called ``indexes``. They can
     }
 
 * ``chrom_offset``: indicates which row in the bin table each chromosome first appears. The last element stores the length of the bin table.
-* ``bin1_offset``: indicates which row in the pixel table each bin1 ID first appears. The last element stores the length of the pixel table. This index is usually called *indptr* in CSR data structures. 
+* ``bin1_offset``: indicates which row in the pixel table each bin1 ID first appears. The last element stores the length of the pixel table. This index is usually called *indptr* in CSR data structures.
 
 Storage mode
 ============
 
-Storing a symmetric matrix requires only the *upper triangular part, including the diagonal*, since the remaining elements can be reconstructed from the former ones. To indicate the use of this **mode of matrix storage** to client software, the value of the metadata attribute ``storage-mode`` must be set to ``"symmetric-upper"`` (see `Metadata`_). 
+Storing a symmetric matrix requires only the *upper triangular part, including the diagonal*, since the remaining elements can be reconstructed from the former ones. To indicate the use of this **mode of matrix storage** to client software, the value of the metadata attribute ``storage-mode`` must be set to ``"symmetric-upper"`` (see `Metadata`_).
 
 .. versionadded:: 3
 
@@ -196,7 +196,7 @@ Essential key-value properties are stored as `HDF5 attributes <http://docs.h5py.
     Arbitrary JSON-compatible **user metadata** about the experiment.
 
 
-All scalar string attributes, including serialized JSON, must be stored as **variable-length UTF-8 encoded strings**. 
+All scalar string attributes, including serialized JSON, must be stored as **variable-length UTF-8 encoded strings**.
 
 .. warning:: When assigning scalar string attributes in Python 2, always store values having ``unicode`` type. In h5py, assigning a Python text string (Python 3 ``str`` or Python 2 ``unicode``) to an HDF5 attribute results in variable-length UTF-8 storage.
 
@@ -215,7 +215,7 @@ Single-resolution
 * A single-resolution cooler file that contains a single data collection under the ``/`` group. Conventional file extension: ``.cool``.
 
 ::
-  
+
   XYZ.1000.cool
   /
    ├── bins
@@ -229,7 +229,7 @@ Multi-resolution
 
 * A multi-resolution cooler file that contains multiple "coarsened" resolutions or "zoom-levels" derived from the same dataset. Multires cooler files should store each data collection underneath a group called ``/resolutions`` within a sub-group whose name is the bin size (e.g, ``XYZ.1000.mcool::resolutions/10000``). If the base cooler has variable-length bins, then use ``1`` to designate the base resolution, and the use coarsening multiplier (e.g. ``2``, ``4``, ``8``, etc.) to name the lower resolutions. Conventional file extension: ``.mcool``.
 
-:: 
+::
 
   XYZ.1000.mcool
   /
@@ -273,9 +273,9 @@ In addition, a multi-resolution cooler file may indicate to clients that it is u
     Indicates whether the resolution is constant along both axes.
 
 
-.. note:: 
+.. note::
 
-  The old multi-resolution layout used resolutions strictly in increments of *powers of 2*. In this layout (MCOOL version 2), the data collections are named by zoom level, starting with ``XYZ.1000.mcool::0`` being the coarsest resolution up until the finest or "base" resolution (e.g., ``XYZ.1000.mcool::14`` for 14 levels of coarsening). 
+  The old multi-resolution layout used resolutions strictly in increments of *powers of 2*. In this layout (MCOOL version 2), the data collections are named by zoom level, starting with ``XYZ.1000.mcool::0`` being the coarsest resolution up until the finest or "base" resolution (e.g., ``XYZ.1000.mcool::14`` for 14 levels of coarsening).
 
   .. versionchanged:: 0.8
     Both the legacy layout and the new mcool layout are supported by `HiGlass <http://higlass.io/app/>`_. Prior to cooler 0.8, the new layout was produced only when requesting a specific list of resolutions. As of cooler 0.8, the new layout is always produced by the :command:`cooler zoomify` command unless the ``--legacy`` option is given. Files produced by :py:func:`cooler.zoomify_cooler`, `hic2cool <https://github.com/4dn-dcic/hic2cool/>`_, and the mcools from the `4DN data portal <https://data.4dnucleome.org/>`_ also follow the new layout.
@@ -285,11 +285,11 @@ In addition, a multi-resolution cooler file may indicate to clients that it is u
 Single-cell (single-resolution)
 -------------------------------
 
-A single-cell cooler file contains all the matrices of a single-cell Hi-C data set. All cells are stored under a group called ``/cells``, and all cells share the primary bin table columns 
+A single-cell cooler file contains all the matrices of a single-cell Hi-C data set. All cells are stored under a group called ``/cells``, and all cells share the primary bin table columns
 i.e. ``bins['chrom']``, ``bins['start']`` and ``bins['end']`` which are `hardlinked <http://docs.h5py.org/en/stable/high/group.html#hard-links>`_ to the root-level bin table. Any individual cell can be accessed using the regular :class:`cooler.Cooler` interface.
 Conventional file extension: ``.scool``.
 
-:: 
+::
 
   XYZ.scool
   /
@@ -340,7 +340,7 @@ In addition, a single-cell single-resolution cooler file may indicate to clients
 
 .. describe:: nbins : int
 
-    The number of bins 
+    The number of bins
 
 .. describe:: nchroms : int
 

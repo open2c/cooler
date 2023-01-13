@@ -75,4 +75,3 @@ Indexes are stored as 1D datasets in a separate group. The current indexes can b
 
 - ``chrom_offset`` : indicates what row in the bin table each chromosome first appears.
 - ``bin1_offset`` : indicates what row in the pixel table each bin1 ID appears. This is often called *indptr* in CSR data structures.
-

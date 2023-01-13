@@ -20,7 +20,7 @@ We refer to the data representation of a single contact matrix as a "Cooler".
 Following the convention of the `odo <http://odo.pydata.org/en/latest/uri.html>`_ package, we identify a Cooler using a Cooler URI string, separating the path to the container file from the data path within the container by ``::``:
 
 ::
-  
+
   /path/to/container.cool::/path/to/cooler/group
 
 

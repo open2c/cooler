@@ -15,7 +15,7 @@ Requirements:
 
 - Python 2.7 or 3.4 and higher
 - libhdf5
-- Python packages :py:mod:`numpy`, :py:mod:`scipy`, :py:mod:`pandas`, :py:mod:`h5py`. 
+- Python packages :py:mod:`numpy`, :py:mod:`scipy`, :py:mod:`pandas`, :py:mod:`h5py`.
 
 We highly recommend using the conda package manager to install scientific packages like these. To get :command:`conda`, you can download either the full `Anaconda <https://www.continuum.io/downloads>`_ Python distribution which comes with lots of data science software or the minimal `Miniconda <http://conda.pydata.org/miniconda.html>`_ distribution which is just the standalone package manager plus Python. In the latter case, you can install the packages as follows:
 
@@ -66,7 +66,7 @@ Output:
 Python API
 ----------
 
-See: 
+See:
 
 - Jupyter Notebook `API walkthrough <https://github.com/open2c/cooler-binder/blob/master/cooler_api.ipynb>`_.
 - The :ref:`api-reference` for more information.

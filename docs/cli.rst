@@ -1356,4 +1356,3 @@ If indexing with Pairix, the output file will have the following properties:
 
 
 ----
-

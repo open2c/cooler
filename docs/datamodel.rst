@@ -20,7 +20,7 @@ We can describe two tabular representations of such data.
 By extending the `bedGraph <https://genome.ucsc.edu/goldenPath/help/bedgraph.html>`_ format, we can encode a 2D array with the following header.
 
 +--------+--------+------+--------+--------+------+-------+
-| chrom1 | start1 | end1 | chrom2 | start2 | end2 | value | 
+| chrom1 | start1 | end1 | chrom2 | start2 | end2 | value |
 +--------+--------+------+--------+--------+------+-------+
 
 Other bin-related attributes (e.g. X and Y) and be appended as columns X1, X2, Y1, Y2, and so on. One problem with this representation is that each bin-related attribute can be repeated many times throughout the table, leading to great redundancy.
@@ -129,7 +129,7 @@ HDF5 is not a database system and is not journalled. It supports concurrent read
 
 	Why model it this way?
 
-	To balance the tradeoff between simplicity, terseness and flexibility in an attempt to stay `Zen <https://www.python.org/dev/peps/pep-0020/>`_. 
+	To balance the tradeoff between simplicity, terseness and flexibility in an attempt to stay `Zen <https://www.python.org/dev/peps/pep-0020/>`_.
 
 	+ The schema is flexible enough to describe a whole genome contact matrix, or any subset of a contact matrix, including single contig-contig tiles.
 	+ Given the variety of ways we might want to read the data or add new columns, flatter is better than nested.

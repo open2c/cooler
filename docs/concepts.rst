@@ -14,12 +14,12 @@ The default location for a single-cooler .cool file is the root group ``/`` of t
 However, coolers can be stored at any level of the HDF5 hierarchy and qualified using a URI string of the form ``/path/to/cool/file::/path/to/cooler/group``.
 
 .. code-block:: python
-    
+
     >>> c1 = cooler.Cooler('data/WT.DpnII.mcool::resolutions/10000')
     >>> c2 = cooler.Cooler('data/WT.DpnII.mcool::resolutions/1000')
 
-The current standard for Hi-C coolers is to name multi-resolution coolers under ``.mcool`` extension, 
-and store differrent resolutions in an HDF5 group ``resolutions``, as shown above. 
+The current standard for Hi-C coolers is to name multi-resolution coolers under ``.mcool`` extension,
+and store differrent resolutions in an HDF5 group ``resolutions``, as shown above.
 
 Data selection
 --------------
@@ -140,7 +140,7 @@ The matrix selector’s fetch method is intended to represent a **2D range query
     >>> A1 = c.matrix().fetch('chr1')
     >>> A2 = c.matrix().fetch('chr3:10,000,000-20,000,000')
     >>> A3 = c.matrix().fetch( ('chr3', 10000000, 20000000) )
-    >>> A4 = c.matrix().fetch('chr2', 'chr3')    
+    >>> A4 = c.matrix().fetch('chr2', 'chr3')
     >>> A5 = c.matrix().fetch('chr3:10M-20M', 'chr3:35M-40M')
 
 
@@ -158,7 +158,7 @@ The experimental ``read_table`` function can be used to generate a dask datafram
     >>> df
     Dask DataFrame Structure:
                     bin1_id bin2_id  count
-    npartitions=223                       
+    npartitions=223
     0                 int64   int64  int64
     9999999             ...     ...    ...
     ...                 ...     ...    ...
@@ -170,7 +170,7 @@ The experimental ``read_table`` function can be used to generate a dask datafram
     >>> df
     Dask DataFrame Structure:
                     chrom1 start1   end1  weight1  chrom2 start2   end2  weight2 bin1_id bin2_id  count
-    npartitions=31                                                                                     
+    npartitions=31
     None            object  int64  int64  float64  object  int64  int64  float64   int64   int64  int64
     None               ...    ...    ...      ...     ...    ...    ...      ...     ...     ...    ...
     ...                ...    ...    ...      ...     ...    ...    ...      ...     ...     ...    ...

@@ -12,7 +12,7 @@ Quick reference
 
 Cooler class
 ~~~~~~~~~~~~
-.. autosummary:: 
+.. autosummary::
     cooler.Cooler
     cooler.Cooler.binsize
     cooler.Cooler.chromnames
@@ -27,7 +27,7 @@ Cooler class
 
 Creation/reduction
 ~~~~~~~~~~~~~~~~~~
-.. autosummary:: 
+.. autosummary::
     cooler.create_cooler
     cooler.merge_coolers
     cooler.coarsen_cooler
@@ -36,7 +36,7 @@ Creation/reduction
 
 Manipulation
 ~~~~~~~~~~~~
-.. autosummary:: 
+.. autosummary::
     cooler.annotate
     cooler.balance_cooler
     cooler.rename_chroms
