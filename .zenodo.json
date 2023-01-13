@@ -8,40 +8,40 @@
         {
             "name": "Goloborodko, Anton",
             "affiliation": "MIT, Cambridge, MA, USA"
-        }, 
+        },
         {
             "name": "Imakaev, Maxim",
             "affiliation": "MIT, Cambridge, MA, USA"
-        }, 
+        },
         {
-            "name": "Kerpedjiev, Peter", 
+            "name": "Kerpedjiev, Peter",
             "affiliation": "Harvard Medical School"
-        }, 
+        },
         {
-            "name": "Fudenberg, Geoffrey", 
+            "name": "Fudenberg, Geoffrey",
             "affiliation": "UCSF"
-        }, 
+        },
         {
-            "name": "Oullette, Scott", 
+            "name": "Oullette, Scott",
             "affiliation": "Harvard Medical School"
-        }, 
+        },
         {
-            "name": "Lee, Soo", 
+            "name": "Lee, Soo",
             "affiliation": "Harvard Medical School"
-        }, 
+        },
         {
-            "name": "Strobelt, Hendrik", 
+            "name": "Strobelt, Hendrik",
             "affiliation": "Harvard"
-        }, 
+        },
         {
-            "name": "Gehlenborg, Nils", 
+            "name": "Gehlenborg, Nils",
             "affiliation": "Harvard Medical School"
         },
         {
             "name": "Mirny, Leonid",
             "affiliation": "MIT, Cambridge, MA, USA"
         }
-    ], 
+    ],
     "keywords": [
         "bioinformatics",
         "genomics",

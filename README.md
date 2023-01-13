@@ -140,4 +140,3 @@ BSD (3 Clause)
 - Process Hi-C data with [distiller](https://github.com/open2c/distiller)!
 - Downstream analysis with [cooltools](https://github.com/open2c/cooltools)!
 - Visualize your cooler data with [HiGlass](http://higlass.io)!
-

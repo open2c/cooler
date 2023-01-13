@@ -16,7 +16,7 @@ those shared goals and are not trying to offend you.
 ### Be respectful
 
 In order to assume good faith, we must also act in good faith. Be empathetic and
-kind toward other people, and be respectful of differing viewpoints, experiences, 
+kind toward other people, and be respectful of differing viewpoints, experiences,
 and cultural backgrounds.
 
 ### Be collaborative

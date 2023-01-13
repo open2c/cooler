@@ -76,13 +76,13 @@ This automatically checks code style and functionality, and prints code coverage
 The `pytest` script automatically reports coverage, both on the terminal for missing line numbers, and in annotated HTML form in `htmlcov/index.html`.
 Coverage is automatically checked on CodeCov for pull requests. -->
 
-<!-- 
+<!--
 ## Adding and Running Benchmarks
 
 We use [Airspeed Velocity](https://asv.readthedocs.io/en/latest/)  to run benchmarks. We have it set up to use `conda`, but you can edit the configuration locally if you so wish.
  -->
 
-<!-- 
+<!--
 [Pull requests](https://akrabat.com/the-beginners-guide-to-contributing-to-a-github-project/) are welcome. The current requirements for testing are `pytest` and `mock`.
 
 For development, clone and install in "editable" (i.e. development) mode with the `-e` option. This way you can also pull changes on the fly.
