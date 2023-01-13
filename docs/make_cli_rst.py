@@ -11,21 +11,21 @@ import cooler.cli
 
 
 def _indent(text, level=1):
-    prefix = ' ' * (4 * level)
+    prefix = " " * (4 * level)
 
     def prefixed_lines():
         for line in text.splitlines(True):
             yield (prefix + line if line.strip() else line)
 
-    return ''.join(prefixed_lines())
+    return "".join(prefixed_lines())
 
 
 def _get_usage(ctx):
     """Alternative, non-prefixed version of 'get_usage'."""
     formatter = ctx.make_formatter()
     pieces = ctx.command.collect_usage_pieces(ctx)
-    formatter.write_usage(ctx.command_path, ' '.join(pieces), prefix='')
-    return formatter.getvalue().rstrip('\n')
+    formatter.write_usage(ctx.command_path, " ".join(pieces), prefix="")
+    return formatter.getvalue().rstrip("\n")
 
 
 def _get_help_record(opt):
@@ -40,26 +40,29 @@ def _get_help_record(opt):
     def _write_opts(opts):
         rv, _ = click.formatting.join_options(opts)
         if not opt.is_flag and not opt.count:
-            rv += f' <{opt.name}>'
+            rv += f" <{opt.name}>"
         return rv
 
     rv = [_write_opts(opt.opts)]
     if opt.secondary_opts:
         rv.append(_write_opts(opt.secondary_opts))
 
-    help = opt.help or ''
+    help = opt.help or ""
     extra = []
     if opt.default is not None and opt.show_default:
         extra.append(
-            'default: {}'.format(', '.join('%s' % d for d in opt.default)
-                             if isinstance(opt.default,
-                                           (list, tuple)) else opt.default))
+            "default: {}".format(
+                ", ".join("%s" % d for d in opt.default)
+                if isinstance(opt.default, (list, tuple))
+                else opt.default
+            )
+        )
     if opt.required:
-        extra.append('required')
+        extra.append("required")
     if extra:
-        help = '{}[{}]'.format(help and help + '  ' or '', '; '.join(extra))
+        help = "{}[{}]".format(help and help + "  " or "", "; ".join(extra))
 
-    return ', '.join(rv), help
+    return ", ".join(rv), help
 
 
 def _format_description(ctx):
@@ -73,35 +76,37 @@ def _format_description(ctx):
 
     bar_enabled = False
     for line in statemachine.string2lines(
-            help_string, tab_width=4, convert_whitespace=True):
-        if line == '\b':
+        help_string, tab_width=4, convert_whitespace=True
+    ):
+        if line == "\b":
             bar_enabled = True
             continue
-        if line == '':
+        if line == "":
             bar_enabled = False
-        line = '| ' + line if bar_enabled else line
+        line = "| " + line if bar_enabled else line
         yield line
-    yield ''
+    yield ""
 
 
 def _format_usage(ctx):
     """Format the usage for a `click.Command`."""
-    yield '.. code-block:: shell'
-    yield ''
+    yield ".. code-block:: shell"
+    yield ""
     for line in _get_usage(ctx).splitlines():
         yield _indent(line)
-    yield ''
+    yield ""
 
 
 def _format_option(opt):
     """Format the output for a `click.Option`."""
     opt = _get_help_record(opt)
 
-    yield f'.. option:: {opt[0]}'
+    yield f".. option:: {opt[0]}"
     if opt[1]:
-        yield ''
+        yield ""
         for line in statemachine.string2lines(
-                opt[1], tab_width=4, convert_whitespace=True):
+            opt[1], tab_width=4, convert_whitespace=True
+        ):
             yield _indent(line)
 
 
@@ -109,22 +114,25 @@ def _format_options(ctx):
     """Format all `click.Option` for a `click.Command`."""
     # the hidden attribute is part of click 7.x only hence use of getattr
     params = [
-        x for x in ctx.command.params
-        if isinstance(x, click.Option) and not getattr(x, 'hidden', False)
+        x
+        for x in ctx.command.params
+        if isinstance(x, click.Option) and not getattr(x, "hidden", False)
     ]
 
     for param in params:
         yield from _format_option(param)
-        yield ''
+        yield ""
 
 
 def _format_argument(arg):
     """Format the output of a `click.Argument`."""
-    yield f'.. option:: {arg.human_readable_name}'
-    yield ''
-    yield _indent('{} argument{}'.format(
-        'Required' if arg.required else 'Optional', '(s)'
-        if arg.nargs != 1 else ''))
+    yield f".. option:: {arg.human_readable_name}"
+    yield ""
+    yield _indent(
+        "{} argument{}".format(
+            "Required" if arg.required else "Optional", "(s)" if arg.nargs != 1 else ""
+        )
+    )
 
 
 def _format_arguments(ctx):
@@ -133,14 +141,14 @@ def _format_arguments(ctx):
 
     for param in params:
         yield from _format_argument(param)
-        yield ''
+        yield ""
 
 
 def _format_envvar(param):
     """Format the envvars of a `click.Option` or `click.Argument`."""
-    yield f'.. envvar:: {param.envvar}'
-    yield '   :noindex:'
-    yield ''
+    yield f".. envvar:: {param.envvar}"
+    yield "   :noindex:"
+    yield ""
     if isinstance(param, click.Argument):
         param_ref = param.human_readable_name
     else:
@@ -148,32 +156,33 @@ def _format_envvar(param):
         # first. For example, if '--foo' or '-f' are possible, use '--foo'.
         param_ref = param.opts[0]
 
-    yield _indent(f'Provide a default for :option:`{param_ref}`')
+    yield _indent(f"Provide a default for :option:`{param_ref}`")
 
 
 def _format_envvars(ctx):
     """Format all envvars for a `click.Command`."""
-    params = [x for x in ctx.command.params if getattr(x, 'envvar')]
+    params = [x for x in ctx.command.params if getattr(x, "envvar")]
 
     for param in params:
-        yield '.. _{command_name}-{param_name}-{envvar}:'.format(
-            command_name=ctx.command_path.replace(' ', '-'),
+        yield ".. _{command_name}-{param_name}-{envvar}:".format(
+            command_name=ctx.command_path.replace(" ", "-"),
             param_name=param.name,
             envvar=param.envvar,
         )
-        yield ''
+        yield ""
         yield from _format_envvar(param)
-        yield ''
+        yield ""
 
 
 def _format_subcommand(command):
     """Format a sub-command of a `click.Command` or `click.Group`."""
-    yield f'.. object:: {command.name}'
+    yield f".. object:: {command.name}"
 
     if command.short_help:
-        yield ''
+        yield ""
         for line in statemachine.string2lines(
-                command.short_help, tab_width=4, convert_whitespace=True):
+            command.short_help, tab_width=4, convert_whitespace=True
+        ):
             yield _indent(line)
 
 
@@ -187,14 +196,14 @@ def _get_lazyload_commands(multicommand):
 
 def _filter_commands(ctx, commands=None):
     """Return list of used commands."""
-    lookup = getattr(ctx.command, 'commands', {})
+    lookup = getattr(ctx.command, "commands", {})
     if not lookup and isinstance(ctx.command, click.MultiCommand):
         lookup = _get_lazyload_commands(ctx.command)
 
     if commands is None:
         return sorted(lookup.values(), key=lambda item: item.name)
 
-    names = [name.strip() for name in commands.split(',')]
+    names = [name.strip() for name in commands.split(",")]
     return [lookup[name] for name in names if name in lookup]
 
 
@@ -204,7 +213,7 @@ def format_command(ctx, show_nested, commands=None):
 
     yield from _format_description(ctx)
 
-    yield f'.. program:: {ctx.command_path}'
+    yield f".. program:: {ctx.command_path}"
 
     # usage
 
@@ -214,11 +223,10 @@ def format_command(ctx, show_nested, commands=None):
 
     lines = list(_format_arguments(ctx))
     if lines:
-        yield '.. rubric:: Arguments'
-        yield ''
+        yield ".. rubric:: Arguments"
+        yield ""
 
     yield from lines
-
 
     # options
 
@@ -226,8 +234,8 @@ def format_command(ctx, show_nested, commands=None):
     if lines:
         # we use rubric to provide some separation without exploding the table
         # of contents
-        yield '.. rubric:: Options'
-        yield ''
+        yield ".. rubric:: Options"
+        yield ""
 
     yield from lines
 
@@ -235,8 +243,8 @@ def format_command(ctx, show_nested, commands=None):
 
     lines = list(_format_envvars(ctx))
     if lines:
-        yield '.. rubric:: Environment variables'
-        yield ''
+        yield ".. rubric:: Environment variables"
+        yield ""
 
     yield from lines
 
@@ -247,58 +255,55 @@ def format_command(ctx, show_nested, commands=None):
     commands = _filter_commands(ctx, commands)
 
     if commands:
-        yield '.. rubric:: Commands'
-        yield ''
-        yield '.. hlist::'
-        yield f'  :columns: {len(commands)}'
-        yield ''
+        yield ".. rubric:: Commands"
+        yield ""
+        yield ".. hlist::"
+        yield f"  :columns: {len(commands)}"
+        yield ""
         for command in commands:
             # for line in _format_subcommand(command):
             #     yield line
-            yield f'  * .. object:: {command.name}'
-        yield ''
+            yield f"  * .. object:: {command.name}"
+        yield ""
+
 
 def get_command_docs(name):
-    if name in ['tree', 'attrs', 'cp', 'mv', 'ls', 'ln']:
+    if name in ["tree", "attrs", "cp", "mv", "ls", "ln"]:
         command = getattr(cooler.cli.fileops, name)
-    elif name in ['cload pairs', 'cload pairix', 'cload tabix', 'cload hiclib']:
-        command = getattr(cooler.cli.cload, name.split(' ')[1])
+    elif name in ["cload pairs", "cload pairix", "cload tabix", "cload hiclib"]:
+        command = getattr(cooler.cli.cload, name.split(" ")[1])
     else:
         command = getattr(getattr(cooler.cli, name), name)
-    ctx = click.Context(
-        command,
-        info_name='cooler ' + name)
-    return '\n'.join(format_command(ctx, show_nested=False))
+    ctx = click.Context(command, info_name="cooler " + name)
+    return "\n".join(format_command(ctx, show_nested=False))
 
 
 COMMANDS = [
-    'cload',
-    'cload pairs',
-    'cload pairix',
-    'cload tabix',
-    'cload hiclib',
-    'load',
-    'merge',
-    'coarsen',
-    'zoomify',
-    'balance',
-    'info',
-    'dump',
-    'show',
-    'tree',
-    'attrs',
-    'ls',
-    'cp',
-    'mv',
-    'ln',
-    'makebins',
-    'digest',
-    'csort',
+    "cload",
+    "cload pairs",
+    "cload pairix",
+    "cload tabix",
+    "cload hiclib",
+    "load",
+    "merge",
+    "coarsen",
+    "zoomify",
+    "balance",
+    "info",
+    "dump",
+    "show",
+    "tree",
+    "attrs",
+    "ls",
+    "cp",
+    "mv",
+    "ln",
+    "makebins",
+    "digest",
+    "csort",
 ]
 
-SUBCOMMANDS = {
-    'cload': ['pairs', 'pairix', 'tabix', 'hiclib']
-}
+SUBCOMMANDS = {"cload": ["pairs", "pairix", "tabix", "hiclib"]}
 
 
 TEMPLATE = """\
@@ -426,21 +431,19 @@ See the cooler_cli.ipynb Jupyter Notebook for specific examples on usage: (https
 """
 
 for cmd in COMMANDS:
-    TEMPLATE += """\
-cooler {0}
-{1}
+    TEMPLATE += f"""\
+cooler {cmd}
+{"-" * (7 + len(cmd))}
 
-{{{0}}}
+{{{cmd}}}
 
 ----
 
-""".format(cmd, '-' * (7 + len(cmd)))
+"""
 
 
-text = TEMPLATE.format(
-    **{cmd: get_command_docs(cmd) for cmd in COMMANDS}
-)
+text = TEMPLATE.format(**{cmd: get_command_docs(cmd) for cmd in COMMANDS})
 
 
-with open('cli.rst', 'w') as f:
+with open("cli.rst", "w") as f:
     f.write(text)

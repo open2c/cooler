@@ -17,8 +17,6 @@ from cooler.cli.zoomify import zoomify
 # import pytest
 
 
-
-
 testdir = op.realpath(op.dirname(__file__))
 datadir = op.join(testdir, "data")
 

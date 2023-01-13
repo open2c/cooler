@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-import io
 import os
 import re
 
@@ -22,7 +21,7 @@ classifiers = """\
 def _read(*parts, **kwargs):
     filepath = os.path.join(os.path.dirname(__file__), *parts)
     encoding = kwargs.pop('encoding', 'utf-8')
-    with io.open(filepath, encoding=encoding) as fh:
+    with open(filepath, encoding=encoding) as fh:
         text = fh.read()
     return text
 

@@ -16,7 +16,6 @@ from cooler.cli.show import show
 # import pytest
 
 
-
 testdir = op.realpath(op.dirname(__file__))
 datadir = op.join(testdir, "data")
 

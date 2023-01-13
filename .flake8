@@ -2,6 +2,7 @@
 exclude =
     __init__.py
     __main__.py
+    scripts
 
 max-line-length = 80
 ignore =
