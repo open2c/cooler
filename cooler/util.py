@@ -65,7 +65,7 @@ def parse_humanized(s):
     elif unit in ("G", "GB"):
         value *= 1000000000
     else:
-        raise ValueError("Unknown unit '{}'".format(unit))
+        raise ValueError(f"Unknown unit '{unit}'")
     return int(value)
 
 
@@ -103,7 +103,7 @@ def parse_region_string(s):
             raise ValueError("Expected {} token missing".format(" or ".join(expected)))
         else:
             if typ not in expected:
-                raise ValueError('Unexpected token "{}"'.format(token))
+                raise ValueError(f'Unexpected token "{token}"')
 
     def _expect(tokens):
         typ, token = next(tokens, (None, None))
@@ -163,7 +163,7 @@ def parse_region(reg, chromsizes=None):
     try:
         clen = chromsizes[chrom] if chromsizes is not None else None
     except KeyError:
-        raise ValueError("Unknown sequence label: {}".format(chrom))
+        raise ValueError(f"Unknown sequence label: {chrom}")
 
     start = 0 if start is None else start
     if end is None:
@@ -175,7 +175,7 @@ def parse_region(reg, chromsizes=None):
         raise ValueError("End cannot be less than start")
 
     if start < 0 or (clen is not None and end > clen):
-        raise ValueError("Genomic region out of bounds: [{}, {})".format(start, end))
+        raise ValueError(f"Genomic region out of bounds: [{start}, {end})")
 
     return chrom, start, end
 
@@ -365,7 +365,7 @@ def digest(fasta_records, enzyme):
     try:
         cut_finder = getattr(biorst, enzyme).search
     except AttributeError:
-        raise ValueError("Unknown enzyme name: {}".format(enzyme))
+        raise ValueError(f"Unknown enzyme name: {enzyme}")
 
     def _each(chrom):
         seq = bioseq.Seq(str(fasta_records[chrom]))
@@ -544,7 +544,7 @@ def open_hdf5(fp, mode="r", *args, **kwargs):
 
 class closing_hdf5(h5py.Group):
     def __init__(self, grp):
-        super(closing_hdf5, self).__init__(grp.id)
+        super().__init__(grp.id)
 
     def __enter__(self):
         return self
@@ -622,7 +622,7 @@ def infer_meta(x, index=None):  # pragma: no cover
             o = _simple_fake_mapping[dtype.kind]
             return o.astype(dtype) if dtype.kind in ("m", "M") else o
         else:
-            raise TypeError("Can't handle dtype: {0}".format(dtype))
+            raise TypeError(f"Can't handle dtype: {dtype}")
 
     def _nonempty_scalar(x):
         if isinstance(x, (pd.Timestamp, pd.Timedelta, pd.Period)):
@@ -632,7 +632,7 @@ def infer_meta(x, index=None):  # pragma: no cover
             return _scalar_from_dtype(dtype)
         else:
             raise TypeError(
-                "Can't handle meta of type " "'{0}'".format(type(x).__name__)
+                "Can't handle meta of type " "'{}'".format(type(x).__name__)
             )
 
     def _empty_series(name, dtype, index=None):
@@ -659,7 +659,7 @@ def infer_meta(x, index=None):  # pragma: no cover
     elif isinstance(x, (list, tuple)):
         if not all(isinstance(i, tuple) and len(i) == 2 for i in x):
             raise ValueError(
-                "Expected iterable of tuples of (name, dtype), " "got {0}".format(x)
+                "Expected iterable of tuples of (name, dtype), " "got {}".format(x)
             )
         return pd.DataFrame(
             {c: _empty_series(c, d, index=index) for (c, d) in x},
@@ -680,7 +680,7 @@ def infer_meta(x, index=None):  # pragma: no cover
     if is_scalar(x):
         return _nonempty_scalar(x)
 
-    raise TypeError("Don't know how to create metadata from {0}".format(x))
+    raise TypeError(f"Don't know how to create metadata from {x}")
 
 
 def get_meta(
@@ -765,7 +765,7 @@ def balanced_partition(gs, n_chunk_max, file_contigs, loadings=None):
     return granges
 
 
-class GenomeSegmentation(object):
+class GenomeSegmentation:
     def __init__(self, chromsizes, bins):
         bins = check_bins(bins, chromsizes)
         self._bins_grouped = bins.groupby("chrom", sort=False)

@@ -25,13 +25,13 @@ def invoke_balance(args, resolutions, outfile):
         args = []
     else:
         args = shlex.split(args)
-    logger.debug("Balancing args: {}".format(args))
+    logger.debug(f"Balancing args: {args}")
 
     for res in resolutions:
         uri = outfile + "::resolutions/" + str(res)
         if "weight" in api.Cooler(uri).bins():
             continue
-        logger.info("Balancing zoom level with bin size {}".format(res))
+        logger.info(f"Balancing zoom level with bin size {res}")
 
         try:
             balance_cmd.main(
@@ -141,8 +141,8 @@ def zoomify(
     else:
         outfile, _ = parse_cooler_uri(out)
 
-    logger.info('Recursively aggregating "{}"'.format(cool_uri))
-    logger.info('Writing to "{}"'.format(outfile))
+    logger.info(f'Recursively aggregating "{cool_uri}"')
+    logger.info(f'Writing to "{outfile}"')
 
     if legacy:
         n_zooms, zoom_levels = legacy_zoomify(
@@ -156,14 +156,14 @@ def zoomify(
                 balance_args = []
             else:
                 balance_args = shlex.split(balance_args)
-            logger.debug("Balancing args: {}".format(balance_args))
+            logger.debug(f"Balancing args: {balance_args}")
 
             for level, res in reversed(list(zoom_levels.items())):
                 uri = outfile + "::" + str(level)
                 if level == str(n_zooms):
                     if "weight" in api.Cooler(uri).bins():
                         continue
-                logger.info("Balancing zoom level {}, bin size {}".format(level, res))
+                logger.info(f"Balancing zoom level {level}, bin size {res}")
                 try:
                     balance_cmd.main(
                         args=[uri] + balance_args, prog_name='cooler'

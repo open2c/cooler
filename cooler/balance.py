@@ -101,7 +101,7 @@ def _balance_genomewide(
         bias /= marg
 
         var = nzmarg.var()
-        logger.info("variance is {}".format(var))
+        logger.info(f"variance is {var}")
         if var < tol:
             break
     else:
@@ -165,7 +165,7 @@ def _balance_cisonly(
             bias[lo:hi] /= marg
 
             var = nzmarg.var()
-            logger.info("variance is {}".format(var))
+            logger.info(f"variance is {var}")
             if var < tol:
                 break
 
@@ -233,7 +233,7 @@ def _balance_transonly(
         bias /= marg
 
         var = nzmarg.var()
-        logger.info("variance is {}".format(var))
+        logger.info(f"variance is {var}")
         if var < tol:
             break
     else:

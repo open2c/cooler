@@ -23,7 +23,7 @@ def isolated_filesystem():
         os.chdir(cwd)
         try:
             shutil.rmtree(t)
-        except (OSError, IOError):
+        except OSError:
             pass
 
 

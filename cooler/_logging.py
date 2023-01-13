@@ -136,7 +136,7 @@ def set_logging_context(ctx):
                 handler.close()
             logging.captureWarnings(False)
         else:
-            raise ValueError("Unknown logging context: '{}'".format(ctx))
+            raise ValueError(f"Unknown logging context: '{ctx}'")
         _logging_context = ctx
 
 
@@ -150,7 +150,7 @@ def set_verbosity_level(level):
         loglevel = verbosity_to_loglevel[level]
     except KeyError:
         raise ValueError(
-            "Verbosity level must be one of: -2, -1, 0, 1, 2; got '{}'.".format(level)
+            f"Verbosity level must be one of: -2, -1, 0, 1, 2; got '{level}'."
         )
     logger.setLevel(loglevel)
 

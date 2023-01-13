@@ -80,7 +80,7 @@ def digest(chromsizes, fasta, enzyme, out, header, rel_ids):
     if out is None:
         f = sys.stdout
     else:
-        f = open(out, "wt")
+        f = open(out, "w")
 
     if header:
         frags[0:0].to_csv(f, sep="\t", index=False, header=True)

@@ -55,7 +55,7 @@ def apply_pipeline(funcs, prepare, get, key):
     return data
 
 
-class MultiplexDataPipe(object):
+class MultiplexDataPipe:
     """
     Create an extendable pipeline of callables to be applied independently to
     each of a collection of inputs and produce a collection of outputs.
@@ -241,7 +241,7 @@ class MultiplexDataPipe(object):
         return reduce(binop, iter(self.run()), init)
 
 
-class chunkgetter(object):
+class chunkgetter:
     def __init__(self, clr, include_chroms=False, include_bins=True, use_lock=False):
         self.cooler = clr
         self.include_chroms = include_chroms

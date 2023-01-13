@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 #
 # cooler documentation build configuration file, created by
 # sphinx-quickstart on Sun Jan 17 11:53:23 2016.
@@ -34,7 +33,7 @@ sys.path.insert(0, os.path.abspath(".."))
 #     'dask',
 #     'cytoolz',
 # ]
-import mock
+from unittest import mock
 
 MOCK_MODULES = [
     "numpy",

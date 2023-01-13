@@ -27,7 +27,7 @@ def _run_cload_pairs(runner, binsize, extra_args):
     args = [
         op.join(datadir, "toy.chrom.sizes") + ":" + str(binsize),
         op.join(datadir, "toy.pairs"),
-        "toy.{}.cool".format(binsize),
+        f"toy.{binsize}.cool",
         "-c1", "2",
         "-p1", "3",
         "-c2", "4",
@@ -70,7 +70,7 @@ def test_cload_symm_asymm(ref, extra_args):
     with runner.isolated_filesystem():
         result = _run_cload_pairs(runner, 2, extra_args)
         assert result.exit_code == 0
-        _cmp_pixels_2_bg("toy.2.cool", op.join(datadir, "toy.{}.2.bg2".format(ref)))
+        _cmp_pixels_2_bg("toy.2.cool", op.join(datadir, f"toy.{ref}.2.bg2"))
 
 
 # '--temp-dir', '',
@@ -84,7 +84,7 @@ def test_cload_mergepass(ref, extra_args):
     with runner.isolated_filesystem():
         result = _run_cload_pairs(runner, 2, extra_args)
         assert result.exit_code == 0
-        _cmp_pixels_2_bg("toy.2.cool", op.join(datadir, "toy.{}.2.bg2".format(ref)))
+        _cmp_pixels_2_bg("toy.2.cool", op.join(datadir, f"toy.{ref}.2.bg2"))
         assert len(cooler.fileops.list_coolers(glob("*.cool")[0])) > 0
 
 
@@ -174,7 +174,7 @@ def _run_load(runner, matrix_file, format, binsize, extra_args):
         format,
         op.join(datadir, "toy.chrom.sizes") + ":" + str(binsize),
         op.join(datadir, matrix_file),
-        "toy.{}.cool".format(binsize),
+        f"toy.{binsize}.cool",
         "--assembly",
         "toy",
         "--chunksize",
@@ -196,7 +196,7 @@ def _run_load(runner, matrix_file, format, binsize, extra_args):
 def test_load_symm_asymm(ref, extra_args):
     runner = CliRunner()
     with runner.isolated_filesystem():
-        ref = op.join(datadir, "toy.{}.2.bg2".format(ref))
+        ref = op.join(datadir, f"toy.{ref}.2.bg2")
         result = _run_load(runner, ref, "bg2", 2, extra_args)
         assert result.exit_code == 0
         _cmp_pixels_2_bg("toy.2.cool", ref)

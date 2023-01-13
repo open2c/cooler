@@ -23,7 +23,7 @@ def make_annotator(bins, balanced, join, annotate, one_based_ids, one_based_star
             try:
                 extra_cols = bins[extra_fields]
             except KeyError as e:
-                print("Column not found:\n {}".format(e))
+                print(f"Column not found:\n {e}")
                 sys.exit(1)
             extra = api.annotate(
                 chunk[["bin1_id", "bin2_id"]], extra_cols, replace=True
@@ -197,7 +197,7 @@ def dump(
     elif out.endswith(".gz"):
         f = gzip.open(out, "wt")
     else:
-        f = open(out, "wt")
+        f = open(out, "w")
 
     # Choose the source table
     if table == "chroms":

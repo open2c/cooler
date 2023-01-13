@@ -161,8 +161,8 @@ def test_zoomify():
         )
         for res in [2, 4, 8, 16, 32]:
             cooler_cmp(
-                "test.2.mcool::resolutions/{}".format(res),
-                op.join(datadir, "toy.asymm.{}.cool".format(res)),
+                f"test.2.mcool::resolutions/{res}",
+                op.join(datadir, f"toy.asymm.{res}.cool"),
             )
 
         # include base resolution
@@ -174,8 +174,8 @@ def test_zoomify():
         )
         for res in [2, 4, 8, 16, 32]:
             cooler_cmp(
-                "test.2.mcool::resolutions/{}".format(res),
-                op.join(datadir, "toy.asymm.{}.cool".format(res)),
+                f"test.2.mcool::resolutions/{res}",
+                op.join(datadir, f"toy.asymm.{res}.cool"),
             )
 
         # impossible resolution to obtain

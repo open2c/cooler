@@ -123,7 +123,7 @@ def write_bins(grp, bins, chromnames, h5opts, chrom_as_enum=True):
         else:
             raise
     if not chrom_as_enum:
-        chrom_dset.attrs["enum_path"] = u"/chroms/name"
+        chrom_dset.attrs["enum_path"] = "/chroms/name"
 
     grp.create_dataset(
         "start", shape=(n_bins,), dtype=COORD_DTYPE, data=bins["start"], **h5opts
@@ -217,7 +217,7 @@ def write_pixels(filepath, grouppath, columns, iterable, h5opts, lock):
             if lock is not None:
                 lock.acquire()
 
-            logger.debug("writing chunk {}".format(i))
+            logger.debug(f"writing chunk {i}")
 
             with h5py.File(filepath, "r+") as fw:
                 grp = fw[grouppath]
@@ -419,7 +419,7 @@ def _set_h5opts(h5opts):
     }
     for key in result.keys():
         if key not in available_opts:
-            raise ValueError("Unknown storage option '{}'.".format(key))
+            raise ValueError(f"Unknown storage option '{key}'.")
     result.setdefault("compression", "gzip")
     if result["compression"] == "gzip" and "compression_opts" not in result:
         result["compression_opts"] = 6
@@ -485,7 +485,7 @@ def create(
 
     for col in ["chrom", "start", "end"]:
         if col not in bins.columns:
-            raise ValueError("Missing column from bin table: '{}'.".format(col))
+            raise ValueError(f"Missing column from bin table: '{col}'.")
 
     # Populate expected pixel column names. Include user-provided value
     # columns.
@@ -534,7 +534,7 @@ def create(
             if col not in input_columns:
                 col_type = "Standard" if col in PIXEL_FIELDS else "User"
                 raise ValueError(
-                    "{} column not found in input: '{}'".format(col_type, col)
+                    f"{col_type} column not found in input: '{col}'"
                 )
 
     # Prepare chroms and bins
@@ -569,7 +569,7 @@ def create(
 
     # Create root group
     with h5py.File(file_path, mode) as f:
-        logger.info('Creating cooler at "{}::{}"'.format(file_path, group_path))
+        logger.info(f'Creating cooler at "{file_path}::{group_path}"')
         if group_path == "/":
             for name in ["chroms", "bins", "pixels", "indexes"]:
                 if name in f:
@@ -655,9 +655,9 @@ def create(
 
         logger.info("Writing info")
         info = {}
-        info["bin-type"] = u"fixed" if binsize is not None else u"variable"
-        info["bin-size"] = binsize if binsize is not None else u"null"
-        info["storage-mode"] = u"symmetric-upper" if symmetric_upper else u"square"
+        info["bin-type"] = "fixed" if binsize is not None else "variable"
+        info["bin-size"] = binsize if binsize is not None else "null"
+        info["storage-mode"] = "symmetric-upper" if symmetric_upper else "square"
         info["nchroms"] = n_chroms
         info["nbins"] = n_bins
         info["sum"] = ncontacts
@@ -718,7 +718,7 @@ def create_from_unordered(
     for i, chunk in enumerate(chunks):
         uri = tf.name + "::" + str(i)
         uris.append(uri)
-        logger.info("Writing chunk {}: {}".format(i, uri))
+        logger.info(f"Writing chunk {i}: {uri}")
         create(uri, bins, chunk, columns=columns, dtypes=dtypes, mode="a", **kwargs)
 
     # Merge passes
@@ -737,9 +737,9 @@ def create_from_unordered(
             chunk_subset = CoolerMerger(
                 [Cooler(uri) for uri in uris[lo:hi]], mergebuf, columns=columns
             )
-            uri = tf2.name + "::" + "{}-{}".format(lo, hi)
+            uri = tf2.name + "::" + f"{lo}-{hi}"
             uris2.append(uri)
-            logger.info("Merging chunks {}-{}: {}".format(lo, hi, uri))
+            logger.info(f"Merging chunks {lo}-{hi}: {uri}")
             create(
                 uri,
                 bins,
@@ -759,7 +759,7 @@ def create_from_unordered(
     chunks = CoolerMerger(
         [Cooler(uri) for uri in final_uris], mergebuf, columns=columns
     )
-    logger.info("Merging into {}".format(cool_uri))
+    logger.info(f"Merging into {cool_uri}")
     create(cool_uri, bins, chunks, columns=columns, dtypes=dtypes, mode=mode, **kwargs)
 
     del temp_files
@@ -816,7 +816,7 @@ def append(cool_uri, table, data, chunked=False, force=False, h5opts=None, lock=
             if name in h5[table]:
                 if not force:
                     raise ValueError(
-                        "'{}' column already exists. ".format(name)
+                        f"'{name}' column already exists. "
                         + "Use --force option to overwrite."
                     )
                 else:
@@ -1150,7 +1150,7 @@ def create_scool(
 
     for col in ["chrom", "start", "end"]:
         if col not in bins.columns:
-            raise ValueError("Missing column from bin table: '{}'.".format(col))
+            raise ValueError(f"Missing column from bin table: '{col}'.")
 
     # Populate dtypes for expected pixel columns, and apply user overrides.
     if dtypes is None:
@@ -1184,7 +1184,7 @@ def create_scool(
 
     # Create root group
     with h5py.File(file_path, mode) as f:
-        logger.info('Creating cooler at "{}::{}"'.format(file_path, group_path))
+        logger.info(f'Creating cooler at "{file_path}::{group_path}"')
         if group_path == "/":
             for name in ["chroms", "bins"]:
                 if name in f:
@@ -1212,8 +1212,8 @@ def create_scool(
 
         logger.info("Writing info")
         info = {}
-        info["bin-type"] = u"fixed" if binsize is not None else u"variable"
-        info["bin-size"] = binsize if binsize is not None else u"null"
+        info["bin-type"] = "fixed" if binsize is not None else "variable"
+        info["bin-size"] = binsize if binsize is not None else "null"
         info["nchroms"] = n_chroms
         info["ncells"] = len(cell_name_pixels_dict)
         info["nbins"] = n_bins

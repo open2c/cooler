@@ -147,7 +147,7 @@ def hiclib(bins, pairs_path, cool_path, metadata, assembly, chunksize):
     chromsizes, bins = parse_bins(bins)
 
     if metadata is not None:
-        with open(metadata, 'r') as f:
+        with open(metadata) as f:
             metadata = json.load(f)
 
     with h5py.File(pairs_path, 'r') as h5pairs:
@@ -212,13 +212,13 @@ def tabix(bins, pairs_path, cool_path, metadata, assembly, nproc, zero_based, ma
     chromsizes, bins = parse_bins(bins)
 
     if metadata is not None:
-        with open(metadata, 'r') as f:
+        with open(metadata) as f:
             metadata = json.load(f)
 
     try:
         if nproc > 1:
             pool = Pool(nproc)
-            logger.info("Using {} cores".format(nproc))
+            logger.info(f"Using {nproc} cores")
             map = pool.imap
 
         opts = {}
@@ -288,13 +288,13 @@ def pairix(bins, pairs_path, cool_path, metadata, assembly, nproc, zero_based, m
     chromsizes, bins = parse_bins(bins)
 
     if metadata is not None:
-        with open(metadata, 'r') as f:
+        with open(metadata) as f:
             metadata = json.load(f)
 
     try:
         if nproc > 1:
             pool = Pool(nproc)
-            logger.info("Using {} cores".format(nproc))
+            logger.info(f"Using {nproc} cores")
             map = pool.imap
 
         iterator = PairixAggregator(
@@ -454,7 +454,7 @@ def pairs(bins, pairs_path, cool_path, metadata, assembly, chunksize,
             tril_action = 'drop'
 
     if metadata is not None:
-        with open(metadata, 'r') as f:
+        with open(metadata) as f:
             metadata = json.load(f)
 
     input_field_names = [

@@ -52,7 +52,7 @@ def decode_attr_value(obj):
     return o
 
 
-class TreeNode(object):
+class TreeNode:
     def __init__(self, obj, depth=0, level=None):
         self.obj = obj
         self.depth = depth
@@ -74,7 +74,7 @@ class TreeNode(object):
     def get_text(self):
         name = self.obj.name.split("/")[-1] or "/"
         if hasattr(self.obj, "shape"):
-            name += " {} {}".format(self.obj.shape, self.obj.dtype)
+            name += f" {self.obj.shape} {self.obj.dtype}"
         return name
 
 
@@ -104,7 +104,7 @@ def _is_cooler(grp):
     if fmt == MAGIC:
         keys = ("chroms", "bins", "pixels", "indexes")
         if not all(name in grp.keys() for name in keys):
-            warnings.warn("Cooler path {} appears to be corrupt".format(grp.name))
+            warnings.warn(f"Cooler path {grp.name} appears to be corrupt")
         return True
     return False
 
@@ -150,7 +150,7 @@ def is_scool_file(filepath):
 
     """
     if not h5py.is_hdf5(filepath):
-        raise OSError("'{}' is not an HDF5 file.".format(filepath))
+        raise OSError(f"'{filepath}' is not an HDF5 file.")
         return False
 
     with h5py.File(filepath) as f:
@@ -183,7 +183,7 @@ def list_coolers(filepath):
 
     """
     if not h5py.is_hdf5(filepath):
-        raise OSError("'{}' is not an HDF5 file.".format(filepath))
+        raise OSError(f"'{filepath}' is not an HDF5 file.")
 
     listing = []
 
@@ -225,7 +225,7 @@ def list_scool_cells(filepath):
             listing.remove('/')
         return natsorted(listing)
     else:
-        raise OSError("'{}' is not a scool file.".format(filepath))
+        raise OSError(f"'{filepath}' is not a scool file.")
     return False
 
 
@@ -245,7 +245,7 @@ def ls(uri):
     """
     filepath, grouppath = parse_cooler_uri(uri)
     if not h5py.is_hdf5(filepath):
-        raise OSError("'{}' is not an HDF5 file.".format(filepath))
+        raise OSError(f"'{filepath}' is not an HDF5 file.")
 
     listing = []
 
@@ -375,7 +375,7 @@ class TreeTraversal(Traversal):
         return node.get_text()
 
 
-class TreeViewer(object):
+class TreeViewer:
     """
     Generates ascii- or html-based reprs for "Groupy" objects.
     Borrowed with minor modifications from the zarr project
@@ -402,10 +402,10 @@ class TreeViewer(object):
         )
 
         self.unicode_kwargs = dict(
-            UP_AND_RIGHT=u"\u2514",
-            HORIZONTAL=u"\u2500",
-            VERTICAL=u"\u2502",
-            VERTICAL_AND_RIGHT=u"\u251C",
+            UP_AND_RIGHT="\u2514",
+            HORIZONTAL="\u2500",
+            VERTICAL="\u2502",
+            VERTICAL_AND_RIGHT="\u251C",
         )
 
         self.node_cls = node_cls

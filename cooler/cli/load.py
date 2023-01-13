@@ -177,7 +177,7 @@ def load(
 
     # User-supplied JSON file
     if metadata is not None:
-        with open(metadata, "r") as f:
+        with open(metadata) as f:
             metadata = json.load(f)
 
     # Initialize the output schema. We don't include 'count' yet.
@@ -310,9 +310,9 @@ def load(
         chunksize=chunksize,
     )
 
-    logger.info("fields: {}".format(input_field_numbers))
-    logger.info("dtypes: {}".format(input_field_dtypes))
-    logger.info("symmetric-upper: {}".format(symmetric_upper))
+    logger.info(f"fields: {input_field_numbers}")
+    logger.info(f"dtypes: {input_field_dtypes}")
+    logger.info(f"symmetric-upper: {symmetric_upper}")
 
     create_from_unordered(
         cool_path,

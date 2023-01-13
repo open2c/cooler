@@ -44,7 +44,7 @@ def info(cool_uri, field, metadata, out):
     if out is None:
         f = sys.stdout
     else:
-        f = open(out, "wt")
+        f = open(out, "w")
     if metadata:
         json.dump(c.info["metadata"], f, indent=4)
         print(end="\n", file=f)
@@ -53,7 +53,7 @@ def info(cool_uri, field, metadata, out):
         try:
             result = c.info[field]
         except KeyError:
-            print("Data field {} not found.".format(field))
+            print(f"Data field {field} not found.")
             sys.exit(1)
         print(result, file=f)
 

@@ -146,10 +146,10 @@ def balance(cool_uri, nproc, chunksize, mad_max, min_nnz, min_count, blacklist,
         with h5py.File(cool_path, 'r') as h5:
             grp = h5[group_path]
             if name not in grp['bins']:
-                click.echo("{}: No '{}' column found.".format(cool_path, name))
+                click.echo(f"{cool_path}: No '{name}' column found.")
                 sys.exit(1)
             else:
-                click.echo("{}::{} is balanced.".format(cool_path, group_path))
+                click.echo(f"{cool_path}::{group_path} is balanced.")
                 sys.exit(0)
 
     if cis_only and trans_only:
@@ -160,18 +160,18 @@ def balance(cool_uri, nproc, chunksize, mad_max, min_nnz, min_count, blacklist,
         grp = h5[group_path]
         if name in grp['bins'] and not stdout:
             if not force:
-                print("'{}' column already exists. ".format(name)
+                print(f"'{name}' column already exists. "
                       + "Use --force option to overwrite.", file=sys.stderr)
                 sys.exit(1)
             else:
                 del grp['bins'][name]
 
-    logger.info('Balancing "{}"'.format(cool_uri))
+    logger.info(f'Balancing "{cool_uri}"')
     clr = Cooler(cool_uri)
 
     if blacklist is not None:
         import csv
-        with open(blacklist, 'rt') as f:
+        with open(blacklist) as f:
             bad_regions = pd.read_csv(
                 blacklist,
                 sep='\t',

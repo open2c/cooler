@@ -223,7 +223,7 @@ def show(
         sys.exit(1)
 
     plt.figure(figsize=(11, 10))
-    plt.get_current_fig_manager().set_window_title("Contact matrix".format())
+    plt.get_current_fig_manager().set_window_title(f"Contact matrix")
     plt.title("")
     plt.imshow(
         load_matrix(c, row_region, col_region, field, balanced, scale),
@@ -235,8 +235,8 @@ def show(
     )
 
     # If plotting into a file, plot and quit
-    plt.ylabel("{} coordinate".format(row_chrom))
-    plt.xlabel("{} coordinate".format(col_chrom))
+    plt.ylabel(f"{row_chrom} coordinate")
+    plt.xlabel(f"{col_chrom} coordinate")
     cb = plt.colorbar()
     cb.set_label(
         {

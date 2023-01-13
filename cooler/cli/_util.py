@@ -46,7 +46,7 @@ def parse_kv_list_param(arg, item_sep=",", kv_sep="="):
     try:
         result = yaml.safe_load(StringIO(arg))
     except yaml.YAMLError:
-        raise click.BadParameter("Error parsing key-value pairs: {}".format(arg))
+        raise click.BadParameter(f"Error parsing key-value pairs: {arg}")
     return result
 
 
@@ -70,7 +70,7 @@ def parse_field_param(arg, includes_colnum=True, includes_agg=True):
                 colnum = int(parts[1]) - 1
             except ValueError:
                 raise click.BadParameter(
-                    "Not a number: '{}'".format(parts[1]), param_hint=arg
+                    f"Not a number: '{parts[1]}'", param_hint=arg
                 )
             if colnum < 0:
                 raise click.BadParameter("Field numbers start at 1.", param_hint=arg)
@@ -94,7 +94,7 @@ def parse_field_param(arg, includes_colnum=True, includes_agg=True):
                 agg = value
             else:
                 raise click.BadParameter(
-                    "Invalid property: '{}'.".format(prop), param_hint=arg
+                    f"Invalid property: '{prop}'.", param_hint=arg
                 )
     return name, colnum, dtype, agg
 
@@ -104,12 +104,12 @@ def parse_bins(arg):
     if ":" in arg:
         chromsizes_file, binsize = arg.split(":")
         if not op.exists(chromsizes_file):
-            raise ValueError('File "{}" not found'.format(chromsizes_file))
+            raise ValueError(f'File "{chromsizes_file}" not found')
         try:
             binsize = int(binsize)
         except ValueError:
             raise ValueError(
-                'Expected integer binsize argument (bp), got "{}"'.format(binsize)
+                f'Expected integer binsize argument (bp), got "{binsize}"'
             )
         chromsizes = util.read_chromsizes(chromsizes_file, all_names=True)
         bins = util.binnify(chromsizes, binsize)
@@ -125,7 +125,7 @@ def parse_bins(arg):
                 dtype={"chrom": str},
             )
         except pd.parser.CParserError as e:
-            raise ValueError('Failed to parse bins file "{}": {}'.format(arg, str(e)))
+            raise ValueError(f'Failed to parse bins file "{arg}": {str(e)}')
 
         chromtable = (
             bins.drop_duplicates(["chrom"], keep="last")[["chrom", "end"]]
@@ -157,7 +157,7 @@ def check_ncpus(arg_value):
 def on_broken_pipe(handler):
     try:
         yield
-    except IOError as e:
+    except OSError as e:
         if e.errno == errno.EPIPE:
             handler(e)
         else:
@@ -197,7 +197,7 @@ def exit_on_broken_pipe(exit_code):
         def decorated(*args, **kwargs):
             try:
                 func(*args, **kwargs)
-            except IOError as e:
+            except OSError as e:
                 if e.errno == errno.EPIPE:
                     # We caught a broken pipe error.
                     # Python flushes standard streams on exit; redirect remaining

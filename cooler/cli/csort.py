@@ -98,7 +98,7 @@ def make_read_command(infile):
 
 
 def make_flip_command(chromosomes_path, sep, comment_char, fields):
-    with open(chromosomes_path, "rt") as f:
+    with open(chromosomes_path) as f:
         logger.info("Enumerating requested chromosomes...")
         for i, line in enumerate(f, 1):
             chrom = line.split("\t")[0].strip()
@@ -325,7 +325,7 @@ def csort(
     # Check for required Unix tools
     for tool in ["sort", "bgzip"] + [index]:
         if not cmd_exists(tool):
-            print("Command {} not found".format(tool), file=sys.stderr)
+            print(f"Command {tool} not found", file=sys.stderr)
             sys.exit(1)
 
     # If output path is not given, produce output path by stripping any .txt,
@@ -354,7 +354,7 @@ def csort(
     if sort_options is not None:
         sort_options = shlex.split(sort_options)
     elif _has_parallel_sort():
-        sort_options = ["--parallel={}".format(nproc), "--buffer-size=50%"]
+        sort_options = [f"--parallel={nproc}", "--buffer-size=50%"]
     else:
         sort_options = []
 
@@ -394,8 +394,8 @@ def csort(
         index_cmd = make_index_command(index, fields, zero_based, outfile)
 
         # run pipeline
-        logger.info("Input: '{}'".format(infile))
-        logger.info("Output: '{}'".format(outfile))
+        logger.info(f"Input: '{infile}'")
+        logger.info(f"Output: '{outfile}'")
         assert infile != outfile
 
         with open(outfile, "wb") as fout:
@@ -444,7 +444,7 @@ def csort(
 
         # Create index file
         logger.info("Indexing...")
-        logger.info("Indexer: {}".format(index))
+        logger.info(f"Indexer: {index}")
         logger.info(" ".join(index_cmd))
         p = subprocess.Popen(index_cmd)
         p.communicate()

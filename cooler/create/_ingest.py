@@ -88,7 +88,7 @@ def _sanitize_records(
             for col, dt in [("chrom1", chrom1_ids.dtype), ("chrom2", chrom2_ids.dtype)]:
                 if not is_integer_dtype(dt):
                     raise BadInputError(
-                        "`{}` column is non-integer. ".format(col)
+                        f"`{col}` column is non-integer. "
                         + "If string, use `decode_chroms=True` to convert to enum"
                     )
 
@@ -179,7 +179,7 @@ def _sanitize_records(
                     )
                 )
             else:
-                raise ValueError("Unknown tril_action value: '{}'".format(tril_action))
+                raise ValueError(f"Unknown tril_action value: '{tril_action}'")
 
     # Assign bin IDs from bin table
     chrom_binoffset = gs.chrom_binoffset
@@ -282,7 +282,7 @@ def sanitize_records(bins, schema=None, **kwargs):
         try:
             options = SANITIZE_PRESETS[schema].copy()
         except KeyError:
-            raise ValueError("Unknown schema: '{}'".format(schema))
+            raise ValueError(f"Unknown schema: '{schema}'")
     else:
         options = {}
     options.update(**kwargs)
@@ -332,7 +332,7 @@ def _sanitize_pixels(
             elif tril_action == "raise":
                 raise BadInputError("Found bin1_id greater than bin2_id")
             else:
-                raise ValueError("Unknown tril_action value: '{}'".format(tril_action))
+                raise ValueError(f"Unknown tril_action value: '{tril_action}'")
 
     return chunk.sort_values([bin1_field, bin2_field]) if sort else chunk
 
@@ -481,7 +481,7 @@ def aggregate_records(sort=True, count=True, agg=None, rename=None):
     return _aggregate_records
 
 
-class ContactBinner(object):
+class ContactBinner:
     """
     Base class for iterable contact binners.
 
@@ -563,7 +563,7 @@ class HDF5Aggregator(ContactBinner):
             if lo == hi:
                 hi = chrom_hi
 
-            logger.info("{} {}".format(lo, hi))
+            logger.info(f"{lo} {hi}")
 
             # load chunk and assign bin IDs to each read side
             table = self._load_chunk(lo, hi)
@@ -662,7 +662,7 @@ class TabixAggregator(ContactBinner):
         for chrom in self.gs.contigs:
             if chrom not in self.file_contigs:
                 warnings.warn(
-                    "Did not find contig " + " '{}' in contact list file.".format(chrom)
+                    "Did not find contig " + f" '{chrom}' in contact list file."
                 )
 
         warnings.warn(
@@ -686,7 +686,7 @@ class TabixAggregator(ContactBinner):
         C2 = self.C2
         P2 = self.P2
 
-        logger.info("Binning {}:{}-{}|*".format(chrom1, start, end))
+        logger.info(f"Binning {chrom1}:{start}-{end}|*")
 
         these_bins = self.gs.fetch((chrom1, start, end))
         rows = []
@@ -738,7 +738,7 @@ class TabixAggregator(ContactBinner):
 
                 accumulator.clear()
 
-        logger.info("Finished {}:{}-{}|*".format(chrom1, start, end))
+        logger.info(f"Finished {chrom1}:{start}-{end}|*")
 
         return pd.concat(rows, axis=0) if len(rows) else None
 
@@ -826,7 +826,7 @@ class PairixAggregator(ContactBinner):
         for chrom in self.gs.contigs:
             if chrom not in self.file_contigs:
                 warnings.warn(
-                    "Did not find contig " + " '{}' in contact list file.".format(chrom)
+                    "Did not find contig " + f" '{chrom}' in contact list file."
                 )
 
     def aggregate(self, grange):  # pragma: no cover
@@ -845,7 +845,7 @@ class PairixAggregator(ContactBinner):
         P1 = self.P1
         P2 = self.P2
 
-        logger.info("Binning {}:{}-{}|*".format(chrom1, start, end))
+        logger.info(f"Binning {chrom1}:{start}-{end}|*")
 
         f = pypairix.open(filepath, "r")
         these_bins = self.gs.fetch((chrom1, start, end))
@@ -908,7 +908,7 @@ class PairixAggregator(ContactBinner):
 
             accumulator.clear()
 
-        logger.info("Finished {}:{}-{}|*".format(chrom1, start, end))
+        logger.info(f"Finished {chrom1}:{start}-{end}|*")
 
         return pd.concat(rows, axis=0) if len(rows) else None
 
@@ -949,7 +949,7 @@ class SparseBlockLoader(ContactBinner):  # pragma: no cover
             try:
                 block = self.mapping[chrom2, chrom1].T
             except KeyError:
-                warnings.warn("Block for {{{}, {}}} not found".format(chrom1, chrom2))
+                warnings.warn(f"Block for {{{chrom1}, {chrom2}}} not found")
                 raise
         return block
 
@@ -1052,7 +1052,7 @@ class ArrayBlockLoader(ContactBinner):  # pragma: no cover
             try:
                 block = self.mapping[chrom2, chrom1].T
             except KeyError:
-                warnings.warn("Block for {{{}, {}}} not found".format(chrom1, chrom2))
+                warnings.warn(f"Block for {{{chrom1}, {chrom2}}} not found")
                 raise
         return block
 

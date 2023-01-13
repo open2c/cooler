@@ -26,7 +26,7 @@ __all__ = ["Cooler", "annotate"]
 _4DN_DIVISIVE_WEIGHTS = {"KR", "VC", "VC_SQRT"}
 
 
-class Cooler(object):
+class Cooler:
     """
     A convenient interface to a cooler data collection.
 
@@ -93,14 +93,14 @@ class Cooler(object):
                 self._chromsizes = _ct.set_index("name")["length"]
                 self._chromids = dict(zip(_ct["name"], range(len(_ct))))
                 self._info = info(grp)
-                mode = self._info.get("storage-mode", u"symmetric-upper")
-                self._is_symm_upper = mode == u"symmetric-upper"
+                mode = self._info.get("storage-mode", "symmetric-upper")
+                self._is_symm_upper = mode == "symmetric-upper"
         except KeyError:
-            err_msg = "No cooler found at: {}.".format(self.store)
+            err_msg = f"No cooler found at: {self.store}."
             listing = list_coolers(self.store)
             if len(listing):
                 err_msg += (
-                    " Coolers found in {}. ".format(listing)
+                    f" Coolers found in {listing}. "
                     + "Use '::' to specify a group path"
                 )
             raise KeyError(err_msg)
@@ -141,7 +141,7 @@ class Cooler(object):
         (``"square"``) or whether a symmetric matrix is encoded by storing only
         the upper triangular elements (``"symmetric-upper"``).
         """
-        return self._info.get("storage-mode", u"symmetric-upper")
+        return self._info.get("storage-mode", "symmetric-upper")
 
     @property
     def binsize(self):
@@ -404,10 +404,10 @@ class Cooler(object):
     def __repr__(self):
         if isinstance(self.store, str):
             filename = os.path.basename(self.store)
-            container = "{}::{}".format(filename, self.root)
+            container = f"{filename}::{self.root}"
         else:
             container = repr(self.store)
-        return '<Cooler "{}">'.format(container)
+        return f'<Cooler "{container}">'
 
 
 def info(h5):
@@ -705,7 +705,7 @@ def matrix(
 
     if balance and name not in h5["bins"]:
         raise ValueError(
-            "No column 'bins/{}'".format(name)
+            f"No column 'bins/{name}'"
             + "found. Use ``cooler.balance_cooler`` to "
             + "calculate balancing weights or set balance=False."
         )

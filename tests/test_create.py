@@ -256,7 +256,7 @@ def test_write():
 
 def test_many_contigs():
     chroms = pd.DataFrame({
-        'name': ['scaffold_{:05}'.format(i) for i in range(4000)],
+        'name': [f'scaffold_{i:05}' for i in range(4000)],
         'length': np.full(4000, 20),
     }, columns=['name', 'length'])
     bins = cooler.util.binnify(chroms.set_index('name')['length'], 10)
@@ -280,7 +280,7 @@ def test_many_contigs():
     cooler.create._create._rename_chroms(
         f,
         {
-            'scaffold_{:05}'.format(i) : 'contig_{:05}'.format(i)
+            f'scaffold_{i:05}' : f'contig_{i:05}'
             for i in range(4000)
         },
         h5opts

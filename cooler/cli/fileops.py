@@ -26,9 +26,9 @@ def ls(cool_path, long):
         if long:
             binsize = Cooler(uri).binsize
             if binsize is None:
-                s = "{}\t<variable>".format(uri)
+                s = f"{uri}\t<variable>"
             else:
-                s = "{}\t{:,}".format(uri, binsize)
+                s = f"{uri}\t{binsize:,}"
             click.echo(s)
         else:
             click.echo(uri)

@@ -118,7 +118,7 @@ class CoolerMerger(ContactBinner):
         # check compatibility between input coolers
         binsize = coolers[0].binsize
         if binsize is not None:
-            if len(set(c.binsize for c in coolers)) > 1:
+            if len({c.binsize for c in coolers}) > 1:
                 raise ValueError("Coolers must have the same resolution")
             chromsizes = coolers[0].chromsizes
             for i in range(1, len(coolers)):
@@ -137,15 +137,15 @@ class CoolerMerger(ContactBinner):
         chunksizes = np.diff(cum_offsets)
         if chunksizes.max() > self.maxbuf:
             warnings.warn(
-                "Some merge passes will use more than {} pixels".format(self.maxbuf)
+                f"Some merge passes will use more than {self.maxbuf} pixels"
             )
         nnzs = [len(c.pixels()) for c in self.coolers]
-        logger.info("nnzs: {}".format(nnzs))
+        logger.info(f"nnzs: {nnzs}")
 
         starts = [0] * len(self.coolers)
         for bp in breakpoints[1:]:
             stops = [index[bp] for index in indexes]
-            logger.info("current: {}".format(stops))
+            logger.info(f"current: {stops}")
 
             # extract, concat
             combined = pd.concat(
@@ -219,7 +219,7 @@ def merge_coolers(
 
     clrs = [Cooler(path) for path in input_uris]
 
-    is_symm = [clr.storage_mode == u"symmetric-upper" for clr in clrs]
+    is_symm = [clr.storage_mode == "symmetric-upper" for clr in clrs]
     if all(is_symm):
         symmetric_upper = True
     elif not any(is_symm):
@@ -416,7 +416,7 @@ def preferred_sequence(start, stop, style='nice'):
         gen = niceprog(start)
     else:
         ValueError(
-            "Expected style value of 'binary' or 'nice'; got '{}'.".format(style)
+            f"Expected style value of 'binary' or 'nice'; got '{style}'."
         )
 
     seq = [next(gen)]
@@ -560,7 +560,7 @@ class CoolerCoarsener(ContactBinner):
         # convert_enum=False returns chroms as raw ints
         table = clr.pixels(join=True, convert_enum=False)[self.columns]
         chunk = table[lo:hi]
-        logger.info("{} {}".format(lo, hi))
+        logger.info(f"{lo} {hi}")
 
         # use the "start" point as anchor for re-binning
         binsize = self.gs.binsize
@@ -718,7 +718,7 @@ def coarsen_cooler(
             new_bins,
             iterator,
             dtypes=dtypes,
-            symmetric_upper=clr.storage_mode == u"symmetric-upper",
+            symmetric_upper=clr.storage_mode == "symmetric-upper",
             **kwargs
         )
 
@@ -802,7 +802,7 @@ def zoomify_cooler(
     n_zooms = len(resn)
 
     logger.info(
-        "Copying base matrices and producing {} new zoom levels.".format(n_zooms)
+        f"Copying base matrices and producing {n_zooms} new zoom levels."
     )
 
     if columns is None:
@@ -813,15 +813,15 @@ def zoomify_cooler(
         logger.info("Bin size: " + str(base_binsize))
         infile, ingroup = parsed_uris[base_binsize]
         with h5py.File(infile, "r") as src, h5py.File(outfile, "w") as dest:  # noqa
-            prefix = "/resolutions/{}".format(base_binsize)
+            prefix = f"/resolutions/{base_binsize}"
 
             src.copy(ingroup + "/chroms", dest, prefix + "/chroms")
             src.copy(ingroup + "/bins", dest, prefix + "/bins")
             for col in ["bin1_id", "bin2_id"] + list(columns):
                 src.copy(
-                    ingroup + "/pixels/{}".format(col),
+                    ingroup + f"/pixels/{col}",
                     dest,
-                    prefix + "/pixels/{}".format(col),
+                    prefix + f"/pixels/{col}",
                 )
             src.copy(ingroup + "/indexes", dest, prefix + "/indexes")
             dest[prefix].attrs.update(src[ingroup].attrs)
@@ -833,10 +833,10 @@ def zoomify_cooler(
             continue
         prev_binsize = resn[pred[i]]
         binsize = prev_binsize * mult[i]
-        logger.info("Aggregating from {} to {}.".format(prev_binsize, binsize))
+        logger.info(f"Aggregating from {prev_binsize} to {binsize}.")
         coarsen_cooler(
-            outfile + "::resolutions/{}".format(prev_binsize),
-            outfile + "::resolutions/{}".format(binsize),
+            outfile + f"::resolutions/{prev_binsize}",
+            outfile + f"::resolutions/{binsize}",
             mult[i],
             chunksize,
             nproc=nproc,
@@ -848,7 +848,7 @@ def zoomify_cooler(
 
     with h5py.File(outfile, "r+") as fw:
         fw.attrs.update({
-            "format": u"HDF5::MCOOL",
+            "format": "HDF5::MCOOL",
             "format-version": __format_version_mcool__
         })
 
@@ -866,10 +866,10 @@ def legacy_zoomify(input_uri, outfile, nproc, chunksize, lock=None):
     n_zooms = get_quadtree_depth(clr.chromsizes, clr.binsize, HIGLASS_TILE_DIM)
     factor = 2
 
-    logger.info("total_length (bp): {}".format(np.sum(clr.chromsizes)))
-    logger.info("binsize: {}".format(clr.binsize))
-    logger.info("n_zooms: {}".format(n_zooms))
-    logger.info("quad tile cover: {}".format(2 ** n_zooms))
+    logger.info(f"total_length (bp): {np.sum(clr.chromsizes)}")
+    logger.info(f"binsize: {clr.binsize}")
+    logger.info(f"n_zooms: {n_zooms}")
+    logger.info(f"quad tile cover: {2 ** n_zooms}")
     logger.info(
         "Copying base matrix to level "
         + "{0} and producing {0} new zoom levels ".format(n_zooms)

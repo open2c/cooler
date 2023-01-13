@@ -40,7 +40,7 @@ def _get_help_record(opt):
     def _write_opts(opts):
         rv, _ = click.formatting.join_options(opts)
         if not opt.is_flag and not opt.count:
-            rv += ' <{}>'.format(opt.name)
+            rv += f' <{opt.name}>'
         return rv
 
     rv = [_write_opts(opt.opts)]
@@ -51,13 +51,13 @@ def _get_help_record(opt):
     extra = []
     if opt.default is not None and opt.show_default:
         extra.append(
-            'default: %s' % (', '.join('%s' % d for d in opt.default)
+            'default: {}'.format(', '.join('%s' % d for d in opt.default)
                              if isinstance(opt.default,
-                                           (list, tuple)) else opt.default, ))
+                                           (list, tuple)) else opt.default))
     if opt.required:
         extra.append('required')
     if extra:
-        help = '%s[%s]' % (help and help + '  ' or '', '; '.join(extra))
+        help = '{}[{}]'.format(help and help + '  ' or '', '; '.join(extra))
 
     return ', '.join(rv), help
 
@@ -97,7 +97,7 @@ def _format_option(opt):
     """Format the output for a `click.Option`."""
     opt = _get_help_record(opt)
 
-    yield '.. option:: {}'.format(opt[0])
+    yield f'.. option:: {opt[0]}'
     if opt[1]:
         yield ''
         for line in statemachine.string2lines(
@@ -114,14 +114,13 @@ def _format_options(ctx):
     ]
 
     for param in params:
-        for line in _format_option(param):
-            yield line
+        yield from _format_option(param)
         yield ''
 
 
 def _format_argument(arg):
     """Format the output of a `click.Argument`."""
-    yield '.. option:: {}'.format(arg.human_readable_name)
+    yield f'.. option:: {arg.human_readable_name}'
     yield ''
     yield _indent('{} argument{}'.format(
         'Required' if arg.required else 'Optional', '(s)'
@@ -133,14 +132,13 @@ def _format_arguments(ctx):
     params = [x for x in ctx.command.params if isinstance(x, click.Argument)]
 
     for param in params:
-        for line in _format_argument(param):
-            yield line
+        yield from _format_argument(param)
         yield ''
 
 
 def _format_envvar(param):
     """Format the envvars of a `click.Option` or `click.Argument`."""
-    yield '.. envvar:: {}'.format(param.envvar)
+    yield f'.. envvar:: {param.envvar}'
     yield '   :noindex:'
     yield ''
     if isinstance(param, click.Argument):
@@ -150,7 +148,7 @@ def _format_envvar(param):
         # first. For example, if '--foo' or '-f' are possible, use '--foo'.
         param_ref = param.opts[0]
 
-    yield _indent('Provide a default for :option:`{}`'.format(param_ref))
+    yield _indent(f'Provide a default for :option:`{param_ref}`')
 
 
 def _format_envvars(ctx):
@@ -164,14 +162,13 @@ def _format_envvars(ctx):
             envvar=param.envvar,
         )
         yield ''
-        for line in _format_envvar(param):
-            yield line
+        yield from _format_envvar(param)
         yield ''
 
 
 def _format_subcommand(command):
     """Format a sub-command of a `click.Command` or `click.Group`."""
-    yield '.. object:: {}'.format(command.name)
+    yield f'.. object:: {command.name}'
 
     if command.short_help:
         yield ''
@@ -205,15 +202,13 @@ def format_command(ctx, show_nested, commands=None):
     """Format the output of `click.Command`."""
     # description
 
-    for line in _format_description(ctx):
-        yield line
+    yield from _format_description(ctx)
 
-    yield '.. program:: {}'.format(ctx.command_path)
+    yield f'.. program:: {ctx.command_path}'
 
     # usage
 
-    for line in _format_usage(ctx):
-        yield line
+    yield from _format_usage(ctx)
 
     # arguments
 
@@ -222,8 +217,7 @@ def format_command(ctx, show_nested, commands=None):
         yield '.. rubric:: Arguments'
         yield ''
 
-    for line in lines:
-        yield line
+    yield from lines
 
 
     # options
@@ -235,8 +229,7 @@ def format_command(ctx, show_nested, commands=None):
         yield '.. rubric:: Options'
         yield ''
 
-    for line in lines:
-        yield line
+    yield from lines
 
     # environment variables
 
@@ -245,8 +238,7 @@ def format_command(ctx, show_nested, commands=None):
         yield '.. rubric:: Environment variables'
         yield ''
 
-    for line in lines:
-        yield line
+    yield from lines
 
     # if we're nesting commands, we need to do this slightly differently
     if show_nested:
@@ -258,12 +250,12 @@ def format_command(ctx, show_nested, commands=None):
         yield '.. rubric:: Commands'
         yield ''
         yield '.. hlist::'
-        yield '  :columns: {}'.format(len(commands))
+        yield f'  :columns: {len(commands)}'
         yield ''
         for command in commands:
             # for line in _format_subcommand(command):
             #     yield line
-            yield '  * .. object:: {}'.format(command.name)
+            yield f'  * .. object:: {command.name}'
         yield ''
 
 def get_command_docs(name):

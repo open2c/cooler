@@ -44,7 +44,7 @@ def cli(verbose, debug):
 
             import psutil
 
-            attrs_available = set([
+            attrs_available = {
                 x for x in dir(psutil.Process)
                 if not x.startswith('_')
                 and x not in {
@@ -54,7 +54,7 @@ def cli(verbose, debug):
                     'children', 'rlimit',
                     'memory_info_ex', 'oneshot'
                 }
-            ])
+            }
 
             attrs = [
                 attr for attr in [
@@ -99,7 +99,7 @@ def cli(verbose, debug):
                     process_info = process.as_dict(attrs, ad_value="")
                     for attr in attrs:
                         logger.debug(
-                            "PSINFO:'{}': {}".format(attr, process_info[attr])
+                            f"PSINFO:'{attr}': {process_info[attr]}"
                         )
                 except psutil.NoSuchProcess:
                     logger.error("PSINFO: Error - Process no longer exists.")

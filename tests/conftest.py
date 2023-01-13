@@ -1,4 +1,4 @@
-import mock
+from unittest import mock
 import numpy as np
 import pytest
 from scipy import sparse
@@ -94,7 +94,7 @@ class MockCooler(MockGroup):
             "nnz": len(pixels["bin1_id"]),
             "metadata": "{}",
         }
-        super(MockCooler, self).__init__(
+        super().__init__(
             {"chroms": chroms, "bins": bins, "pixels": pixels, "indexes": indexes}
         )
 

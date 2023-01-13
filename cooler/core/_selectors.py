@@ -1,4 +1,3 @@
-
 class _IndexingMixin:
     def _unpack_index(self, key):
         if isinstance(key, tuple):
