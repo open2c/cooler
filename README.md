@@ -25,8 +25,8 @@
     <tr>
         <td>Build Status</td>
         <td>
-            <a href="https://github.com/open2c/cooler/blob/main/.github/workflows/lint-test-cov.yml">
-                <img src="https://github.com/open2c/cooler/actions/workflows/lint-test-cov.yml/badge.svg" alt="build status">
+            <a href="https://github.com/open2c/cooler/blob/main/.github/workflows/ci.yml">
+                <img src="https://github.com/open2c/cooler/actions/workflows/ci.yml/badge.svg" alt="build status">
             </a>
         </td>
     </tr>
