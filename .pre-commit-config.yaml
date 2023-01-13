@@ -22,4 +22,5 @@ repos:
     rev: 5.0.4
     hooks:
       - id: flake8
-        language_version: python3
+        # this is redundant with .flake8 config because it is ignored for some reason
+        exclude: scripts
