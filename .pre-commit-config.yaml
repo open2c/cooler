@@ -1,3 +1,4 @@
+exclude: '^scripts'
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.3.0
@@ -22,5 +23,3 @@ repos:
     rev: 5.0.4
     hooks:
       - id: flake8
-        # this is redundant with .flake8 config because it is ignored for some reason
-        exclude: scripts
