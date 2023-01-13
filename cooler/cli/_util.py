@@ -1,14 +1,14 @@
+import errno
+import os
+import os.path as op
+import sys
 from contextlib import contextmanager
 from functools import wraps
-import multiprocess as mp
-import os.path as op
-import errno
-import sys
-import os
 
-import pandas as pd
-import numpy as np
 import click
+import multiprocess as mp
+import numpy as np
+import pandas as pd
 
 from .. import util
 
@@ -36,8 +36,9 @@ class DelimitedTuple(click.types.ParamType):
 
 
 def parse_kv_list_param(arg, item_sep=",", kv_sep="="):
-    import yaml
     from io import StringIO
+
+    import yaml
 
     if item_sep != ",":
         arg = arg.replace(item_sep, ",")

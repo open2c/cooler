@@ -1,12 +1,12 @@
 import os.path as op
 
-from ._util import parse_field_param
-from . import cli
 import click
 
-from ..util import parse_cooler_uri
-from ..reduce import coarsen_cooler
 from ..parallel import lock
+from ..reduce import coarsen_cooler
+from ..util import parse_cooler_uri
+from . import cli
+from ._util import parse_field_param
 
 
 @cli.command()

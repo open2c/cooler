@@ -1,7 +1,7 @@
-from pandas.api.types import is_categorical_dtype
-import pandas as pd
-import numpy as np
 import h5py
+import numpy as np
+import pandas as pd
+from pandas.api.types import is_categorical_dtype
 
 
 def get(grp, lo=0, hi=None, fields=None, convert_enum=True, as_dict=False):

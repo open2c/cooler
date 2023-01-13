@@ -1,8 +1,8 @@
-from ._util import parse_field_param
-from . import cli
 import click
 
 from ..reduce import merge_coolers
+from . import cli
+from ._util import parse_field_param
 
 
 @cli.command()

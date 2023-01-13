@@ -1,16 +1,15 @@
-from multiprocess import Pool
 import sys
 
+import click
+import h5py
 import numpy as np
 import pandas as pd
-import h5py
-
-from . import cli, get_logger
-import click
+from multiprocess import Pool
 
 from .. import ice
 from ..api import Cooler
-from ..util import parse_cooler_uri, bedslice
+from ..util import bedslice, parse_cooler_uri
+from . import cli, get_logger
 
 
 @cli.command()

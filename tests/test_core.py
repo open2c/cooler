@@ -1,13 +1,14 @@
 from io import BytesIO
-from scipy import sparse
+
+import h5py
 import numpy as np
 import pandas as pd
-import h5py
 import pytest
+from scipy import sparse
 
 from cooler import core
-from cooler.core._selectors import _IndexingMixin
 from cooler.core._rangequery import _comes_before, _contains
+from cooler.core._selectors import _IndexingMixin
 
 
 def make_hdf5_table(mode):

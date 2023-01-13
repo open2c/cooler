@@ -1,20 +1,22 @@
-from datetime import datetime
+import os
+
 # from textwrap import dedent
 import warnings
+from datetime import datetime
+
 import simplejson as json
-import os
 
 try:
     from simplejson import JSONDecodeError
 except ImportError:
     JSONDecodeError = ValueError  # PY35+
 
+import h5py
 from asciitree import BoxStyle, LeftAligned
 from asciitree.traversal import Traversal
-import h5py
 
-from .util import parse_cooler_uri, natsorted
 from .create import MAGIC, MAGIC_SCOOL
+from .util import natsorted, parse_cooler_uri
 
 __all__ = ["is_cooler", "is_multires_file", "list_coolers", "cp", "mv", "ln"]
 
@@ -453,8 +455,9 @@ def read_attr_tree(group, level):
 
 
 def pprint_attr_tree(uri, level):
-    import yaml
     from io import StringIO
+
+    import yaml
 
     path, group = parse_cooler_uri(uri)
     with h5py.File(path, "r") as f:

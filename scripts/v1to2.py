@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 import sys
-import numpy as np
+
 import h5py
+import numpy as np
 
 CHROMID_DTYPE = np.int32
 

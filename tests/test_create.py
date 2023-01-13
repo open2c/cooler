@@ -1,16 +1,16 @@
-from io import BytesIO
-import tempfile
-import os.path as op
 import os
+import os.path as op
+import tempfile
+from io import BytesIO
+
+import h5py
 import numpy as np
 import pandas as pd
-import h5py
 import pytest
-
 from _common import isolated_filesystem
-import cooler.create
-import cooler
 
+import cooler
+import cooler.create
 
 tmp = tempfile.gettempdir()
 testdir = op.dirname(op.realpath(__file__))

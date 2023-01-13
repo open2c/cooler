@@ -1,11 +1,12 @@
-from io import BytesIO
 import os.path as op
+from io import BytesIO
+
 import h5py
 import numpy as np
 import pandas as pd
+import pytest
 
 from cooler import util
-import pytest
 
 testdir = op.realpath(op.dirname(__file__))
 datadir = op.join(testdir, "data")

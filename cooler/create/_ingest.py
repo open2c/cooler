@@ -6,26 +6,25 @@ Binners are iterators that convert input data of various flavors into a
 properly sorted, chunked stream of binned contacts.
 
 """
-from collections import OrderedDict, Counter
-from bisect import bisect_left
-from functools import partial
 import itertools
 import warnings
+from bisect import bisect_left
+from collections import Counter, OrderedDict
+from functools import partial
 
-from pandas.api.types import is_integer_dtype
 import numpy as np
 import pandas as pd
+from pandas.api.types import is_integer_dtype
 
 from .._logging import get_logger
 from ..util import (
-    rlencode,
-    partition,
-    check_bins,
-    get_chromsizes,
     GenomeSegmentation,
     balanced_partition,
+    check_bins,
+    get_chromsizes,
+    partition,
+    rlencode,
 )
-
 
 logger = get_logger("cooler.create")
 
@@ -633,8 +632,9 @@ class TabixAggregator(ContactBinner):
         except ImportError:
             raise ImportError("pysam is required to read tabix files")
 
-        import dill
         import pickle
+
+        import dill
 
         dill.settings["protocol"] = pickle.HIGHEST_PROTOCOL
 
@@ -771,8 +771,9 @@ class PairixAggregator(ContactBinner):
         except ImportError:
             raise ImportError("pypairix is required to read pairix-indexed files")
 
-        import dill
         import pickle
+
+        import dill
 
         dill.settings["protocol"] = pickle.HIGHEST_PROTOCOL
 

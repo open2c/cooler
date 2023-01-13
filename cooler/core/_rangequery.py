@@ -1,8 +1,7 @@
-from cytoolz import compose
-
 # import h5py
 import numpy as np
 import pandas as pd
+from cytoolz import compose
 
 
 def _region_to_extent(h5, chrom_ids, region, binsize):
@@ -306,8 +305,8 @@ class BaseRangeQuery2D:
         return frame_slice_from_dict(self.get(), self.field)
 
     def to_dask_frame(self):
-        from dask.dataframe import DataFrame
         from dask.base import tokenize
+        from dask.dataframe import DataFrame
 
         meta = self.reader.get_frame_meta(self.field)
         tasks = self.tasks

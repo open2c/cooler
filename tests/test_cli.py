@@ -8,12 +8,13 @@ import traceback; traceback.print_tb(result.exception.__traceback__)
 """
 import os.path as op
 
-from click.testing import CliRunner
-from cooler.cli import cli
-from cooler.cli import _util as util
-from cooler.util import cmd_exists
-import pytest
 import click
+import pytest
+from click.testing import CliRunner
+
+from cooler.cli import _util as util
+from cooler.cli import cli
+from cooler.util import cmd_exists
 
 testdir = op.realpath(op.dirname(__file__))
 datadir = op.join(testdir, "data")

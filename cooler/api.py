@@ -1,24 +1,23 @@
-import simplejson as json
 import os
 
-from pandas.api.types import is_integer_dtype
+import h5py
 import numpy as np
 import pandas as pd
-import h5py
+import simplejson as json
+from pandas.api.types import is_integer_dtype
 
 from .core import (
-    get,
-    region_to_offset,
-    region_to_extent,
-    RangeSelector1D,
-    RangeSelector2D,
     CSRReader,
     DirectRangeQuery2D,
     FillLowerRangeQuery2D,
+    RangeSelector1D,
+    RangeSelector2D,
+    get,
+    region_to_extent,
+    region_to_offset,
 )
-from .util import parse_cooler_uri, parse_region, open_hdf5, closing_hdf5
 from .fileops import list_coolers
-
+from .util import closing_hdf5, open_hdf5, parse_cooler_uri, parse_region
 
 __all__ = ["Cooler", "annotate"]
 

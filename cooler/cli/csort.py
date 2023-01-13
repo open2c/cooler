@@ -1,14 +1,13 @@
-import os.path as op
-import subprocess
-import shlex
-import sys
 import os
+import os.path as op
+import shlex
+import subprocess
+import sys
 
-from . import cli, get_logger
 import click
 
-
 from ..util import cmd_exists
+from . import cli, get_logger
 
 try:
     from subprocess import DEVNULL  # py3
@@ -319,7 +318,7 @@ def csort(
             'data, see the "cooler cload pairs" command.'
         )
 
-    from signal import signal, SIGPIPE, SIG_DFL
+    from signal import SIG_DFL, SIGPIPE, signal
 
     signal(SIGPIPE, SIG_DFL)
 

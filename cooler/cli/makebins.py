@@ -1,10 +1,10 @@
 import sys
 
-from ._util import exit_on_broken_pipe
-from . import cli
 import click
 
 from .. import util
+from . import cli
+from ._util import exit_on_broken_pipe
 
 
 @cli.command()

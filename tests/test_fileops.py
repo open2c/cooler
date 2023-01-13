@@ -2,10 +2,9 @@ import os.path as op
 import shutil
 
 import h5py
+from _common import cooler_cmp, isolated_filesystem
 
-from _common import isolated_filesystem, cooler_cmp
 from cooler import fileops
-
 
 testdir = op.realpath(op.dirname(__file__))
 

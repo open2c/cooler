@@ -1,8 +1,8 @@
-from operator import add
 import os.path as op
+from operator import add
 
-from cooler import parallel
 import cooler
+from cooler import parallel
 
 testdir = op.realpath(op.dirname(__file__))
 datadir = op.join(testdir, "data")

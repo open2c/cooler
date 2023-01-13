@@ -1,21 +1,23 @@
-from multiprocess import Pool
-import simplejson as json
 import sys
 
-from cytoolz import compose
+import click
+import h5py
 import numpy as np
 import pandas as pd
-import h5py
-
-from ._util import parse_bins, parse_kv_list_param, parse_field_param
-from . import cli, get_logger
-import click
+import simplejson as json
+from cytoolz import compose
+from multiprocess import Pool
 
 from ..create import (
+    HDF5Aggregator,
+    PairixAggregator,
+    TabixAggregator,
+    aggregate_records,
     create_cooler,
-    sanitize_records, aggregate_records,
-    TabixAggregator, HDF5Aggregator, PairixAggregator,
+    sanitize_records,
 )
+from . import cli, get_logger
+from ._util import parse_bins, parse_field_param, parse_kv_list_param
 
 _pandas_version = pd.__version__.split('.')
 if int(_pandas_version[0]) > 0:

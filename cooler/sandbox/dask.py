@@ -1,18 +1,18 @@
 from itertools import product
 from math import ceil
 
+import h5py
 import numpy as np
 import pandas as pd
-import h5py
 
 try:
     from sparse import COO
 except ImportError:
     raise ImportError("The 'sparse' package is required to use dask")
 
-from dask.base import tokenize
-import dask.dataframe as dd
 import dask.array as da
+import dask.dataframe as dd
+from dask.base import tokenize
 
 from ..core import CSRReader, query_rect
 from ..util import parse_cooler_uri, partition

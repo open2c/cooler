@@ -1,20 +1,19 @@
-import simplejson as json
 import sys
 
+import click
 import numpy as np
 import pandas as pd
-
-from ._util import parse_bins, parse_field_param, parse_kv_list_param
-from . import cli, get_logger
-import click
+import simplejson as json
 
 from ..create import (
-    create_from_unordered,
-    sanitize_records,
-    sanitize_pixels,
     BIN_DTYPE,
     COUNT_DTYPE,
+    create_from_unordered,
+    sanitize_pixels,
+    sanitize_records,
 )
+from . import cli, get_logger
+from ._util import parse_bins, parse_field_param, parse_kv_list_param
 
 
 @cli.command()

@@ -1,19 +1,18 @@
+import math
+import warnings
 from bisect import bisect_right
 from collections import OrderedDict, defaultdict
-import multiprocess as mp
-import warnings
-import math
 
-import pandas as pd
-import numpy as np
 import h5py
+import multiprocess as mp
+import numpy as np
+import pandas as pd
 
-from ._version import __format_version_mcool__
 from ._logging import get_logger
+from ._version import __format_version_mcool__
 from .create import ContactBinner, create
-from .util import parse_cooler_uri, GenomeSegmentation
 from .parallel import lock
-
+from .util import GenomeSegmentation, parse_cooler_uri
 
 __all__ = ["merge_coolers", "coarsen_cooler", "zoomify_cooler"]
 

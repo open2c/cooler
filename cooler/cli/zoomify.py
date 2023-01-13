@@ -1,20 +1,20 @@
-from math import ceil
 import shlex
 import warnings
+from math import ceil
 
-from ._util import parse_field_param
-from . import cli, get_logger
 import click
 
+from .. import api
+from ..parallel import lock
 from ..reduce import (
-    legacy_zoomify,
-    zoomify_cooler,
     HIGLASS_TILE_DIM,
-    preferred_sequence
+    legacy_zoomify,
+    preferred_sequence,
+    zoomify_cooler,
 )
 from ..util import parse_cooler_uri
-from ..parallel import lock
-from .. import api
+from . import cli, get_logger
+from ._util import parse_field_param
 
 
 def invoke_balance(args, resolutions, outfile):

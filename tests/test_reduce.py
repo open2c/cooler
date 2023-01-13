@@ -1,17 +1,12 @@
 import os.path as op
-import numpy as np
+
 import h5py
-import cooler
+import numpy as np
 import pytest
+from _common import cooler_cmp, isolated_filesystem
 
-from _common import isolated_filesystem, cooler_cmp
-from cooler.reduce import (
-    merge_coolers,
-    coarsen_cooler,
-    zoomify_cooler,
-    legacy_zoomify
-)
-
+import cooler
+from cooler.reduce import coarsen_cooler, legacy_zoomify, merge_coolers, zoomify_cooler
 
 testdir = op.realpath(op.dirname(__file__))
 datadir = op.join(testdir, "data")

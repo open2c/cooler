@@ -1,12 +1,13 @@
-import scipy.sparse as sps
 import os.path as op
-import pandas as pd
+
+import h5py
 import numpy as np
 import pandas
-import h5py
+import pandas as pd
+import pytest
+import scipy.sparse as sps
 
 from cooler import api
-import pytest
 
 testdir = op.realpath(op.dirname(__file__))
 datadir = op.join(testdir, "data")

@@ -1,18 +1,21 @@
-from io import StringIO
 import os.path as op
+from io import StringIO
+
 import numpy as np
 import pandas as pd
-
 from _common import cooler_cmp
 from click.testing import CliRunner
-import cooler
-# import pytest
 
+import cooler
+from cooler.cli.dump import dump
 
 ### EXPORT ###
 from cooler.cli.info import info
-from cooler.cli.dump import dump
 from cooler.cli.show import show
+
+# import pytest
+
+
 
 testdir = op.realpath(op.dirname(__file__))
 datadir = op.join(testdir, "data")

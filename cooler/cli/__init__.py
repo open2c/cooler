@@ -1,9 +1,10 @@
 import logging
 import sys
-from .._version import __version__
-from .._logging import get_logger, set_logging_context, set_verbosity_level
+
 import click
 
+from .._logging import get_logger, set_logging_context, set_verbosity_level
+from .._version import __version__
 
 # Monkey patch
 click.core._verify_python3_env = lambda: None
@@ -39,8 +40,9 @@ def cli(verbose, debug):
     if verbose >= 2:  # pragma: no cover
         # Dump process info at exit
         try:
-            import psutil
             import atexit
+
+            import psutil
 
             attrs_available = set([
                 x for x in dir(psutil.Process)
@@ -123,17 +125,17 @@ def cli(verbose, debug):
 
 
 from . import (
-    cload,
-    load,
-    merge,
-    coarsen,
-    zoomify,
     balance,
-    info,
-    dump,
-    show,
-    makebins,
-    digest,
+    cload,
+    coarsen,
     csort,
+    digest,
+    dump,
     fileops,
+    info,
+    load,
+    makebins,
+    merge,
+    show,
+    zoomify,
 )

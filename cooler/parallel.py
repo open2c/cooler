@@ -4,10 +4,11 @@ coolers.
 
 """
 from functools import partial, reduce
+
 from multiprocess import Lock
 
-from .util import partition
 from .core import get
+from .util import partition
 
 __all__ = ["partition", "split", "lock"]
 

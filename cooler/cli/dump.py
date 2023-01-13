@@ -1,15 +1,19 @@
 import gzip
 import sys
 
+import click
 import pandas as pd
 
-from ._util import DelimitedTuple
-from . import cli
-import click
-
-from ..util import parse_region
-from ..core import region_to_extent, CSRReader, DirectRangeQuery2D, FillLowerRangeQuery2D
 from .. import api
+from ..core import (
+    CSRReader,
+    DirectRangeQuery2D,
+    FillLowerRangeQuery2D,
+    region_to_extent,
+)
+from ..util import parse_region
+from . import cli
+from ._util import DelimitedTuple
 
 
 def make_annotator(bins, balanced, join, annotate, one_based_ids, one_based_starts):

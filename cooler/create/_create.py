@@ -1,41 +1,42 @@
-from datetime import datetime
-from pandas.api.types import is_categorical_dtype
 import os.path as op
-import pandas as pd
-import numpy as np
 import posixpath
 import tempfile
 import warnings
-import h5py
-import simplejson as json
+from datetime import datetime
 
-from .._version import __version__, __format_version__, __format_version_scool__
+import h5py
+import numpy as np
+import pandas as pd
+import simplejson as json
+from pandas.api.types import is_categorical_dtype
+
 from .._logging import get_logger
-from ..core import put, get
+from .._version import __format_version__, __format_version_scool__, __version__
+from ..core import get, put
 from ..util import (
-    parse_cooler_uri,
-    get_chromsizes,
     get_binsize,
-    infer_meta,
+    get_chromsizes,
     get_meta,
+    infer_meta,
+    parse_cooler_uri,
     rlencode,
 )
-from ._ingest import validate_pixels
 from . import (
-    MAGIC,
-    MAGIC_SCOOL,
-    URL,
+    BIN1OFFSET_DTYPE,
+    BIN_DTYPE,
     CHROM_DTYPE,
     CHROMID_DTYPE,
+    CHROMOFFSET_DTYPE,
     CHROMSIZE_DTYPE,
     COORD_DTYPE,
-    BIN_DTYPE,
     COUNT_DTYPE,
-    CHROMOFFSET_DTYPE,
-    BIN1OFFSET_DTYPE,
-    PIXEL_FIELDS,
+    MAGIC,
+    MAGIC_SCOOL,
     PIXEL_DTYPES,
+    PIXEL_FIELDS,
+    URL,
 )
+from ._ingest import validate_pixels
 
 logger = get_logger("cooler.create")
 
@@ -795,7 +796,8 @@ def append(cool_uri, table, data, chunked=False, force=False, h5opts=None, lock=
     file_path, group_path = parse_cooler_uri(cool_uri)
 
     try:
-        from dask.dataframe import DataFrame as dask_df, Series as dask_series
+        from dask.dataframe import DataFrame as dask_df
+        from dask.dataframe import Series as dask_series
     except (ImportError, AttributeError):
         dask_df = ()
         dask_series = ()

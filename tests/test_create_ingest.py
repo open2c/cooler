@@ -1,20 +1,19 @@
-import os.path as op
-import tempfile
 # import filecmp
 import os
-from pandas.api import types
+import os.path as op
+import tempfile
+
+import h5py
 import numpy as np
 import pandas as pd
-import h5py
+import pytest
+from pandas.api import types
 
 import cooler
-from cooler.cli.cload import (
-    tabix as cload_tabix,
-    pairix as cload_pairix,
-    pairs as cload_pairs,
-)
+from cooler.cli.cload import pairix as cload_pairix
+from cooler.cli.cload import pairs as cload_pairs
+from cooler.cli.cload import tabix as cload_tabix
 from cooler.cli.load import load
-import pytest
 
 _pandas_major_version = int(pd.__version__.split('.')[0])
 

@@ -1,7 +1,7 @@
-from . import cli
 import click
 
 from .. import fileops
+from . import cli
 
 
 @cli.command()

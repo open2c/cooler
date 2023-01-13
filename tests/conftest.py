@@ -1,8 +1,7 @@
-from scipy import sparse
-import numpy as np
-
-import pytest
 import mock
+import numpy as np
+import pytest
+from scipy import sparse
 
 
 class MockGroup(dict):

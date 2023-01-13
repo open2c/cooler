@@ -1,12 +1,12 @@
+import os
+import re
 from collections import OrderedDict, defaultdict
 from contextlib import contextmanager
-import re
-import os
 
-from pandas.api.types import is_scalar, is_integer
+import h5py
 import numpy as np
 import pandas as pd
-import h5py
+from pandas.api.types import is_integer, is_scalar
 
 
 def partition(start, stop, step):

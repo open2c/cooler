@@ -17,17 +17,23 @@ PIXEL_FIELDS = ("bin1_id", "bin2_id", "count")
 PIXEL_DTYPES = (("bin1_id", BIN_DTYPE), ("bin2_id", BIN_DTYPE), ("count", COUNT_DTYPE))
 
 
-from ._ingest import (
-    sanitize_pixels,
-    validate_pixels,
-    sanitize_records,
-    aggregate_records,
-    BadInputError,
-    HDF5Aggregator,
-    TabixAggregator,
-    PairixAggregator,
-    ArrayLoader,
-    ContactBinner,
+from ._create import (
+    append,
+    create,
+    create_cooler,
+    create_from_unordered,
+    create_scool,
+    rename_chroms,
 )
-
-from ._create import create_cooler, create, create_from_unordered, append, rename_chroms, create_scool
+from ._ingest import (
+    ArrayLoader,
+    BadInputError,
+    ContactBinner,
+    HDF5Aggregator,
+    PairixAggregator,
+    TabixAggregator,
+    aggregate_records,
+    sanitize_pixels,
+    sanitize_records,
+    validate_pixels,
+)

@@ -1,13 +1,11 @@
 import sys
 
+import click
 import numpy as np
 
-from . import cli
-import click
-
-from ..api import Cooler
 from .. import util
-
+from ..api import Cooler
+from . import cli
 
 MAX_MATRIX_SIZE_FILE = int(1e8)
 MAX_MATRIX_SIZE_INTERACTIVE = int(1e7)

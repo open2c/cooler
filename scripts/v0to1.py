@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import sys
+
 import h5py
 
 infiles = sys.argv[1:]

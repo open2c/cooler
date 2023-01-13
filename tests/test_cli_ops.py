@@ -1,19 +1,23 @@
 import os.path as op
+
 import numpy as np
 import pandas as pd
-
 from click.testing import CliRunner
+
 import cooler
-# import pytest
-
-
-## REDUCTION ###
-from cooler.cli.merge import merge
-from cooler.cli.coarsen import coarsen
-from cooler.cli.zoomify import zoomify
 
 ### COMPUTE ###
 from cooler.cli.balance import balance
+from cooler.cli.coarsen import coarsen
+
+## REDUCTION ###
+from cooler.cli.merge import merge
+from cooler.cli.zoomify import zoomify
+
+# import pytest
+
+
+
 
 testdir = op.realpath(op.dirname(__file__))
 datadir = op.join(testdir, "data")

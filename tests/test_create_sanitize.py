@@ -1,17 +1,17 @@
-from io import StringIO
 import os.path as op
+from io import StringIO
 
 import numpy as np
 import pandas as pd
-import cooler
 import pytest
 
+import cooler
 from cooler.create import (
-    sanitize_records,
-    sanitize_pixels,
-    validate_pixels,
-    aggregate_records,
     BadInputError,
+    aggregate_records,
+    sanitize_pixels,
+    sanitize_records,
+    validate_pixels,
 )
 
 testdir = op.dirname(op.realpath(__file__))

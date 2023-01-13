@@ -1,11 +1,11 @@
+import warnings
 from functools import partial
 from operator import add
-import warnings
 
 import numpy as np
 
 from ._logging import get_logger
-from .parallel import split, partition
+from .parallel import partition, split
 from .util import mad
 
 __all__ = ["balance_cooler"]

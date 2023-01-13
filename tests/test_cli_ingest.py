@@ -1,16 +1,18 @@
 # from io import StringIO
-from glob import glob
 import os.path as op
 import tempfile
-import simplejson as json
-from pandas.api import types
+from glob import glob
+
 import numpy as np
 import pandas as pd
+import pytest
+import simplejson as json
 
 # from _common import cooler_cmp
 from click.testing import CliRunner
+from pandas.api import types
+
 import cooler
-import pytest
 
 ### INGEST AND AGGREGATION ###
 from cooler.cli.cload import pairs as cload_pairs
