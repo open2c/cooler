@@ -45,8 +45,8 @@ def parse_kv_list_param(arg, item_sep=",", kv_sep="="):
     arg = "{" + arg.replace(kv_sep, ": ") + "}"
     try:
         result = yaml.safe_load(StringIO(arg))
-    except yaml.YAMLError:
-        raise click.BadParameter(f"Error parsing key-value pairs: {arg}")
+    except yaml.YAMLError as e:
+        raise click.BadParameter(f"Error parsing key-value pairs: {arg}") from e
     return result
 
 
@@ -68,12 +68,14 @@ def parse_field_param(arg, includes_colnum=True, includes_agg=True):
         elif len(parts) == 2:
             try:
                 colnum = int(parts[1]) - 1
-            except ValueError:
+            except ValueError as e:
                 raise click.BadParameter(
                     f"Not a number: '{parts[1]}'", param_hint=arg
-                )
+                ) from e
             if colnum < 0:
-                raise click.BadParameter("Field numbers start at 1.", param_hint=arg)
+                raise click.BadParameter(
+                    "Field numbers start at 1.", param_hint=arg
+                )
         else:
             raise click.BadParameter(arg)
     else:
@@ -86,8 +88,8 @@ def parse_field_param(arg, includes_colnum=True, includes_agg=True):
         for item in props.split(","):
             try:
                 prop, value = item.split("=")
-            except ValueError:
-                raise click.BadParameter(arg)
+            except ValueError as e:
+                raise click.BadParameter(arg) from e
             if prop == "dtype":
                 dtype = np.dtype(value)
             elif prop == "agg" and includes_agg:
@@ -107,10 +109,10 @@ def parse_bins(arg):
             raise ValueError(f'File "{chromsizes_file}" not found')
         try:
             binsize = int(binsize)
-        except ValueError:
+        except ValueError as e:
             raise ValueError(
                 f'Expected integer binsize argument (bp), got "{binsize}"'
-            )
+            ) from e
         chromsizes = util.read_chromsizes(chromsizes_file, all_names=True)
         bins = util.binnify(chromsizes, binsize)
 
@@ -125,7 +127,9 @@ def parse_bins(arg):
                 dtype={"chrom": str},
             )
         except pd.parser.CParserError as e:
-            raise ValueError(f'Failed to parse bins file "{arg}": {str(e)}')
+            raise ValueError(
+                f'Failed to parse bins file "{arg}": {str(e)}'
+            ) from e
 
         chromtable = (
             bins.drop_duplicates(["chrom"], keep="last")[["chrom", "end"]]

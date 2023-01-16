@@ -249,6 +249,6 @@ def balance(cool_uri, nproc, chunksize, mad_max, min_nnz, min_count, blacklist,
         with h5py.File(cool_path, 'r+') as h5:
             grp = h5[group_path]
             # add the bias column to the file
-            h5opts = dict(compression='gzip', compression_opts=6)
+            h5opts = {"compression": 'gzip', "compression_opts": 6}
             grp['bins'].create_dataset(name, data=bias, **h5opts)
             grp['bins'][name].attrs.update(stats)

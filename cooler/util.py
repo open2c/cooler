@@ -162,8 +162,8 @@ def parse_region(reg, chromsizes=None):
 
     try:
         clen = chromsizes[chrom] if chromsizes is not None else None
-    except KeyError:
-        raise ValueError(f"Unknown sequence label: {chrom}")
+    except KeyError as e:
+        raise ValueError(f"Unknown sequence label: {chrom}") from e
 
     start = 0 if start is None else start
     if end is None:
@@ -358,14 +358,16 @@ def digest(fasta_records, enzyme):
         import Bio.Restriction as biorst
         import Bio.Seq as bioseq
     except ImportError:
-        raise ImportError("Biopython is required to find restriction fragments.")
+        raise ImportError(
+            "Biopython is required to find restriction fragments."
+        ) from None
 
     # http://biopython.org/DIST/docs/cookbook/Restriction.html#mozTocId447698
     chroms = fasta_records.keys()
     try:
         cut_finder = getattr(biorst, enzyme).search
-    except AttributeError:
-        raise ValueError(f"Unknown enzyme name: {enzyme}")
+    except AttributeError as e:
+        raise ValueError(f"Unknown enzyme name: {enzyme}") from e
 
     def _each(chrom):
         seq = bioseq.Seq(str(fasta_records[chrom]))
@@ -392,7 +394,7 @@ def get_binsize(bins):
 
     """
     sizes = set()
-    for chrom, group in bins.groupby("chrom"):
+    for _chrom, group in bins.groupby("chrom"):
         sizes.update((group["end"] - group["start"]).iloc[:-1].unique())
         if len(sizes) > 1:
             return None

@@ -355,7 +355,7 @@ def tree_widget(group, expand, level):
             "to get the required ipytree dependency for displaying the tree "
             "widget. If using jupyterlab, you also need to run "
             "`jupyter labextension install ipytree`".format(error)
-        )
+        ) from None
 
     result = ipytree.Tree()
     root = TreeNode(group, level=level)
@@ -392,21 +392,21 @@ class TreeViewer:
         self.expand = expand
         self.level = level
 
-        self.text_kwargs = dict(horiz_len=2, label_space=1, indent=1)
+        self.text_kwargs = {"horiz_len": 2, "label_space": 1, "indent": 1}
 
-        self.bytes_kwargs = dict(
-            UP_AND_RIGHT="+",
-            HORIZONTAL="-",
-            VERTICAL="|",
-            VERTICAL_AND_RIGHT="+"
-        )
+        self.bytes_kwargs = {
+            "UP_AND_RIGHT": "+",
+            "HORIZONTAL": "-",
+            "VERTICAL": "|",
+            "VERTICAL_AND_RIGHT": "+"
+        }
 
-        self.unicode_kwargs = dict(
-            UP_AND_RIGHT="\u2514",
-            HORIZONTAL="\u2500",
-            VERTICAL="\u2502",
-            VERTICAL_AND_RIGHT="\u251C",
-        )
+        self.unicode_kwargs = {
+            "UP_AND_RIGHT": "\u2514",
+            "HORIZONTAL": "\u2500",
+            "VERTICAL": "\u2502",
+            "VERTICAL_AND_RIGHT": "\u251C",
+        }
 
         self.node_cls = node_cls
 

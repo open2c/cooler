@@ -8,7 +8,7 @@ import pandas as pd
 try:
     from sparse import COO
 except ImportError:
-    raise ImportError("The 'sparse' package is required to use dask")
+    raise ImportError("The 'sparse' package is required to use dask") from None
 
 import dask.array as da
 import dask.dataframe as dd
@@ -72,7 +72,7 @@ def _restore_categories(data, categorical_columns):
     return data
 
 
-def read_table(group_uri, keys=None, chunksize=int(10e6), index=None, lock=None):
+def read_table(group_uri, keys=None, chunksize=10_000_000, index=None, lock=None):
     """
     Create a dask dataframe around a column-oriented table in HDF5.
 

@@ -151,7 +151,7 @@ def set_verbosity_level(level):
     except KeyError:
         raise ValueError(
             f"Verbosity level must be one of: -2, -1, 0, 1, 2; got '{level}'."
-        )
+        ) from None
     logger.setLevel(loglevel)
 
 

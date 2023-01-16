@@ -34,28 +34,28 @@ class BadInputError(ValueError):
 
 
 SANITIZE_PRESETS = {
-    "bg2": dict(
-        decode_chroms=True,
-        is_one_based=False,
-        tril_action="reflect",
-        chrom_field="chrom",
-        anchor_field="start",
-        sided_fields=("chrom", "start", "end"),
-        suffixes=("1", "2"),
-        sort=True,
-        validate=True,
-    ),
-    "pairs": dict(
-        decode_chroms=True,
-        is_one_based=False,
-        tril_action="reflect",
-        chrom_field="chrom",
-        anchor_field="pos",
-        sided_fields=("chrom", "pos"),
-        suffixes=("1", "2"),
-        sort=False,
-        validate=True,
-    ),
+    "bg2": {
+        "decode_chroms": True,
+        "is_one_based": False,
+        "tril_action": "reflect",
+        "chrom_field": "chrom",
+        "anchor_field": "start",
+        "sided_fields": ("chrom", "start", "end"),
+        "suffixes": ("1", "2"),
+        "sort": True,
+        "validate": True,
+    },
+    "pairs": {
+        "decode_chroms": True,
+        "is_one_based": False,
+        "tril_action": "reflect",
+        "chrom_field": "chrom",
+        "anchor_field": "pos",
+        "sided_fields": ("chrom", "pos"),
+        "suffixes": ("1", "2"),
+        "sort": False,
+        "validate": True,
+    },
 }
 
 
@@ -280,11 +280,12 @@ def sanitize_records(bins, schema=None, **kwargs):
     """
     if schema is not None:
         try:
-            options = SANITIZE_PRESETS[schema].copy()
+            options = SANITIZE_PRESETS[schema]
         except KeyError:
-            raise ValueError(f"Unknown schema: '{schema}'")
+            raise ValueError(f"Unknown schema: '{schema}'") from None
     else:
         options = {}
+    options = options.copy()
     options.update(**kwargs)
     chromsizes = get_chromsizes(bins)
     options["gs"] = GenomeSegmentation(chromsizes, bins)
@@ -630,7 +631,7 @@ class TabixAggregator(ContactBinner):
         try:
             import pysam
         except ImportError:
-            raise ImportError("pysam is required to read tabix files")
+            raise ImportError("pysam is required to read tabix files") from None
 
         import pickle
 
@@ -769,7 +770,9 @@ class PairixAggregator(ContactBinner):
         try:
             import pypairix
         except ImportError:
-            raise ImportError("pypairix is required to read pairix-indexed files")
+            raise ImportError(
+                "pypairix is required to read pairix-indexed files"
+            ) from None
 
         import pickle
 
@@ -935,7 +938,7 @@ class SparseBlockLoader(ContactBinner):  # pragma: no cover
         chrom_ids = bins["chrom"].cat.codes
         self.offsets = np.zeros(n_chroms + 1, dtype=int)
         curr_val = 0
-        for start, length, value in zip(*rlencode(chrom_ids)):
+        for start, _length, value in zip(*rlencode(chrom_ids)):
             self.offsets[curr_val : value + 1] = start
             curr_val = value + 1
         self.offsets[curr_val:] = n_bins
@@ -1038,7 +1041,7 @@ class ArrayBlockLoader(ContactBinner):  # pragma: no cover
         chrom_ids = bins["chrom"].cat.codes
         self.offsets = np.zeros(n_chroms + 1, dtype=int)
         curr_val = 0
-        for start, length, value in zip(*rlencode(chrom_ids)):
+        for start, _length, value in zip(*rlencode(chrom_ids)):
             self.offsets[curr_val : value + 1] = start
             curr_val = value + 1
         self.offsets[curr_val:] = n_bins

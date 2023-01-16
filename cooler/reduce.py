@@ -531,7 +531,7 @@ class CoolerCoarsener(ContactBinner):
         # edges of this partition to make bigger groups of pixels. This way
         # we ensure that none of the original groups gets split.
         edges = []
-        for chrom, i in self.gs.idmap.items():
+        for _chrom, i in self.gs.idmap.items():
             # Respect chrom1 boundaries
             c0 = self.old_chrom_offset[i]
             c1 = self.old_chrom_offset[i + 1]
@@ -597,7 +597,7 @@ class CoolerCoarsener(ContactBinner):
         try:
             chunk = self._aggregate(span)
         except MemoryError as e:  # pragma: no cover
-            raise RuntimeError(str(e))
+            raise RuntimeError(str(e)) from e
         return chunk
 
     def __iter__(self):

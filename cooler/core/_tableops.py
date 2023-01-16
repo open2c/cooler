@@ -105,7 +105,7 @@ def put(grp, df, lo=0, store_categories=True, h5opts=None):
 
     """
     if h5opts is None:
-        h5opts = dict(compression="gzip", compression_opts=6)
+        h5opts = {"compression": "gzip", "compression_opts": 6}
 
     if isinstance(df, pd.Series):
         df = df.to_frame()

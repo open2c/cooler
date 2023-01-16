@@ -244,7 +244,7 @@ def index_pixels(grp, n_bins, nnz):
     bin1 = grp["bin1_id"]
     bin1_offset = np.zeros(n_bins + 1, dtype=BIN1OFFSET_DTYPE)
     curr_val = 0
-    for start, length, value in zip(*rlencode(bin1, 1000000)):
+    for start, _length, value in zip(*rlencode(bin1, 1000000)):
         bin1_offset[curr_val : value + 1] = start
         curr_val = value + 1
     bin1_offset[curr_val:] = nnz
@@ -255,7 +255,7 @@ def index_bins(grp, n_chroms, n_bins):
     chrom_ids = grp["chrom"]
     chrom_offset = np.zeros(n_chroms + 1, dtype=CHROMOFFSET_DTYPE)
     curr_val = 0
-    for start, length, value in zip(*rlencode(chrom_ids)):
+    for start, _length, value in zip(*rlencode(chrom_ids)):
         chrom_offset[curr_val : value + 1] = start
         curr_val = value + 1
     chrom_offset[curr_val:] = n_bins
@@ -516,7 +516,7 @@ def create(
         dask_df = ()
 
     if isinstance(pixels, dask_df):
-        iterable = map(lambda x: x.compute(), pixels.to_delayed())
+        iterable = (x.compute() for x in pixels.to_delayed())
         input_columns = infer_meta(pixels).columns
     elif isinstance(pixels, pd.DataFrame):
         iterable = (pixels,)
@@ -676,7 +676,7 @@ def create_from_unordered(
     columns=None,
     dtypes=None,
     mode=None,
-    mergebuf=int(20e6),
+    mergebuf=20_000_000,
     delete_temp=True,
     temp_dir=None,
     max_merge=200,
@@ -962,7 +962,7 @@ def create_cooler(
     ordered=False,
     symmetric_upper=True,
     mode="w",
-    mergebuf=int(20e6),
+    mergebuf=20_000_000,
     delete_temp=True,
     temp_dir=None,
     max_merge=200,
@@ -1070,7 +1070,7 @@ def create_scool(
     ordered=False,
     symmetric_upper=True,
     mode="w",
-    mergebuf=int(20e6),
+    mergebuf=20_000_000,
     delete_temp=True,
     temp_dir=None,
     max_merge=200,

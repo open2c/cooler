@@ -457,7 +457,7 @@ def balance_cooler(
         with clr.open("r+") as grp:
             if store_name in grp["bins"]:
                 del grp["bins"][store_name]
-            h5opts = dict(compression="gzip", compression_opts=6)
+            h5opts = {"compression": "gzip", "compression_opts": 6}
             grp["bins"].create_dataset(store_name, data=bias, **h5opts)
             grp["bins"][store_name].attrs.update(stats)
 

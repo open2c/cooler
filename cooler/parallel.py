@@ -266,7 +266,7 @@ class chunkgetter:
         return chunk
 
 
-def split(clr, map=map, chunksize=int(10e6), spans=None, **kwargs):
+def split(clr, map=map, chunksize=10_000_000, spans=None, **kwargs):
     if spans is None:
         spans = partition(0, clr.info["nnz"], chunksize)
     return MultiplexDataPipe(chunkgetter(clr, **kwargs), spans, map)

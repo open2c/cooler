@@ -103,7 +103,7 @@ class Cooler:
                     f" Coolers found in {listing}. "
                     + "Use '::' to specify a group path"
                 )
-            raise KeyError(err_msg)
+            raise KeyError(err_msg) from None
 
     def _load_dset(self, path):
         with open_hdf5(self.store, **self.open_kws) as h5:
