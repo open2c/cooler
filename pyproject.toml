@@ -2,6 +2,78 @@
 requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
+[project]
+name = "cooler"
+description = "Sparse binary format for genomic interaction matrices."
+requires-python = ">=3.6"
+license = {file = "LICENSE"}
+authors = [
+  {name = "Nezar Abdennur", email = "nabdennur@gmail.com"},
+]
+maintainers = [
+  {name = "Open2C", email = "open.chromosome.collective@gmail.com"}
+]
+keywords = [
+    "genomics",
+    "bioinformatics", 
+    "Hi-C", 
+    "contact", 
+    "matrix", 
+    "sparse",
+    "format", 
+    "hdf5"
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.6",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+]
+zip_safe = false
+
+dynamic = ["version", "readme", "dependencies"]
+
+[tool.setuptools.dynamic]
+version = {attr = "cooler.__version__"}
+readme = {file = ["README.md"], content-type = "text/markdown"}
+dependencies = {file = ["requirements.txt"]}
+
+[project.optional-dependencies]
+test = [
+    "pytest",
+    "pytest-cov",
+]
+docs = [
+    "Sphinx>=1.6",
+    "sphinx-rtd-theme",
+    "m2r",
+    "numpydoc",
+    "recommonmark",
+]
+complete = [
+    "biopython",
+    "dask[array,dataframe]",
+    "ipytree>=0.2.2",
+    "ipywidgets>=8.0.0",
+    "psutil",
+    "pysam",
+]
+
+[project.scripts]
+cooler = "cooler.cli:cli"
+
+[project.urls]
+homepage = "https://open2c.github.io/cooler"
+documentation = "https://cooler.readthedocs.io"
+repository = "https://github.com/open2c/cooler"
+changelog = "https://github.com/open2c/cooler/blob/master/CHANGES.md"
+
 [tool.distutils.bdist_wheel]
 universal = true
 
