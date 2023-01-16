@@ -39,7 +39,7 @@ classifiers = [
 dynamic = ["version", "readme", "dependencies"]
 
 [tool.setuptools.dynamic]
-version = {attr = "cooler.__version__"}
+version = {attr = "cooler._version.__version__"}
 readme = {file = ["README.md"], content-type = "text/markdown"}
 dependencies = {file = ["requirements.txt"]}
 
