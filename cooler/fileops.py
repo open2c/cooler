@@ -267,13 +267,17 @@ def _copy(src_uri, dst_uri, overwrite, link, rename, soft_link):
         raise ValueError('Must provide at most one of: "link", "rename", "soft_link"')
 
     if not os.path.isfile(dst_path) or overwrite:
-        write_mode = "w"
+        dst_write_mode = "w"
     else:
-        write_mode = "r+"
+        dst_write_mode = "r+"
 
-    with h5py.File(src_path, "r+") as src, h5py.File(
-        dst_path, write_mode
-    ) as dst:  # noqa
+    if src_path == dst_path:
+        src_write_mode = "r+"
+    else:
+        src_write_mode = "r"
+
+    with h5py.File(src_path, src_write_mode) as src, \
+         h5py.File(dst_path, dst_write_mode) as dst:  # noqa
 
         if src_path == dst_path:
             if link or rename:
