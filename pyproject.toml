@@ -10,6 +10,33 @@ profile = "black"
 skip_gitignore = true
 known_first_party = "cooler"
 
+[tool.flake8]
+max-line-length = 80
+exclude = [
+    "__init__.py",
+    "__main__.py",
+    "scripts",
+]
+select = [
+    "B", # bugbear
+    "B950", # line exceeds max-line-length + 10%
+    "C", # mccabe complexity
+    "E", # pycodestyle
+    "F", # pyflakes error
+    "W", # pyflakes warning
+]
+ignore = [
+    "E203", # whitespace before ':'
+    "E266", # too many leading '#' for block comment
+    "E501", # line too long
+    "W503", # line break before binary operator
+]
+
+[tool.pytest.ini_options]
+addopts = "--cov cooler --cov-config pyproject.toml --cov-report term-missing --cov-report html --cov-report=xml"
+filterwarnings = ["ignore::PendingDeprecationWarning"]
+testpaths = ["tests"]
+
 [tool.coverage.run]
 source = ["cooler"]
 
@@ -26,8 +53,3 @@ exclude_lines = [
     "return NotImplemented",
     "raise NotImplementedError"
 ]
-
-[tool.pytest.ini_options]
-addopts = "--cov cooler --cov-config pyproject.toml --cov-report term-missing --cov-report html --cov-report=xml"
-filterwarnings = ["ignore::PendingDeprecationWarning"]
-testpaths = ["tests"]
