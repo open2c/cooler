@@ -108,40 +108,28 @@ If you are using `conda`, you can alternatively install `cooler` from the [bioco
 $ conda install -c conda-forge -c bioconda cooler
 ```
 
-Requirements:
-
-- Python 3.6+
-- libhdf5 and Python packages `numpy`, `scipy`, `pandas`, `h5py`. We highly recommend using the `conda` package manager to install scientific packages like these. To get it, you can either install the full [Anaconda](https://www.continuum.io/downloads) Python distribution or just the standalone [conda](http://conda.pydata.org/miniconda.html) package manager.
-
-See the [docs](http://cooler.readthedocs.org/en/latest/) for more information.
-
-Note: Python 2.7 support has ceased as of cooler 0.9.
-
-
-### Contributing
-
-Interested in contributing to cooler? That's great! To get started, check out the [contributing guide](https://github.com/open2c/cooler/blob/master/CONTRIBUTING.md).
-
-
 ### Citing
 
-Abdennur, N., and Mirny, L. (2019). Cooler: scalable storage for Hi-C data and other genomically labeled arrays. _Bioinformatics_. doi: [10.1093/bioinformatics/btz540](https://doi.org/10.1093/bioinformatics/btz540).
+Abdennur, N., and Mirny, L.A. (2020). Cooler: scalable storage for Hi-C data and other genomically labeled arrays. _Bioinformatics_. doi: [10.1093/bioinformatics/btz540](https://doi.org/10.1093/bioinformatics/btz540).
 
 ```bibtex
-@article{Cooler2019,
+@article{cooler2020,
     author = {Abdennur, Nezar and Mirny, Leonid A},
     title = "{Cooler: scalable storage for Hi-C data and other genomically labeled arrays}",
-    journal = {Bioinformatics},
-    year = {2019},
-    month = {07},
+    journal={Bioinformatics},
+    volume={36},
+    number={1},
+    pages={311--316},
+    year={2020},
     doi = {10.1093/bioinformatics/btz540},
     url = {https://doi.org/10.1093/bioinformatics/btz540},
 }
 ```
 
-### License
+### Contributing
 
-BSD (3 Clause)
+Interested in contributing to cooler? That's great! To get started, check out the [contributing guide](https://github.com/open2c/cooler/blob/master/CONTRIBUTING.md).
+
 
 ### Related projects
 
