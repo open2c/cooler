@@ -15,12 +15,12 @@ maintainers = [
 ]
 keywords = [
     "genomics",
-    "bioinformatics", 
-    "Hi-C", 
-    "contact", 
-    "matrix", 
+    "bioinformatics",
+    "Hi-C",
+    "contact",
+    "matrix",
     "sparse",
-    "format", 
+    "format",
     "hdf5"
 ]
 classifiers = [
