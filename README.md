@@ -31,6 +31,14 @@
         </td>
     </tr>
     <tr>
+      <td>Pre-commit Status</td>
+      <td>
+        <a href="https://github.com/open2c/cooler/blob/master/.pre-commit-config.yaml">
+        <img src="https://results.pre-commit.ci/badge/github/open2c/cooler/master.svg" alt="pre-commit status" />
+        </a>
+      </td>
+    </tr>
+    <tr>
         <td>Docs Status</td>
         <td>
             <a href="http://cooler.readthedocs.org/en/latest/">
