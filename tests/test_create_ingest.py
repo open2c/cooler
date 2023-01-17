@@ -629,4 +629,3 @@ def test_load_custom_tempdir():
         assert "count" in pixels.columns and types.is_integer_dtype(
             pixels.dtypes["count"]
         )
-
