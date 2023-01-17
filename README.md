@@ -33,7 +33,7 @@
     <tr>
       <td>Pre-commit Status</td>
       <td>
-        <a href="https://github.com/open2c/cooler/blob/master/.pre-commit-config.yaml">
+        <a href="https://results.pre-commit.ci/repo/github/49553222">
         <img src="https://results.pre-commit.ci/badge/github/open2c/cooler/master.svg" alt="pre-commit status" />
         </a>
       </td>
@@ -66,18 +66,21 @@
         </td>
     </tr>
     <tr>
-        <td>Community</td>
+        <td>Citation</td>
         <td>
-            <a href="https://bit.ly/open2c-slack">
-                <img src="https://img.shields.io/badge/chat-slack-%233F0F3F?logo=slack" alt="slack">
+            <a href="https://doi.org/10.1093/bioinformatics/btz540">
+                <img src="https://img.shields.io/badge/DOI-10.1093%2Fbioinformatics%2Fbtz540-blue" alt="paper doi">
+            </a>
+            <a href="https://zenodo.org/badge/latestdoi/49553222">
+                <img src="https://zenodo.org/badge/49553222.svg" alt="zenodo doi">
             </a>
         </td>
     </tr>
     <tr>
-        <td>Zenodo</td>
+        <td>Community</td>
         <td>
-            <a href="https://zenodo.org/badge/latestdoi/49553222">
-                <img src="https://zenodo.org/badge/49553222.svg" alt="zenodo doi">
+            <a href="https://bit.ly/open2c-slack">
+                <img src="https://img.shields.io/badge/chat-slack-%233F0F3F?logo=slack" alt="slack">
             </a>
         </td>
     </tr>
