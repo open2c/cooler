@@ -6,7 +6,6 @@ click>=7
 cytoolz
 multiprocess
 pyfaidx
-pypairix
 asciitree
 pyyaml
 simplejson

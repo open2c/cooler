@@ -48,6 +48,10 @@ include = ["cooler*"]
 
 [project.optional-dependencies]
 test = [
+    "coverage[toml]",
+    "flake8",
+    "flake8-pyproject",
+    "isort",
     "pytest",
     "pytest-cov",
 ]
@@ -63,6 +67,8 @@ complete = [
     "dask[array,dataframe]",
     "ipytree>=0.2.2",
     "ipywidgets>=8.0.0",
+    "matplotlib",
+    "pypairix",
     "psutil",
     "pysam",
 ]
