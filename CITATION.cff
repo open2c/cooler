@@ -4,8 +4,8 @@ title: cooler
 message: >-
   Please cite this software using the metadata from "preferred-citation".
 abstract: >-
-  Cooler is a Python support library for .cool files: an efficient storage format 
-  for high resolution genomic interaction matrices. The cooler package aims to 
+  Cooler is a Python support library for .cool files: an efficient storage format
+  for high resolution genomic interaction matrices. The cooler package aims to
   provide the following functionality:
 
   * Build contact matrices at any genomic resolution.
