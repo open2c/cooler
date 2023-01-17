@@ -45,8 +45,19 @@ from ._util import parse_field_param
     type=str,
     multiple=True,
 )
-@click.option("--out", "-o", required=True, help="Output file or URI")
-def coarsen(cool_uri, factor, nproc, chunksize, field, out):
+@click.option(
+    "--out", "-o",
+    required=True,
+    help="Output file or URI"
+)
+@click.option(
+    "--append", "-a",
+    is_flag=True,
+    default=False,
+    help="Pass this flag to append the output cooler to an existing file "
+         "instead of overwriting the file."
+)
+def coarsen(cool_uri, factor, nproc, chunksize, field, out, append):
     """
     Coarsen a cooler to a lower resolution.
 
@@ -82,4 +93,5 @@ def coarsen(cool_uri, factor, nproc, chunksize, field, out):
         dtypes=dtypes,
         agg=agg,
         lock=lock if same_file else None,
+        mode="a" if append else "w"
     )

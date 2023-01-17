@@ -113,9 +113,7 @@ def invoke_balance(args, resolutions, outfile):
     is_flag=True,
     default=False,
 )
-@click.pass_context
 def zoomify(
-    ctx,
     cool_uri,
     nproc,
     chunksize,

@@ -197,30 +197,46 @@ def test_legacy_zoomify():
         legacy_zoomify(infile, "test.multires.cool", n_cpus, chunksize)
 
 
-# def test_zoomify():
-#     zoomify(
-#         op.join(datadir,
-#             'dec2_20_pluslig_1pGene_grch38_UBR4_D_1nt.pairwise.sorted.cool'),
-#         out=multires_path,
-#         balance=True,
-#         balance_args='--mad-max 3 --min-nnz 100'
-#     )
-#     # this file should have base + 6 zoom levels
-#     assert(len(cooler.io.ls(multires_path)) == 7)
+def test_append_mode():
+    # merge
+    path1 = path2 = op.join(datadir, "toy.asymm.2.cool")
+    out_path = "test.cool"
+    for append in (True, False):
+        with isolated_filesystem():
+            with h5py.File("test.cool", "w") as f:
+                f.attrs["xxxx"] = True
+            merge_coolers(
+                out_path,
+                [path1, path2],
+                mergebuf=int(15e6),
+                mode="a" if append else "w"
+            )
+            with h5py.File(out_path, "r") as f:
+                if append:
+                    assert "xxxx" in f.attrs
+                else:
+                    assert "xxxx" not in f.attrs
 
-#     # inconsistent chromosome names in chrom table (truncated) and bin table
-#     # (full length) of the input file are now resolved by forcing use of the
-#     # chrom table names in the bin tables of the output file
-#     c = cooler.Cooler(multires_path + '::' + '1')
-#     names = c.bins()['chrom'][:].cat.categories
-#     assert names[0] == 'ENSG00000127481|ENST00000375254|'
-
-#     # FIXME: with the exception of the base resolution
-#     c = cooler.Cooler(multires_path + '::' + '6')
-#     names = c.bins()['chrom'][:].cat.categories
-#     assert names[0] != 'ENSG00000127481|ENST00000375254|'
-
-#     try:
-#         os.remove(multires_path)
-#     except OSError:
-#         pass
+    # coarsen
+    input_path = op.join(datadir, "toy.symm.upper.2.cool")
+    out_path = "test.cool"
+    for append in (True, False):
+        with isolated_filesystem():
+            with h5py.File("test.cool", "w") as f:
+                f.attrs["xxxx"] = True
+            coarsen_cooler(
+                input_path,
+                "test.cool",
+                2,
+                chunksize=10,
+                nproc=1,
+                columns=None,
+                dtypes=None,
+                agg=None,
+                mode="a" if append else "w"
+            )
+            with h5py.File(out_path, "r") as f:
+                if append:
+                    assert "xxxx" in f.attrs
+                else:
+                    assert "xxxx" not in f.attrs
