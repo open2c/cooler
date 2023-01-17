@@ -843,6 +843,7 @@ def zoomify_cooler(
             columns=columns,
             dtypes=dtypes,
             agg=agg,
+            mode="r+",
             **kwargs
         )
 

@@ -426,6 +426,13 @@ def pairix(bins, pairs_path, cool_path, metadata, assembly, nproc, zero_based, m
     "See http://docs.h5py.org/en/stable/high/dataset.html#filter-pipeline "
     "for more details."
 )
+@click.option(
+    "--append", "-a",
+    is_flag=True,
+    default=False,
+    help="Pass this flag to append the output cooler to an existing file "
+         "instead of overwriting the file."
+)
 # @click.option(
 #     "--format", "-f",
 #     help="Preset data format.",
@@ -433,7 +440,8 @@ def pairix(bins, pairs_path, cool_path, metadata, assembly, nproc, zero_based, m
 # --sep
 def pairs(bins, pairs_path, cool_path, metadata, assembly, chunksize,
           zero_based, comment_char, input_copy_status, no_symmetric_upper,
-          field, temp_dir, no_delete_temp, max_merge, storage_options, **kwargs):
+          field, temp_dir, no_delete_temp, max_merge, storage_options,
+          append, **kwargs):
     """
     Bin any text file or stream of pairs.
 
@@ -591,5 +599,6 @@ def pairs(bins, pairs_path, cool_path, metadata, assembly, chunksize,
         ensure_sorted=False,
         symmetric_upper=symmetric_upper,
         h5opts=h5opts,
-        ordered=False
+        ordered=False,
+        mode="a" if append else "w"
     )

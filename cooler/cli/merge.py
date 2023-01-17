@@ -31,7 +31,14 @@ from ._util import parse_field_param
     type=str,
     multiple=True,
 )
-def merge(out_path, in_paths, chunksize, field):
+@click.option(
+    "--append", "-a",
+    is_flag=True,
+    default=False,
+    help="Pass this flag to append the output cooler to an existing file "
+         "instead of overwriting the file."
+)
+def merge(out_path, in_paths, chunksize, field, append):
     """
     Merge multiple coolers with identical axes.
 
@@ -68,5 +75,11 @@ def merge(out_path, in_paths, chunksize, field):
         columns, dtypes, agg = ["count"], None, None
 
     merge_coolers(
-        out_path, in_paths, mergebuf=chunksize, columns=columns, dtypes=dtypes, agg=agg
+        out_path,
+        in_paths,
+        mergebuf=chunksize,
+        columns=columns,
+        dtypes=dtypes,
+        agg=agg,
+        mode="a" if append else "w"
     )

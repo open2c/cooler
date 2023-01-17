@@ -281,6 +281,7 @@ def test_cload_pairs(bins_path, pairs_path, ref_path):
         pos1=3,
         chrom2=4,
         pos2=5,
+        append=False,
     )
     cload_pairs.callback(bins_path, pairs_path, testcool_path, **kwargs)
     with h5py.File(testcool_path, "r") as f1, h5py.File(ref_path, "r") as f2:
@@ -320,6 +321,7 @@ def test_cload_field(bins_path, pairs_path):
         pos1=3,
         chrom2=4,
         pos2=5,
+        append=False,
     )
     cload_pairs.callback(
         bins_path, pairs_path, testcool_path, field=("score=8:dtype=float",), **kwargs
@@ -361,6 +363,7 @@ def test_cload_custom_tempdir(bins_path, pairs_path):
             pos1=3,
             chrom2=4,
             pos2=5,
+            append=False,
         )
         pixels = cooler.Cooler(testcool_path).pixels()[:]
         assert "count" in pixels.columns and types.is_integer_dtype(
@@ -380,6 +383,7 @@ def test_load_bg2_vs_coo():
         input_copy_status="unique",
         no_symmetric_upper=False,
         storage_options=None,
+        append=False,
     )
 
     out_path1 = op.join(tmp, "test1.cool")
@@ -424,6 +428,7 @@ def test_load_zero_one_based_bg2():
         input_copy_status="unique",
         no_symmetric_upper=False,
         storage_options=None,
+        append=False,
     )
     # 1-based-start BG2 input
     ref = "toy.symm.upper.1.ob.bg2"
@@ -470,6 +475,7 @@ def test_load_zero_one_based_coo():
         input_copy_status="unique",
         no_symmetric_upper=False,
         storage_options=None,
+        append=False,
     )
     # 1-based-start COO input
     ref = "toy.symm.upper.1.ob.coo"
@@ -509,3 +515,81 @@ def test_array_loader():
     array = np.ones((n + 1, n + 1))
     with pytest.raises(ValueError):
         cooler.create.ArrayLoader(bins, array, chunksize=100)
+
+
+def test_cload_append_mode():
+    for append in (True, False):
+        out_path = op.join(tmp, "test.cool")
+        with h5py.File(out_path, "w") as f:
+            f.attrs["xxxx"] = True
+        kwargs = dict(
+            metadata=None,
+            assembly="hg19",
+            chunksize=int(15e6),
+            zero_based=False,
+            comment_char="#",
+            input_copy_status="unique",
+            no_symmetric_upper=False,
+            field=(),
+            temp_dir=None,
+            no_delete_temp=False,
+            storage_options=None,
+            no_count=False,
+            max_merge=200,
+            chrom1=2,
+            pos1=3,
+            chrom2=4,
+            pos2=5,
+            append=append,
+        )
+        cload_pairs.callback(
+            op.join(testdir, "data", "toy.bins.var.bed"),
+            op.join(testdir, "data", "toy.pairs"),
+            out_path,
+            **kwargs
+        )
+        with h5py.File(out_path, "r") as f:
+            if append:
+                assert "xxxx" in f.attrs
+            else:
+                assert "xxxx" not in f.attrs
+        try:
+            os.remove(out_path)
+        except OSError:
+            pass
+
+
+def test_load_append_mode():
+    for append in (True, False):
+        out_path = op.join(tmp, "test.cool")
+        with h5py.File(out_path, "w") as f:
+            f.attrs["xxxx"] = True
+        kwargs = dict(
+            metadata=None,
+            assembly="hg19",
+            chunksize=int(20e6),
+            field=(),
+            count_as_float=False,
+            one_based=False,
+            comment_char="#",
+            input_copy_status="unique",
+            no_symmetric_upper=False,
+            storage_options=None,
+            append=append,
+        )
+        load.callback(
+            op.join(testdir, "data", "hg19.bins.2000kb.bed.gz"),
+            op.join(testdir, "data", "hg19.GM12878-MboI.matrix.2000kb.coo.txt"),
+            out_path,
+            format="coo",
+            **kwargs
+        )
+        with h5py.File(out_path, "r") as f:
+            if append:
+                assert "xxxx" in f.attrs
+            else:
+                assert "xxxx" not in f.attrs
+        try:
+            os.remove(out_path)
+        except OSError:
+            pass

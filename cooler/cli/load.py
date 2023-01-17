@@ -117,6 +117,13 @@ from ._util import parse_bins, parse_field_param, parse_kv_list_param
     "See http://docs.h5py.org/en/stable/high/dataset.html#filter-pipeline "
     "for more details.",
 )
+@click.option(
+    "--append", "-a",
+    is_flag=True,
+    default=False,
+    help="Pass this flag to append the output cooler to an existing file "
+         "instead of overwriting the file."
+)
 def load(
     bins_path,
     pixels_path,
@@ -132,6 +139,7 @@ def load(
     input_copy_status,
     no_symmetric_upper,
     storage_options,
+    append,
     **kwargs
 ):
     """
@@ -329,4 +337,5 @@ def load(
         triucheck=True if symmetric_upper else False,
         symmetric_upper=symmetric_upper,
         h5opts=h5opts,
+        mode="a" if append else "w",
     )
