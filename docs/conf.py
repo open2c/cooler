@@ -36,21 +36,21 @@ sys.path.insert(0, os.path.abspath(".."))
 
 
 MOCK_MODULES = [
-    "numpy",
-    "scipy",
-    "scipy.sparse",
-    "pandas",
-    "pandas.algos",
-    "pandas.api",
-    "pandas.api.types",
-    "h5py",
+    "cytoolz",
     "dask",
     "dask.base",
     "dask.array",
     "dask.dataframe",
     "dask.dataframe.core",
     "dask.dataframe.utils",
-    "simplejson",
+    "h5py",
+    "numpy",
+    "pandas",
+    "pandas.algos",
+    "pandas.api",
+    "pandas.api.types",
+    "scipy",
+    "scipy.sparse",
 ]
 for mod_name in MOCK_MODULES:
     sys.modules[mod_name] = mock.Mock()
