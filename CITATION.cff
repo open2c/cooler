@@ -2,8 +2,7 @@ cff-version: 1.2.0
 type: software
 title: cooler
 message: >-
-  Please cite this software using the metadata from
-  "preferred-citation".
+  Please cite this software using the metadata from "preferred-citation".
 abstract: >-
   Cooler is a Python support library for .cool files: an efficient storage format 
   for high resolution genomic interaction matrices. The cooler package aims to 
@@ -32,18 +31,18 @@ keywords:
 authors:
   - given-names: Nezar
     family-names: Abdennur
-    orcid: 'https://orcid.org/0000-0001-5814-0864'
+    orcid: "https://orcid.org/0000-0001-5814-0864"
   - given-names: Anton
     family-names: Goloborodko
-    orcid: 'https://orcid.org/0000-0002-2210-8616'
+    orcid: "https://orcid.org/0000-0002-2210-8616"
   - given-names: Maxim
     family-names: Imakaev
-    orcid: 'https://orcid.org/0000-0002-5320-2728'
+    orcid: "https://orcid.org/0000-0002-5320-2728"
   - given-names: Peter
     family-names: Kerpedjiev
   - family-names: Fudenberg
     given-names: Geoffrey
-    orcid: 'https://orcid.org/0000-0001-5905-6517'
+    orcid: "https://orcid.org/0000-0001-5905-6517"
   - family-names: Oullette
     given-names: Scott
   - given-names: Soohyun
@@ -54,8 +53,7 @@ authors:
   - given-names: Nils
     family-names: Gehlenborg
     orcid: "https://orcid.org/0000-0003-0327-8297"
-  - given-names: Leonid
-    name-particle: A
+  - given-names: Leonid A.
     family-names: Mirny
     orcid: "https://orcid.org/0000-0002-0785-5410"
 preferred-citation:
@@ -65,13 +63,13 @@ preferred-citation:
   - given-names: Nezar
     family-names: Abdennur
     orcid: "https://orcid.org/0000-0001-5814-0864"
-  - given-names: Leonid
-    name-particle: A
+  - given-names: Leonid A.
     family-names: Mirny
     orcid: "https://orcid.org/0000-0002-0785-5410"
-  doi: "10.1093/bioinformatics/btz540"
-  journal: "Bioinformatics"
+  journal: Bioinformatics
   month: 1
   volume: 36
   issue: 1
+  pages: 311-316
   year: 2020
+  doi: "10.1093/bioinformatics/btz540"
