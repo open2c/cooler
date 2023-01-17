@@ -111,6 +111,18 @@ from ._util import parse_bins, parse_field_param, parse_kv_list_param
     show_default=True,
 )
 @click.option(
+    "--temp-dir",
+    help="Create temporary files in a specified directory. Pass ``-`` to use "
+    "the platform default temp dir.",
+    type=click.Path(exists=True, file_okay=False, dir_okay=True, allow_dash=True)
+)
+@click.option(
+    "--no-delete-temp",
+    help="Do not delete temporary files when finished.",
+    is_flag=True,
+    default=False
+)
+@click.option(
     "--storage-options",
     help="Options to modify the data filter pipeline. Provide as a "
     "comma-separated list of key-value pairs of the form 'k1=v1,k2=v2,...'. "
@@ -138,6 +150,8 @@ def load(
     comment_char,
     input_copy_status,
     no_symmetric_upper,
+    temp_dir,
+    no_delete_temp,
     storage_options,
     append,
     **kwargs
@@ -332,6 +346,8 @@ def load(
         assembly=assembly,
         mergebuf=chunksize,
         ensure_sorted=False,
+        temp_dir=temp_dir,
+        delete_temp=not no_delete_temp,
         # boundscheck=True,
         # dupcheck=True,
         triucheck=True if symmetric_upper else False,
