@@ -382,6 +382,8 @@ def test_load_bg2_vs_coo():
         comment_char="#",
         input_copy_status="unique",
         no_symmetric_upper=False,
+        temp_dir=None,
+        no_delete_temp=False,
         storage_options=None,
         append=False,
     )
@@ -427,6 +429,8 @@ def test_load_zero_one_based_bg2():
         comment_char="#",
         input_copy_status="unique",
         no_symmetric_upper=False,
+        temp_dir=None,
+        no_delete_temp=False,
         storage_options=None,
         append=False,
     )
@@ -474,6 +478,8 @@ def test_load_zero_one_based_coo():
         comment_char="#",
         input_copy_status="unique",
         no_symmetric_upper=False,
+        temp_dir=None,
+        no_delete_temp=False,
         storage_options=None,
         append=False,
     )
@@ -574,6 +580,8 @@ def test_load_append_mode():
             comment_char="#",
             input_copy_status="unique",
             no_symmetric_upper=False,
+            temp_dir=None,
+            no_delete_temp=False,
             storage_options=None,
             append=append,
         )
@@ -593,3 +601,32 @@ def test_load_append_mode():
             os.remove(out_path)
         except OSError:
             pass
+
+
+def test_load_custom_tempdir():
+    for temp_dir in [op.join(testdir, "data"), "-"]:
+        load.callback(
+            op.join(testdir, "data", "hg19.bins.2000kb.bed.gz"),
+            op.join(testdir, "data", "hg19.GM12878-MboI.matrix.2000kb.coo.txt"),
+            testcool_path,
+            format="coo",
+            metadata=None,
+            assembly="hg19",
+            chunksize=int(20e6),
+            field=(),
+            count_as_float=False,
+            one_based=False,
+            comment_char="#",
+            input_copy_status="unique",
+            no_symmetric_upper=False,
+            temp_dir=temp_dir,
+            no_delete_temp=False,
+            storage_options=None,
+            append=False,
+
+        )
+        pixels = cooler.Cooler(testcool_path).pixels()[:]
+        assert "count" in pixels.columns and types.is_integer_dtype(
+            pixels.dtypes["count"]
+        )
+
