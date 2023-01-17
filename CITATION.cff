@@ -1,0 +1,77 @@
+cff-version: 1.2.0
+type: software
+title: cooler
+message: >-
+  Please cite this software using the metadata from
+  "preferred-citation".
+abstract: >-
+  Cooler is a Python support library for .cool files: an efficient storage format 
+  for high resolution genomic interaction matrices. The cooler package aims to 
+  provide the following functionality:
+
+  * Build contact matrices at any genomic resolution.
+  * Query contact matrices.
+  * Export and visualize the data.
+  * Perform scalable out-of-core operations on the data.
+  * Provide a clean and well-documented Python API to interact with the data.
+
+  Follow cooler development on GitHub.
+license: "BSD-3-Clause"
+doi: "10.5281/zenodo.597976"
+url: "https://open2c.github.io/cooler"
+repository-code: "https://github.com/open2c/cooler"
+keywords:
+  - bioinformatics
+  - genomics
+  - Hi-C
+  - sparse
+  - matrix
+  - format
+  - Python
+  - out-of-core
+authors:
+  - given-names: Nezar
+    family-names: Abdennur
+    orcid: 'https://orcid.org/0000-0001-5814-0864'
+  - given-names: Anton
+    family-names: Goloborodko
+    orcid: 'https://orcid.org/0000-0002-2210-8616'
+  - given-names: Maxim
+    family-names: Imakaev
+    orcid: 'https://orcid.org/0000-0002-5320-2728'
+  - given-names: Peter
+    family-names: Kerpedjiev
+  - family-names: Fudenberg
+    given-names: Geoffrey
+    orcid: 'https://orcid.org/0000-0001-5905-6517'
+  - family-names: Oullette
+    given-names: Scott
+  - given-names: Soohyun
+    family-names: Lee
+    orcid: "https://orcid.org/0000-0002-3594-6213"
+  - given-names: Hendrik
+    family-names: Strobelt
+  - given-names: Nils
+    family-names: Gehlenborg
+    orcid: "https://orcid.org/0000-0003-0327-8297"
+  - given-names: Leonid
+    name-particle: A
+    family-names: Mirny
+    orcid: "https://orcid.org/0000-0002-0785-5410"
+preferred-citation:
+  type: article
+  title: "Cooler: scalable storage for Hi-C data and other genomically labeled arrays"
+  authors:
+  - given-names: Nezar
+    family-names: Abdennur
+    orcid: "https://orcid.org/0000-0001-5814-0864"
+  - given-names: Leonid
+    name-particle: A
+    family-names: Mirny
+    orcid: "https://orcid.org/0000-0002-0785-5410"
+  doi: "10.1093/bioinformatics/btz540"
+  journal: "Bioinformatics"
+  month: 1
+  volume: 36
+  issue: 1
+  year: 2020
