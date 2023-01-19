@@ -1,5 +1,31 @@
 # Release notes #
 
+## [v0.9.0](https://github.com/open2c/cooler/compare/v0.8.11...v0.9.0)
+
+Date 2023-01-18
+
+### New features
+
+* New query engine implementation (no user-facing API changes).
+* New logging context and verbosity system.
+
+### API changes
+
+* `cooler.balance_cooler` now uses the same default argument values as the CLI.
+
+### Schema
+
+* `cooler balance` now inserts `divisive_weights: False` metadata to balancing weights.
+
+### Maintenance
+
+* Dropped Python 2 support.
+* Removed deprecated `io` module.
+* Deprecated `tools` module; renamed `parallel`.
+* Various dependency maintenance upgrades.
+* Modernized CI and dev tools.
+* Migrated to pyproject.toml and modernized packaging infra.
+
 ## [v0.8.11](https://github.com/open2c/cooler/compare/v0.8.10...v0.8.11)
 
 Date : 2021-04-01
