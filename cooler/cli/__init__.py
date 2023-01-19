@@ -6,7 +6,6 @@ import click
 from .._logging import get_logger, set_logging_context, set_verbosity_level
 from .._version import __version__
 
-
 CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"]}
 
 
