@@ -10,7 +10,7 @@
                 <img src="https://img.shields.io/pypi/v/cooler?color=blue&label=PyPI%20package" alt="latest release pypi">
             </a>
             <a href="https://bioconda.github.io/recipes/cooler/README.html">
-                <img src="https://anaconda.org/bioconda/cooler/badges/version.svg" alt="latest release bioconda">
+                <img src="https://img.shields.io/conda/vn/bioconda/cooler?color=blue" alt="latest release bioconda">
             </a>
         </td>
     </tr>
