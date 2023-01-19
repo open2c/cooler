@@ -39,7 +39,8 @@ from . import cli, get_logger
     show_default=True)
 @click.option(
     "--ignore-dist",
-    help="Distance in bp to ignore.",
+    help="Distance from the diagonal in bp to ignore. The maximum of the "
+         "corresponding number of diagonals and `--ignore-diags` will be used.",
     type=int)
 @click.option(
     "--mad-max",
