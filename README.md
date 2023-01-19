@@ -7,7 +7,7 @@
         <td>Latest Release</td>
         <td>
             <a href="https://pypi.org/project/cooler/">
-                <img src="https://badge.fury.io/py/cooler.svg" alt="latest release pypi" />
+                <img src="https://img.shields.io/pypi/v/cooler?color=blue&label=PyPI%20package" alt="latest release pypi">
             </a>
             <a href="https://bioconda.github.io/recipes/cooler/README.html">
                 <img src="https://anaconda.org/bioconda/cooler/badges/version.svg" alt="latest release bioconda">
@@ -18,7 +18,8 @@
         <td>License</td>
         <td>
             <a href="https://github.com/open2c/cooler/blob/master/LICENSE">
-                <img src="https://img.shields.io/pypi/l/cooler.svg" alt="license">
+                <img src="https://img.shields.io/badge/license-BSD-green" alt="license">
+                <!-- <img src="https://img.shields.io/pypi/l/cooler.svg" alt="license"> -->
             </a>
         </td>
     </tr>
