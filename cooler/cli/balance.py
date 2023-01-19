@@ -18,17 +18,30 @@ from . import cli, get_logger
     type=str,
     metavar='COOL_PATH')  # click.Path(exists=True))
 @click.option(
-    "--nproc", "-p",
-    help="Number of processes to split the work between.",
+    "--cis-only",
+    help="Calculate weights against intra-chromosomal data only instead of "
+         "genome-wide.",
+    is_flag=True,
+    default=False)
+@click.option(
+    "--trans-only",
+    help="Calculate weights against inter-chromosomal data only instead of "
+         "genome-wide.",
+    is_flag=True,
+    default=False)
+@click.option(
+    "--ignore-diags",
+    help="Number of diagonals of the contact matrix to ignore, including the "
+         "main diagonal. Examples: 0 ignores nothing, 1 ignores the main "
+         "diagonal, 2 ignores diagonals (-1, 0, 1), etc.",
     type=int,
-    default=8,
+    default=2,
     show_default=True)
 @click.option(
-    "--chunksize", "-c",
-    help="Control the number of pixels handled by each worker process at a time.",
-    type=int,
-    default=int(10e6),
-    show_default=True)
+    "--ignore-dist",
+    help="Distance from the diagonal in bp to ignore. The maximum of the "
+         "corresponding number of diagonals and `--ignore-diags` will be used.",
+    type=int)
 @click.option(
     "--mad-max",
     help="Ignore bins from the contact matrix using the 'MAD-max' filter: "
@@ -59,17 +72,17 @@ from . import cli, get_logger
          "of poor mappability.",
     type=click.Path(exists=True))
 @click.option(
-    "--ignore-diags",
-    help="Number of diagonals of the contact matrix to ignore, including the "
-         "main diagonal. Examples: 0 ignores nothing, 1 ignores the main "
-         "diagonal, 2 ignores diagonals (-1, 0, 1), etc.",
+    "--nproc", "-p",
+    help="Number of processes to split the work between.",
     type=int,
-    default=2,
+    default=8,
     show_default=True)
 @click.option(
-    "--ignore-dist",
-    help="Distance in bp to ignore.",
-    type=int)
+    "--chunksize", "-c",
+    help="Control the number of pixels handled by each worker process at a time.",
+    type=int,
+    default=int(10e6),
+    show_default=True)
 @click.option(
     "--tol",
     help="Threshold value of variance of the marginals for the algorithm to "
@@ -83,18 +96,6 @@ from . import cli, get_logger
     type=int,
     default=200,
     show_default=True)
-@click.option(
-    "--cis-only",
-    help="Calculate weights against intra-chromosomal data only instead of "
-         "genome-wide.",
-    is_flag=True,
-    default=False)
-@click.option(
-    "--trans-only",
-    help="Calculate weights against inter-chromosomal data only instead of "
-         "genome-wide.",
-    is_flag=True,
-    default=False)
 @click.option(
     "--name",
     help="Name of column to write to.",

@@ -6,10 +6,6 @@ import click
 from .._logging import get_logger, set_logging_context, set_verbosity_level
 from .._version import __version__
 
-# Monkey patch
-click.core._verify_python3_env = lambda: None
-
-
 CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"]}
 
 

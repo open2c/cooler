@@ -251,20 +251,21 @@ def _balance_transonly(
 
 def balance_cooler(
     clr,
-    chunksize=None,
-    map=map,
-    tol=1e-5,
-    min_nnz=0,
-    min_count=0,
-    mad_max=0,
+    *,
     cis_only=False,
     trans_only=False,
-    ignore_diags=False,
-    max_iters=200,
-    rescale_marginals=True,
-    use_lock=False,
+    ignore_diags=2,
+    mad_max=5,
+    min_nnz=10,
+    min_count=0,
     blacklist=None,
+    rescale_marginals=True,
     x0=None,
+    tol=1e-5,
+    max_iters=200,
+    chunksize=10_000_000,
+    map=map,
+    use_lock=False,
     store=False,
     store_name="weight",
 ):
@@ -276,47 +277,47 @@ def balance_cooler(
     ----------
     clr : cooler.Cooler
         Cooler object
-    chunksize : int, optional
-        Split the contact matrix pixel records into equally sized chunks to
-        save memory and/or parallelize. Default is to use all the pixels at
-        once.
-    map : callable, optional
-        Map function to dispatch the matrix chunks to workers.
-        Default is the builtin ``map``, but alternatives include parallel map
-        implementations from a multiprocessing pool.
-    tol : float, optional
-        Convergence criterion is the variance of the marginal (row/col) sum
-        vector.
-    min_nnz : int, optional
-        Pre-processing bin-level filter. Drop bins with fewer nonzero elements
-        than this value.
-    min_count : int, optional
-        Pre-processing bin-level filter. Drop bins with lower marginal sum than
-        this value.
-    mad_max : int, optional
-        Pre-processing bin-level filter. Drop bins whose log marginal sum is
-        less than ``mad_max`` median absolute deviations below the median log
-        marginal sum.
     cis_only : bool, optional
         Do iterative correction on intra-chromosomal data only.
         Inter-chromosomal data is ignored.
     trans_only : bool, optional
         Do iterative correction on inter-chromosomal data only.
         Intra-chromosomal data is ignored.
-    blacklist : list or 1D array, optional
-        An explicit list of IDs of bad bins to filter out when performing
-        balancing.
     ignore_diags : int or False, optional
         Drop elements occurring on the first ``ignore_diags`` diagonals of the
         matrix (including the main diagonal).
-    max_iters : int, optional
-        Iteration limit.
+    chunksize : int or None, optional
+        Split the contact matrix pixel records into equally sized chunks to
+        save memory and/or parallelize. Set to ``None`` to use all the pixels
+        at once.
+    mad_max : int, optional
+        Pre-processing bin-level filter. Drop bins whose log marginal sum is
+        less than ``mad_max`` median absolute deviations below the median log
+        marginal sum.
+    min_nnz : int, optional
+        Pre-processing bin-level filter. Drop bins with fewer nonzero elements
+        than this value.
+    min_count : int, optional
+        Pre-processing bin-level filter. Drop bins with lower marginal sum than
+        this value.
+    blacklist : list or 1D array, optional
+        An explicit list of IDs of bad bins to filter out when performing
+        balancing.
     rescale_marginals : bool, optional
         Normalize the balancing weights such that the balanced matrix has rows
         / columns that sum to 1.0. The scale factor is stored in the ``stats``
         output dictionary.
+    map : callable, optional
+        Map function to dispatch the matrix chunks to workers.
+        Default is the builtin ``map``, but alternatives include parallel map
+        implementations from a multiprocessing pool.
     x0 : 1D array, optional
         Initial weight vector to use. Default is to start with ones(n_bins).
+    tol : float, optional
+        Convergence criterion is the variance of the marginal (row/col) sum
+        vector.
+    max_iters : int, optional
+        Iteration limit.
     store : bool, optional
         Whether to store the results in the file when finished. Default is
         False.
@@ -451,6 +452,7 @@ def balance_cooler(
         "scale": scale,
         "converged": var < tol,
         "var": var,
+        "divisive_weights": False,
     }
 
     if store:
