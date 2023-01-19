@@ -96,7 +96,7 @@ The cooler file format is an implementation of a genomic matrix data model using
 To get started:
 
 - [Install](#Installation) cooler
-- Read the [documentation](http://cooler.readthedocs.org/en/latest/) and see the Jupyter Notebook [walkthrough](https://github.com/open2c/cooler-binder).
+- Read the [documentation](http://cooler.readthedocs.org/en/stable/) and see the Jupyter Notebook [walkthrough](https://github.com/open2c/cooler-binder).
 - _cool_ files from published Hi-C data sets are available at `ftp://cooler.csail.mit.edu/coolers`.
 - Many more multires (_mcool_) files are available on the [4DN data portal](https://data.4dnucleome.org/visualization/index).
 
