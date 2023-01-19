@@ -248,6 +248,10 @@ COOL_PATH : Output COOL file path or URI.
 
     Options to modify the data filter pipeline. Provide as a comma-separated list of key-value pairs of the form 'k1=v1,k2=v2,...'. See http://docs.h5py.org/en/stable/high/dataset.html#filter-pipeline for more details.
 
+.. option:: -a, --append
+
+    Pass this flag to append the output cooler to an existing file instead of overwriting the file.
+
 
 ----
 
@@ -533,9 +537,21 @@ cooler load -f bg2 <chrom.sizes>:<binsize> in.bg2.gz out.cool
 
     Copy status of input data when using symmetric-upper storage. | `unique`: Incoming data comes from a unique half of a symmetric matrix, regardless of how element coordinates are ordered. Execution will be aborted if duplicates are detected. `duplex`: Incoming data contains upper- and lower-triangle duplicates. All lower-triangle input elements will be discarded! | If you wish to treat lower- and upper-triangle input data as distinct, use the ``--no-symmetric-upper`` option instead.   [default: unique]
 
+.. option:: --temp-dir <temp_dir>
+
+    Create temporary files in a specified directory. Pass ``-`` to use the platform default temp dir.
+
+.. option:: --no-delete-temp
+
+    Do not delete temporary files when finished.
+
 .. option:: --storage-options <storage_options>
 
     Options to modify the data filter pipeline. Provide as a comma-separated list of key-value pairs of the form 'k1=v1,k2=v2,...'. See http://docs.h5py.org/en/stable/high/dataset.html#filter-pipeline for more details.
+
+.. option:: -a, --append
+
+    Pass this flag to append the output cooler to an existing file instead of overwriting the file.
 
 
 ----
@@ -587,6 +603,10 @@ Additional columns in the the input files are not transferred to the output.
 
     Specify the names of value columns to merge as '<name>'. Repeat the `--field` option for each one. Use '<name>,dtype=<dtype>' to specify the dtype. Include ',agg=<agg>' to specify an aggregation function different from 'sum'.
 
+.. option:: -a, --append
+
+    Pass this flag to append the output cooler to an existing file instead of overwriting the file.
+
 
 ----
 
@@ -633,6 +653,10 @@ COOL_PATH : Path to a COOL file or Cooler URI.
 
     Output file or URI  [required]
 
+.. option:: -a, --append
+
+    Pass this flag to append the output cooler to an existing file instead of overwriting the file.
+
 
 ----
 
@@ -674,7 +698,7 @@ COOL_PATH : Path to a COOL file or Cooler URI.
 
 .. option:: --balance-args <balance_args>
 
-    Additional arguments to pass to cooler balance
+    Additional arguments to pass to cooler balance. To deal with space ambiguity, use quotes to pass multiple arguments, e.g. --balance-args '--nproc 8 --ignore-diags 3' Note that nproc for balancing must be specified independently of zoomify arguments.
 
 .. option:: -i, --base-uri <base_uri>
 
@@ -718,13 +742,21 @@ COOL_PATH : Path to a COOL file.
 
 .. rubric:: Options
 
-.. option:: -p, --nproc <nproc>
+.. option:: --cis-only
 
-    Number of processes to split the work between.  [default: 8]
+    Calculate weights against intra-chromosomal data only instead of genome-wide.
 
-.. option:: -c, --chunksize <chunksize>
+.. option:: --trans-only
 
-    Control the number of pixels handled by each worker process at a time.  [default: 10000000]
+    Calculate weights against inter-chromosomal data only instead of genome-wide.
+
+.. option:: --ignore-diags <ignore_diags>
+
+    Number of diagonals of the contact matrix to ignore, including the main diagonal. Examples: 0 ignores nothing, 1 ignores the main diagonal, 2 ignores diagonals (-1, 0, 1), etc.  [default: 2]
+
+.. option:: --ignore-dist <ignore_dist>
+
+    Distance from the diagonal in bp to ignore. The maximum of the corresponding number of diagonals and `--ignore-diags` will be used.
 
 .. option:: --mad-max <mad_max>
 
@@ -742,13 +774,13 @@ COOL_PATH : Path to a COOL file.
 
     Path to a 3-column BED file containing genomic regions to mask out during the balancing procedure, e.g. sequence gaps or regions of poor mappability.
 
-.. option:: --ignore-diags <ignore_diags>
+.. option:: -p, --nproc <nproc>
 
-    Number of diagonals of the contact matrix to ignore, including the main diagonal. Examples: 0 ignores nothing, 1 ignores the main diagonal, 2 ignores diagonals (-1, 0, 1), etc.  [default: 2]
+    Number of processes to split the work between.  [default: 8]
 
-.. option:: --ignore-dist <ignore_dist>
+.. option:: -c, --chunksize <chunksize>
 
-    Distance in bp to ignore.
+    Control the number of pixels handled by each worker process at a time.  [default: 10000000]
 
 .. option:: --tol <tol>
 
@@ -757,14 +789,6 @@ COOL_PATH : Path to a COOL file.
 .. option:: --max-iters <max_iters>
 
     Maximum number of iterations to perform if convergence is not achieved.  [default: 200]
-
-.. option:: --cis-only
-
-    Calculate weights against intra-chromosomal data only instead of genome-wide.
-
-.. option:: --trans-only
-
-    Calculate weights against inter-chromosomal data only instead of genome-wide.
 
 .. option:: --name <name>
 
@@ -872,9 +896,9 @@ COOL_PATH : Path to COOL file or cooler URI.
 
     The coordinates of a genomic region shown along the column dimension. If omitted, the column range is the same as the row range.
 
-.. option:: -m, --matrix
+.. option:: -f, --fill-lower
 
-    For coolers stored in symmetric-upper mode, ensure any empty areas of the genomic query window are populated by generating the lower-triangular pixels.  [default: False]
+    For coolers using 'symmetric-upper' storage, populate implicit areas of the genomic query box by generating lower triangle pixels. If not specified, only upper triangle pixels are reported. This option has no effect on coolers stored in 'square' mode.  [default: False]
 
 .. option:: -b, --balanced, --no-balance
 
@@ -898,7 +922,7 @@ COOL_PATH : Path to COOL file or cooler URI.
 
 .. option:: -k, --chunksize <chunksize>
 
-    Sets the amount of pixel data loaded from disk at one time. Can affect the performance of joins on high resolution datasets. Default is to load as many rows as there are bins.
+    Sets the number of pixel records loaded from disk at one time. Can affect the performance of joins on high resolution datasets.   [default: 1000000]
 
 .. option:: -o, --out <out>
 
@@ -1356,3 +1380,4 @@ If indexing with Pairix, the output file will have the following properties:
 
 
 ----
+
