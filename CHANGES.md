@@ -1,5 +1,13 @@
 # Release notes #
 
+## [v0.9.1](https://github.com/open2c/cooler/compare/v0.9.0...v0.9.1)
+
+Date 2023-01-23
+
+### Maintenance
+
+* Export `_IndexingMixin` from `cooler.core` to keep private API used by cooltools.
+
 ## [v0.9.0](https://github.com/open2c/cooler/compare/v0.8.11...v0.9.0)
 
 Date 2023-01-18
