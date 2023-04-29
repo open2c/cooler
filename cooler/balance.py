@@ -337,7 +337,7 @@ def balance_cooler(
 
     """
     # Divide the number of elements into non-overlapping chunks
-    nnz = clr.info["nnz"]
+    nnz = int(clr.info["nnz"])
     if chunksize is None:
         chunksize = nnz
         spans = [(0, nnz)]
@@ -353,7 +353,7 @@ def balance_cooler(
         base_filters.append(partial(_zero_diags, ignore_diags))
 
     # Initialize the bias weights
-    n_bins = clr.info["nbins"]
+    n_bins = int(clr.info["nbins"])
     if x0 is not None:
         bias = x0
         bias[np.isnan(bias)] = 0
