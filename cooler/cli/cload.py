@@ -547,7 +547,7 @@ def pairs(bins, pairs_path, cool_path, metadata, assembly, chunksize,
         f_in = sys.stdin
         _, f_in = get_header(f_in)
     elif int(_pandas_version[0]) > 0:
-        if int(_pandas_version[1]) < 2:
+        if int(_pandas_version[0]) < 2:
             f_in = get_handle(pairs_path, mode='r', compression='infer')[0]
         else:
             f_in = get_handle(pairs_path, mode='r', compression='infer').handle
