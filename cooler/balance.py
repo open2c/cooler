@@ -134,6 +134,7 @@ def _balance_cisonly(
     chrom_offsets = clr._load_dset("indexes/chrom_offset")
     bin1_offsets = clr._load_dset("indexes/bin1_offset")
     scales = np.ones(len(chrom_ids))
+    variances = np.full_like(scales, np.nan)
     n_bins = len(bias)
 
     for cid, lo, hi in zip(chrom_ids, chrom_offsets[:-1], chrom_offsets[1:]):
@@ -142,6 +143,7 @@ def _balance_cisonly(
         plo, phi = bin1_offsets[lo], bin1_offsets[hi]
         spans = list(partition(plo, phi, chunksize))
         scale = 1.0
+        var = np.nan
         for _ in range(max_iters):
             marg = (
                 split(clr, spans=spans, map=map, use_lock=use_lock)  # noqa
@@ -181,10 +183,11 @@ def _balance_cisonly(
         b = bias[lo:hi]
         b[b == 0] = np.nan
         scales[cid] = scale
+        variances[cid] = var
         if rescale_marginals:
             bias[lo:hi] /= np.sqrt(scale)
 
-    return bias, scales, var
+    return bias, scales, variances
 
 
 def _balance_transonly(
