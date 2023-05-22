@@ -100,7 +100,7 @@ def interactive(ax, c, row_chrom, col_chrom, field, balanced, scale):  # pragma:
         im.set_extent(extent)
         ax.figure.canvas.draw_idle()
 
-    binsize = c.info["bin-size"]
+    binsize = int(c.info["bin-size"])
     row_chrom_len = c.chromsizes[row_chrom]
     col_chrom_len = c.chromsizes[col_chrom]
     plotstate = {"placeholders": [], "prev_extent": get_extent(plt.gca())}
