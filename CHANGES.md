@@ -1,5 +1,14 @@
 # Release notes #
 
+## [v0.9.2](https://github.com/open2c/cooler/compare/v0.9.1...v0.9.2)
+
+### Bug fixes
+
+Several fixes from @robomics
+* Improve handling of uint attributes
+* Fix incorrect variance stored by _balance_cisonly
+* cload.py: fix detection of pandas v2.*.* causing IOHandles error
+
 ## [v0.9.1](https://github.com/open2c/cooler/compare/v0.9.0...v0.9.1)
 
 Date 2023-01-23
