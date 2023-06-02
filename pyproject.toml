@@ -1,6 +1,6 @@
 [build-system]
-requires = ["setuptools>=64.0.0"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
 
 [project]
 name = "cooler"
@@ -36,15 +36,23 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
 ]
 
-dynamic = ["version", "readme", "dependencies"]
+readme = "README.md"
 
-[tool.setuptools.dynamic]
-version = {attr = "cooler._version.__version__"}
-readme = {file = ["README.md"], content-type = "text/markdown"}
-dependencies = {file = ["requirements.txt"]}
+dependencies = [
+    "numpy>=1.9",
+    "scipy>=0.16",
+    "pandas>1.0",
+    "h5py>=2.5",
+    "click>=7",
+    "cytoolz",
+    "multiprocess",
+    "pyfaidx",
+    "asciitree",
+    "pyyaml",
+    "simplejson",
+]
 
-[tool.setuptools.packages.find]
-include = ["cooler*"]
+dynamic = ["version"]
 
 [project.optional-dependencies]
 test = [
@@ -56,11 +64,12 @@ test = [
     "pytest-cov",
 ]
 docs = [
-    "Sphinx>=1.6",
-    "sphinx-rtd-theme",
+    "autodocsumm",
     "m2r",
-    "numpydoc",
     "recommonmark",
+    "Sphinx>=1.6",
+    "sphinx-autobuild",
+    "sphinx_rtd_theme",
 ]
 complete = [
     "biopython",
@@ -73,17 +82,17 @@ complete = [
     "pysam",
 ]
 
-[project.scripts]
-cooler = "cooler.cli:cli"
-
 [project.urls]
 homepage = "https://open2c.github.io/cooler"
 documentation = "https://cooler.readthedocs.io"
 repository = "https://github.com/open2c/cooler"
 changelog = "https://github.com/open2c/cooler/blob/master/CHANGES.md"
 
-[tool.distutils.bdist_wheel]
-universal = true
+[project.scripts]
+cooler = "cooler.cli:cli"
+
+[tool.hatch.version]
+path = "cooler._version.py"
 
 [tool.isort]
 profile = "black"
