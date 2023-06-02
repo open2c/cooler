@@ -95,7 +95,7 @@ changelog = "https://github.com/open2c/cooler/blob/master/CHANGES.md"
 cooler = "cooler.cli:cli"
 
 [tool.hatch.version]
-path = "cooler._version.py"
+path = "cooler/_version.py"
 
 [tool.isort]
 profile = "black"
