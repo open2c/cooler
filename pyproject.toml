@@ -82,7 +82,7 @@ complete = [
     "pysam",
 ]
 dev = [
-    "cooler[test,docs,complete]",
+    "cooler[complete,test]",
 ]
 
 [project.urls]
@@ -95,19 +95,13 @@ changelog = "https://github.com/open2c/cooler/blob/master/CHANGES.md"
 cooler = "cooler.cli:cli"
 
 [tool.hatch.version]
-path = "cooler/_version.py"
-
-[tool.isort]
-profile = "black"
-skip_gitignore = true
-known_first_party = "cooler"
+path = "src/cooler/_version.py"
 
 [tool.flake8]
 max-line-length = 80
 exclude = [
     "__init__.py",
     "__main__.py",
-    "scripts",
 ]
 select = [
     "B", # bugbear
@@ -124,6 +118,11 @@ ignore = [
     "W503", # line break before binary operator
 ]
 
+[tool.isort]
+profile = "black"
+skip_gitignore = true
+known_first_party = "cooler"
+
 [tool.pytest.ini_options]
 addopts = "--cov cooler --cov-config pyproject.toml --cov-report term-missing --cov-report html --cov-report=xml"
 filterwarnings = ["ignore::PendingDeprecationWarning"]
@@ -133,10 +132,10 @@ testpaths = ["tests"]
 source = ["cooler"]
 
 omit = [
-    "cooler/__main__.py",
-    "cooler/_version.py",
-    "cooler/sandbox/*",
-    "cooler/cli/csort.py"
+    "*/cooler/__main__.py",
+    "*/cooler/_version.py",
+    "*/cooler/sandbox/*",
+    "*/cooler/cli/csort.py"
 ]
 
 [tool.coverage.report]
@@ -145,3 +144,9 @@ exclude_lines = [
     "return NotImplemented",
     "raise NotImplementedError"
 ]
+
+[tool.hatch.envs.default.scripts]
+fix = "ruff --fix ."
+lint = "flake8 --exit-zero src/cooler tests"
+test = "pytest ."
+docs = "sphinx-autobuild docs docs/_build/html"
