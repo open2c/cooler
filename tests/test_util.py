@@ -27,12 +27,12 @@ def test_buffered():
 
 
 def test_rlencode():
-    s, l, v = util.rlencode([1, 1, 1, 1, 5, 5, 5, 5, 3, 3, 8, 9, 9])
+    s, l, v = util.rlencode([1, 1, 1, 1, 5, 5, 5, 5, 3, 3, 8, 9, 9])  # noqa
     assert list(s) == [0, 4, 8, 10, 11]
     assert list(l) == [4, 4, 2, 1, 2]
     assert list(v) == [1, 5, 3, 8, 9]
 
-    s, l, v = util.rlencode([])
+    s, l, v = util.rlencode([])  # noqa
     assert list(s) == []
     assert list(l) == []
     assert list(v) == []
