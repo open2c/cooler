@@ -65,7 +65,7 @@ def write_chroms(grp, chroms, h5opts):
         shape=(n_chroms,),
         dtype=CHROMSIZE_DTYPE,
         data=chroms["length"],
-        **h5opts
+        **h5opts,
     )
 
     # Extra columns
@@ -148,14 +148,14 @@ def prepare_pixels(grp, n_bins, max_size, columns, dtypes, h5opts):
         dtype=dtypes.get("bin1_id", BIN_DTYPE),
         shape=(init_size,),
         maxshape=(max_size,),
-        **h5opts
+        **h5opts,
     )
     grp.create_dataset(
         "bin2_id",
         dtype=dtypes.get("bin2_id", BIN_DTYPE),
         shape=(init_size,),
         maxshape=(max_size,),
-        **h5opts
+        **h5opts,
     )
 
     if "count" in columns:
@@ -164,7 +164,7 @@ def prepare_pixels(grp, n_bins, max_size, columns, dtypes, h5opts):
             dtype=dtypes.get("count", COUNT_DTYPE),
             shape=(init_size,),
             maxshape=(max_size,),
-            **h5opts
+            **h5opts,
         )
 
     for col in ["bin1_id", "bin2_id", "count"]:
@@ -180,7 +180,7 @@ def prepare_pixels(grp, n_bins, max_size, columns, dtypes, h5opts):
                 dtype=dtypes.get(col, float),
                 shape=(init_size,),
                 maxshape=(max_size,),
-                **h5opts
+                **h5opts,
             )
 
 
@@ -209,7 +209,6 @@ def write_pixels(filepath, grouppath, columns, iterable, h5opts, lock):
     nnz = 0
     total = 0
     for i, chunk in enumerate(iterable):
-
         if isinstance(chunk, pd.DataFrame):
             chunk = {k: v.values for k, v in chunk.items()}
 
@@ -283,14 +282,14 @@ def write_indexes(grp, chrom_offset, bin1_offset, h5opts):
         shape=(len(chrom_offset),),
         dtype=CHROMOFFSET_DTYPE,
         data=chrom_offset,
-        **h5opts
+        **h5opts,
     )
     grp.create_dataset(
         "bin1_offset",
         shape=(len(bin1_offset),),
         dtype=BIN1OFFSET_DTYPE,
         data=bin1_offset,
-        **h5opts
+        **h5opts,
     )
 
 
@@ -446,7 +445,7 @@ def create(
     append=False,
     append_scool=False,
     scool_root_uri=None,
-    **kwargs
+    **kwargs,
 ):
     """
     Create a new Cooler.
@@ -479,7 +478,8 @@ def create(
         )
     if append_scool and scool_root_uri is None:
         raise ValueError(
-            "If the parameter `append_scool` is set, the parameter `scool_root_uri` must be defined."
+            "If the parameter `append_scool` is set, the parameter "
+            "`scool_root_uri` must be defined."
         )
     dtypes = _get_dtypes_arg(dtypes, kwargs)
 
@@ -533,9 +533,7 @@ def create(
         for col in columns:
             if col not in input_columns:
                 col_type = "Standard" if col in PIXEL_FIELDS else "User"
-                raise ValueError(
-                    f"{col_type} column not found in input: '{col}'"
-                )
+                raise ValueError(f"{col_type} column not found in input: '{col}'")
 
     # Prepare chroms and bins
     bins = bins.copy()
@@ -587,7 +585,6 @@ def create(
         dst_path, dst_group = parse_cooler_uri(cool_uri)
 
         with h5py.File(src_path, "r+") as src, h5py.File(dst_path, "r+") as dst:
-
             dst[dst_group]["chroms"] = src["chroms"]
 
             # hard link to root bins table, but only the three main datasets
@@ -601,7 +598,7 @@ def create(
             for col in ["chrom", "start", "end"]:
                 columns.remove(col)
             if columns:
-                put(dst[dst_group]['bins'], bins[columns])
+                put(dst[dst_group]["bins"], bins[columns])
         with h5py.File(file_path, "r+") as f:
             h5 = f[group_path]
             grp = h5.create_group("pixels")
@@ -609,7 +606,9 @@ def create(
                 max_size = n_bins * (n_bins - 1) // 2 + n_bins
             else:
                 max_size = n_bins * n_bins
-            prepare_pixels(grp, n_bins, max_size, meta.columns, dict(meta.dtypes), h5opts)
+            prepare_pixels(
+                grp, n_bins, max_size, meta.columns, dict(meta.dtypes), h5opts
+            )
     else:
         with h5py.File(file_path, "r+") as f:
             h5 = f[group_path]
@@ -627,7 +626,9 @@ def create(
                 max_size = n_bins * (n_bins - 1) // 2 + n_bins
             else:
                 max_size = n_bins * n_bins
-            prepare_pixels(grp, n_bins, max_size, meta.columns, dict(meta.dtypes), h5opts)
+            prepare_pixels(
+                grp, n_bins, max_size, meta.columns, dict(meta.dtypes), h5opts
+            )
 
     # Multiprocess HDF5 reading is supported only if the same HDF5 file is not
     # open in write mode anywhere. To read and write to the same file, pass a
@@ -680,7 +681,7 @@ def create_from_unordered(
     delete_temp=True,
     temp_dir=None,
     max_merge=200,
-    **kwargs
+    **kwargs,
 ):
     """
     Create a Cooler in two passes via an external sort mechanism. In the first
@@ -747,7 +748,7 @@ def create_from_unordered(
                 columns=columns,
                 dtypes=dtypes,
                 mode="a",
-                **kwargs
+                **kwargs,
             )
 
         final_uris = uris2
@@ -765,7 +766,9 @@ def create_from_unordered(
     del temp_files
 
 
-def append(cool_uri, table, data, chunked=False, force=False, h5opts=None, lock=None):  # pragma: no cover
+def append(
+    cool_uri, table, data, chunked=False, force=False, h5opts=None, lock=None
+):  # pragma: no cover
     """
     Append one or more data columns to an existing table.
 
@@ -947,6 +950,7 @@ def _format_docstring(**kwargs):
     def decorate(func):
         func.__doc__ = func.__doc__.format(**kwargs)
         return func
+
     return decorate
 
 
@@ -1080,7 +1084,7 @@ def create_scool(
     ensure_sorted=False,
     h5opts=None,
     lock=None,
-    **kwargs
+    **kwargs,
 ):
     r"""
     Create a single-cell (scool) file.
@@ -1144,7 +1148,7 @@ def create_scool(
         cell_names = sorted(cell_name_pixels_dict)
         for key_bins, key_pixels in zip(bins_keys, cell_names):
             if key_bins != key_pixels:
-                raise ValueError('Bins and pixel dicts do not have matching keys')
+                raise ValueError("Bins and pixel dicts do not have matching keys")
 
     dtypes = _get_dtypes_arg(dtypes, kwargs)
 
@@ -1225,13 +1229,13 @@ def create_scool(
 
     # Append single cells
     for key in cell_names:
-        if '/' in key:
-            cell_name = key.split('/')[-1]
+        if "/" in key:
+            cell_name = key.split("/")[-1]
         else:
             cell_name = key
 
         create(
-            cool_uri + '::/cells/' + cell_name,
+            cool_uri + "::/cells/" + cell_name,
             bins_dict[key],
             cell_name_pixels_dict[key],
             columns=columns,
@@ -1240,7 +1244,7 @@ def create_scool(
             assembly=assembly,
             ordered=ordered,
             symmetric_upper=symmetric_upper,
-            mode='a',
+            mode="a",
             boundscheck=boundscheck,
             dupcheck=dupcheck,
             triucheck=triucheck,
@@ -1252,5 +1256,5 @@ def create_scool(
             temp_dir=temp_dir,
             max_merge=max_merge,
             append_scool=True,
-            scool_root_uri=cool_uri
+            scool_root_uri=cool_uri,
         )

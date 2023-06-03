@@ -110,7 +110,7 @@ def read_table(group_uri, keys=None, chunksize=10_000_000, index=None, lock=None
     # Partition the table
     divisions = (0,) + tuple(range(-1, nrows, chunksize))[1:]
     if divisions[-1] != nrows - 1:
-        divisions = divisions + (nrows - 1,)
+        divisions = (*divisions, nrows - 1,)
 
     # Build the task graph
     dsk = {}

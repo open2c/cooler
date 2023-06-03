@@ -81,7 +81,7 @@ def _balance_genomewide(
 
     for _ in range(max_iters):
         marg = (
-            split(clr, spans=spans, map=map, use_lock=use_lock)  # noqa
+            split(clr, spans=spans, map=map, use_lock=use_lock)
             .prepare(_init)
             .pipe(filters)
             .pipe(_timesouterproduct, bias)
@@ -146,7 +146,7 @@ def _balance_cisonly(
         var = np.nan
         for _ in range(max_iters):
             marg = (
-                split(clr, spans=spans, map=map, use_lock=use_lock)  # noqa
+                split(clr, spans=spans, map=map, use_lock=use_lock)
                 .prepare(_init)
                 .pipe(filters)
                 .pipe(_timesouterproduct, bias)
@@ -215,7 +215,7 @@ def _balance_transonly(
 
     for _ in range(max_iters):
         marg = (
-            split(clr, spans=spans, map=map, use_lock=use_lock)  # noqa
+            split(clr, spans=spans, map=map, use_lock=use_lock)
             .prepare(_init)
             .pipe(filters)
             .pipe(_zero_cis)
@@ -365,9 +365,9 @@ def balance_cooler(
 
     # Drop bins with too few nonzeros from bias
     if min_nnz > 0:
-        filters = [_binarize] + base_filters
+        filters = [_binarize, *base_filters]
         marg_nnz = (
-            split(clr, spans=spans, map=map, use_lock=use_lock)  # noqa
+            split(clr, spans=spans, map=map, use_lock=use_lock)
             .prepare(_init)
             .pipe(filters)
             .pipe(_marginalize)
@@ -377,7 +377,7 @@ def balance_cooler(
 
     filters = base_filters
     marg = (
-        split(clr, spans=spans, map=map, use_lock=use_lock)  # noqa
+        split(clr, spans=spans, map=map, use_lock=use_lock)
         .prepare(_init)
         .pipe(filters)
         .pipe(_marginalize)

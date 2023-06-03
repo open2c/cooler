@@ -35,7 +35,7 @@ def invoke_balance(args, resolutions, outfile):
 
         try:
             balance_cmd.main(
-                args=[uri] + args, prog_name='cooler'
+                args=[uri, *args], prog_name='cooler'
             )
         except SystemExit as e:
             # exc_info = sys.exc_info()
@@ -84,9 +84,10 @@ def invoke_balance(args, resolutions, outfile):
 )
 @click.option(
     "--balance-args",
-    help="Additional arguments to pass to cooler balance. To deal with space ambiguity, "
-    "use quotes to pass multiple arguments, e.g. --balance-args '--nproc 8 --ignore-diags 3' "
-    "Note that nproc for balancing must be specified independently of zoomify arguments.",
+    help="Additional arguments to pass to cooler balance. "
+    "To deal with space ambiguity, use quotes to pass multiple arguments, "
+    "e.g. --balance-args '--nproc 8 --ignore-diags 3'. Note that nproc for "
+    "balancing must be specified independently of zoomify arguments.",
     type=str
 )
 @click.option(
@@ -164,7 +165,7 @@ def zoomify(
                 logger.info(f"Balancing zoom level {level}, bin size {res}")
                 try:
                     balance_cmd.main(
-                        args=[uri] + balance_args, prog_name='cooler'
+                        args=[uri, *balance_args], prog_name='cooler'
                     )
                 except SystemExit as e:
                     # exc_info = sys.exc_info()
@@ -208,7 +209,7 @@ def zoomify(
             elif res == 'b':
                 r = preferred_sequence(curres, maxres, 'binary')
             elif res == '4dn':
-                r = [1000, 2000] + preferred_sequence(5000, maxres, 'nice')
+                r = [1000, 2000, *preferred_sequence(5000, maxres, 'nice')]
             elif res.endswith('n'):
                 res = int(res.split('n')[0])
                 r = preferred_sequence(res, maxres, 'nice')
@@ -235,7 +236,7 @@ def zoomify(
         # logger.info("Applying resolutions {}".format(resolutions))
 
         zoomify_cooler(
-            [cool_uri] + list(base_uri),
+            [cool_uri, *list(base_uri)],
             outfile,
             resolutions,
             chunksize,

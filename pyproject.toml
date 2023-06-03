@@ -118,6 +118,21 @@ ignore = [
     "W503", # line break before binary operator
 ]
 
+[tool.ruff]
+exclude = [
+    "__init__.py",
+    "__main__.py",
+]
+extend-select = [
+    "E",  # style errors
+    # "D",  # pydocstyle
+    "F",  # pyflakes
+    "I",  # isort
+    "RUF", # ruff-specific rules
+    "UP", # pyupgrade
+    "W",  # style  warnings
+]
+
 [tool.isort]
 profile = "black"
 skip_gitignore = true

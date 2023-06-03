@@ -79,11 +79,14 @@ def configure(
     """
     if handlers is None:
         if stream is not None and filename is not None:
-            raise ValueError("'stream' and 'filename' should not be specified together")
+            raise ValueError(
+                "'stream' and 'filename' should not be specified together"
+            )
     else:
         if stream is not None or filename is not None:
             raise ValueError(
-                "'stream' or 'filename' should not be specified together with 'handlers'"
+                "'stream' or 'filename' should not be specified together with "
+                "'handlers'"
             )
 
     # Set up the new handlers
@@ -125,7 +128,9 @@ def set_logging_context(ctx):
 
     if _logging_context != ctx:
         if ctx == "lib":
-            configure(logger, stream=sys.stdout, level=logging.WARNING, format="{message}")
+            configure(
+                logger, stream=sys.stdout, level=logging.WARNING, format="{message}"
+            )
             logging.captureWarnings(False)
         elif ctx == "cli":
             configure(logger, stream=sys.stderr, level=logging.INFO)

@@ -140,7 +140,7 @@ def make_index_command(index, fields, zero_based, outfile):
         index_cmd = shlex.split(INDEX_PX2.format(**fields))
     if zero_based:
         index_cmd += ["-0"]
-    return index_cmd + [outfile]
+    return [*index_cmd, outfile]
 
 
 @cli.command()
@@ -323,7 +323,7 @@ def csort(
     signal(SIGPIPE, SIG_DFL)
 
     # Check for required Unix tools
-    for tool in ["sort", "bgzip"] + [index]:
+    for tool in ["sort", "bgzip", index]:
         if not cmd_exists(tool):
             print(f"Command {tool} not found", file=sys.stderr)
             sys.exit(1)

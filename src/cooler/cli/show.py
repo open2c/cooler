@@ -28,7 +28,9 @@ def load_matrix(c, row_region, col_region, field, balanced, scale):
     return mat
 
 
-def interactive(ax, c, row_chrom, col_chrom, field, balanced, scale):  # pragma: no cover
+def interactive(
+    ax, c, row_chrom, col_chrom, field, balanced, scale
+):  # pragma: no cover
     import matplotlib.pyplot as plt
 
     # The code is heavily insired by
@@ -72,7 +74,7 @@ def interactive(ax, c, row_chrom, col_chrom, field, balanced, scale):  # pragma:
             im.set_data(np.ones(1)[:, None] * np.nan)
 
             if not plotstate["placeholders"]:
-                box, = plt.plot(
+                (box,) = plt.plot(
                     [0, col_chrom_len, col_chrom_len, 0, 0, col_chrom_len],
                     [0, row_chrom_len, 0, 0, row_chrom_len, row_chrom_len],
                     c="k",
@@ -109,49 +111,44 @@ def interactive(ax, c, row_chrom, col_chrom, field, balanced, scale):  # pragma:
 
 
 @cli.command()
-@click.argument(
-    "cool_uri",
-    metavar="COOL_PATH"
-)
-@click.argument(
-    "range",
-    type=str
-)
+@click.argument("cool_uri", metavar="COOL_PATH")
+@click.argument("range", type=str)
 @click.option(
-    "--range2", "-r2",
+    "--range2",
+    "-r2",
     type=str,
     help="The coordinates of a genomic region shown along the column dimension. "
     "If omitted, the column range is the same as the row range. "
     "Use to display asymmetric matrices or trans interactions.",
 )
 @click.option(
-    "--balanced", "-b",
+    "--balanced",
+    "-b",
     is_flag=True,
     default=False,
     help="Show the balanced contact matrix. "
     "If not provided, display the unbalanced counts.",
 )
 @click.option(
-    "--out", "-o",
+    "--out",
+    "-o",
     help="Save the image of the contact matrix to a file. "
     "If not specified, the matrix is displayed in an interactive window. "
     "The figure format is deduced from the extension of the file, "
     "the supported formats are png, jpg, svg, pdf, ps and eps.",
 )
+@click.option("--dpi", type=int, help="The DPI of the figure, if saving to a file")
 @click.option(
-    "--dpi",
-    type=int,
-    help="The DPI of the figure, if saving to a file"
-)
-@click.option(
-    "--scale", "-s",
+    "--scale",
+    "-s",
     type=click.Choice(["linear", "log2", "log10"]),
     help="Scale transformation of the colormap: linear, log2 or log10. "
     "Default is log10.",
     default="log10",
 )
 @click.option(
-    "--force", "-f",
+    "--force",
+    "-f",
     is_flag=True,
     default=False,
     help="Force display very large matrices (>=10^8 pixels). "
@@ -160,13 +157,15 @@ def interactive(ax, c, row_chrom, col_chrom, field, balanced, scale):  # pragma:
 @click.option(
     "--zmin",
     type=float,
-    help="The minimal value of the color scale. Units must match those of the colormap scale. "
+    help="The minimal value of the color scale. "
+    "Units must match those of the colormap scale. "
     "To provide a negative value use a equal sign and quotes, e.g. -zmin='-0.5'",
 )
 @click.option(
     "--zmax",
     type=float,
-    help="The maximal value of the color scale. Units must match those of the colormap scale. "
+    help="The maximal value of the color scale. "
+    "Units must match those of the colormap scale. "
     "To provide a negative value use a equal sign and quotes, e.g. -zmax='-0.5'",
 )
 @click.option(

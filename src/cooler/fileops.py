@@ -24,7 +24,7 @@ __all__ = ["is_cooler", "is_multires_file", "list_coolers", "cp", "mv", "ln"]
 def json_dumps(o):
     """Write JSON in a consistent, human-readable way."""
     return json.dumps(
-        o, indent=4, sort_keys=True, ensure_ascii=True, separators=(',', ': ')
+        o, indent=4, sort_keys=True, ensure_ascii=True, separators=(",", ": ")
     )
 
 
@@ -84,8 +84,7 @@ class AttrNode(TreeNode):
 
 
 def visititems(group, func, level=None):
-    """Like :py:method:`h5py.Group.visititems`, but much faster somehow.
-    """
+    """Like :py:method:`h5py.Group.visititems`, but much faster somehow."""
 
     def _visititems(node, func, result=None):
         children = node.get_children()
@@ -212,6 +211,7 @@ def list_scool_cells(filepath):
         Cooler group paths of all cells in the file.
 
     """
+
     def _check_cooler(pth, grp):
         if _is_cooler(grp):
             listing.append("/" + pth if not pth.startswith("/") else pth)
@@ -221,8 +221,8 @@ def list_scool_cells(filepath):
         with h5py.File(filepath, "r") as f:
             _check_cooler("/", f)
             visititems(f, _check_cooler)
-        if '/' in listing:
-            listing.remove('/')
+        if "/" in listing:
+            listing.remove("/")
         return natsorted(listing)
     else:
         raise OSError(f"'{filepath}' is not a scool file.")
@@ -277,7 +277,7 @@ def _copy(src_uri, dst_uri, overwrite, link, rename, soft_link):
         src_write_mode = "r"
 
     with h5py.File(src_path, src_write_mode) as src, \
-         h5py.File(dst_path, dst_write_mode) as dst:  # noqa
+         h5py.File(dst_path, dst_write_mode) as dst:  # fmt: skip
 
         if src_path == dst_path:
             if link or rename:
@@ -303,14 +303,12 @@ def _copy(src_uri, dst_uri, overwrite, link, rename, soft_link):
 
 
 def cp(src_uri, dst_uri, overwrite=False):
-    """Copy a group or dataset from one file to another or within the same file.
-    """
+    """Copy a group or dataset from one file to another or within the same file."""
     _copy(src_uri, dst_uri, overwrite, link=False, rename=False, soft_link=False)
 
 
 def mv(src_uri, dst_uri, overwrite=False):
-    """Rename a group or dataset within the same file.
-    """
+    """Rename a group or dataset within the same file."""
     _copy(src_uri, dst_uri, overwrite, link=False, rename=True, soft_link=False)
 
 
@@ -327,9 +325,9 @@ def ln(src_uri, dst_uri, soft=False, overwrite=False):
 
 def _tree_get_icon(stype):
     if stype in {"Dataset", "Array"}:
-        return 'table'
+        return "table"
     elif stype in {"Group", "File"}:
-        return 'folder'
+        return "folder"
     else:
         raise ValueError("Unknown type: %s" % stype)
 
@@ -402,7 +400,7 @@ class TreeViewer:
             "UP_AND_RIGHT": "+",
             "HORIZONTAL": "-",
             "VERTICAL": "|",
-            "VERTICAL_AND_RIGHT": "+"
+            "VERTICAL_AND_RIGHT": "+",
         }
 
         self.unicode_kwargs = {
@@ -476,5 +474,6 @@ def pprint_data_tree(uri, level):
     with h5py.File(path, "r") as f:
         grp = f[group]
         return repr(TreeViewer(grp, level=level))
+
 
 ######

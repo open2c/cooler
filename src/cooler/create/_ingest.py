@@ -123,7 +123,9 @@ def _sanitize_records(
         if np.any(is_neg):
             err = chunk[is_neg]
             raise BadInputError(
-                "Found an anchor position with negative value. Make sure your coordinates are 1-based or use the --zero-based option when loading. \n{}".format(
+                "Found an anchor position with negative value. Make sure your "
+                "coordinates are 1-based or use the --zero-based option "
+                "when loading. \n{}".format(
                     err.head().to_csv(sep="\t")
                 )
             )

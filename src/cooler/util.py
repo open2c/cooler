@@ -92,8 +92,8 @@ def parse_region_string(s):
             ("COORD", r"[0-9,]+(\.[0-9]*)?(?:[a-z]+)?"),
             ("OTHER", r".+"),
         ]
-        tok_regex = r"\s*" + r"|\s*".join(r"(?P<%s>%s)" % pair for pair in token_spec)
-        tok_regex = re.compile(tok_regex, re.IGNORECASE)
+        pattern = r"|\s*".join([rf"(?P<{pair[0]}>{pair[1]})" for pair in token_spec])
+        tok_regex = re.compile(rf"\s*{pattern}", re.IGNORECASE)
         for match in tok_regex.finditer(s):
             typ = match.lastgroup
             yield typ, match.group(typ)
