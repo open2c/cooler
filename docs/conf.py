@@ -23,7 +23,7 @@ from unittest import mock
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 # sys.path.insert(0, os.path.abspath('.'))
-sys.path.insert(0, os.path.abspath(".."))
+# sys.path.insert(0, os.path.abspath(".."))
 
 # autodoc_mock_imports = [
 #     'numpy',
@@ -51,6 +51,7 @@ MOCK_MODULES = [
     "pandas.api.types",
     "scipy",
     "scipy.sparse",
+    "sparse",
 ]
 for mod_name in MOCK_MODULES:
     sys.modules[mod_name] = mock.Mock()
@@ -70,7 +71,7 @@ author = "Nezar Abdennur"
 
 
 def _get_version():
-    init = os.path.join("..", "cooler", "_version.py")
+    init = os.path.join("..", "src", "cooler", "_version.py")
     with open(init) as fh:
         text = fh.read()
     version = re.search(

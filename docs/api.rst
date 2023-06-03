@@ -51,11 +51,11 @@ File operations
     cooler.fileops.mv
     cooler.fileops.ln
 
-Sandbox
-~~~~~~~
+.. Sandbox
+.. ~~~~~~~
 
-.. autosummary::
-    cooler.sandbox.dask.read_table
+.. .. autosummary::
+..     cooler.sandbox.dask.read_table
 
 ----
 
@@ -101,7 +101,7 @@ cooler.util
 .. autofunction:: cooler.util.binnify
 .. autofunction:: cooler.util.digest
 
-cooler.sandbox
---------------
+.. cooler.sandbox
+.. --------------
 
-.. autofunction:: cooler.sandbox.dask.read_table
+.. .. autofunction:: cooler.sandbox.dask.read_table
