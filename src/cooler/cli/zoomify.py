@@ -34,9 +34,7 @@ def invoke_balance(args, resolutions, outfile):
         logger.info(f"Balancing zoom level with bin size {res}")
 
         try:
-            balance_cmd.main(
-                args=[uri, *args], prog_name='cooler'
-            )
+            balance_cmd.main(args=[uri, *args], prog_name="cooler")
         except SystemExit as e:
             # exc_info = sys.exc_info()
             exit_code = e.code
@@ -49,32 +47,33 @@ def invoke_balance(args, resolutions, outfile):
 
 
 @cli.command()
-@click.argument(
-    "cool_uri",
-    metavar="COOL_PATH"
-)
+@click.argument("cool_uri", metavar="COOL_PATH")
 @click.option(
-    "--nproc", "-n", "-p",
+    "--nproc",
+    "-n",
+    "-p",
     help="Number of processes to use for batch processing chunks of pixels "
     "[default: 1, i.e. no process pool]",
     default=1,
     type=int,
 )
 @click.option(
-    "--chunksize", "-c",
+    "--chunksize",
+    "-c",
     help="Number of pixels allocated to each process",
     type=int,
     default=int(10e6),
     show_default=True,
 )
 @click.option(
-    "--resolutions", "-r",
+    "--resolutions",
+    "-r",
     help="Comma-separated list of target resolutions. Use suffixes B or N to "
     "specify a progression: B for binary (geometric steps of factor 2), N for "
     "nice (geometric steps of factor 10 interleaved with steps of 2 and 5). "
     "Examples: 1000B=1000,2000,4000,8000,... 1000N=1000,2000,5000,10000,... "
     "5000N=5000,10000,25000,50000,... 4DN is an alias for 1000,2000,5000N "
-    "[default: B]"
+    "[default: B]",
 )
 @click.option(
     "--balance",
@@ -88,17 +87,15 @@ def invoke_balance(args, resolutions, outfile):
     "To deal with space ambiguity, use quotes to pass multiple arguments, "
     "e.g. --balance-args '--nproc 8 --ignore-diags 3'. Note that nproc for "
     "balancing must be specified independently of zoomify arguments.",
-    type=str
+    type=str,
 )
 @click.option(
-    "--base-uri", "-i",
+    "--base-uri",
+    "-i",
     help="One or more additional base coolers to aggregate from, if needed.",
     multiple=True,
 )
-@click.option(
-    "--out", "-o",
-    help="Output file or URI"
-)
+@click.option("--out", "-o", help="Output file or URI")
 @click.option(
     "--field",
     help="Specify the names of value columns to merge as '<name>'. "
@@ -164,9 +161,7 @@ def zoomify(
                         continue
                 logger.info(f"Balancing zoom level {level}, bin size {res}")
                 try:
-                    balance_cmd.main(
-                        args=[uri, *balance_args], prog_name='cooler'
-                    )
+                    balance_cmd.main(args=[uri, *balance_args], prog_name="cooler")
                 except SystemExit as e:
                     # exc_info = sys.exc_info()
                     exit_code = e.code
@@ -178,7 +173,6 @@ def zoomify(
                         raise e
 
     else:
-
         clr = api.Cooler(cool_uri)
         genome_length = clr.chromsizes.values.sum()
 
@@ -188,34 +182,34 @@ def zoomify(
             maxres = int(ceil(genome_length / HIGLASS_TILE_DIM))
             curres = clr.binsize
         else:
-            mean_fragsize = clr.bins()[['end', 'start']][:].diff(axis=1).mean()
+            mean_fragsize = clr.bins()[["start", "end"]][:].diff(axis=1)["end"].mean()
             maxres = int(ceil(genome_length / mean_fragsize / HIGLASS_TILE_DIM))
             curres = 1
 
         # Default is to use a binary geometric progression
         if resolutions is None:
-            resolutions = 'b'
+            resolutions = "b"
 
         # Parse and expand user-provided resolutions
         resolutions, rstring = [], resolutions
         for res in [s.strip().lower() for s in rstring.split(",")]:
-            if 'n' in res or 'b' in res and maxres < curres:
+            if "n" in res or "b" in res and maxres < curres:
                 warnings.warn(
                     "Map is already < 256 x 256. Provide resolutions "
                     "explicitly if you want to coarsen more."
                 )
-            if res == 'n':
-                r = preferred_sequence(curres, maxres, 'nice')
-            elif res == 'b':
-                r = preferred_sequence(curres, maxres, 'binary')
-            elif res == '4dn':
-                r = [1000, 2000, *preferred_sequence(5000, maxres, 'nice')]
-            elif res.endswith('n'):
-                res = int(res.split('n')[0])
-                r = preferred_sequence(res, maxres, 'nice')
-            elif res.endswith('n'):
-                res = int(res.split('b')[0])
-                r = preferred_sequence(res, maxres, 'binary')
+            if res == "n":
+                r = preferred_sequence(curres, maxres, "nice")
+            elif res == "b":
+                r = preferred_sequence(curres, maxres, "binary")
+            elif res == "4dn":
+                r = [1000, 2000, *preferred_sequence(5000, maxres, "nice")]
+            elif res.endswith("n"):
+                res = int(res.split("n")[0])
+                r = preferred_sequence(res, maxres, "nice")
+            elif res.endswith("n"):
+                res = int(res.split("b")[0])
+                r = preferred_sequence(res, maxres, "binary")
             else:
                 r = [int(res)]
             resolutions.extend(r)
