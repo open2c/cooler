@@ -182,7 +182,8 @@ def zoomify(
             maxres = int(ceil(genome_length / HIGLASS_TILE_DIM))
             curres = clr.binsize
         else:
-            mean_fragsize = clr.bins()[["start", "end"]][:].diff(axis=1)["end"].mean()
+            bins = clr.bins()[["start", "end"]][:]
+            mean_fragsize = (bins["end"] - bins["start"]).diff(axis=1).mean()
             maxres = int(ceil(genome_length / mean_fragsize / HIGLASS_TILE_DIM))
             curres = 1
 
