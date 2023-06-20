@@ -787,7 +787,7 @@ def zoomify_cooler(
     for input_uri in base_uris:
         infile, ingroup = parse_cooler_uri(input_uri)
         clr = Cooler(infile, ingroup)
-        base_binsize = clr.binsize
+        base_binsize = 1 if clr.binsize is None else clr.binsize
         parsed_uris[base_binsize] = (infile, ingroup)
         n_bins_longest_chrom[base_binsize] = clr.bins()[:].groupby("chrom").size().max()
         base_resolutions.add(base_binsize)
