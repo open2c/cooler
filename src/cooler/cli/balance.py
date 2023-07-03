@@ -225,7 +225,7 @@ def balance(cool_uri, nproc, chunksize, mad_max, min_nnz, min_count, blacklist,
         if nproc > 1:
             pool.close()
 
-    if not stats['converged']:
+    if not np.all(stats['converged']):
         logger.error('Iteration limit reached without convergence')
         if convergence_policy == 'store_final':
             logger.error('Storing final result. Check log to assess convergence.')
