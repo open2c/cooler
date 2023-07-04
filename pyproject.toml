@@ -57,11 +57,10 @@ dynamic = ["version"]
 [project.optional-dependencies]
 test = [
     "coverage[toml]",
-    "flake8",
-    "flake8-pyproject",
     "isort",
     "pytest",
     "pytest-cov",
+    "ruff",
 ]
 docs = [
     "autodocsumm",
@@ -96,27 +95,6 @@ cooler = "cooler.cli:cli"
 
 [tool.hatch.version]
 path = "src/cooler/_version.py"
-
-[tool.flake8]
-max-line-length = 80
-exclude = [
-    "__init__.py",
-    "__main__.py",
-]
-select = [
-    "B", # bugbear
-    "B950", # line exceeds max-line-length + 10%
-    "C", # mccabe complexity
-    "E", # pycodestyle
-    "F", # pyflakes error
-    "W", # pyflakes warning
-]
-ignore = [
-    "E203", # whitespace before ':'
-    "E266", # too many leading '#' for block comment
-    "E501", # line too long
-    "W503", # line break before binary operator
-]
 
 [tool.ruff]
 exclude = [
@@ -162,6 +140,6 @@ exclude_lines = [
 
 [tool.hatch.envs.default.scripts]
 fix = "ruff --fix ."
-lint = "flake8 --exit-zero src/cooler tests"
+lint = "ruff src/cooler tests"
 test = "pytest ."
 docs = "sphinx-autobuild docs docs/_build/html"
