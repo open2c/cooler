@@ -1,5 +1,12 @@
 # Release notes #
 
+## [v0.9.3](https://github.com/open2c/cooler/compare/v0.9.2...v0.9.3)
+
+### Bug fixes
+
+* Fix estimation of mean bin size when using variable-sized bins #332.
+* Fix regression bug to handle multiple convergence statuses in balance CLI #334.
+
 ## [v0.9.2](https://github.com/open2c/cooler/compare/v0.9.1...v0.9.2)
 
 ### Bug fixes
