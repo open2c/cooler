@@ -7,6 +7,9 @@ on:
 jobs:
   Publish:
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -26,6 +29,3 @@ jobs:
 
       - name: Publish distribution 📦 to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          user: ${{ secrets.PYPI_USERNAME }}
-          password: ${{ secrets.PYPI_PASSWORD }}
