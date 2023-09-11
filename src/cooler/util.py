@@ -256,9 +256,7 @@ def fetch_chromsizes(db, **kwargs):
 
     """
     return read_chromsizes(
-        "http://hgdownload.cse.ucsc.edu/goldenPath/{}/database/chromInfo.txt.gz".format(
-            db
-        ),
+        f"http://hgdownload.cse.ucsc.edu/goldenPath/{db}/database/chromInfo.txt.gz",
         **kwargs
     )
 
@@ -634,7 +632,7 @@ def infer_meta(x, index=None):  # pragma: no cover
             return _scalar_from_dtype(dtype)
         else:
             raise TypeError(
-                "Can't handle meta of type " "'{}'".format(type(x).__name__)
+                "Can't handle meta of type " f"'{type(x).__name__}'"
             )
 
     def _empty_series(name, dtype, index=None):
@@ -661,7 +659,7 @@ def infer_meta(x, index=None):  # pragma: no cover
     elif isinstance(x, (list, tuple)):
         if not all(isinstance(i, tuple) and len(i) == 2 for i in x):
             raise ValueError(
-                "Expected iterable of tuples of (name, dtype), " "got {}".format(x)
+                "Expected iterable of tuples of (name, dtype), " f"got {x}"
             )
         return pd.DataFrame(
             {c: _empty_series(c, d, index=index) for (c, d) in x},

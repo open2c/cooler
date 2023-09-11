@@ -128,7 +128,7 @@ def parse_bins(arg):
             )
         except pd.parser.CParserError as e:
             raise ValueError(
-                f'Failed to parse bins file "{arg}": {str(e)}'
+                f'Failed to parse bins file "{arg}": {e!s}'
             ) from e
 
         chromtable = (

@@ -353,10 +353,10 @@ def tree_widget(group, expand, level):
         import ipytree
     except ImportError as error:
         raise ImportError(
-            "{}: Run `pip install ipytree` or `conda install ipytree`"
+            f"{error}: Run `pip install ipytree` or `conda install ipytree`"
             "to get the required ipytree dependency for displaying the tree "
             "widget. If using jupyterlab, you also need to run "
-            "`jupyter labextension install ipytree`".format(error)
+            "`jupyter labextension install ipytree`"
         ) from None
 
     result = ipytree.Tree()

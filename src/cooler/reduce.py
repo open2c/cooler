@@ -234,8 +234,8 @@ def merge_coolers(
         for col in columns:
             if col not in pixel_dtypes:
                 raise ValueError(
-                    "Pixel value column '{}' not found in "
-                    "input '{}'.".format(col, clr.filename)
+                    f"Pixel value column '{col}' not found in "
+                    f"input '{clr.filename}'."
                 )
             else:
                 dtype_map[col].append(pixel_dtypes[col])
@@ -473,8 +473,8 @@ def get_multiplier_sequence(resolutions, bases=None):
     for i, p in enumerate(pred):
         if p == -1 and resn[i] not in bases:
             raise ValueError(
-                "Resolution {} cannot be derived from "
-                "the base resolutions: {}.".format(resn[i], bases)
+                f"Resolution {resn[i]} cannot be derived from "
+                f"the base resolutions: {bases}."
             )
 
     return resn, pred, mult
@@ -683,8 +683,8 @@ def coarsen_cooler(
     for col in columns:
         if col not in input_dtypes:
             raise ValueError(
-                "Pixel value column '{}' not found in "
-                "input '{}'.".format(col, clr.filename)
+                f"Pixel value column '{col}' not found in "
+                f"input '{clr.filename}'."
             )
         else:
             dtypes.setdefault(col, input_dtypes[col])
@@ -867,7 +867,7 @@ def legacy_zoomify(input_uri, outfile, nproc, chunksize, lock=None):
     logger.info(f"quad tile cover: {2 ** n_zooms}")
     logger.info(
         "Copying base matrix to level "
-        + "{0} and producing {0} new zoom levels ".format(n_zooms)
+        + f"{n_zooms} and producing {n_zooms} new zoom levels "
         + "counting down to 0..."
     )
 

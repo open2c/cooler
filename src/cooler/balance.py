@@ -173,9 +173,7 @@ def _balance_cisonly(
 
         else:
             warnings.warn(
-                "Iteration limit reached without convergence on {}.".format(
-                    chroms[cid]
-                ),
+                f"Iteration limit reached without convergence on {chroms[cid]}.",
                 ConvergenceWarning,
             )
 

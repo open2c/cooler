@@ -800,7 +800,7 @@ class PairixAggregator(ContactBinner):
             if f.exists2(c1, c2) and f.exists2(c2, c1):
                 raise RuntimeError(
                     "Pairs are not triangular: found blocks "
-                    + "'{0}|{1}'' and '{1}|{0}'".format(c1, c2)
+                    + f"'{c1}|{c2}'' and '{c2}|{c1}'"
                 )
 
         # dumb heuristic to prevent excessively large chunks on one worker
@@ -816,8 +816,8 @@ class PairixAggregator(ContactBinner):
             self.n_chunks = max(self.n_chunks, n_chunks)
             if self.n_chunks > old_n:
                 logger.info(
-                    "Pairs file has {} lines. "
-                    "Increasing max-split to {}.".format(n_lines, self.n_chunks)
+                    f"Pairs file has {n_lines} lines. "
+                    f"Increasing max-split to {self.n_chunks}."
                 )
 
         # all requested contigs will be placed in the output matrix
