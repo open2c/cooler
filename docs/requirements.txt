@@ -4,7 +4,6 @@ numpydoc
 recommonmark
 m2r
 mock
-six
 multiprocess
 click
 asciitree
