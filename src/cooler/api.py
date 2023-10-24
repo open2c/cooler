@@ -116,7 +116,7 @@ class Cooler:
             return dict(grp[path].attrs)
 
     def open(self, mode="r", **kwargs):
-        """ Open the HDF5 group containing the Cooler with :py:mod:`h5py`
+        """Open the HDF5 group containing the Cooler with :py:mod:`h5py`
 
         Functions as a context manager. Any ``open_kws`` passed during
         construction are ignored.
@@ -145,21 +145,21 @@ class Cooler:
 
     @property
     def binsize(self):
-        """ Resolution in base pairs if uniform else None """
+        """Resolution in base pairs if uniform else None"""
         return self._info["bin-size"]
 
     @property
     def chromsizes(self):
-        """ Ordered mapping of reference sequences to their lengths in bp """
+        """Ordered mapping of reference sequences to their lengths in bp"""
         return self._chromsizes
 
     @property
     def chromnames(self):
-        """ List of reference sequence names """
+        """List of reference sequence names"""
         return list(self._chromsizes.index)
 
     def offset(self, region):
-        """ Bin ID containing the left end of a genomic region
+        """Bin ID containing the left end of a genomic region
 
         Parameters
         ----------
@@ -182,11 +182,11 @@ class Cooler:
                 grp,
                 self._chromids,
                 parse_region(region, self._chromsizes),
-                self.binsize
+                self.binsize,
             )
 
     def extent(self, region):
-        """ Bin IDs containing the left and right ends of a genomic region
+        """Bin IDs containing the left and right ends of a genomic region
 
         Parameters
         ----------
@@ -209,12 +209,12 @@ class Cooler:
                 grp,
                 self._chromids,
                 parse_region(region, self._chromsizes),
-                self.binsize
+                self.binsize,
             )
 
     @property
     def info(self):
-        """ File information and metadata
+        """File information and metadata
 
         Returns
         -------
@@ -230,7 +230,7 @@ class Cooler:
         return (self._info["nbins"],) * 2
 
     def chroms(self, **kwargs):
-        """ Chromosome table selector
+        """Chromosome table selector
 
         Returns
         -------
@@ -246,7 +246,7 @@ class Cooler:
         return RangeSelector1D(None, _slice, None, self._info["nchroms"])
 
     def bins(self, **kwargs):
-        """ Bin table selector
+        """Bin table selector
 
         Returns
         -------
@@ -272,7 +272,7 @@ class Cooler:
         return RangeSelector1D(None, _slice, _fetch, self._info["nbins"])
 
     def pixels(self, join=False, **kwargs):
-        """ Pixel table selector
+        """Pixel table selector
 
         Parameters
         ----------
@@ -317,7 +317,7 @@ class Cooler:
         divisive_weights=None,
         chunksize=10000000,
     ):
-        """ Contact matrix selector
+        """Contact matrix selector
 
         Parameters
         ----------
@@ -391,12 +391,8 @@ class Cooler:
                     region2 = region
                 region1 = parse_region(region, self._chromsizes)
                 region2 = parse_region(region2, self._chromsizes)
-                i0, i1 = region_to_extent(
-                    grp, self._chromids, region1, self.binsize
-                )
-                j0, j1 = region_to_extent(
-                    grp, self._chromids, region2, self.binsize
-                )
+                i0, i1 = region_to_extent(grp, self._chromids, region1, self.binsize)
+                j0, j1 = region_to_extent(grp, self._chromids, region2, self.binsize)
                 return i0, i1, j0, j1
 
         return RangeSelector2D(field, _slice, _fetch, (self._info["nbins"],) * 2)
@@ -592,7 +588,9 @@ def annotate(pixels, bins, replace=False):
             lo = 0 if np.isnan(lo) else lo
             hi = 0 if np.isnan(hi) else hi
             if is_selector:
-                right1 = bins[lo:hi + bin1.dtype.type(1)].copy()  # slicing works like iloc
+                right1 = bins[
+                    lo : hi + bin1.dtype.type(1)
+                ].copy()  # slicing works like iloc
             else:
                 right1 = bins.loc[lo:hi].copy()
         elif is_selector:
@@ -601,8 +599,8 @@ def annotate(pixels, bins, replace=False):
         else:
             right1 = bins.copy()
             lo = 0
-        right1.columns = [f'{col}1' for col in right1.columns]
-        right1 = right1.iloc[pixels['bin1_id']-lo].reset_index(drop=True)
+        right1.columns = [f"{col}1" for col in right1.columns]
+        right1 = right1.iloc[pixels["bin1_id"] - lo].reset_index(drop=True)
     else:
         right1 = None
 
@@ -614,7 +612,9 @@ def annotate(pixels, bins, replace=False):
             lo = 0 if np.isnan(lo) else lo
             hi = 0 if np.isnan(hi) else hi
             if is_selector:
-                right2 = bins[lo:hi + bin2.dtype.type(1)].copy()  # slicing works like iloc
+                right2 = bins[
+                    lo : hi + bin2.dtype.type(1)
+                ].copy()  # slicing works like iloc
             else:
                 right2 = bins.loc[lo:hi].copy()
         elif is_selector:
@@ -623,13 +623,12 @@ def annotate(pixels, bins, replace=False):
         else:
             right2 = bins.copy()
             lo = 0
-        right2.columns = [f'{col}2' for col in right2.columns]
-        right2 = right2.iloc[pixels['bin2_id']-lo].reset_index(drop=True)
+        right2.columns = [f"{col}2" for col in right2.columns]
+        right2 = right2.iloc[pixels["bin2_id"] - lo].reset_index(drop=True)
     else:
         right2 = None
     index = pixels.index
-    pixels = pd.concat([pixels.reset_index(drop=True), right1, right2],
-                        axis=1)
+    pixels = pd.concat([pixels.reset_index(drop=True), right1, right2], axis=1)
     pixels.index = index
     # rearrange columns
     pixels = pixels[list(pixels.columns[ncols:]) + list(pixels.columns[:ncols])]
@@ -719,7 +718,7 @@ def matrix(
             + "calculate balancing weights or set balance=False."
         )
 
-    reader = CSRReader(h5['pixels'], h5['indexes/bin1_offset'][:])
+    reader = CSRReader(h5["pixels"], h5["indexes/bin1_offset"][:])
 
     if as_pixels:
         # The historical behavior for as_pixels is to return only explicitly stored
