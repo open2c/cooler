@@ -592,15 +592,19 @@ def annotate(pixels, bins, replace=False):
             lo = 0 if np.isnan(lo) else lo
             hi = 0 if np.isnan(hi) else hi
             if is_selector:
-                right = bins[lo:hi + bin1.dtype.type(1)]  # slicing works like iloc
+                right1 = bins[lo:hi + bin1.dtype.type(1)]  # slicing works like iloc
             else:
-                right = bins.loc[lo:hi]
+                right1 = bins.loc[lo:hi]
         elif is_selector:
-            right = bins[:]
+            right1 = bins[:]
+            lo = 0
         else:
-            right = bins
-
-        pixels = pixels.merge(right, how="left", left_on="bin1_id", right_index=True)
+            right1 = bins
+            lo = 0
+        right1.columns = [f'{col}1' for col in right1.columns]
+        right1 = right1.iloc[pixels['bin1_id']-lo].reset_index(drop=True)
+    else:
+        right1 = None
 
     if "bin2_id" in columns:
         if len(bins) > len(pixels):
@@ -610,18 +614,23 @@ def annotate(pixels, bins, replace=False):
             lo = 0 if np.isnan(lo) else lo
             hi = 0 if np.isnan(hi) else hi
             if is_selector:
-                right = bins[lo:hi + bin2.dtype.type(1)]  # slicing works like iloc
+                right2 = bins[lo:hi + bin2.dtype.type(1)]  # slicing works like iloc
             else:
-                right = bins.loc[lo:hi]
+                right2 = bins.loc[lo:hi]
         elif is_selector:
-            right = bins[:]
+            right2 = bins[:]
+            lo = 0
         else:
-            right = bins
-
-        pixels = pixels.merge(
-            right, how="left", left_on="bin2_id", right_index=True, suffixes=("1", "2")
-        )
-
+            right2 = bins
+            lo = 0
+        right2.columns = [f'{col}2' for col in right2.columns]
+        right2 = right2.iloc[pixels['bin2_id']-lo].reset_index(drop=True)
+    else:
+        right2 = None
+    index = pixels.index
+    pixels = pd.concat([pixels.reset_index(drop=True), right1, right2],
+                        axis=1)
+    pixels.index = index
     # rearrange columns
     pixels = pixels[list(pixels.columns[ncols:]) + list(pixels.columns[:ncols])]
 
