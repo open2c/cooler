@@ -582,7 +582,7 @@ def annotate(pixels, bins, replace=False):
     """
     columns = pixels.columns
     ncols = len(columns)
-    is_selector = isinstance(bins, RangeSelector1D)
+    is_selector = isinstance(bins, cooler.core.RangeSelector1D)
 
     if "bin1_id" in columns:
         if len(bins) > len(pixels):
@@ -592,14 +592,14 @@ def annotate(pixels, bins, replace=False):
             lo = 0 if np.isnan(lo) else lo
             hi = 0 if np.isnan(hi) else hi
             if is_selector:
-                right1 = bins[lo:hi + bin1.dtype.type(1)]  # slicing works like iloc
+                right1 = bins[lo:hi + bin1.dtype.type(1)].copy()  # slicing works like iloc
             else:
-                right1 = bins.loc[lo:hi]
+                right1 = bins.loc[lo:hi].copy()
         elif is_selector:
-            right1 = bins[:]
+            right1 = bins[:].copy()
             lo = 0
         else:
-            right1 = bins
+            right1 = bins.copy()
             lo = 0
         right1.columns = [f'{col}1' for col in right1.columns]
         right1 = right1.iloc[pixels['bin1_id']-lo].reset_index(drop=True)
@@ -614,14 +614,14 @@ def annotate(pixels, bins, replace=False):
             lo = 0 if np.isnan(lo) else lo
             hi = 0 if np.isnan(hi) else hi
             if is_selector:
-                right2 = bins[lo:hi + bin2.dtype.type(1)]  # slicing works like iloc
+                right2 = bins[lo:hi + bin2.dtype.type(1)].copy()  # slicing works like iloc
             else:
-                right2 = bins.loc[lo:hi]
+                right2 = bins.loc[lo:hi].copy()
         elif is_selector:
-            right2 = bins[:]
+            right2 = bins[:].copy()
             lo = 0
         else:
-            right2 = bins
+            right2 = bins.copy()
             lo = 0
         right2.columns = [f'{col}2' for col in right2.columns]
         right2 = right2.iloc[pixels['bin2_id']-lo].reset_index(drop=True)
