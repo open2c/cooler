@@ -582,7 +582,7 @@ def annotate(pixels, bins, replace=False):
     """
     columns = pixels.columns
     ncols = len(columns)
-    is_selector = isinstance(bins, cooler.core.RangeSelector1D)
+    is_selector = isinstance(bins, RangeSelector1D)
 
     if "bin1_id" in columns:
         if len(bins) > len(pixels):
