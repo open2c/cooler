@@ -591,39 +591,43 @@ def annotate(pixels, bins, replace=False):
     # indexing - they can easily get cast to float and cause problems.
     anns = []
 
+    # Select bin annotations that correspond to the bin1 IDs in the pixels df
     if "bin1_id" in columns:
         bin1 = pixels["bin1_id"].to_numpy().astype(int)
-        if len(bins) > len(pixels):
-            lo = bin1.min(initial=0)
-            hi = bin1.max(initial=0)
-            lo = 0 if np.isnan(lo) else int(lo)
-            hi = 0 if np.isnan(hi) else int(hi)
-            ann1 = _slice(bins, lo, hi)
-        else:
-            lo = 0
-            ann1 = _slice(bins, lo, None)
-        # Select bin annotations that correspond to the bin1 IDs in pixels
-        ann1 = ann1.iloc[bin1 - lo]
-        anns.append(
-            ann1.rename(columns=lambda x: x + "1").reset_index(drop=True)
-        )
+        if len(bin1) > 0:
+            ann1 = _slice(bins, 0, 0)
+            if len(bins) > len(pixels):
+                lo = bin1.min()
+                hi = bin1.max()
+                lo = 0 if np.isnan(lo) else int(lo)
+                hi = 0 if np.isnan(hi) else int(hi)
+                ann1 = _slice(bins, lo, hi)
+            else:
+                lo = 0
+                ann1 = _slice(bins, lo, None)
+            ann1 = ann1.iloc[bin1 - lo]
+            anns.append(
+                ann1.rename(columns=lambda x: x + "1").reset_index(drop=True)
+            )
 
+    # Select bin annotations that correspond to the bin2 IDs in the pixels df
     if "bin2_id" in columns:
         bin2 = pixels["bin2_id"].to_numpy().astype(int)
-        if len(bins) > len(pixels):
-            lo = bin2.min(initial=0)
-            hi = bin2.max(initial=0)
-            lo = 0 if np.isnan(lo) else int(lo)
-            hi = 0 if np.isnan(hi) else int(hi)
-            ann2 = _slice(bins, lo, hi)
-        else:
-            lo = 0
-            ann2 = _slice(bins, lo, None)
-        # Select bin annotations that correspond to the bin2 IDs in pixels
-        ann2 = ann2.iloc[bin2 - lo]
-        anns.append(
-            ann2.rename(columns=lambda x: x + "2").reset_index(drop=True)
-        )
+        if len(bin2) > 0:
+            ann2 = _slice(bins, 0, 0)
+            if len(bins) > len(pixels):
+                lo = bin2.min()
+                hi = bin2.max()
+                lo = 0 if np.isnan(lo) else int(lo)
+                hi = 0 if np.isnan(hi) else int(hi)
+                ann2 = _slice(bins, lo, hi)
+            else:
+                lo = 0
+                ann2 = _slice(bins, lo, None)
+            ann2 = ann2.iloc[bin2 - lo]
+            anns.append(
+                ann2.rename(columns=lambda x: x + "2").reset_index(drop=True)
+            )
 
     # Drop original bin IDs if not wanted
     if replace:
