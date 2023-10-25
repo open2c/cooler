@@ -576,7 +576,7 @@ def annotate(pixels, bins, replace=False):
     :py:class:`DataFrame`
     """
     columns = pixels.columns
-    
+
     if isinstance(bins, RangeSelector1D):
         def _slice(sel, lo, hi):
             # slicing a selector is exclusive like iloc
@@ -587,10 +587,10 @@ def annotate(pixels, bins, replace=False):
             return df.loc[lo:hi]
 
     # Extract the required bin ranges from the bin table.
-    # NOTE: Bin IDs in the pixel table may be uint. Avoid using these for 
+    # NOTE: Bin IDs in the pixel table may be uint. Avoid using these for
     # indexing - they can easily get cast to float and cause problems.
     anns = []
-    
+
     if "bin1_id" in columns:
         bin1 = pixels["bin1_id"].to_numpy().astype(int)
         if len(bins) > len(pixels):
@@ -607,7 +607,7 @@ def annotate(pixels, bins, replace=False):
         anns.append(
             ann1.rename(columns=lambda x: x + "1").reset_index(drop=True)
         )
-    
+
     if "bin2_id" in columns:
         bin2 = pixels["bin2_id"].to_numpy().astype(int)
         if len(bins) > len(pixels):
@@ -624,12 +624,12 @@ def annotate(pixels, bins, replace=False):
         anns.append(
             ann2.rename(columns=lambda x: x + "2").reset_index(drop=True)
         )
-        
+
     # Drop original bin IDs if not wanted
     if replace:
         cols_to_drop = [col for col in ("bin1_id", "bin2_id") if col in columns]
         pixels = pixels.drop(cols_to_drop, axis=1)
-    
+
     # Concatenate bin annotations with pixels
     out = pd.concat([*anns, pixels.reset_index(drop=True)], axis=1)
     out.index = pixels.index
