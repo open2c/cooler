@@ -596,18 +596,15 @@ def annotate(pixels, bins, replace=False):
     if "bin1_id" in columns:
         bin1 = pixels["bin1_id"].to_numpy().astype(int, copy=False, casting="safe")
         if len(bin1) == 0:
-            min = max = 0
+            bmin = bmax = 0
         elif len(bins) > len(pixels):
-            min = bin1.min()
-            max = bin1.max()
-            min = 0 if np.isnan(min) else int(min)
-            max = 0 if np.isnan(min) else int(max)
+            bmin, bmax = bin1.min(), bin1.max()
         else:
-            min, max = 0, None
-        ann1 = _loc_slice(bins, min, max)
+            bmin, bmax = 0, None
+        ann1 = _loc_slice(bins, bmin, bmax)
         anns.append(
             ann1
-            .iloc[bin1 - min]
+            .iloc[bin1 - bmin]
             .rename(columns=lambda x: x + "1")
             .reset_index(drop=True)
         )
@@ -616,18 +613,15 @@ def annotate(pixels, bins, replace=False):
     if "bin2_id" in columns:
         bin2 = pixels["bin2_id"].to_numpy().astype(int, copy=False, casting="safe")
         if len(bin2) == 0:
-            min = max = 0
+            bmin = bmax = 0
         elif len(bins) > len(pixels):
-            min = bin2.min()
-            max = bin2.max()
-            min = 0 if np.isnan(min) else int(min)
-            max = 0 if np.isnan(max) else int(max)
+            bmin, bmax = bin2.min(), bin2.max()
         else:
-            min, max = 0, None
-        ann2 = _loc_slice(bins, min, max)
+            bmin, bmax = 0, None
+        ann2 = _loc_slice(bins, bmin, bmax)
         anns.append(
             ann2
-            .iloc[bin2 - min]
+            .iloc[bin2 - bmin]
             .rename(columns=lambda x: x + "2")
             .reset_index(drop=True)
         )
