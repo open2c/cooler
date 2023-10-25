@@ -574,71 +574,66 @@ def annotate(pixels, bins, replace=False):
     Returns
     -------
     :py:class:`DataFrame`
-
     """
     columns = pixels.columns
-    ncols = len(columns)
-    is_selector = isinstance(bins, RangeSelector1D)
+    
+    if isinstance(bins, RangeSelector1D):
+        def _slice(sel, lo, hi):
+            # slicing a selector is exclusive like iloc
+            return sel[lo : hi + 1 if hi is not None else None]
+    else:
+        def _slice(df, lo, hi):
+            # loc slicing a dataframe is inclusive
+            return df.loc[lo:hi]
 
+    # Extract the required bin ranges from the bin table.
+    # NOTE: Bin IDs in the pixel table may be uint. Avoid using these for 
+    # indexing - they can easily get cast to float and cause problems.
+    anns = []
+    
     if "bin1_id" in columns:
+        bin1 = pixels["bin1_id"].to_numpy().astype(int)
         if len(bins) > len(pixels):
-            bin1 = pixels["bin1_id"]
-            lo = bin1.min()
-            hi = bin1.max()
+            lo = int(bin1.min())
+            hi = int(bin1.max())
             lo = 0 if np.isnan(lo) else lo
             hi = 0 if np.isnan(hi) else hi
-            if is_selector:
-                right1 = bins[
-                    lo : hi + bin1.dtype.type(1)
-                ].copy()  # slicing works like iloc
-            else:
-                right1 = bins.loc[lo:hi].copy()
-        elif is_selector:
-            right1 = bins[:].copy()
-            lo = 0
+            ann1 = _slice(bins, lo, hi)
         else:
-            right1 = bins.copy()
             lo = 0
-        right1.columns = [f"{col}1" for col in right1.columns]
-        right1 = right1.iloc[pixels["bin1_id"] - lo].reset_index(drop=True)
-    else:
-        right1 = None
-
+            ann1 = _slice(bins, lo, None)
+        # Select bin annotations that correspond to the bin1 IDs in pixels
+        ann1 = ann1.iloc[bin1 - lo]
+        anns.append(
+            ann1.rename(columns=lambda x: x + "1").reset_index(drop=True)
+        )
+    
     if "bin2_id" in columns:
+        bin2 = pixels["bin2_id"].to_numpy().astype(int)
         if len(bins) > len(pixels):
-            bin2 = pixels["bin2_id"]
-            lo = bin2.min()
-            hi = bin2.max()
+            lo = int(bin2.min())
+            hi = int(bin2.max())
             lo = 0 if np.isnan(lo) else lo
             hi = 0 if np.isnan(hi) else hi
-            if is_selector:
-                right2 = bins[
-                    lo : hi + bin2.dtype.type(1)
-                ].copy()  # slicing works like iloc
-            else:
-                right2 = bins.loc[lo:hi].copy()
-        elif is_selector:
-            right2 = bins[:].copy()
-            lo = 0
+            ann2 = _slice(bins, lo, hi)
         else:
-            right2 = bins.copy()
             lo = 0
-        right2.columns = [f"{col}2" for col in right2.columns]
-        right2 = right2.iloc[pixels["bin2_id"] - lo].reset_index(drop=True)
-    else:
-        right2 = None
-    index = pixels.index
-    pixels = pd.concat([pixels.reset_index(drop=True), right1, right2], axis=1)
-    pixels.index = index
-    # rearrange columns
-    pixels = pixels[list(pixels.columns[ncols:]) + list(pixels.columns[:ncols])]
-
-    # drop bin IDs
+            ann2 = _slice(bins, lo, None)
+        # Select bin annotations that correspond to the bin2 IDs in pixels
+        ann2 = ann2.iloc[bin2 - lo]
+        anns.append(
+            ann2.rename(columns=lambda x: x + "2").reset_index(drop=True)
+        )
+        
+    # Drop original bin IDs if not wanted
     if replace:
         cols_to_drop = [col for col in ("bin1_id", "bin2_id") if col in columns]
         pixels = pixels.drop(cols_to_drop, axis=1)
-
-    return pixels
+    
+    # Concatenate bin annotations with pixels
+    out = pd.concat([*anns, pixels.reset_index(drop=True)], axis=1)
+    out.index = pixels.index
+    return out
 
 
 def matrix(
