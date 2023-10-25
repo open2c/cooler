@@ -594,10 +594,10 @@ def annotate(pixels, bins, replace=False):
     if "bin1_id" in columns:
         bin1 = pixels["bin1_id"].to_numpy().astype(int)
         if len(bins) > len(pixels):
-            lo = int(bin1.min())
-            hi = int(bin1.max())
-            lo = 0 if np.isnan(lo) else lo
-            hi = 0 if np.isnan(hi) else hi
+            lo = bin1.min()
+            hi = bin1.max()
+            lo = 0 if np.isnan(lo) else int(lo)
+            hi = 0 if np.isnan(hi) else int(hi)
             ann1 = _slice(bins, lo, hi)
         else:
             lo = 0
@@ -611,10 +611,10 @@ def annotate(pixels, bins, replace=False):
     if "bin2_id" in columns:
         bin2 = pixels["bin2_id"].to_numpy().astype(int)
         if len(bins) > len(pixels):
-            lo = int(bin2.min())
-            hi = int(bin2.max())
-            lo = 0 if np.isnan(lo) else lo
-            hi = 0 if np.isnan(hi) else hi
+            lo = bin2.min()
+            hi = bin2.max()
+            lo = 0 if np.isnan(lo) else int(lo)
+            hi = 0 if np.isnan(hi) else int(hi)
             ann2 = _slice(bins, lo, hi)
         else:
             lo = 0
