@@ -20,6 +20,11 @@ dist/
 build/
 MANIFEST
 
+# dev and virtual environment
+.venv/
+venv/
+.idea/
+
 # OS-generated files
 .DS_Store
 .Spotlight-V100
