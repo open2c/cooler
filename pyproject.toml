@@ -76,7 +76,7 @@ complete = [
     "ipytree>=0.2.2",
     "ipywidgets>=8.0.0",
     "matplotlib",
-    "pypairix",
+    "pypairix; platform_system != 'Windows'",
     "psutil",
     "pysam",
 ]
