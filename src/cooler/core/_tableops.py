@@ -112,7 +112,6 @@ def put(grp, df, lo=0, store_categories=True, h5opts=None):
 
     # fields = df.keys()
     for field, data in df.items():
-
         if np.isscalar(data):
             data = np.array([data])
             dtype = data.dtype
@@ -148,7 +147,7 @@ def put(grp, df, lo=0, store_categories=True, h5opts=None):
                 dtype=dtype,
                 maxshape=(None,),
                 fillvalue=fillvalue,
-                **h5opts
+                **h5opts,
             )
         if hi > len(dset):
             dset.resize((hi,))

@@ -278,7 +278,6 @@ def _copy(src_uri, dst_uri, overwrite, link, rename, soft_link):
 
     with h5py.File(src_path, src_write_mode) as src, \
          h5py.File(dst_path, dst_write_mode) as dst:  # fmt: skip
-
         if src_path == dst_path:
             if link or rename:
                 src[dst_group] = src[src_group]

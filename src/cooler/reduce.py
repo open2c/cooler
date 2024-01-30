@@ -683,8 +683,7 @@ def coarsen_cooler(
     for col in columns:
         if col not in input_dtypes:
             raise ValueError(
-                f"Pixel value column '{col}' not found in "
-                f"input '{clr.filename}'."
+                f"Pixel value column '{col}' not found in " f"input '{clr.filename}'."
             )
         else:
             dtypes.setdefault(col, input_dtypes[col])
@@ -879,7 +878,6 @@ def legacy_zoomify(input_uri, outfile, nproc, chunksize, lock=None):
     # Copy base matrix
     with h5py.File(infile, "r") as src, \
          h5py.File(outfile, "w") as dest:  # fmt: skip
-
         src.copy(ingroup, dest, str(zoomLevel))
         zoom_levels[zoomLevel] = binsize
 

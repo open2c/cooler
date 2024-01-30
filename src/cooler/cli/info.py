@@ -10,26 +10,18 @@ from ._util import exit_on_broken_pipe
 
 
 @cli.command()
-@click.argument(
-    "cool_uri",
-    type=str,
-    metavar="COOL_PATH"
+@click.argument("cool_uri", type=str, metavar="COOL_PATH")
+@click.option(
+    "--field", "-f", help="Print the value of a specific info field.", type=str
 )
 @click.option(
-    "--field", "-f",
-    help="Print the value of a specific info field.",
-    type=str
-)
-@click.option(
-    "--metadata", "-m",
+    "--metadata",
+    "-m",
     help="Print the user metadata in JSON format.",
     is_flag=True,
     default=False,
 )
-@click.option(
-    "--out", "-o",
-    help="Output file (defaults to stdout)"
-)
+@click.option("--out", "-o", help="Output file (defaults to stdout)")
 @exit_on_broken_pipe(1)
 def info(cool_uri, field, metadata, out):
     """

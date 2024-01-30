@@ -10,22 +10,10 @@ from ._util import exit_on_broken_pipe
 
 
 @cli.command()
-@click.argument(
-    "chromsizes",
-    metavar="CHROMSIZES_PATH"
-)
-@click.argument(
-    "fasta",
-    metavar="FASTA_PATH"
-)
-@click.argument(
-    "enzyme",
-    metavar="ENZYME"
-)
-@click.option(
-    "--out", "-o",
-    help="Output file (defaults to stdout)"
-)
+@click.argument("chromsizes", metavar="CHROMSIZES_PATH")
+@click.argument("fasta", metavar="FASTA_PATH")
+@click.argument("enzyme", metavar="ENZYME")
+@click.option("--out", "-o", help="Output file (defaults to stdout)")
 @click.option(
     "--header",
     "-H",

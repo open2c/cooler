@@ -6,17 +6,11 @@ from ._util import parse_field_param
 
 
 @cli.command()
-@click.argument(
-    "out_path",
-    type=click.Path(exists=False)
-)
-@click.argument(
-    "in_paths",
-    nargs=-1,
-    type=click.Path(exists=False)
-)
+@click.argument("out_path", type=click.Path(exists=False))
+@click.argument("in_paths", nargs=-1, type=click.Path(exists=False))
 @click.option(
-    "--chunksize", "-c",
+    "--chunksize",
+    "-c",
     help="Size of the merge buffer in number of pixel table rows.",
     type=int,
     default=int(20e6),
@@ -32,11 +26,12 @@ from ._util import parse_field_param
     multiple=True,
 )
 @click.option(
-    "--append", "-a",
+    "--append",
+    "-a",
     is_flag=True,
     default=False,
     help="Pass this flag to append the output cooler to an existing file "
-         "instead of overwriting the file."
+    "instead of overwriting the file.",
 )
 def merge(out_path, in_paths, chunksize, field, append):
     """
@@ -81,5 +76,5 @@ def merge(out_path, in_paths, chunksize, field, append):
         columns=columns,
         dtypes=dtypes,
         agg=agg,
-        mode="a" if append else "w"
+        mode="a" if append else "w",
     )

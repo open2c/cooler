@@ -55,12 +55,10 @@ def make_annotator(bins, balanced, join, annotate, one_based_ids, one_based_star
 
 
 @cli.command()
-@click.argument(
-    "cool_uri",
-    metavar="COOL_PATH"
-)
+@click.argument("cool_uri", metavar="COOL_PATH")
 @click.option(
-    "--table", "-t",
+    "--table",
+    "-t",
     help="Which table to dump. Choosing 'chroms' or 'bins' will cause all "
     "pixel-related options to be ignored. Note that for coolers stored "
     "in symmetric-upper mode, 'pixels' only holds the upper triangle "
@@ -70,22 +68,22 @@ def make_annotator(bins, balanced, join, annotate, one_based_ids, one_based_star
     show_default=True,
 )
 @click.option(
-    "--columns", "-c",
+    "--columns",
+    "-c",
     help="Restrict output to a subset of columns, provided as a "
     "comma-separated list.",
     type=DelimitedTuple(sep=","),
 )
 @click.option(
-    "--header", "-H",
+    "--header",
+    "-H",
     help="Print the header of column names as the first row.",
     is_flag=True,
     default=False,
     show_default=True,
 )
 @click.option(
-    "--na-rep",
-    help="Missing data representation. Default is empty ''.",
-    default=""
+    "--na-rep", help="Missing data representation. Default is empty ''.", default=""
 )
 @click.option(
     "--float-format",
@@ -94,20 +92,23 @@ def make_annotator(bins, balanced, join, annotate, one_based_ids, one_based_star
     show_default=True,
 )
 @click.option(
-    "--range", "-r",
+    "--range",
+    "-r",
     help="The coordinates of a genomic region shown along the row dimension, "
     "in UCSC-style notation. (Example: chr1:10,000,000-11,000,000). "
     "If omitted, the entire contact matrix is printed.",
     type=str,
 )
 @click.option(
-    "--range2", "-r2",
+    "--range2",
+    "-r2",
     type=str,
     help="The coordinates of a genomic region shown along the column dimension. "
     "If omitted, the column range is the same as the row range.",
 )
 @click.option(
-    "--fill-lower", "-f",
+    "--fill-lower",
+    "-f",
     help="For coolers using 'symmetric-upper' storage, populate implicit areas "
     "of the genomic query box by generating lower triangle pixels. If not "
     "specified, only upper triangle pixels are reported. This option has no "
@@ -117,7 +118,8 @@ def make_annotator(bins, balanced, join, annotate, one_based_ids, one_based_star
     show_default=True,
 )
 @click.option(
-    "--balanced/--no-balance", "-b",
+    "--balanced/--no-balance",
+    "-b",
     help="Apply balancing weights to data. This will print an extra column "
     "called `balanced`",
     is_flag=True,
@@ -153,7 +155,8 @@ def make_annotator(bins, balanced, join, annotate, one_based_ids, one_based_star
     default=False,
 )
 @click.option(
-    "--chunksize", "-k",
+    "--chunksize",
+    "-k",
     help="Sets the number of pixel records loaded from disk at one time. "
     "Can affect the performance of joins on high resolution datasets. ",
     type=int,
@@ -161,7 +164,8 @@ def make_annotator(bins, balanced, join, annotate, one_based_ids, one_based_star
     show_default=True,
 )
 @click.option(
-    "--out", "-o",
+    "--out",
+    "-o",
     help="Output text file If .gz extension is detected, file is written "
     "using zlib. Default behavior is to stream to stdout.",
 )
@@ -213,7 +217,6 @@ def dump(
         chunks = (selector[:],)
 
     else:  # Pixel table
-
         # Load all the bins
         bins = clr.bins()[:]
         n_bins = len(bins)
@@ -225,7 +228,7 @@ def dump(
             sys.exit(1)
 
         h5 = clr.open("r")
-        reader = CSRReader(h5['pixels'], h5['indexes/bin1_offset'][:])
+        reader = CSRReader(h5["pixels"], h5["indexes/bin1_offset"][:])
         field = "count"
 
         if range:
@@ -234,7 +237,7 @@ def dump(
                 h5,
                 clr._chromids,
                 parse_region(range, clr.chromsizes),
-                binsize=clr.binsize
+                binsize=clr.binsize,
             )
             if range2 is not None:
                 j0, j1 = region_to_extent(
@@ -257,8 +260,10 @@ def dump(
 
         chunks = (
             pd.DataFrame(
-                dct, columns=["bin1_id", "bin2_id", field],
-            ) for dct in engine
+                dct,
+                columns=["bin1_id", "bin2_id", field],
+            )
+            for dct in engine
         )
 
         if balanced or join or annotate:

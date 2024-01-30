@@ -60,7 +60,8 @@ def _has_parallel_sort():
     return (
         subprocess.call(
             ["sort", "--parallel=1"], stdin=DEVNULL, stdout=DEVNULL, stderr=DEVNULL
-        ) == 0
+        )
+        == 0
     )
 
 
@@ -145,14 +146,10 @@ def make_index_command(index, fields, zero_based, outfile):
 
 @cli.command()
 @click.argument(
-    "pairs_path",
-    type=click.Path(exists=True, allow_dash=True),
-    metavar="PAIRS_PATH"
+    "pairs_path", type=click.Path(exists=True, allow_dash=True), metavar="PAIRS_PATH"
 )
 @click.argument(
-    "chromosomes_path",
-    type=click.Path(exists=True),
-    metavar="CHROMOSOMES_PATH"
+    "chromosomes_path", type=click.Path(exists=True), metavar="CHROMOSOMES_PATH"
 )
 @click.option(
     "--chrom1",
@@ -202,11 +199,7 @@ def make_index_command(index, fields, zero_based, outfile):
     show_default=True,
 )
 @click.option(
-    "--nproc", "-p",
-    help="Number of processors",
-    type=int,
-    default=8,
-    show_default=True
+    "--nproc", "-p", help="Number of processors", type=int, default=8, show_default=True
 )
 @click.option(
     "--zero-based",
@@ -235,20 +228,9 @@ def make_index_command(index, fields, zero_based, outfile):
     help="Quoted list of additional options to `sort` command",
     type=str,
 )
-@click.option(
-    "--out", "-o",
-    help="Output gzip file"
-)
-@click.option(
-    "--strand1", "-s1",
-    help="strand1 field number (deprecated)",
-    type=int
-)
-@click.option(
-    "--strand2", "-s2",
-    help="strand2 field number (deprecated)",
-    type=int
-)
+@click.option("--out", "-o", help="Output gzip file")
+@click.option("--strand1", "-s1", help="strand1 field number (deprecated)", type=int)
+@click.option("--strand2", "-s2", help="strand2 field number (deprecated)", type=int)
 def csort(
     pairs_path,
     chromosomes_path,
@@ -264,7 +246,7 @@ def csort(
     comment_char,
     sort_options,
     out,
-    **kwargs
+    **kwargs,
 ):
     """
     Sort and index a contact list.
@@ -388,7 +370,6 @@ def csort(
             if p.returncode != 0:
                 sys.exit(1)
     else:
-
         sort_cmd = make_sort_command(index, fields, sort_options)
         write_cmd = ["bgzip", "-c"]
         index_cmd = make_index_command(index, fields, zero_based, outfile)
@@ -399,7 +380,6 @@ def csort(
         assert infile != outfile
 
         with open(outfile, "wb") as fout:
-
             pipeline = []
 
             logger.debug(" ".join(read_cmd))
