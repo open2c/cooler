@@ -228,6 +228,7 @@ def tabix(
             metadata = json.load(f)
 
     try:
+        map_func = map
         if nproc > 1:
             pool = Pool(nproc)
             logger.info(f"Using {nproc} cores")
@@ -312,6 +313,7 @@ def pairix(
             metadata = json.load(f)
 
     try:
+        map_func = map
         if nproc > 1:
             pool = Pool(nproc)
             logger.info(f"Using {nproc} cores")
