@@ -219,7 +219,7 @@ def tabix(bins, pairs_path, cool_path, metadata, assembly, nproc, zero_based, ma
         if nproc > 1:
             pool = Pool(nproc)
             logger.info(f"Using {nproc} cores")
-            map = pool.imap
+            map_func = pool.imap
 
         opts = {}
         if 'chrom2' in kwargs:
@@ -231,7 +231,7 @@ def tabix(bins, pairs_path, cool_path, metadata, assembly, nproc, zero_based, ma
             pairs_path,
             chromsizes,
             bins,
-            map=map,
+            map=map_func,
             is_one_based=(not zero_based),
             n_chunks=max_split,
             **opts
@@ -295,13 +295,13 @@ def pairix(bins, pairs_path, cool_path, metadata, assembly, nproc, zero_based, m
         if nproc > 1:
             pool = Pool(nproc)
             logger.info(f"Using {nproc} cores")
-            map = pool.imap
+            map_func = pool.imap
 
         iterator = PairixAggregator(
             pairs_path,
             chromsizes,
             bins,
-            map=map,
+            map=map_func,
             is_one_based=(not zero_based),
             n_chunks=max_split)
 
