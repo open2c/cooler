@@ -85,8 +85,8 @@ def invoke_balance(args, resolutions, outfile):
     "--balance-args",
     help="Additional arguments to pass to cooler balance. "
     "To deal with space ambiguity, use quotes to pass multiple arguments, "
-    "e.g. --balance-args '--nproc 8 --ignore-diags 3'. Note that nproc for "
-    "balancing must be specified independently of zoomify arguments.",
+    "e.g. ``--balance-args '--nproc 8 --ignore-diags 3'``. Note that nproc "
+    "for balancing must be specified independently of zoomify arguments.",
     type=str,
 )
 @click.option(
@@ -99,7 +99,7 @@ def invoke_balance(args, resolutions, outfile):
 @click.option(
     "--field",
     help="Specify the names of value columns to merge as '<name>'. "
-    "Repeat the `--field` option for each one. "
+    "Repeat the ``--field`` option for each one. "
     "Use '<name>:dtype=<dtype>' to specify the dtype. Include "
     "',agg=<agg>' to specify an aggregation function different from 'sum'.",
     type=str,

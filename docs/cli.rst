@@ -122,9 +122,12 @@ See the cooler_cli.ipynb Jupyter Notebook for specific examples on usage: (https
 cooler cload
 ------------
 
-Create a cooler from genomic pairs and bins.
 
-Choose a subcommand based on the format of the input contact list.
+    Create a cooler from genomic pairs and bins.
+
+    Choose a subcommand based on the format of the input contact list.
+
+
 
 .. program:: cooler cload
 .. code-block:: shell
@@ -143,25 +146,27 @@ Choose a subcommand based on the format of the input contact list.
 
 
 ----
-
 cooler cload pairs
 ------------------
 
-Bin any text file or stream of pairs.
 
-Pairs data need not be sorted. Accepts compressed files.
-To pipe input from stdin, set PAIRS_PATH to '-'.
+    Bin any text file or stream of pairs.
+
+    Pairs data need not be sorted. Accepts compressed files.
+    To pipe input from stdin, set PAIRS_PATH to '-'.
 
 
-BINS : One of the following
+    BINS : One of the following
 
-    <TEXT:INTEGER> : 1. Path to a chromsizes file, 2. Bin size in bp
+        <TEXT:INTEGER> : 1. Path to a chromsizes file, 2. Bin size in bp
 
-    <TEXT> : Path to BED file defining the genomic bin segmentation.
+        <TEXT> : Path to BED file defining the genomic bin segmentation.
 
-PAIRS_PATH : Path to contacts (i.e. read pairs) file.
+    PAIRS_PATH : Path to contacts (i.e. read pairs) file.
 
-COOL_PATH : Output COOL file path or URI.
+    COOL_PATH : Output COOL file path or URI.
+
+
 
 .. program:: cooler cload pairs
 .. code-block:: shell
@@ -254,26 +259,28 @@ COOL_PATH : Output COOL file path or URI.
 
 
 ----
-
 cooler cload pairix
 -------------------
 
-Bin a pairix-indexed contact list file.
+
+    Bin a pairix-indexed contact list file.
 
 
-BINS : One of the following
+    BINS : One of the following
 
-    <TEXT:INTEGER> : 1. Path to a chromsizes file, 2. Bin size in bp
+        <TEXT:INTEGER> : 1. Path to a chromsizes file, 2. Bin size in bp
 
-    <TEXT> : Path to BED file defining the genomic bin segmentation.
+        <TEXT> : Path to BED file defining the genomic bin segmentation.
 
-PAIRS_PATH : Path to contacts (i.e. read pairs) file.
+    PAIRS_PATH : Path to contacts (i.e. read pairs) file.
 
-COOL_PATH : Output COOL file path or URI.
+    COOL_PATH : Output COOL file path or URI.
 
-See also: 'cooler csort' to sort and index a contact list file
+    See also: 'cooler csort' to sort and index a contact list file
 
-Pairix on GitHub: <https://github.com/4dn-dcic/pairix>.
+    Pairix on GitHub: <https://github.com/4dn-dcic/pairix>.
+
+
 
 .. program:: cooler cload pairix
 .. code-block:: shell
@@ -318,26 +325,28 @@ Pairix on GitHub: <https://github.com/4dn-dcic/pairix>.
 
 
 ----
-
 cooler cload tabix
 ------------------
 
-Bin a tabix-indexed contact list file.
+
+    Bin a tabix-indexed contact list file.
 
 
-BINS : One of the following
+    BINS : One of the following
 
-    <TEXT:INTEGER> : 1. Path to a chromsizes file, 2. Bin size in bp
+        <TEXT:INTEGER> : 1. Path to a chromsizes file, 2. Bin size in bp
 
-    <TEXT> : Path to BED file defining the genomic bin segmentation.
+        <TEXT> : Path to BED file defining the genomic bin segmentation.
 
-PAIRS_PATH : Path to contacts (i.e. read pairs) file.
+    PAIRS_PATH : Path to contacts (i.e. read pairs) file.
 
-COOL_PATH : Output COOL file path or URI.
+    COOL_PATH : Output COOL file path or URI.
 
-See also: 'cooler csort' to sort and index a contact list file
+    See also: 'cooler csort' to sort and index a contact list file
 
-Tabix manpage: <http://www.htslib.org/doc/tabix.html>.
+    Tabix manpage: <http://www.htslib.org/doc/tabix.html>.
+
+
 
 .. program:: cooler cload tabix
 .. code-block:: shell
@@ -390,24 +399,26 @@ Tabix manpage: <http://www.htslib.org/doc/tabix.html>.
 
 
 ----
-
 cooler cload hiclib
 -------------------
 
-Bin a hiclib HDF5 contact list (frag) file.
+
+    Bin a hiclib HDF5 contact list (frag) file.
 
 
-BINS : One of the following
+    BINS : One of the following
 
-    <TEXT:INTEGER> : 1. Path to a chromsizes file, 2. Bin size in bp
+        <TEXT:INTEGER> : 1. Path to a chromsizes file, 2. Bin size in bp
 
-    <TEXT> : Path to BED file defining the genomic bin segmentation.
+        <TEXT> : Path to BED file defining the genomic bin segmentation.
 
-PAIRS_PATH : Path to contacts (i.e. read pairs) file.
+    PAIRS_PATH : Path to contacts (i.e. read pairs) file.
 
-COOL_PATH : Output COOL file path or URI.
+    COOL_PATH : Output COOL file path or URI.
 
-hiclib on BitBucket: <https://github.com/mirnylab/hiclib-legacy>.
+    hiclib on BitBucket: <https://github.com/mirnylab/hiclib-legacy>.
+
+
 
 .. program:: cooler cload hiclib
 .. code-block:: shell
@@ -444,37 +455,39 @@ hiclib on BitBucket: <https://github.com/mirnylab/hiclib-legacy>.
 
 
 ----
-
 cooler load
 -----------
 
-Create a cooler from a pre-binned matrix.
 
-BINS_PATH : One of the following
+    Create a cooler from a pre-binned matrix.
 
-    <TEXT:INTEGER> : 1. Path to a chromsizes file, 2. Bin size in bp
+    BINS_PATH : One of the following
 
-    <TEXT> : Path to BED file defining the genomic bin segmentation.
+        <TEXT:INTEGER> : 1. Path to a chromsizes file, 2. Bin size in bp
 
-PIXELS_PATH : Text file containing nonzero pixel values. May be gzipped.
-Pass '-' to use stdin.
+        <TEXT> : Path to BED file defining the genomic bin segmentation.
 
-COOL_PATH : Output COOL file path or URI.
+    PIXELS_PATH : Text file containing nonzero pixel values. May be gzipped.
+    Pass '-' to use stdin.
 
-**Notes**
+    COOL_PATH : Output COOL file path or URI.
 
-Two input format options (tab-delimited).
-Input pixel file may be compressed.
+    **Notes**
 
-COO: COO-rdinate sparse matrix format (a.k.a. ijv triple).
-3 columns: "bin1_id, bin2_id, count",
+    Two input format options (tab-delimited).
+    Input pixel file may be compressed.
 
-BG2: 2D version of the bedGraph format.
-7 columns: "chrom1, start1, end1, chrom2, start2, end2, count"
+    COO: COO-rdinate sparse matrix format (a.k.a. ijv triple).
+    3 columns: "bin1_id, bin2_id, count",
 
-**Examples**
+    BG2: 2D version of the bedGraph format.
+    7 columns: "chrom1, start1, end1, chrom2, start2, end2, count"
 
-cooler load -f bg2 <chrom.sizes>:<binsize> in.bg2.gz out.cool
+    **Examples**
+
+    cooler load -f bg2 <chrom.sizes>:<binsize> in.bg2.gz out.cool
+
+
 
 .. program:: cooler load
 .. code-block:: shell
@@ -555,28 +568,30 @@ cooler load -f bg2 <chrom.sizes>:<binsize> in.bg2.gz out.cool
 
 
 ----
-
 cooler merge
 ------------
 
-Merge multiple coolers with identical axes.
 
-OUT_PATH : Output file path or URI.
+    Merge multiple coolers with identical axes.
 
-IN_PATHS : Input file paths or URIs of coolers to merge.
+    OUT_PATH : Output file path or URI.
 
-**Notes**
+    IN_PATHS : Input file paths or URIs of coolers to merge.
 
-Data columns merged:
+    **Notes**
 
-    pixels/bin1_id, pixels/bin2_id, pixels/<value columns>
+    Data columns merged:
 
-Data columns preserved:
+        pixels/bin1_id, pixels/bin2_id, pixels/<value columns>
 
-    chroms/name, chroms/length
-    bins/chrom, bins/start, bins/end
+    Data columns preserved:
 
-Additional columns in the the input files are not transferred to the output.
+        chroms/name, chroms/length
+        bins/chrom, bins/start, bins/end
+
+    Additional columns in the the input files are not transferred to the output.
+
+
 
 .. program:: cooler merge
 .. code-block:: shell
@@ -609,16 +624,18 @@ Additional columns in the the input files are not transferred to the output.
 
 
 ----
-
 cooler coarsen
 --------------
 
-Coarsen a cooler to a lower resolution.
 
-Works by pooling *k*-by-*k* neighborhoods of pixels and aggregating.
-Each chromosomal block is coarsened individually.
+    Coarsen a cooler to a lower resolution.
 
-COOL_PATH : Path to a COOL file or Cooler URI.
+    Works by pooling *k*-by-*k* neighborhoods of pixels and aggregating.
+    Each chromosomal block is coarsened individually.
+
+    COOL_PATH : Path to a COOL file or Cooler URI.
+
+
 
 .. program:: cooler coarsen
 .. code-block:: shell
@@ -659,13 +676,15 @@ COOL_PATH : Path to a COOL file or Cooler URI.
 
 
 ----
-
 cooler zoomify
 --------------
 
-Generate a multi-resolution cooler file by coarsening.
 
-COOL_PATH : Path to a COOL file or Cooler URI.
+    Generate a multi-resolution cooler file by coarsening.
+
+    COOL_PATH : Path to a COOL file or Cooler URI.
+
+
 
 .. program:: cooler zoomify
 .. code-block:: shell
@@ -698,7 +717,7 @@ COOL_PATH : Path to a COOL file or Cooler URI.
 
 .. option:: --balance-args <balance_args>
 
-    Additional arguments to pass to cooler balance. To deal with space ambiguity, use quotes to pass multiple arguments, e.g. --balance-args '--nproc 8 --ignore-diags 3' Note that nproc for balancing must be specified independently of zoomify arguments.
+    Additional arguments to pass to cooler balance. To deal with space ambiguity, use quotes to pass multiple arguments, e.g. ``--balance-args '--nproc 8 --ignore-diags 3'``. Note that nproc for balancing must be specified independently of zoomify arguments.
 
 .. option:: -i, --base-uri <base_uri>
 
@@ -710,7 +729,7 @@ COOL_PATH : Path to a COOL file or Cooler URI.
 
 .. option:: --field <field>
 
-    Specify the names of value columns to merge as '<name>'. Repeat the `--field` option for each one. Use '<name>:dtype=<dtype>' to specify the dtype. Include ',agg=<agg>' to specify an aggregation function different from 'sum'.
+    Specify the names of value columns to merge as '<name>'. Repeat the ``--field`` option for each one. Use '<name>:dtype=<dtype>' to specify the dtype. Include ',agg=<agg>' to specify an aggregation function different from 'sum'.
 
 .. option:: --legacy
 
@@ -718,16 +737,18 @@ COOL_PATH : Path to a COOL file or Cooler URI.
 
 
 ----
-
 cooler balance
 --------------
 
-Out-of-core matrix balancing.
 
-Matrix must be symmetric. See the help for various filtering options to
-mask out poorly mapped bins.
+    Out-of-core matrix balancing.
 
-COOL_PATH : Path to a COOL file.
+    Matrix must be symmetric. See the help for various filtering options to
+    mask out poorly mapped bins.
+
+    COOL_PATH : Path to a COOL file.
+
+
 
 .. program:: cooler balance
 .. code-block:: shell
@@ -812,13 +833,15 @@ COOL_PATH : Path to a COOL file.
 
 
 ----
-
 cooler info
 -----------
 
-Display a cooler's info and metadata.
 
-COOL_PATH : Path to a COOL file or cooler URI.
+    Display a cooler's info and metadata.
+
+    COOL_PATH : Path to a COOL file or cooler URI.
+
+
 
 .. program:: cooler info
 .. code-block:: shell
@@ -847,13 +870,15 @@ COOL_PATH : Path to a COOL file or cooler URI.
 
 
 ----
-
 cooler dump
 -----------
 
-Dump a cooler's data to a text stream.
 
-COOL_PATH : Path to COOL file or cooler URI.
+    Dump a cooler's data to a text stream.
+
+    COOL_PATH : Path to COOL file or cooler URI.
+
+
 
 .. program:: cooler dump
 .. code-block:: shell
@@ -930,16 +955,18 @@ COOL_PATH : Path to COOL file or cooler URI.
 
 
 ----
-
 cooler show
 -----------
 
-Display and browse a cooler in matplotlib.
 
-COOL_PATH : Path to a COOL file or Cooler URI.
+    Display and browse a cooler in matplotlib.
 
-RANGE : The coordinates of the genomic region to display, in UCSC notation.
-Example: chr1:10,000,000-11,000,000
+    COOL_PATH : Path to a COOL file or Cooler URI.
+
+    RANGE : The coordinates of the genomic region to display, in UCSC notation.
+    Example: chr1:10,000,000-11,000,000
+
+
 
 .. program:: cooler show
 .. code-block:: shell
@@ -1000,11 +1027,13 @@ Example: chr1:10,000,000-11,000,000
 
 
 ----
-
 cooler tree
 -----------
 
-Display a file's data hierarchy.
+
+    Display a file's data hierarchy.
+
+
 
 .. program:: cooler tree
 .. code-block:: shell
@@ -1023,11 +1052,13 @@ Display a file's data hierarchy.
 
 
 ----
-
 cooler attrs
 ------------
 
-Display a file's attribute hierarchy.
+
+    Display a file's attribute hierarchy.
+
+
 
 .. program:: cooler attrs
 .. code-block:: shell
@@ -1046,11 +1077,13 @@ Display a file's attribute hierarchy.
 
 
 ----
-
 cooler ls
 ---------
 
-List all coolers inside a file.
+
+    List all coolers inside a file.
+
+
 
 .. program:: cooler ls
 .. code-block:: shell
@@ -1071,13 +1104,15 @@ List all coolers inside a file.
 
 
 ----
-
 cooler cp
 ---------
 
-Copy a cooler from one file to another or within the same file.
 
-See also: h5copy, h5repack tools from HDF5 suite.
+    Copy a cooler from one file to another or within the same file.
+
+    See also: h5copy, h5repack tools from HDF5 suite.
+
+
 
 .. program:: cooler cp
 .. code-block:: shell
@@ -1102,11 +1137,13 @@ See also: h5copy, h5repack tools from HDF5 suite.
 
 
 ----
-
 cooler mv
 ---------
 
-Rename a cooler within the same file.
+
+    Rename a cooler within the same file.
+
+
 
 .. program:: cooler mv
 .. code-block:: shell
@@ -1131,13 +1168,15 @@ Rename a cooler within the same file.
 
 
 ----
-
 cooler ln
 ---------
 
-Create a hard link to a cooler (rather than a true copy) in the same file.
-Also supports soft links (in the same file) or external links (different
-files).
+
+    Create a hard link to a cooler (rather than a true copy) in the same file.
+    Also supports soft links (in the same file) or external links (different
+    files).
+
+
 
 .. program:: cooler ln
 .. code-block:: shell
@@ -1166,18 +1205,20 @@ files).
 
 
 ----
-
 cooler makebins
 ---------------
 
-Generate fixed-width genomic bins.
 
-Output a genome segmentation at a fixed resolution as a BED file.
+    Generate fixed-width genomic bins.
 
-CHROMSIZES_PATH : UCSC-like chromsizes file, with chromosomes in desired
-order.
+    Output a genome segmentation at a fixed resolution as a BED file.
 
-BINSIZE : Resolution (bin size) in base pairs <int>.
+    CHROMSIZES_PATH : UCSC-like chromsizes file, with chromosomes in desired
+    order.
+
+    BINSIZE : Resolution (bin size) in base pairs <int>.
+
+
 
 .. program:: cooler makebins
 .. code-block:: shell
@@ -1210,21 +1251,23 @@ BINSIZE : Resolution (bin size) in base pairs <int>.
 
 
 ----
-
 cooler digest
 -------------
 
-Generate fragment-delimited genomic bins.
 
-Output a genome segmentation of restriction fragments as a BED file.
+    Generate fragment-delimited genomic bins.
 
-CHROMSIZES_PATH : UCSC-like chromsizes file, with chromosomes in desired
-order.
+    Output a genome segmentation of restriction fragments as a BED file.
 
-FASTA_PATH : Genome assembly FASTA file or folder containing FASTA files
-(uncompressed).
+    CHROMSIZES_PATH : UCSC-like chromsizes file, with chromosomes in desired
+    order.
 
-ENZYME : Name of restriction enzyme
+    FASTA_PATH : Genome assembly FASTA file or folder containing FASTA files
+    (uncompressed).
+
+    ENZYME : Name of restriction enzyme
+
+
 
 .. program:: cooler digest
 .. code-block:: shell
@@ -1261,49 +1304,55 @@ ENZYME : Name of restriction enzyme
 
 
 ----
-
 cooler csort
 ------------
 
-Sort and index a contact list.
 
-Order the mates of each pair record so that all contacts are upper
-triangular with respect to the chromosome ordering given by the chromosomes
-file, sort contacts by genomic location, and index the resulting file.
+    Sort and index a contact list.
 
-PAIRS_PATH : Contacts (i.e. read pairs) text file, optionally compressed.
+    Order the mates of each pair record so that all contacts are upper
+    triangular with respect to the chromosome ordering given by the chromosomes
+    file, sort contacts by genomic location, and index the resulting file.
 
-CHROMOSOMES_PATH : File listing desired chromosomes in the desired order.
-May be tab-delimited, e.g. a UCSC-style chromsizes file. Contacts mapping to
-other chromosomes will be discarded.
+    PAIRS_PATH : Contacts (i.e. read pairs) text file, optionally compressed.
 
-**Notes**
+    CHROMOSOMES_PATH : File listing desired chromosomes in the desired order.
+    May be tab-delimited, e.g. a UCSC-style chromsizes file. Contacts mapping to
+    other chromosomes will be discarded.
 
-| - csort can also be used to sort and index a text representation of
-|   a contact *matrix* in bedGraph-like format. In this case, substitute
-|   `pos1` and `pos2` with `start1` and `start2`, respectively.
-| - Requires Unix tools: sort, bgzip + tabix or pairix.
+    **Notes**
 
-If indexing with Tabix, the output file will have the following properties:
+    
+    - csort can also be used to sort and index a text representation of
+      a contact *matrix* in bedGraph-like format. In this case, substitute
+      `pos1` and `pos2` with `start1` and `start2`, respectively.
+    - Requires Unix tools: sort, bgzip + tabix or pairix.
 
-| - Upper triangular: the read pairs on each row are assigned to side 1 or 2
-|   in such a way that (chrom1, pos1) is always "less than" (chrom2, pos2)
-| - Rows are lexicographically sorted by chrom1, pos1, chrom2, pos2;
-|   i.e. "positionally sorted"
-| - Compressed with bgzip [*]
-| - Indexed using Tabix [*] on chrom1 and pos1.
+    If indexing with Tabix, the output file will have the following properties:
 
-If indexing with Pairix, the output file will have the following properties:
+    
+    - Upper triangular: the read pairs on each row are assigned to side 1 or 2
+      in such a way that (chrom1, pos1) is always "less than" (chrom2, pos2)
+    - Rows are lexicographically sorted by chrom1, pos1, chrom2, pos2;
+      i.e. "positionally sorted"
+    - Compressed with bgzip [*]
+    - Indexed using Tabix [*] on chrom1 and pos1.
 
-| - Upper triangular: the read pairs on each row are assigned to side 1 or 2
-|   in such a way that (chrom1, pos1) is always "less than" (chrom2, pos2)
-| - Rows are lexicographically sorted by chrom1, chrom2, pos1, pos2; i.e.
-|   "block sorted"
-| - Compressed with bgzip [*]
-| - Indexed using Pairix [+] on chrom1, chrom2 and pos1.
+    If indexing with Pairix, the output file will have the following properties:
 
-| [*] Tabix manpage: <http://www.htslib.org/doc/tabix.html>.
-| [+] Pairix on Github: <https://github.com/4dn-dcic/pairix>
+    
+    - Upper triangular: the read pairs on each row are assigned to side 1 or 2
+      in such a way that (chrom1, pos1) is always "less than" (chrom2, pos2)
+    - Rows are lexicographically sorted by chrom1, chrom2, pos1, pos2; i.e.
+      "block sorted"
+    - Compressed with bgzip [*]
+    - Indexed using Pairix [+] on chrom1, chrom2 and pos1.
+
+    
+    [*] Tabix manpage: <http://www.htslib.org/doc/tabix.html>.
+    [+] Pairix on Github: <https://github.com/4dn-dcic/pairix>
+
+
 
 .. program:: cooler csort
 .. code-block:: shell
