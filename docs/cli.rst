@@ -146,7 +146,6 @@ cooler cload
 
 
 ----
-
 cooler cload pairs
 ------------------
 
@@ -260,7 +259,6 @@ cooler cload pairs
 
 
 ----
-
 cooler cload pairix
 -------------------
 
@@ -327,7 +325,6 @@ cooler cload pairix
 
 
 ----
-
 cooler cload tabix
 ------------------
 
@@ -402,7 +399,6 @@ cooler cload tabix
 
 
 ----
-
 cooler cload hiclib
 -------------------
 
@@ -459,7 +455,6 @@ cooler cload hiclib
 
 
 ----
-
 cooler load
 -----------
 
@@ -573,7 +568,6 @@ cooler load
 
 
 ----
-
 cooler merge
 ------------
 
@@ -630,7 +624,6 @@ cooler merge
 
 
 ----
-
 cooler coarsen
 --------------
 
@@ -683,7 +676,6 @@ cooler coarsen
 
 
 ----
-
 cooler zoomify
 --------------
 
@@ -745,7 +737,6 @@ cooler zoomify
 
 
 ----
-
 cooler balance
 --------------
 
@@ -842,7 +833,6 @@ cooler balance
 
 
 ----
-
 cooler info
 -----------
 
@@ -880,7 +870,6 @@ cooler info
 
 
 ----
-
 cooler dump
 -----------
 
@@ -966,7 +955,6 @@ cooler dump
 
 
 ----
-
 cooler show
 -----------
 
@@ -1039,7 +1027,6 @@ cooler show
 
 
 ----
-
 cooler tree
 -----------
 
@@ -1065,7 +1052,6 @@ cooler tree
 
 
 ----
-
 cooler attrs
 ------------
 
@@ -1091,7 +1077,6 @@ cooler attrs
 
 
 ----
-
 cooler ls
 ---------
 
@@ -1119,7 +1104,6 @@ cooler ls
 
 
 ----
-
 cooler cp
 ---------
 
@@ -1153,7 +1137,6 @@ cooler cp
 
 
 ----
-
 cooler mv
 ---------
 
@@ -1185,7 +1168,6 @@ cooler mv
 
 
 ----
-
 cooler ln
 ---------
 
@@ -1223,7 +1205,6 @@ cooler ln
 
 
 ----
-
 cooler makebins
 ---------------
 
@@ -1270,7 +1251,6 @@ cooler makebins
 
 
 ----
-
 cooler digest
 -------------
 
@@ -1324,7 +1304,6 @@ cooler digest
 
 
 ----
-
 cooler csort
 ------------
 
