@@ -43,11 +43,11 @@ def test_bintable_many_contigs():
     bins = clr.bins()[:10]
     assert pd.api.types.is_categorical_dtype(bins["chrom"].dtype)
 
-    bins = clr.bins()[['chrom', 'start']][:10]
+    bins = clr.bins()[["chrom", "start"]][:10]
     assert pd.api.types.is_categorical_dtype(bins["chrom"].dtype)
 
-    chroms = clr.bins()['chrom'][:10]
-    clr.bins()['start'][:10]
+    chroms = clr.bins()["chrom"][:10]
+    clr.bins()["start"][:10]
     assert pd.api.types.is_categorical_dtype(chroms.dtype)
 
 
@@ -96,7 +96,7 @@ def test_annotate_with_partial_bins():
 
     out = api.annotate(pix, bins_chr2)
 
-    for col in ['chrom1', 'start1', 'end1', 'chrom2', 'start2', 'end2']:
+    for col in ["chrom1", "start1", "end1", "chrom2", "start2", "end2"]:
         assert out[col].notnull().all()
 
 
@@ -112,9 +112,7 @@ def test_matrix():
     clr.matrix(sparse=True, balance=False).fetch(*region)
     clr.matrix(sparse=True, balance=True).fetch(*region)
     clr.matrix(sparse=True, balance="weight").fetch(*region)
-    clr.matrix(
-        sparse=True, balance="weight", divisive_weights=True
-    ).fetch(*region)
+    clr.matrix(sparse=True, balance="weight", divisive_weights=True).fetch(*region)
     # dataframe
     clr.matrix(as_pixels=True, join=False, balance=False).fetch(*region)
     clr.matrix(as_pixels=True, join=False, balance=True).fetch(*region)
@@ -150,10 +148,7 @@ def test_cooler_class(mock_cooler):
 
     # chrom table
     table = clr.chroms()[:]
-    assert (
-        table["name"].tolist()
-        == mock_cooler["chroms"]["name"].astype('U').tolist()
-    )
+    assert table["name"].tolist() == mock_cooler["chroms"]["name"].astype("U").tolist()
     assert np.all(table["length"] == mock_cooler["chroms"]["length"])
 
     # bin table
@@ -180,29 +175,29 @@ def test_cooler_class(mock_cooler):
 
 def test_cooler_class2():
     path = op.join(datadir, "toy.symm.upper.2.cool")
-    with h5py.File(path, 'r') as f:
+    with h5py.File(path, "r") as f:
         clr = api.Cooler(f)
         repr(clr)
-        assert clr.root == '/'
+        assert clr.root == "/"
         assert clr.filename == path
         assert isinstance(clr.store, h5py.File)
-        with clr.open('r') as f:
+        with clr.open("r") as f:
             pass
 
     with pytest.raises(KeyError):
-        api.Cooler(path + '::/does/not/exist')
+        api.Cooler(path + "::/does/not/exist")
 
     clr = api.Cooler(path)
-    clr._load_dset('indexes/chrom_offset')
-    clr._load_dset('indexes/bin1_offset')
-    clr._load_attrs('bins/chrom')
+    clr._load_dset("indexes/chrom_offset")
+    clr._load_dset("indexes/bin1_offset")
+    clr._load_attrs("bins/chrom")
 
-    with clr.open('r') as f:
+    with clr.open("r") as f:
         pass
 
-    assert clr.storage_mode == 'symmetric-upper'
+    assert clr.storage_mode == "symmetric-upper"
     assert clr.binsize == 2
     assert len(clr.chromsizes) == 2
-    assert clr.info['nchroms'] == 2
-    assert clr.chromnames == ['chr1', 'chr2']
-    assert repr(clr) == '<Cooler "{}::{}">'.format('toy.symm.upper.2.cool', '/')
+    assert clr.info["nchroms"] == 2
+    assert clr.chromnames == ["chr1", "chr2"]
+    assert repr(clr) == '<Cooler "{}::{}">'.format("toy.symm.upper.2.cool", "/")

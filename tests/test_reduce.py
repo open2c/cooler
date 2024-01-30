@@ -19,10 +19,7 @@ datadir = op.join(testdir, "data")
             op.join(datadir, "hg19.GM12878-MboI.matrix.2000kb.cool"),
             op.join(datadir, "hg19.GM12878-MboI.matrix.2000kb.cool"),
         ),
-        (
-            op.join(datadir, "toy.asymm.2.cool"),
-            op.join(datadir, "toy.asymm.2.cool")
-        )
+        (op.join(datadir, "toy.asymm.2.cool"), op.join(datadir, "toy.asymm.2.cool")),
     ],
 )
 def test_merge(path1, path2):
@@ -39,14 +36,10 @@ def test_merge2():
     with isolated_filesystem():
         path1 = op.join(datadir, "toy.symm.upper.2.cool")
         path2 = op.join(datadir, "toy.symm.upper.2.cool")
-        merge_coolers(
-            "test.cool", [path1, path2], mergebuf=3, agg={'count': 'mean'}
-        )
+        merge_coolers("test.cool", [path1, path2], mergebuf=3, agg={"count": "mean"})
         single = cooler.Cooler(path1)
         merged = cooler.Cooler("test.cool")
-        assert (
-            merged.pixels()["count"][:].sum() == single.pixels()["count"][:].sum()
-        )
+        assert merged.pixels()["count"][:].sum() == single.pixels()["count"][:].sum()
 
         # different resolution
         path1 = op.join(datadir, "toy.symm.upper.2.cool")
@@ -75,9 +68,7 @@ def test_merge2():
         path1 = op.join(datadir, "toy.symm.upper.2.cool")
         path2 = op.join(datadir, "toy.symm.upper.2.cool")
         with pytest.raises(ValueError):
-            merge_coolers(
-                "test.cool", [path1, path2], mergebuf=3, columns=["missing"]
-            )
+            merge_coolers("test.cool", [path1, path2], mergebuf=3, columns=["missing"])
 
 
 @pytest.mark.parametrize(
@@ -88,11 +79,7 @@ def test_merge2():
             2,
             op.join(datadir, "toy.symm.upper.4.cool"),
         ),
-        (
-            op.join(datadir, "toy.asymm.2.cool"),
-            2,
-            op.join(datadir, "toy.asymm.4.cool")
-        ),
+        (op.join(datadir, "toy.asymm.2.cool"), 2, op.join(datadir, "toy.asymm.4.cool")),
         (
             op.join(datadir, "toy.symm.upper.var.cool"),
             2,
@@ -101,38 +88,29 @@ def test_merge2():
     ],
 )
 def test_coarsen(input_uri, factor, ref_uri):
-
     with isolated_filesystem():
-        kwargs = dict(
-            chunksize=10, nproc=1, columns=None, dtypes=None, agg=None
-        )
+        kwargs = dict(chunksize=10, nproc=1, columns=None, dtypes=None, agg=None)
         coarsen_cooler(input_uri, "test.cool", factor, **kwargs)
         cooler_cmp("test.cool", ref_uri)
 
         # custom dtype
-        kwargs = dict(
-            chunksize=10, nproc=1, columns=None, dtypes={'count': np.float64}
-        )
+        kwargs = dict(chunksize=10, nproc=1, columns=None, dtypes={"count": np.float64})
         coarsen_cooler(input_uri, "test.cool", factor, **kwargs)
-        with h5py.File('test.cool', 'r') as f:
-            assert f['pixels/count'].dtype.kind == 'f'
+        with h5py.File("test.cool", "r") as f:
+            assert f["pixels/count"].dtype.kind == "f"
 
         # custom aggregator
         kwargs = dict(
-            chunksize=10, nproc=1, columns=None, dtypes=None, agg={'count': 'mean'}
+            chunksize=10, nproc=1, columns=None, dtypes=None, agg={"count": "mean"}
         )
         coarsen_cooler(input_uri, "test.cool", factor, **kwargs)
 
         # parallel
-        kwargs = dict(
-            chunksize=10, nproc=2, columns=None, dtypes=None, agg=None
-        )
+        kwargs = dict(chunksize=10, nproc=2, columns=None, dtypes=None, agg=None)
         coarsen_cooler(input_uri, "test.cool", factor, **kwargs)
 
         # raise on missing value column
-        kwargs = dict(
-            chunksize=10, nproc=2, columns=['missing'], dtypes=None, agg=None
-        )
+        kwargs = dict(chunksize=10, nproc=2, columns=["missing"], dtypes=None, agg=None)
         with pytest.raises(ValueError):
             coarsen_cooler(input_uri, "test.cool", factor, **kwargs)
 
@@ -157,7 +135,7 @@ def test_zoomify():
             op.join(datadir, "toy.asymm.2.cool"),
             "test.2.mcool",
             resolutions=[4, 8, 16, 32],
-            **kwargs
+            **kwargs,
         )
         for res in [2, 4, 8, 16, 32]:
             cooler_cmp(
@@ -170,7 +148,7 @@ def test_zoomify():
             op.join(datadir, "toy.asymm.2.cool"),
             "test.2.mcool",
             resolutions=[2, 4, 8, 16, 32],
-            **kwargs
+            **kwargs,
         )
         for res in [2, 4, 8, 16, 32]:
             cooler_cmp(
@@ -184,7 +162,7 @@ def test_zoomify():
                 op.join(datadir, "toy.asymm.2.cool"),
                 "test.2.mcool",
                 resolutions=[4, 5, 32],
-                **kwargs
+                **kwargs,
             )
 
 
@@ -209,7 +187,7 @@ def test_append_mode():
                 out_path,
                 [path1, path2],
                 mergebuf=int(15e6),
-                mode="a" if append else "w"
+                mode="a" if append else "w",
             )
             with h5py.File(out_path, "r") as f:
                 if append:
@@ -233,7 +211,7 @@ def test_append_mode():
                 columns=None,
                 dtypes=None,
                 agg=None,
-                mode="a" if append else "w"
+                mode="a" if append else "w",
             )
             with h5py.File(out_path, "r") as f:
                 if append:
