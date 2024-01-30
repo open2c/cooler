@@ -78,7 +78,7 @@ complete = [
     "matplotlib",
     "pypairix; platform_system != 'Windows'",
     "psutil",
-    "pysam",
+    "pysam; platform_system != 'Windows'",
 ]
 dev = [
     "cooler[complete,test]",
