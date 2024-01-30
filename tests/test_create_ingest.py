@@ -177,23 +177,30 @@ def test_from_hdf5_pairs():
 
 @pytest.mark.filterwarnings("ignore")
 @pytest.mark.parametrize(
-    "bins_path,pairs_path,ref_path",
+    "bins_path,pairs_path,ref_path,nproc",
     [
         (
             op.join(testdir, "data", "hg19.bins.2000kb.bed.gz"),
             op.join(testdir, "data", "hg19.GM12878-MboI.pairs.subsample.sorted.txt.gz"),
             op.join(testdir, "data", "hg19.GM12878-MboI.matrix.2000kb.cool"),
+            8
+        ),
+        (
+            op.join(testdir, "data", "hg19.bins.2000kb.bed.gz"),
+            op.join(testdir, "data", "hg19.GM12878-MboI.pairs.subsample.sorted.txt.gz"),
+            op.join(testdir, "data", "hg19.GM12878-MboI.matrix.2000kb.cool"),
+            1
         )
     ],
 )
-def test_cload_tabix(bins_path, pairs_path, ref_path):
+def test_cload_tabix(bins_path, pairs_path, ref_path, nproc):
     cload_tabix.callback(
         bins_path,
         pairs_path,
         testcool_path,
         metadata=None,
         assembly="hg19",
-        nproc=8,
+        nproc=nproc,
         zero_based=False,
         max_split=2,
     )
@@ -208,23 +215,30 @@ def test_cload_tabix(bins_path, pairs_path, ref_path):
 
 
 @pytest.mark.parametrize(
-    "bins_path,pairs_path,ref_path",
+    "bins_path,pairs_path,ref_path,nproc",
     [
         (
             op.join(testdir, "data", "hg19.bins.2000kb.bed.gz"),
             op.join(testdir, "data", "hg19.GM12878-MboI.pairs.subsample.blksrt.txt.gz"),
             op.join(testdir, "data", "hg19.GM12878-MboI.matrix.2000kb.cool"),
+            8,
+        ),
+        (
+            op.join(testdir, "data", "hg19.bins.2000kb.bed.gz"),
+            op.join(testdir, "data", "hg19.GM12878-MboI.pairs.subsample.blksrt.txt.gz"),
+            op.join(testdir, "data", "hg19.GM12878-MboI.matrix.2000kb.cool"),
+            1,
         )
     ],
 )
-def test_cload_pairix(bins_path, pairs_path, ref_path):
+def test_cload_pairix(bins_path, pairs_path, ref_path, nproc):
     cload_pairix.callback(
         bins_path,
         pairs_path,
         testcool_path,
         metadata=None,
         assembly="hg19",
-        nproc=8,
+        nproc=nproc,
         zero_based=False,
         max_split=2,
     )
