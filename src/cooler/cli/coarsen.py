@@ -10,12 +10,10 @@ from ._util import parse_field_param
 
 
 @cli.command()
-@click.argument(
-    "cool_uri",
-    metavar="COOL_PATH"
-)
+@click.argument("cool_uri", metavar="COOL_PATH")
 @click.option(
-    "--factor", "-k",
+    "--factor",
+    "-k",
     help="Gridding factor. The contact matrix is coarsegrained by grouping "
     "each chromosomal contact block into k-by-k element tiles",
     type=int,
@@ -23,14 +21,17 @@ from ._util import parse_field_param
     show_default=True,
 )
 @click.option(
-    "--nproc", "-n", "-p",
+    "--nproc",
+    "-n",
+    "-p",
     help="Number of processes to use for batch processing chunks of pixels "
     "[default: 1, i.e. no process pool]",
     default=1,
     type=int,
 )
 @click.option(
-    "--chunksize", "-c",
+    "--chunksize",
+    "-c",
     help="Number of pixels allocated to each process",
     type=int,
     default=int(10e6),
@@ -45,17 +46,14 @@ from ._util import parse_field_param
     type=str,
     multiple=True,
 )
+@click.option("--out", "-o", required=True, help="Output file or URI")
 @click.option(
-    "--out", "-o",
-    required=True,
-    help="Output file or URI"
-)
-@click.option(
-    "--append", "-a",
+    "--append",
+    "-a",
     is_flag=True,
     default=False,
     help="Pass this flag to append the output cooler to an existing file "
-         "instead of overwriting the file."
+    "instead of overwriting the file.",
 )
 def coarsen(cool_uri, factor, nproc, chunksize, field, out, append):
     """
@@ -93,5 +91,5 @@ def coarsen(cool_uri, factor, nproc, chunksize, field, out, append):
         dtypes=dtypes,
         agg=agg,
         lock=lock if same_file else None,
-        mode="a" if append else "w"
+        mode="a" if append else "w",
     )

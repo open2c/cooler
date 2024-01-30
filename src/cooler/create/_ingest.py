@@ -125,9 +125,7 @@ def _sanitize_records(
             raise BadInputError(
                 "Found an anchor position with negative value. Make sure your "
                 "coordinates are 1-based or use the --zero-based option "
-                "when loading. \n{}".format(
-                    err.head().to_csv(sep="\t")
-                )
+                "when loading. \n{}".format(err.head().to_csv(sep="\t"))
             )
 
         chromsizes1 = gs.chromsizes[chrom1_ids].values
@@ -150,10 +148,7 @@ def _sanitize_records(
         )
         if np.any(is_tril):
             if tril_action == "reflect":
-                (
-                    chrom1_ids[is_tril],
-                    chrom2_ids[is_tril]
-                ) = (
+                (chrom1_ids[is_tril], chrom2_ids[is_tril]) = (
                     chrom2_ids[is_tril],
                     chrom1_ids[is_tril],
                 )
@@ -161,7 +156,7 @@ def _sanitize_records(
                 for field in sided_fields:
                     (
                         chunk.loc[is_tril, field + suffixes[0]],
-                        chunk.loc[is_tril, field + suffixes[1]]
+                        chunk.loc[is_tril, field + suffixes[1]],
                     ) = (
                         chunk.loc[is_tril, field + suffixes[1]],
                         chunk.loc[is_tril, field + suffixes[0]],
@@ -315,17 +310,14 @@ def _sanitize_pixels(
         is_tril = chunk[bin1_field] > chunk[bin2_field]
         if np.any(is_tril):
             if tril_action == "reflect":
-                (
-                    chunk.loc[is_tril, bin1_field],
-                    chunk.loc[is_tril, bin2_field]
-                ) = (
+                (chunk.loc[is_tril, bin1_field], chunk.loc[is_tril, bin2_field]) = (
                     chunk.loc[is_tril, bin2_field],
                     chunk.loc[is_tril, bin1_field],
                 )
                 for field in sided_fields:
                     (
                         chunk.loc[is_tril, field + suffixes[0]],
-                        chunk.loc[is_tril, field + suffixes[1]]
+                        chunk.loc[is_tril, field + suffixes[1]],
                     ) = (
                         chunk.loc[is_tril, field + suffixes[1]],
                         chunk.loc[is_tril, field + suffixes[0]],
@@ -496,7 +488,7 @@ class ContactBinner:
         return d
 
     def __iter__(self):
-        """ Iterator over chunks of binned contacts (i.e., nonzero pixels)
+        """Iterator over chunks of binned contacts (i.e., nonzero pixels)
 
         Chunks are expected to have the following format:
 
@@ -628,7 +620,7 @@ class TabixAggregator(ContactBinner):
         map=map,
         n_chunks=1,
         is_one_based=False,
-        **kwargs
+        **kwargs,
     ):
         try:
             import pysam
@@ -767,7 +759,7 @@ class PairixAggregator(ContactBinner):
         map=map,
         n_chunks=1,
         is_one_based=False,
-        **kwargs
+        **kwargs,
     ):
         try:
             import pypairix
@@ -860,9 +852,7 @@ class PairixAggregator(ContactBinner):
         accumulator = Counter()
         rows = []
         for bin1_id, bin1 in these_bins.iterrows():
-
             for chrom2, cid2 in remaining_chroms.items():
-
                 chrom2_size = chromsizes[chrom2]
 
                 if chrom1 != chrom2 and f.exists2(chrom2, chrom1):  # flipped
@@ -877,7 +867,6 @@ class PairixAggregator(ContactBinner):
                     pos2_col = P2
 
                 for line in iterator:
-
                     pos2 = int(line[pos2_col]) - decr
 
                     if binsize is None:
@@ -925,9 +914,7 @@ class PairixAggregator(ContactBinner):
 
 
 class SparseBlockLoader(ContactBinner):  # pragma: no cover
-    """
-
-    """
+    """ """
 
     def __init__(self, chromsizes, bins, mapping, chunksize):
         bins = check_bins(bins, chromsizes)
@@ -1028,9 +1015,7 @@ class ArrayLoader(ContactBinner):
 
 
 class ArrayBlockLoader(ContactBinner):  # pragma: no cover
-    """
-
-    """
+    """ """
 
     def __init__(self, chromsizes, bins, mapping, chunksize):
         bins = check_bins(bins, chromsizes)

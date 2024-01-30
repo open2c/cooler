@@ -175,10 +175,7 @@ def interactive(
     "See the full list at http://matplotlib.org/examples/color/colormaps_reference.html",
 )
 @click.option(
-    "--field",
-    default="count",
-    show_default=True,
-    help="Pixel values to display."
+    "--field", default="count", show_default=True, help="Pixel values to display."
 )
 def show(
     cool_uri, range, range2, balanced, out, dpi, scale, force, zmin, zmax, cmap, field

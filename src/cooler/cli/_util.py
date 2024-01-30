@@ -73,9 +73,7 @@ def parse_field_param(arg, includes_colnum=True, includes_agg=True):
                     f"Not a number: '{parts[1]}'", param_hint=arg
                 ) from e
             if colnum < 0:
-                raise click.BadParameter(
-                    "Field numbers start at 1.", param_hint=arg
-                )
+                raise click.BadParameter("Field numbers start at 1.", param_hint=arg)
         else:
             raise click.BadParameter(arg)
     else:
@@ -95,9 +93,7 @@ def parse_field_param(arg, includes_colnum=True, includes_agg=True):
             elif prop == "agg" and includes_agg:
                 agg = value
             else:
-                raise click.BadParameter(
-                    f"Invalid property: '{prop}'.", param_hint=arg
-                )
+                raise click.BadParameter(f"Invalid property: '{prop}'.", param_hint=arg)
     return name, colnum, dtype, agg
 
 
@@ -127,9 +123,7 @@ def parse_bins(arg):
                 dtype={"chrom": str},
             )
         except pd.parser.CParserError as e:
-            raise ValueError(
-                f'Failed to parse bins file "{arg}": {e!s}'
-            ) from e
+            raise ValueError(f'Failed to parse bins file "{arg}": {e!s}') from e
 
         chromtable = (
             bins.drop_duplicates(["chrom"], keep="last")[["chrom", "end"]]

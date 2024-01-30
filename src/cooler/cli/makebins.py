@@ -8,29 +8,20 @@ from ._util import exit_on_broken_pipe
 
 
 @cli.command()
-@click.argument(
-    "chromsizes",
-    type=str,
-    metavar="CHROMSIZES_PATH"
-)
-@click.argument(
-    "binsize",
-    type=int,
-    metavar="BINSIZE"
-)
+@click.argument("chromsizes", type=str, metavar="CHROMSIZES_PATH")
+@click.argument("binsize", type=int, metavar="BINSIZE")
+@click.option("--out", "-o", help="Output file (defaults to stdout)")
 @click.option(
-    "--out", "-o",
-    help="Output file (defaults to stdout)"
-)
-@click.option(
-    "--header", "-H",
+    "--header",
+    "-H",
     help="Print the header of column names as the first row.",
     is_flag=True,
     default=False,
     show_default=True,
 )
 @click.option(
-    "--rel-ids", "-i",
+    "--rel-ids",
+    "-i",
     type=click.Choice(["0", "1"]),
     help="Include a column of relative bin IDs for each chromosome. "
     "Choose whether to report them as 0- or 1-based.",

@@ -579,10 +579,12 @@ def annotate(pixels, bins, replace=False):
 
     # End-inclusive slicer for bins
     if isinstance(bins, RangeSelector1D):
+
         def _loc_slice(sel, beg, end):
             # slicing a range selector is end-exclusive like iloc
             return sel[beg : end + 1 if end is not None else None]
     else:
+
         def _loc_slice(df, beg, end):
             # loc slicing a dataframe is end-inclusive
             return df.loc[beg:end]
@@ -603,8 +605,7 @@ def annotate(pixels, bins, replace=False):
             bmin, bmax = 0, None
         ann1 = _loc_slice(bins, bmin, bmax)
         anns.append(
-            ann1
-            .iloc[bin1 - bmin]
+            ann1.iloc[bin1 - bmin]
             .rename(columns=lambda x: x + "1")
             .reset_index(drop=True)
         )
@@ -620,8 +621,7 @@ def annotate(pixels, bins, replace=False):
             bmin, bmax = 0, None
         ann2 = _loc_slice(bins, bmin, bmax)
         anns.append(
-            ann2
-            .iloc[bin2 - bmin]
+            ann2.iloc[bin2 - bmin]
             .rename(columns=lambda x: x + "2")
             .reset_index(drop=True)
         )

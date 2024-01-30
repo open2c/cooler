@@ -79,9 +79,7 @@ def configure(
     """
     if handlers is None:
         if stream is not None and filename is not None:
-            raise ValueError(
-                "'stream' and 'filename' should not be specified together"
-            )
+            raise ValueError("'stream' and 'filename' should not be specified together")
     else:
         if stream is not None or filename is not None:
             raise ValueError(

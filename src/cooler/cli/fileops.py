@@ -5,15 +5,8 @@ from . import cli
 
 
 @cli.command()
-@click.argument(
-    "cool_path",
-    metavar="COOL_PATH"
-)
-@click.option(
-    "--long", "-l",
-    help="Long listing format",
-    is_flag=True
-)
+@click.argument("cool_path", metavar="COOL_PATH")
+@click.option("--long", "-l", help="Long listing format", is_flag=True)
 def ls(cool_path, long):
     """
     List all coolers inside a file.
@@ -35,16 +28,11 @@ def ls(cool_path, long):
 
 
 @cli.command()
-@click.argument(
-    "src_uri",
-    type=str
-)
-@click.argument(
-    "dst_uri",
-    type=str
-)
+@click.argument("src_uri", type=str)
+@click.argument("dst_uri", type=str)
 @click.option(
-    "--overwrite", "-w",
+    "--overwrite",
+    "-w",
     help="Truncate and replace destination file if it already exists.",
     is_flag=True,
     default=False,
@@ -69,22 +57,18 @@ def cp(src_uri, dst_uri, overwrite):
 
 
 @cli.command()
-@click.argument(
-    "src_uri",
-    type=str
-)
-@click.argument(
-    "dst_uri",
-    type=str
-)
+@click.argument("src_uri", type=str)
+@click.argument("dst_uri", type=str)
 @click.option(
-    "--overwrite", "-w",
+    "--overwrite",
+    "-w",
     help="Truncate and replace destination file if it already exists.",
     is_flag=True,
     default=False,
 )
 @click.option(
-    "--soft", "-s",
+    "--soft",
+    "-s",
     help="Creates a soft link rather than a hard link if the source and "
     "destination file are the same. Otherwise, creates an external link. "
     "This type of link uses a path rather than a pointer.",
@@ -102,16 +86,11 @@ def ln(src_uri, dst_uri, overwrite, soft):
 
 
 @cli.command()
-@click.argument(
-    "src_uri",
-    type=str
-)
-@click.argument(
-    "dst_uri",
-    type=str
-)
+@click.argument("src_uri", type=str)
+@click.argument("dst_uri", type=str)
 @click.option(
-    "--overwrite", "-w",
+    "--overwrite",
+    "-w",
     help="Truncate and replace destination file if it already exists.",
     is_flag=True,
     default=False,
@@ -125,14 +104,8 @@ def mv(src_uri, dst_uri, overwrite):
 
 
 @cli.command()
-@click.argument(
-    "uri",
-    type=str
-)
-@click.option(
-    "-L", "--level",
-    type=int
-)
+@click.argument("uri", type=str)
+@click.option("-L", "--level", type=int)
 def tree(uri, level):
     """
     Display a file's data hierarchy.
@@ -143,14 +116,8 @@ def tree(uri, level):
 
 
 @cli.command()
-@click.argument(
-    "uri",
-    type=str
-)
-@click.option(
-    "-L", "--level",
-    type=int
-)
+@click.argument("uri", type=str)
+@click.option("-L", "--level", type=int)
 def attrs(uri, level):
     """
     Display a file's attribute hierarchy.

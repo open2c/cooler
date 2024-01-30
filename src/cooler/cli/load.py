@@ -17,21 +17,14 @@ from ._util import parse_bins, parse_field_param, parse_kv_list_param
 
 
 @cli.command()
+@click.argument("bins_path", metavar="BINS_PATH")
 @click.argument(
-    "bins_path",
-    metavar="BINS_PATH"
+    "pixels_path", type=click.Path(exists=True, allow_dash=True), metavar="PIXELS_PATH"
 )
-@click.argument(
-    "pixels_path",
-    type=click.Path(exists=True, allow_dash=True),
-    metavar="PIXELS_PATH"
-)
-@click.argument(
-    "cool_path",
-    metavar="COOL_PATH"
-)
+@click.argument("cool_path", metavar="COOL_PATH")
 @click.option(
-    "--format", "-f",
+    "--format",
+    "-f",
     help="'coo' refers to a tab-delimited sparse triplet file "
     "(bin1, bin2, count). "
     "'bg2' refers to a 2D bedGraph-like file "
@@ -39,14 +32,8 @@ from ._util import parse_bins, parse_field_param, parse_kv_list_param
     type=click.Choice(["coo", "bg2"]),
     required=True,
 )
-@click.option(
-    "--metadata",
-    help="Path to JSON file containing user metadata."
-)
-@click.option(
-    "--assembly",
-    help="Name of genome assembly (e.g. hg19, mm10)"
-)
+@click.option("--metadata", help="Path to JSON file containing user metadata.")
+@click.option("--assembly", help="Name of genome assembly (e.g. hg19, mm10)")
 @click.option(
     "--field",
     help="Add supplemental value fields or override default field numbers for "
@@ -60,7 +47,8 @@ from ._util import parse_bins, parse_field_param, parse_kv_list_param
     multiple=True,
 )
 @click.option(
-    "--chunksize", "-c",
+    "--chunksize",
+    "-c",
     help="Size (in number of lines/records) of data chunks to read and process "
     "from the input file at a time. These chunks will be saved as "
     "temporary partial Coolers and merged at the end. Also specifies the "
@@ -90,7 +78,8 @@ from ._util import parse_bins, parse_field_param, parse_kv_list_param
     help="Comment character that indicates lines to ignore.",
 )
 @click.option(
-    "--no-symmetric-upper", "-N",
+    "--no-symmetric-upper",
+    "-N",
     help="Create a complete square matrix without implicit symmetry. "
     "This allows for distinct upper- and lower-triangle values",
     is_flag=True,
@@ -114,13 +103,13 @@ from ._util import parse_bins, parse_field_param, parse_kv_list_param
     "--temp-dir",
     help="Create temporary files in a specified directory. Pass ``-`` to use "
     "the platform default temp dir.",
-    type=click.Path(exists=True, file_okay=False, dir_okay=True, allow_dash=True)
+    type=click.Path(exists=True, file_okay=False, dir_okay=True, allow_dash=True),
 )
 @click.option(
     "--no-delete-temp",
     help="Do not delete temporary files when finished.",
     is_flag=True,
-    default=False
+    default=False,
 )
 @click.option(
     "--storage-options",
@@ -130,11 +119,12 @@ from ._util import parse_bins, parse_field_param, parse_kv_list_param
     "for more details.",
 )
 @click.option(
-    "--append", "-a",
+    "--append",
+    "-a",
     is_flag=True,
     default=False,
     help="Pass this flag to append the output cooler to an existing file "
-         "instead of overwriting the file."
+    "instead of overwriting the file.",
 )
 def load(
     bins_path,
@@ -154,7 +144,7 @@ def load(
     no_delete_temp,
     storage_options,
     append,
-    **kwargs
+    **kwargs,
 ):
     """
     Create a cooler from a pre-binned matrix.

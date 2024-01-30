@@ -200,7 +200,7 @@ def read_chromsizes(
     filepath_or,
     name_patterns=(r"^chr[0-9]+$", r"^chr[XY]$", r"^chrM$"),
     all_names=False,
-    **kwargs
+    **kwargs,
 ):
     """
     Parse a ``<db>.chrom.sizes`` or ``<db>.chromInfo.txt`` file from the UCSC
@@ -236,7 +236,7 @@ def read_chromsizes(
         usecols=[0, 1],
         names=["name", "length"],
         dtype={"name": str},
-        **kwargs
+        **kwargs,
     )
     if not all_names:
         parts = []
@@ -257,7 +257,7 @@ def fetch_chromsizes(db, **kwargs):
     """
     return read_chromsizes(
         f"http://hgdownload.cse.ucsc.edu/goldenPath/{db}/database/chromInfo.txt.gz",
-        **kwargs
+        **kwargs,
     )
 
 
@@ -631,9 +631,7 @@ def infer_meta(x, index=None):  # pragma: no cover
             dtype = x.dtype if hasattr(x, "dtype") else np.dtype(type(x))
             return _scalar_from_dtype(dtype)
         else:
-            raise TypeError(
-                "Can't handle meta of type " f"'{type(x).__name__}'"
-            )
+            raise TypeError("Can't handle meta of type " f"'{type(x).__name__}'")
 
     def _empty_series(name, dtype, index=None):
         if isinstance(dtype, str) and dtype == "category":
