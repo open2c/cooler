@@ -82,6 +82,7 @@ complete = [
 ]
 dev = [
     "cooler[complete,test]",
+    "pre-commit"
 ]
 
 [project.urls]
