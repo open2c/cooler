@@ -40,12 +40,8 @@ def test_coarsen():
         f_in = op.join(datadir, "toy.symm.upper.2.cool")
         f_ref = op.join(datadir, "toy.symm.upper.4.cool")
         result = runner.invoke(
-            coarsen, [
-                f_in,
-                "--factor", "2",
-                "--nproc", "2",
-                "-o", "toy.2.coarsen_2.cool"
-            ],
+            coarsen,
+            [f_in, "--factor", "2", "--nproc", "2", "-o", "toy.2.coarsen_2.cool"],
         )
         assert result.exit_code == 0
         pix1 = cooler.Cooler(f_ref).pixels()["count"][:]
@@ -53,16 +49,20 @@ def test_coarsen():
         assert np.allclose(pix1, pix2)
 
         result = runner.invoke(
-            coarsen, [
+            coarsen,
+            [
                 f_in,
-                "--factor", "2",
-                "--field", "count:dtype=float,agg=mean",
-                "-o", "toy.2.coarsen_2_mean.cool"
+                "--factor",
+                "2",
+                "--field",
+                "count:dtype=float,agg=mean",
+                "-o",
+                "toy.2.coarsen_2_mean.cool",
             ],
         )
         assert result.exit_code == 0
         pix2 = cooler.Cooler("toy.2.coarsen_2_mean.cool").pixels()["count"][:]
-        assert pix2.dtype.kind == 'f'
+        assert pix2.dtype.kind == "f"
 
 
 def test_zoomify():
@@ -77,35 +77,29 @@ def test_zoomify():
 
         f_in = op.join(datadir, "toy.symm.upper.2.cool")
         result = runner.invoke(
-            zoomify, [
-                f_in,
-                "--balance",
-                "--nproc", "2",
-                "-o", "toy.2.mcool"
-            ]
+            zoomify, [f_in, "--balance", "--nproc", "2", "-o", "toy.2.mcool"]
         )
         assert result.exit_code == 0
 
         f_in = op.join(datadir, "toy.symm.upper.2.cool")
         result = runner.invoke(
-            zoomify, [
-                f_in,
-                "--balance",
-                "--resolutions", "2,4,8",
-                "-o", "toy.2.mcool"
-            ]
+            zoomify, [f_in, "--balance", "--resolutions", "2,4,8", "-o", "toy.2.mcool"]
         )
         assert result.exit_code == 0
 
         f_in = op.join(datadir, "toy.symm.upper.2.cool")
         result = runner.invoke(
-            zoomify, [
+            zoomify,
+            [
                 f_in,
                 "--balance",
-                "--resolutions", "2,4,8",
-                "--field", "count:dtype=float,agg=mean",
-                "-o", "toy.2.mcool"
-            ]
+                "--resolutions",
+                "2,4,8",
+                "--field",
+                "count:dtype=float,agg=mean",
+                "-o",
+                "toy.2.mcool",
+            ],
         )
         assert result.exit_code == 0
         # pix1 = cooler.Cooler(f_ref).pixels()['count'][:]
@@ -118,13 +112,19 @@ def test_balance():
     with runner.isolated_filesystem():
         f_in = op.join(datadir, "toy.symm.upper.2.cool")
         result = runner.invoke(
-            balance, [
+            balance,
+            [
                 f_in,
-                "--ignore-diags", "2",
-                "--mad-max", "0",
-                "--min-nnz", "0",
-                "--tol", "0.05",
-                "--nproc", "2",
+                "--ignore-diags",
+                "2",
+                "--mad-max",
+                "0",
+                "--min-nnz",
+                "0",
+                "--tol",
+                "0.05",
+                "--nproc",
+                "2",
                 "--stdout",
             ],
         )
@@ -133,42 +133,63 @@ def test_balance():
 
         # convergence
         result = runner.invoke(
-            balance, [
+            balance,
+            [
                 f_in,
-                "--ignore-diags", "2",
-                "--mad-max", "0",
-                "--min-nnz", "0",
-                "--tol", "0.05",
-                "--max-iters", "1",
-                "--convergence-policy", "store_final",
+                "--ignore-diags",
+                "2",
+                "--mad-max",
+                "0",
+                "--min-nnz",
+                "0",
+                "--tol",
+                "0.05",
+                "--max-iters",
+                "1",
+                "--convergence-policy",
+                "store_final",
                 "--stdout",
             ],
         )
         assert result.exit_code == 0
         assert len(result.output)
         result = runner.invoke(
-            balance, [
+            balance,
+            [
                 f_in,
-                "--ignore-diags", "2",
-                "--mad-max", "0",
-                "--min-nnz", "0",
-                "--tol", "0.05",
-                "--max-iters", "1",
-                "--convergence-policy", "discard",
+                "--ignore-diags",
+                "2",
+                "--mad-max",
+                "0",
+                "--min-nnz",
+                "0",
+                "--tol",
+                "0.05",
+                "--max-iters",
+                "1",
+                "--convergence-policy",
+                "discard",
                 "--stdout",
             ],
         )
         assert result.exit_code == 0
         assert not result.output
         result = runner.invoke(
-            balance, [
+            balance,
+            [
                 f_in,
-                "--ignore-diags", "2",
-                "--mad-max", "0",
-                "--min-nnz", "0",
-                "--tol", "0.05",
-                "--max-iters", "1",
-                "--convergence-policy", "error",
+                "--ignore-diags",
+                "2",
+                "--mad-max",
+                "0",
+                "--min-nnz",
+                "0",
+                "--tol",
+                "0.05",
+                "--max-iters",
+                "1",
+                "--convergence-policy",
+                "error",
                 "--stdout",
             ],
         )
@@ -176,30 +197,35 @@ def test_balance():
 
         # file is unbalanced
         result = runner.invoke(
-            balance, [
-                f_in,
-                "--check"
-            ],
+            balance,
+            [f_in, "--check"],
         )
         assert result.exit_code == 1
 
         # blacklisting regions
-        blacklist = pd.DataFrame({
-            'chrom': ['chr1', 'chr2'],
-            'start': [5, 10],
-            'end': [10, 20],
-        }, columns=['chrom', 'start', 'end'])
-        blacklist.to_csv(
-            'blacklist.bed', sep='\t', index=False, header=False
+        blacklist = pd.DataFrame(
+            {
+                "chrom": ["chr1", "chr2"],
+                "start": [5, 10],
+                "end": [10, 20],
+            },
+            columns=["chrom", "start", "end"],
         )
+        blacklist.to_csv("blacklist.bed", sep="\t", index=False, header=False)
         result = runner.invoke(
-            balance, [
+            balance,
+            [
                 f_in,
-                "--ignore-diags", "2",
-                "--mad-max", "0",
-                "--min-nnz", "0",
-                "--tol", "0.05",
-                "--blacklist", "blacklist.bed",
+                "--ignore-diags",
+                "2",
+                "--mad-max",
+                "0",
+                "--min-nnz",
+                "0",
+                "--tol",
+                "0.05",
+                "--blacklist",
+                "blacklist.bed",
                 "--stdout",
             ],
         )

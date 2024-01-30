@@ -14,26 +14,20 @@ def test_is_cooler():
     assert fileops.is_cooler(op.join(testdir, "data", "toy.symm.upper.2.cool"))
     assert not fileops.is_cooler(op.join(testdir, "data", "toy.symm.upper.2.mcool"))
     assert fileops.is_cooler(
-        op.join(testdir, "data", "toy.symm.upper.2.mcool") + '::resolutions/2'
+        op.join(testdir, "data", "toy.symm.upper.2.mcool") + "::resolutions/2"
     )
 
 
 def test_is_multires_file():
-    assert not fileops.is_multires_file(
-        op.join(testdir, "data", "toy.chrom.sizes")
-    )
+    assert not fileops.is_multires_file(op.join(testdir, "data", "toy.chrom.sizes"))
     assert not fileops.is_multires_file(
         op.join(testdir, "data", "toy.symm.upper.2.cool")
     )
-    assert fileops.is_multires_file(
-        op.join(testdir, "data", "toy.symm.upper.2.mcool")
-    )
+    assert fileops.is_multires_file(op.join(testdir, "data", "toy.symm.upper.2.mcool"))
 
 
 def test_list_coolers():
-    listing = fileops.list_coolers(
-        op.join(testdir, "data", "toy.symm.upper.2.mcool")
-    )
+    listing = fileops.list_coolers(op.join(testdir, "data", "toy.symm.upper.2.mcool"))
     paths = set(listing)
     for path in (
         "/resolutions/2",
@@ -55,7 +49,7 @@ def test_ls_attr_tree():
 def test_ls_data_tree():
     with isolated_filesystem():
         src_file = op.join(testdir, "data", "toy.symm.upper.2.mcool")
-        listing = fileops.ls(src_file + '::' + 'resolutions/2')
+        listing = fileops.ls(src_file + "::" + "resolutions/2")
         for path in [
             "/resolutions/2",
             "/resolutions/2/chroms",
@@ -89,7 +83,7 @@ def test_cp():
         shutil.copyfile(src_file, test_file)
         fileops.cp(test_file + "::resolutions/2", test_file + "::abc/d")
         cooler_cmp(test_file + "::resolutions/2", test_file + "::abc/d")
-        with h5py.File(test_file, mode='r') as f:
+        with h5py.File(test_file, mode="r") as f:
             assert "resolutions/2" in f
             assert "abc/d" in f
             assert f["resolutions/2"].id != f["abc/d"].id
@@ -102,7 +96,7 @@ def test_mv():
         shutil.copyfile(op.join(testdir, "data", "toy.symm.upper.2.mcool"), ref_file)
         shutil.copyfile(op.join(testdir, "data", "toy.symm.upper.2.mcool"), src_file)
         fileops.mv(src_file + "::resolutions/2", src_file + "::abc/d")
-        with h5py.File(src_file, mode='r') as f:
+        with h5py.File(src_file, mode="r") as f:
             assert "resolutions/2" not in f
             assert "abc/d" in f
         cooler_cmp(ref_file + "::resolutions/2", src_file + "::abc/d")
@@ -116,7 +110,7 @@ def test_ln():
         test_file = "test.hardlink.mcool"
         shutil.copyfile(src_file, test_file)
         fileops.ln(test_file + "::resolutions/2", test_file + "::abc/d")
-        with h5py.File(test_file, mode='r') as f:
+        with h5py.File(test_file, mode="r") as f:
             assert "resolutions/2" in f
             assert "abc/d" in f
             assert f["resolutions/2"].id == f["abc/d"].id
@@ -126,7 +120,7 @@ def test_ln():
         test_file = "test.softlink.mcool"
         shutil.copyfile(src_file, test_file)
         fileops.ln(test_file + "::resolutions/2", test_file + "::abc/d", soft=True)
-        with h5py.File(test_file, mode='r') as f:
+        with h5py.File(test_file, mode="r") as f:
             assert "resolutions/2" in f
             assert "abc/d" in f
             assert f["resolutions/2"].id == f["abc/d"].id
@@ -151,15 +145,19 @@ def test_print_trees():
 
 
 def test_is_scool_file():
-    src_file = op.join(testdir, "data", 'scool_test_file.scool')
+    src_file = op.join(testdir, "data", "scool_test_file.scool")
     assert fileops.is_scool_file(src_file)
 
 
 def test_list_scool_cells():
-    src_file = op.join(testdir, "data", 'scool_test_file.scool')
-    paths = ['/cells/GSM2687248_41669_ACAGTG-R1-DpnII.100000.cool', '/cells/GSM2687249_41670_GGCTAC-R1-DpnII.100000.cool',
-             '/cells/GSM2687250_41671_TTAGGC-R1-DpnII.100000.cool', '/cells/GSM2687251_41672_AGTTCC-R1-DpnII.100000.cool',
-             '/cells/GSM2687252_41673_CCGTCC-R1-DpnII.100000.cool']
+    src_file = op.join(testdir, "data", "scool_test_file.scool")
+    paths = [
+        "/cells/GSM2687248_41669_ACAGTG-R1-DpnII.100000.cool",
+        "/cells/GSM2687249_41670_GGCTAC-R1-DpnII.100000.cool",
+        "/cells/GSM2687250_41671_TTAGGC-R1-DpnII.100000.cool",
+        "/cells/GSM2687251_41672_AGTTCC-R1-DpnII.100000.cool",
+        "/cells/GSM2687252_41673_CCGTCC-R1-DpnII.100000.cool",
+    ]
     cell_paths = fileops.list_scool_cells(src_file)
     assert len(cell_paths) == 5
     for cell in paths:

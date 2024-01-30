@@ -59,7 +59,9 @@ def test_dump():
         assert result.exit_code == 0
         result = runner.invoke(dump, [f_in, "--join", "--one-based-starts"])
         assert result.exit_code == 0
-        result = runner.invoke(dump, [f_in, "--annotate", "chrom", "--one-based-starts"])
+        result = runner.invoke(
+            dump, [f_in, "--annotate", "chrom", "--one-based-starts"]
+        )
         assert result.exit_code == 0
 
         # unbalanced file
@@ -113,5 +115,5 @@ def test_show():
     runner = CliRunner()
     with runner.isolated_filesystem():
         f_in = op.join(datadir, "toy.symm.upper.2.cool")
-        result = runner.invoke(show, [f_in, 'chr1', '-o', 'bla'])
+        result = runner.invoke(show, [f_in, "chr1", "-o", "bla"])
         assert result.exit_code == 0

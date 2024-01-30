@@ -28,12 +28,18 @@ def _run_cload_pairs(runner, binsize, extra_args):
         op.join(datadir, "toy.chrom.sizes") + ":" + str(binsize),
         op.join(datadir, "toy.pairs"),
         f"toy.{binsize}.cool",
-        "-c1", "2",
-        "-p1", "3",
-        "-c2", "4",
-        "-p2", "5",
-        "--assembly", "toy",
-        "--chunksize", "10",
+        "-c1",
+        "2",
+        "-p1",
+        "3",
+        "-c2",
+        "4",
+        "-p2",
+        "5",
+        "--assembly",
+        "toy",
+        "--chunksize",
+        "10",
     ] + extra_args
     return runner.invoke(cload_pairs, args)
 
@@ -189,7 +195,10 @@ def _run_load(runner, matrix_file, format, binsize, extra_args):
     "ref,extra_args",
     [
         ("symm.upper", []),  # reflect tril pairs
-        ("symm.upper", ["--one-based", "--input-copy-status", "unique"]),  # reflect tril pairs
+        (
+            "symm.upper",
+            ["--one-based", "--input-copy-status", "unique"],
+        ),  # reflect tril pairs
         ("asymm", ["--one-based", "--no-symmetric-upper"]),
     ],
 )

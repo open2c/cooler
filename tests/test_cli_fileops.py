@@ -16,8 +16,8 @@ def test_cp():
             [
                 "cp",
                 op.join(datadir, "toy.symm.upper.2.cool"),
-                'test.cool',
-            ]
+                "test.cool",
+            ],
         )
         assert result.exit_code == 0
 
@@ -25,9 +25,9 @@ def test_cp():
             cli,
             [
                 "mv",
-                'test.cool',
-                'test2.cool::some/path',
-            ]
+                "test.cool",
+                "test2.cool::some/path",
+            ],
         )
         assert result.exit_code == 0
 
@@ -35,29 +35,31 @@ def test_cp():
             cli,
             [
                 "ln",
-                'test2.cool::some/path',
-                'test2.cool::hard/link',
-            ]
+                "test2.cool::some/path",
+                "test2.cool::hard/link",
+            ],
         )
         assert result.exit_code == 0
 
         result = runner.invoke(
             cli,
             [
-                "ln", "-s",
-                'test2.cool::some/path',
-                'test2.cool::soft/link',
-            ]
+                "ln",
+                "-s",
+                "test2.cool::some/path",
+                "test2.cool::soft/link",
+            ],
         )
         assert result.exit_code == 0
 
         result = runner.invoke(
             cli,
             [
-                "ln", "-s",
-                'test2.cool::some/path',
-                'test3.cool::ext/link',
-            ]
+                "ln",
+                "-s",
+                "test2.cool::some/path",
+                "test3.cool::ext/link",
+            ],
         )
         assert result.exit_code == 0
 
@@ -69,16 +71,17 @@ def test_list_coolers():
         [
             "ls",
             op.join(datadir, "toy.symm.upper.2.cool"),
-        ]
+        ],
     )
     assert result.exit_code == 0
 
     result = runner.invoke(
         cli,
         [
-            "ls", "-l",
+            "ls",
+            "-l",
             op.join(datadir, "toy.symm.upper.2.cool"),
-        ]
+        ],
     )
     assert result.exit_code == 0
 
@@ -90,7 +93,7 @@ def test_tree():
         [
             "tree",
             op.join(datadir, "toy.symm.upper.2.cool"),
-        ]
+        ],
     )
     assert result.exit_code == 0
 
@@ -102,6 +105,6 @@ def test_attrs():
         [
             "attrs",
             op.join(datadir, "toy.symm.upper.2.cool"),
-        ]
+        ],
     )
     assert result.exit_code == 0

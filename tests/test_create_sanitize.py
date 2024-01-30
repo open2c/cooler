@@ -59,7 +59,6 @@ def _insert_lines(d, new):
 
 
 def test_sanitize_records():
-
     chunk = pd.read_csv(StringIO(valid_data), sep="\t", names=columns)
     with pytest.raises(ValueError):
         sanitize_records(
@@ -84,11 +83,13 @@ def test_sanitize_records():
     # variable-length bins
     chunk = pd.read_csv(StringIO(valid_data), sep="\t", names=columns)
     sanitize_records(
-        pd.DataFrame({
-            'chrom': ['chr1', 'chr1', 'chr2', 'chr2', 'chr3'],
-            'start': [0, 150, 0, 100, 0],
-            'end': [150, 300, 100, 300, 300],
-        }),
+        pd.DataFrame(
+            {
+                "chrom": ["chr1", "chr1", "chr2", "chr2", "chr3"],
+                "start": [0, 150, 0, 100, 0],
+                "end": [150, 300, 100, 300, 300],
+            }
+        ),
         schema="pairs",
         validate=True,
         tril_action="reflect",
@@ -109,11 +110,7 @@ def test_sanitize_records():
 """
     chunk = pd.read_csv(StringIO(text), sep="\t", names=columns)
     sanitize_records(
-        bins,
-        schema="pairs",
-        decode_chroms=False,
-        validate=True,
-        tril_action="reflect"
+        bins, schema="pairs", decode_chroms=False, validate=True, tril_action="reflect"
     )(chunk.copy())
     # fails on string chromosomes
     chunk = pd.read_csv(StringIO(valid_data), sep="\t", names=columns)
@@ -123,16 +120,13 @@ def test_sanitize_records():
             schema="pairs",
             decode_chroms=False,
             validate=True,
-            tril_action="reflect"
+            tril_action="reflect",
         )(chunk.copy())
 
     # empty chunk
-    out = sanitize_records(
-        bins,
-        schema="pairs",
-        validate=True,
-        tril_action="reflect"
-    )(chunk.iloc[0:0])
+    out = sanitize_records(bins, schema="pairs", validate=True, tril_action="reflect")(
+        chunk.iloc[0:0]
+    )
     assert len(out) == 0
 
 
@@ -212,11 +206,11 @@ def test_sanitize_pixels():
     )
     chunk = pd.read_csv(
         op.join(datadir, "toy.symm.upper.1.zb.coo"),
-        sep='\t',
-        names=['bin1_id', 'bin2_id', 'count']
+        sep="\t",
+        names=["bin1_id", "bin2_id", "count"],
     )
-    chunk['foo1'] = 4
-    chunk['foo2'] = 2
+    chunk["foo1"] = 4
+    chunk["foo2"] = 2
     sanitize_pixels(
         bins,
     )(chunk.copy())
@@ -226,22 +220,22 @@ def test_sanitize_pixels():
         bins,
         is_one_based=True,
     )(chunk.copy())
-    assert (out['bin1_id'] == chunk['bin1_id'] - 1).all()
+    assert (out["bin1_id"] == chunk["bin1_id"] - 1).all()
 
     # tril action: reflect (after swapping bin1, bin2)
     tril_chunk = chunk.copy()
-    tril_chunk['bin2_id'] = chunk['bin1_id']
-    tril_chunk['bin1_id'] = chunk['bin2_id']
+    tril_chunk["bin2_id"] = chunk["bin1_id"]
+    tril_chunk["bin1_id"] = chunk["bin2_id"]
     out = sanitize_pixels(
         bins,
         tril_action="reflect",
-        sided_fields=['foo'],
+        sided_fields=["foo"],
     )(tril_chunk.copy())
     assert len(out) == len(chunk)
-    assert (out['foo2'] == chunk['foo1']).all()
-    assert (out['foo1'] == chunk['foo2']).all()
-    assert (out['bin1_id'] == chunk['bin1_id']).all()
-    assert (out['bin2_id'] == chunk['bin2_id']).all()
+    assert (out["foo2"] == chunk["foo1"]).all()
+    assert (out["foo1"] == chunk["foo2"]).all()
+    assert (out["bin1_id"] == chunk["bin1_id"]).all()
+    assert (out["bin2_id"] == chunk["bin2_id"]).all()
 
     # tril action: drop
     out = sanitize_pixels(
@@ -264,18 +258,14 @@ def test_validate_pixels():
     )
     chunk = pd.read_csv(
         op.join(datadir, "toy.symm.upper.1.zb.coo"),
-        sep='\t',
-        names=['bin1_id', 'bin2_id', 'count']
+        sep="\t",
+        names=["bin1_id", "bin2_id", "count"],
     )
     validator = validate_pixels(
-        len(bins),
-        boundscheck=True,
-        triucheck=True,
-        dupcheck=True,
-        ensure_sorted=True
+        len(bins), boundscheck=True, triucheck=True, dupcheck=True, ensure_sorted=True
     )
     validator(chunk.copy())
-    validator(chunk.to_dict(orient='series'))
+    validator(chunk.to_dict(orient="series"))
 
     # wrongly assume zero-based, producing -1 bins IDs
     chunk_ = sanitize_pixels(
@@ -287,14 +277,14 @@ def test_validate_pixels():
 
     # out-of-bounds bin ID
     chunk_ = chunk.copy()
-    chunk_.at[-1, 'bin1_id'] = len(bins) + 1
+    chunk_.at[-1, "bin1_id"] = len(bins) + 1
     with pytest.raises(BadInputError):
         validator(chunk_)
 
     # pass in non-triu data
     tril_chunk = chunk.copy()
-    tril_chunk['bin2_id'] = chunk['bin1_id']
-    tril_chunk['bin1_id'] = chunk['bin2_id']
+    tril_chunk["bin2_id"] = chunk["bin1_id"]
+    tril_chunk["bin1_id"] = chunk["bin2_id"]
     with pytest.raises(BadInputError):
         validator(tril_chunk)
 
@@ -309,14 +299,17 @@ def test_aggregate_records():
     )
     records = pd.read_csv(
         op.join(datadir, "toy.pairs"),
-        sep='\t',
+        sep="\t",
         names=[
             "read_id",
-            "chrom1", "pos1",
-            "chrom2", "pos2",
-            "strand1", "strand2",
-            "value"
-        ]
+            "chrom1",
+            "pos1",
+            "chrom2",
+            "pos2",
+            "strand1",
+            "strand2",
+            "value",
+        ],
     )
     sanitizer = sanitize_records(
         bins,

@@ -15,7 +15,7 @@ from cooler.cli.cload import pairs as cload_pairs
 from cooler.cli.cload import tabix as cload_tabix
 from cooler.cli.load import load
 
-_pandas_major_version = int(pd.__version__.split('.')[0])
+_pandas_major_version = int(pd.__version__.split(".")[0])
 
 tmp = tempfile.gettempdir()
 testdir = op.realpath(op.dirname(__file__))
@@ -183,14 +183,14 @@ def test_from_hdf5_pairs():
             op.join(testdir, "data", "hg19.bins.2000kb.bed.gz"),
             op.join(testdir, "data", "hg19.GM12878-MboI.pairs.subsample.sorted.txt.gz"),
             op.join(testdir, "data", "hg19.GM12878-MboI.matrix.2000kb.cool"),
-            8
+            8,
         ),
         (
             op.join(testdir, "data", "hg19.bins.2000kb.bed.gz"),
             op.join(testdir, "data", "hg19.GM12878-MboI.pairs.subsample.sorted.txt.gz"),
             op.join(testdir, "data", "hg19.GM12878-MboI.matrix.2000kb.cool"),
-            1
-        )
+            1,
+        ),
     ],
 )
 def test_cload_tabix(bins_path, pairs_path, ref_path, nproc):
@@ -228,7 +228,7 @@ def test_cload_tabix(bins_path, pairs_path, ref_path, nproc):
             op.join(testdir, "data", "hg19.GM12878-MboI.pairs.subsample.blksrt.txt.gz"),
             op.join(testdir, "data", "hg19.GM12878-MboI.matrix.2000kb.cool"),
             1,
-        )
+        ),
     ],
 )
 def test_cload_pairix(bins_path, pairs_path, ref_path, nproc):
@@ -253,8 +253,7 @@ def test_cload_pairix(bins_path, pairs_path, ref_path, nproc):
 
 
 @pytest.mark.skipif(
-    _pandas_major_version < 1,
-    reason="hash fix only works with pandas >= 1.0"
+    _pandas_major_version < 1, reason="hash fix only works with pandas >= 1.0"
 )
 @pytest.mark.parametrize(
     "bins_path,pairs_path,ref_path",
@@ -273,7 +272,7 @@ def test_cload_pairix(bins_path, pairs_path, ref_path, nproc):
             op.join(testdir, "data", "toy.bins.var.bed"),
             op.join(testdir, "data", "toy_hash.pairs.gz"),
             op.join(testdir, "data", "toy.symm.upper.var.cool"),
-        )
+        ),
     ],
 )
 def test_cload_pairs(bins_path, pairs_path, ref_path):
@@ -410,18 +409,17 @@ def test_load_bg2_vs_coo():
         op.join(testdir, "data", "hg19.GM12878-MboI.matrix.2000kb.bg2.gz"),
         out_path1,
         format="bg2",
-        **kwargs
+        **kwargs,
     )
     load.callback(
         op.join(testdir, "data", "hg19.bins.2000kb.bed.gz"),
         op.join(testdir, "data", "hg19.GM12878-MboI.matrix.2000kb.coo.txt"),
         out_path2,
         format="coo",
-        **kwargs
+        **kwargs,
     )
 
     with h5py.File(out_path1, "r") as f1, h5py.File(out_path2, "r") as f2:
-
         for col in ["bin1_id", "bin2_id", "count"]:
             assert np.all(f1["pixels"][col][:] == f2["pixels"][col][:])
 
@@ -566,7 +564,7 @@ def test_cload_append_mode():
             op.join(testdir, "data", "toy.bins.var.bed"),
             op.join(testdir, "data", "toy.pairs"),
             out_path,
-            **kwargs
+            **kwargs,
         )
         with h5py.File(out_path, "r") as f:
             if append:
@@ -604,7 +602,7 @@ def test_load_append_mode():
             op.join(testdir, "data", "hg19.GM12878-MboI.matrix.2000kb.coo.txt"),
             out_path,
             format="coo",
-            **kwargs
+            **kwargs,
         )
         with h5py.File(out_path, "r") as f:
             if append:
@@ -637,7 +635,6 @@ def test_load_custom_tempdir():
             no_delete_temp=False,
             storage_options=None,
             append=False,
-
         )
         pixels = cooler.Cooler(testcool_path).pixels()[:]
         assert "count" in pixels.columns and types.is_integer_dtype(
