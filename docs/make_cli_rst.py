@@ -438,9 +438,11 @@ cooler {cmd}
 {{{cmd}}}
 
 ----
+
 """
 
 
+TEMPLATE = TEMPLATE[:-1]  # Drop the very last newline
 text = TEMPLATE.format(**{cmd: get_command_docs(cmd) for cmd in COMMANDS})
 
 
