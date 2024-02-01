@@ -54,6 +54,8 @@ def makebins(chromsizes, binsize, out, header, rel_ids):
         f = open(out, "w")
 
     if header:
-        bins[0:0].to_csv(f, sep="\t", index=False, header=True)
-    bins.to_csv(f, sep="\t", index=False, header=False)
+        bins[0:0].to_csv(
+            f, sep="\t", lineterminator='\n', index=False, header=True
+        )
+    bins.to_csv(f, sep="\t", lineterminator='\n', index=False, header=False)
     f.flush()
