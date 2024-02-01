@@ -98,9 +98,10 @@ def parse_field_param(arg, includes_colnum=True, includes_agg=True):
 
 
 def parse_bins(arg):
-    # Provided chromsizes and binsize
-    if ":" in arg:
-        chromsizes_file, binsize = arg.split(":")
+    # User provided chromsizes path and binsize
+    arg_nodrive = op.splitdrive(arg)[1]  # Remove drive + colon if on Windows
+    if ":" in arg_nodrive:
+        chromsizes_file, binsize = arg.rsplit(":", maxsplit=1)
         if not op.exists(chromsizes_file):
             raise ValueError(f'File "{chromsizes_file}" not found')
         try:
