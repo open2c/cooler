@@ -581,8 +581,8 @@ class HDF5Aggregator(ContactBinner):
                     np.searchsorted(start_abspos, abspos2, side="right") - 1
                 )
             else:
-                rel_bin1 = np.floor(table["cut1"] / binsize).astype(int)
-                rel_bin2 = np.floor(table["cut2"] / binsize).astype(int)
+                rel_bin1 = np.floor(table["cut1"] / binsize).astype(np.int64)
+                rel_bin2 = np.floor(table["cut2"] / binsize).astype(np.int64)
                 table["bin1_id"] = chrom_binoffset[table["chrom_id1"].values] + rel_bin1
                 table["bin2_id"] = chrom_binoffset[table["chrom_id2"].values] + rel_bin2
 
