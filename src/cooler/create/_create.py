@@ -464,6 +464,7 @@ def create(
 
     """
     file_path, group_path = parse_cooler_uri(cool_uri)
+    file_path = op.realpath(file_path)
 
     if mode is None:
         mode = "a" if append else "w"
