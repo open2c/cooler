@@ -1,4 +1,5 @@
 # import filecmp
+import importlib.util
 import os
 import os.path as op
 import tempfile
@@ -15,6 +16,8 @@ from cooler.cli.cload import pairs as cload_pairs
 from cooler.cli.cload import tabix as cload_tabix
 from cooler.cli.load import load
 
+pysam_missing = importlib.util.find_spec("pysam") is None
+pairix_missing = importlib.util.find_spec("pairix") is None
 _pandas_major_version = int(pd.__version__.split(".")[0])
 
 tmp = tempfile.gettempdir()
@@ -175,6 +178,7 @@ def test_from_hdf5_pairs():
     should_work_with_int32_cols(chromsizes, bintable, mock_pairs)
 
 
+@pytest.mark.skipif(pysam_missing, reason="pysam not installed")
 @pytest.mark.filterwarnings("ignore")
 @pytest.mark.parametrize(
     "bins_path,pairs_path,ref_path,nproc",
@@ -214,6 +218,7 @@ def test_cload_tabix(bins_path, pairs_path, ref_path, nproc):
         pass
 
 
+@pytest.mark.skipif(pairix_missing, reason="pairix not installed")
 @pytest.mark.parametrize(
     "bins_path,pairs_path,ref_path,nproc",
     [
