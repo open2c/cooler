@@ -582,17 +582,14 @@ def pairs(
     kwargs = {}
     if pairs_path == "-":
         f_in = sys.stdin
-        _, f_in = get_header(f_in)
-    elif int(_pandas_version[0]) > 0:
-        if int(_pandas_version[0]) < 2:
-            f_in = get_handle(pairs_path, mode="r", compression="infer")[0]
-        else:
-            f_in = get_handle(pairs_path, mode="r", compression="infer").handle
-
-        _, f_in = get_header(f_in)
+    elif int(_pandas_version[0]) == 1 and int(_pandas_version[1]) < 2:
+        # get_handle returns a pair of objects in pandas 1.0 and 1.1
+        f_in = get_handle(pairs_path, mode="r", compression="infer")[0]
     else:
-        f_in = pairs_path
-        kwargs["comment"] = "#"
+        # get_handle returns a single wrapper object in pandas 1.2+ and 2.*
+        f_in = get_handle(pairs_path, mode="r", compression="infer").handle
+
+    _, f_in = get_header(f_in)
 
     reader = pd.read_csv(
         f_in,
