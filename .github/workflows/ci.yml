@@ -42,11 +42,6 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Set TMPDIR for Windows
-        if: matrix.os == 'windows-latest'
-        run: |
-          mkdir ${{ github.workspace }}\tmp
-          echo ::set-env name=TMPDIR::${{ github.workspace }}\tmp
       - name: Run tests on ${{ matrix.os }}
         run: |
           python -m pip install --upgrade pip
