@@ -280,13 +280,20 @@ def dump(
         if is_first_chunk:
             if header:
                 chunk[0:0].to_csv(
-                    f, sep="\t", index=False, header=True, float_format=float_format
+                    f,
+                    sep="\t",
+                    lineterminator='\n',
+                    index=False,
+                    header=True,
+                    float_format=float_format,
+                    na_rep=na_rep,
                 )
             is_first_chunk = False
 
         chunk.to_csv(
             f,
             sep="\t",
+            lineterminator='\n',
             index=False,
             header=False,
             float_format=float_format,

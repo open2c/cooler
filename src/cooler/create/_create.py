@@ -1,3 +1,4 @@
+import os
 import os.path as op
 import posixpath
 import tempfile
@@ -464,6 +465,7 @@ def create(
 
     """
     file_path, group_path = parse_cooler_uri(cool_uri)
+    file_path = op.realpath(file_path)
 
     if mode is None:
         mode = "a" if append else "w"
@@ -708,11 +710,16 @@ def create_from_unordered(
 
     dtypes = _get_dtypes_arg(dtypes, kwargs)
 
+    is_windows = os.name == "nt"
+    if is_windows and delete_temp:
+        delete = False
+    else:
+        delete = delete_temp
     temp_files = []
 
     # Sort pass
     tf = tempfile.NamedTemporaryFile(
-        suffix=".multi.cool", delete=delete_temp, dir=temp_dir
+        suffix=".multi.cool", delete=delete, dir=temp_dir
     )
     temp_files.append(tf)
     uris = []
@@ -730,7 +737,7 @@ def create_from_unordered(
         edges = np.linspace(0, n, int(np.sqrt(n)), dtype=int)
 
         tf2 = tempfile.NamedTemporaryFile(
-            suffix=".multi.cool", delete=delete_temp, dir=temp_dir
+            suffix=".multi.cool", delete=delete, dir=temp_dir
         )
         temp_files.append(tf2)
         uris2 = []
@@ -763,6 +770,11 @@ def create_from_unordered(
     logger.info(f"Merging into {cool_uri}")
     create(cool_uri, bins, chunks, columns=columns, dtypes=dtypes, mode=mode, **kwargs)
 
+    if is_windows and delete_temp:
+        for tf in temp_files:
+            if not tf.closed:
+                tf.close()
+            os.remove(tf.name)
     del temp_files
 
 
