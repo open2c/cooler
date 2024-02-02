@@ -737,7 +737,7 @@ def create_from_unordered(
         edges = np.linspace(0, n, int(np.sqrt(n)), dtype=int)
 
         tf2 = tempfile.NamedTemporaryFile(
-            suffix=".multi.cool", delete=delete_temp, dir=temp_dir
+            suffix=".multi.cool", delete=delete, dir=temp_dir
         )
         temp_files.append(tf2)
         uris2 = []
