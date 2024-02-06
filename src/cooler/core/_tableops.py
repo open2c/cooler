@@ -1,10 +1,57 @@
+from __future__ import annotations
+
+from typing import Literal, overload
+
 import h5py
 import numpy as np
 import pandas as pd
 from pandas.api.types import is_categorical_dtype
 
 
-def get(grp, lo=0, hi=None, fields=None, convert_enum=True, as_dict=False):
+@overload
+def get(
+    grp: h5py.Group,
+    lo: int,
+    hi: int | None,
+    fields: str | list[str] | None,
+    convert_enum: bool,
+    as_dict: Literal[True],
+) -> dict[str, np.ndarray]:
+    ...
+
+
+@overload
+def get(
+    grp: h5py.Group,
+    lo: int,
+    hi: int | None,
+    fields: list[str] | None,
+    convert_enum: bool,
+    as_dict: Literal[False],
+) -> pd.DataFrame:
+    ...
+
+
+@overload
+def get(
+    grp: h5py.Group,
+    lo: int,
+    hi: int | None,
+    fields: str,
+    convert_enum: bool,
+    as_dict: Literal[False],
+) -> pd.Series:
+    ...
+
+
+def get(
+    grp: h5py.Group,
+    lo: int = 0,
+    hi: int | None = None,
+    fields: str | list[str] | None = None,
+    convert_enum: bool = True,
+    as_dict: bool = False
+) -> pd.DataFrame | pd.Series | dict[str, np.ndarray]:
     """
     Query a range of rows from a table as a dataframe.
 
@@ -75,7 +122,13 @@ def get(grp, lo=0, hi=None, fields=None, convert_enum=True, as_dict=False):
         return pd.DataFrame(data, columns=fields, index=index)
 
 
-def put(grp, df, lo=0, store_categories=True, h5opts=None):
+def put(
+    grp: h5py.Group,
+    df: pd.DataFrame | pd.Series,
+    lo: int = 0,
+    store_categories: bool = True,
+    h5opts: dict | None = None
+) -> None:
     """
     Store a dataframe into a column-oriented table store.
 
@@ -155,7 +208,7 @@ def put(grp, df, lo=0, store_categories=True, h5opts=None):
         dset[lo:hi] = data
 
 
-def delete(grp, fields=None):
+def delete(grp: h5py.Group, fields: str | list[str] | None = None) -> None:
     """
     Delete columns from a table.
 

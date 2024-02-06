@@ -1,8 +1,13 @@
+from __future__ import annotations
+
 import os
 
 # from textwrap import dedent
 import warnings
+from collections.abc import Callable
 from datetime import datetime
+from numbers import Number
+from typing import Any, Literal
 
 import simplejson as json
 
@@ -12,6 +17,7 @@ except ImportError:
     JSONDecodeError = ValueError  # PY35+
 
 import h5py
+import numpy as np
 from asciitree import BoxStyle, LeftAligned
 from asciitree.traversal import Traversal
 
@@ -21,20 +27,25 @@ from .util import natsorted, parse_cooler_uri
 __all__ = ["is_cooler", "is_multires_file", "list_coolers", "cp", "mv", "ln"]
 
 
-def json_dumps(o):
+def json_dumps(o: object) -> str:
     """Write JSON in a consistent, human-readable way."""
     return json.dumps(
         o, indent=4, sort_keys=True, ensure_ascii=True, separators=(",", ": ")
     )
 
 
-def json_loads(s):
+def json_loads(s: str) -> object:
     """Read JSON in a consistent way."""
     return json.loads(s)
 
 
-def decode_attr_value(obj):
-    """Decode a numpy object or HDF5 attribute into a JSONable object"""
+def decode_attr_value(
+    obj: str | np.generic | np.ndarray | h5py.Dataset
+) -> str | Number | datetime | list | dict:
+    """
+    Decode a HDF5 attribute value (numpy object or string) into something
+    JSON serializable.
+    """
     if hasattr(obj, "item"):
         o = obj.item()
     elif hasattr(obj, "tolist"):
@@ -53,15 +64,15 @@ def decode_attr_value(obj):
 
 
 class TreeNode:
-    def __init__(self, obj, depth=0, level=None):
+    def __init__(self, obj: Any, depth: int = 0, level: int | None = None):
         self.obj = obj
         self.depth = depth
         self.level = level
 
-    def get_type(self):
+    def get_type(self) -> str:
         return type(self.obj).__name__
 
-    def get_children(self):
+    def get_children(self) -> list[TreeNode]:
         if hasattr(self.obj, "values"):
             if self.level is None or self.depth < self.level:
                 depth = self.depth + 1
@@ -71,7 +82,7 @@ class TreeNode:
                 ]
         return []
 
-    def get_text(self):
+    def get_text(self) -> str:
         name = self.obj.name.split("/")[-1] or "/"
         if hasattr(self.obj, "shape"):
             name += f" {self.obj.shape} {self.obj.dtype}"
@@ -79,11 +90,15 @@ class TreeNode:
 
 
 class AttrNode(TreeNode):
-    def get_text(self):
+    def get_text(self) -> str:
         return self.obj.name.split("/")[-1] or "/"
 
 
-def visititems(group, func, level=None):
+def visititems(
+    group: h5py.Group,
+    func: Callable[[str, h5py.Group | h5py.Dataset], Any],
+    level: int | None = None
+) -> dict[str, Any]:
     """Like :py:method:`h5py.Group.visititems`, but much faster somehow."""
 
     def _visititems(node, func, result=None):
@@ -98,7 +113,7 @@ def visititems(group, func, level=None):
     return _visititems(root, func, {})
 
 
-def _is_cooler(grp):
+def _is_cooler(grp: h5py.Group) -> bool:
     fmt = grp.attrs.get("format", None)
     if fmt == MAGIC:
         keys = ("chroms", "bins", "pixels", "indexes")
@@ -108,7 +123,7 @@ def _is_cooler(grp):
     return False
 
 
-def is_cooler(uri):
+def is_cooler(uri: str) -> bool:
     """
     Determine if a URI string references a cooler data collection.
     Returns False if the file or group path doesn't exist.
@@ -121,7 +136,7 @@ def is_cooler(uri):
         return _is_cooler(f[grouppath])
 
 
-def is_multires_file(filepath, min_version=1):
+def is_multires_file(filepath: str, min_version: int = 1) -> bool:
     """
     Determine if a file is a multi-res cooler file.
     Returns False if the file doesn't exist.
@@ -142,7 +157,7 @@ def is_multires_file(filepath, min_version=1):
     return False
 
 
-def is_scool_file(filepath):
+def is_scool_file(filepath: str) -> bool:
     """
     Determine if a file is a single-cell cooler file.
     Returns False if the file doesn't exist.
@@ -167,7 +182,7 @@ def is_scool_file(filepath):
     return False
 
 
-def list_coolers(filepath):
+def list_coolers(filepath: str) -> list[str]:
     """
     List group paths to all cooler data collections in a file.
 
@@ -197,7 +212,7 @@ def list_coolers(filepath):
     return natsorted(listing)
 
 
-def list_scool_cells(filepath):
+def list_scool_cells(filepath: str) -> list[str]:
     """
     List the paths to all single-cell cool matrices in a file scool file.
 
@@ -226,10 +241,9 @@ def list_scool_cells(filepath):
         return natsorted(listing)
     else:
         raise OSError(f"'{filepath}' is not a scool file.")
-    return False
 
 
-def ls(uri):
+def ls(uri: str) -> list[str]:
     """
     Get all groups and datasets in an HDF5 file.
 
@@ -259,7 +273,14 @@ def ls(uri):
     return listing
 
 
-def _copy(src_uri, dst_uri, overwrite, link, rename, soft_link):
+def _copy(
+    src_uri: str,
+    dst_uri: str,
+    overwrite: bool,
+    link: bool,
+    rename:bool,
+    soft_link: bool
+) -> None:
     src_path, src_group = parse_cooler_uri(src_uri)
     dst_path, dst_group = parse_cooler_uri(dst_uri)
 
@@ -301,17 +322,19 @@ def _copy(src_uri, dst_uri, overwrite, link, rename, soft_link):
                     src.copy(src_group, dst, dst_group if dst_group != "/" else None)
 
 
-def cp(src_uri, dst_uri, overwrite=False):
+def cp(src_uri: str, dst_uri: str, overwrite: bool = False) -> None:
     """Copy a group or dataset from one file to another or within the same file."""
     _copy(src_uri, dst_uri, overwrite, link=False, rename=False, soft_link=False)
 
 
-def mv(src_uri, dst_uri, overwrite=False):
+def mv(src_uri: str, dst_uri: str, overwrite: bool = False) -> None:
     """Rename a group or dataset within the same file."""
     _copy(src_uri, dst_uri, overwrite, link=False, rename=True, soft_link=False)
 
 
-def ln(src_uri, dst_uri, soft=False, overwrite=False):
+def ln(
+    src_uri: str, dst_uri: str, soft: bool = False, overwrite: bool = False
+) -> None:
     """Create a hard link to a group or dataset in the same file. Also
     supports soft links (in the same file) or external links (different files).
     """
@@ -321,33 +344,7 @@ def ln(src_uri, dst_uri, soft=False, overwrite=False):
 ######
 # Tree rendering. Borrowed from zarr-python.
 
-
-def _tree_get_icon(stype):
-    if stype in {"Dataset", "Array"}:
-        return "table"
-    elif stype in {"Group", "File"}:
-        return "folder"
-    else:
-        raise ValueError("Unknown type: %s" % stype)
-
-
-def _tree_widget_sublist(node, root=False, expand=False):
-    import ipytree
-
-    result = ipytree.Node()
-    result.icon = _tree_get_icon(node.get_type())
-    if root or (expand is True) or (isinstance(expand, int) and node.depth < expand):
-        result.opened = True
-    else:
-        result.opened = False
-    result.name = node.get_text()
-    result.nodes = [_tree_widget_sublist(c, expand=expand) for c in node.get_children()]
-    result.disabled = True
-
-    return result
-
-
-def tree_widget(group, expand, level):
+def tree_widget(group: h5py.Group, expand: bool, level: int | None) -> Any:
     try:
         import ipytree
     except ImportError as error:
@@ -358,6 +355,37 @@ def tree_widget(group, expand, level):
             "`jupyter labextension install ipytree`"
         ) from None
 
+    def _tree_get_icon(
+        stype: Literal["Dataset", "Array", "Group", "File"]
+    ) -> Literal["table", "folder"]:
+        if stype in {"Dataset", "Array"}:
+            return "table"
+        elif stype in {"Group", "File"}:
+            return "folder"
+        else:
+            raise ValueError("Unknown type: %s" % stype)
+
+    def _tree_widget_sublist(
+        node: TreeNode, root: bool = False, expand: bool = False
+    ) -> ipytree.Node:
+
+        result = ipytree.Node()
+        result.icon = _tree_get_icon(node.get_type())
+        if (
+            root or (expand is True) or
+            (isinstance(expand, int) and node.depth < expand)
+        ):
+            result.opened = True
+        else:
+            result.opened = False
+        result.name = node.get_text()
+        result.nodes = [
+            _tree_widget_sublist(c, expand=expand) for c in node.get_children()
+        ]
+        result.disabled = True
+
+        return result
+
     result = ipytree.Tree()
     root = TreeNode(group, level=level)
     result.add_node(_tree_widget_sublist(root, root=True, expand=expand))
@@ -366,13 +394,13 @@ def tree_widget(group, expand, level):
 
 
 class TreeTraversal(Traversal):
-    def get_children(self, node):
+    def get_children(self, node: TreeNode) -> list[TreeNode]:
         return node.get_children()
 
-    def get_root(self, tree):
+    def get_root(self, tree: TreeNode) -> TreeNode:
         return tree
 
-    def get_text(self, node):
+    def get_text(self, node: TreeNode) -> str:
         return node.get_text()
 
 
@@ -388,7 +416,13 @@ class TreeViewer:
 
     """
 
-    def __init__(self, group, expand=False, level=None, node_cls=TreeNode):
+    def __init__(
+        self,
+        group: h5py.Group,
+        expand: bool = False,
+        level: int | None = None,
+        node_cls: Any = TreeNode
+    ):
         self.group = group
         self.expand = expand
         self.level = level
@@ -411,7 +445,7 @@ class TreeViewer:
 
         self.node_cls = node_cls
 
-    def __bytes__(self):
+    def __bytes__(self) -> bytes:
         drawer = LeftAligned(
             traverse=TreeTraversal(),
             draw=BoxStyle(gfx=self.bytes_kwargs, **self.text_kwargs),
@@ -425,7 +459,7 @@ class TreeViewer:
 
         return result
 
-    def __unicode__(self):
+    def __unicode__(self) -> str:
         drawer = LeftAligned(
             traverse=TreeTraversal(),
             draw=BoxStyle(gfx=self.unicode_kwargs, **self.text_kwargs),
@@ -433,16 +467,16 @@ class TreeViewer:
         root = self.node_cls(self.group, level=self.level)
         return drawer(root)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return self.__unicode__()
 
-    def _repr_mimebundle_(self):
+    def _repr_mimebundle_(self) -> Any:
         tree = tree_widget(self.group, expand=self.expand, level=self.level)
         tree._repr_mimebundle_()
         return tree
 
 
-def read_attr_tree(group, level):
+def read_attr_tree(group: h5py.Group, level: int | None) -> dict[str, Any]:
     def _getdict(node, root=False):
         attrs = node.obj.attrs
         result = {"@attrs": {k: decode_attr_value(v) for k, v in attrs.items()}}
@@ -455,7 +489,7 @@ def read_attr_tree(group, level):
     return _getdict(AttrNode(group, level=level), root=True)
 
 
-def pprint_attr_tree(uri, level):
+def pprint_attr_tree(uri: str, level: int | None) -> str:
     from io import StringIO
 
     import yaml
@@ -468,7 +502,7 @@ def pprint_attr_tree(uri, level):
         return s.getvalue()
 
 
-def pprint_data_tree(uri, level):
+def pprint_data_tree(uri: str, level: int | None) -> str:
     path, group = parse_cooler_uri(uri)
     with h5py.File(path, "r") as f:
         grp = f[group]

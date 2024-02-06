@@ -3,10 +3,15 @@ Experimental API for developing split-apply-combine style algorithms on
 coolers.
 
 """
+from __future__ import annotations
+
 from functools import partial, reduce
+from typing import Any, Callable, Iterable, Iterator, Sequence
 
 from multiprocess import Lock
 
+from ._typing import MapFunctor
+from .api import Cooler
 from .core import get
 from .util import partition
 
@@ -41,8 +46,15 @@ See also:
 """
 lock = Lock()
 
+KeyType = Any
 
-def apply_pipeline(funcs, prepare, get, key):
+
+def apply_pipeline(
+    funcs: list[Callable],
+    prepare: Callable[[Any], Any] | None,
+    get: Callable[[KeyType], Any],
+    key: KeyType,
+) -> Any:
     chunk = get(key)
     if prepare is not None:
         data = prepare(chunk)
@@ -110,7 +122,12 @@ class MultiplexDataPipe:
 
     """
 
-    def __init__(self, get, keys, map):
+    def __init__(
+        self,
+        get: Callable[[KeyType], Any],
+        keys: Iterable[KeyType],
+        map: MapFunctor,
+    ):
         """
 
         Parameters
@@ -132,21 +149,21 @@ class MultiplexDataPipe:
         self.funcs = []
         self._prepare = None
 
-    def __copy__(self):
+    def __copy__(self) -> MultiplexDataPipe:
         other = self.__class__(self.get, self.keys, self.map)
         other.funcs = list(self.funcs)
         other._prepare = self._prepare
         return other
 
-    def __reduce__(self):
+    def __reduce__(self) -> dict:
         d = self.__dict__.copy()
         d.pop("map", None)
         return d
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[Any]:
         return iter(self.run())
 
-    def prepare(self, func):
+    def prepare(self, func: Callable[[Any], Any]) -> MultiplexDataPipe:
         """
         Prepend a task that initializes the data for transformation.
 
@@ -170,7 +187,12 @@ class MultiplexDataPipe:
         self._prepare = func
         return self
 
-    def pipe(self, func, *args, **kwargs):
+    def pipe(
+        self,
+        func: Callable[[Any], Any] | Callable[[Any, Any], Any],
+        *args,
+        **kwargs
+    ) -> MultiplexDataPipe:
         """
         Append new task(s) to the pipeline
 
@@ -196,7 +218,7 @@ class MultiplexDataPipe:
         other.funcs += addon
         return other
 
-    def run(self):
+    def run(self) -> Iterable[Any]:
         """
         Run the pipeline
 
@@ -206,7 +228,12 @@ class MultiplexDataPipe:
         pipeline = partial(apply_pipeline, self.funcs, self._prepare, self.get)
         return self.map(pipeline, self.keys)
 
-    def gather(self, combine=list, *args, **kwargs):
+    def gather(
+        self,
+        combine: Callable[[Iterable], Sequence] = list,
+        *args,
+        **kwargs
+    ) -> Sequence[Any]:
         """
         Run the pipeline and gather outputs
 
@@ -222,7 +249,11 @@ class MultiplexDataPipe:
         """
         return combine(iter(self.run()), *args, **kwargs)
 
-    def reduce(self, binop, init):
+    def reduce(
+        self,
+        binop: Callable[[Any, Any], Any],
+        init: Any,
+    ) -> Any:
         """
         Run the pipeline and fold outputs cumulatively as they are returned
 
@@ -242,13 +273,19 @@ class MultiplexDataPipe:
 
 
 class chunkgetter:
-    def __init__(self, clr, include_chroms=False, include_bins=True, use_lock=False):
+    def __init__(
+        self,
+        clr: Cooler,
+        include_chroms: bool = False,
+        include_bins: bool = True,
+        use_lock: bool = False,
+    ):
         self.cooler = clr
         self.include_chroms = include_chroms
         self.include_bins = include_bins
         self.use_lock = use_lock
 
-    def __call__(self, span):
+    def __call__(self, span: tuple[int, int]) -> dict[str, Any]:
         lo, hi = span
         chunk = {}
         try:
@@ -266,7 +303,17 @@ class chunkgetter:
         return chunk
 
 
-def split(clr, map=map, chunksize=10_000_000, spans=None, **kwargs):
+def split(
+    clr: Cooler,
+    map: MapFunctor = map,
+    chunksize: int = 10_000_000,
+    spans: Iterable[tuple[int, int]] | None = None,
+    **kwargs
+) -> MultiplexDataPipe:
     if spans is None:
         spans = partition(0, int(clr.info["nnz"]), chunksize)
-    return MultiplexDataPipe(chunkgetter(clr, **kwargs), spans, map)
+    return MultiplexDataPipe(
+        get=chunkgetter(clr, **kwargs),
+        keys=spans,
+        map=map
+    )
