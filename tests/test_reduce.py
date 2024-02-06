@@ -1,11 +1,10 @@
 import os.path as op
 
+import cooler
 import h5py
 import numpy as np
 import pytest
 from _common import cooler_cmp, isolated_filesystem
-
-import cooler
 from cooler.reduce import coarsen_cooler, legacy_zoomify, merge_coolers, zoomify_cooler
 
 testdir = op.realpath(op.dirname(__file__))
@@ -19,7 +18,10 @@ datadir = op.join(testdir, "data")
             op.join(datadir, "hg19.GM12878-MboI.matrix.2000kb.cool"),
             op.join(datadir, "hg19.GM12878-MboI.matrix.2000kb.cool"),
         ),
-        (op.join(datadir, "toy.asymm.2.cool"), op.join(datadir, "toy.asymm.2.cool")),
+        (
+            op.join(datadir, "toy.asymm.2.cool"),
+            op.join(datadir, "toy.asymm.2.cool")
+        ),
     ],
 )
 def test_merge(path1, path2):
@@ -79,7 +81,11 @@ def test_merge2():
             2,
             op.join(datadir, "toy.symm.upper.4.cool"),
         ),
-        (op.join(datadir, "toy.asymm.2.cool"), 2, op.join(datadir, "toy.asymm.4.cool")),
+        (
+            op.join(datadir, "toy.asymm.2.cool"),
+            2,
+            op.join(datadir, "toy.asymm.4.cool")
+        ),
         (
             op.join(datadir, "toy.symm.upper.var.cool"),
             2,

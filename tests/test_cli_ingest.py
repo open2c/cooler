@@ -3,6 +3,7 @@ import os.path as op
 import tempfile
 from glob import glob
 
+import cooler
 import numpy as np
 import pandas as pd
 import pytest
@@ -10,13 +11,11 @@ import simplejson as json
 
 # from _common import cooler_cmp
 from click.testing import CliRunner
-from pandas.api import types
-
-import cooler
 
 ### INGEST AND AGGREGATION ###
 from cooler.cli.cload import pairs as cload_pairs
 from cooler.cli.load import load
+from pandas.api import types
 
 tmp = tempfile.gettempdir()
 testdir = op.realpath(op.dirname(__file__))
@@ -24,23 +23,19 @@ datadir = op.join(testdir, "data")
 
 
 def _run_cload_pairs(runner, binsize, extra_args):
+    # fmt: off
     args = [
         op.join(datadir, "toy.chrom.sizes") + ":" + str(binsize),
-        op.join(datadir, "toy.pairs"),
-        f"toy.{binsize}.cool",
-        "-c1",
-        "2",
-        "-p1",
-        "3",
-        "-c2",
-        "4",
-        "-p2",
-        "5",
-        "--assembly",
-        "toy",
-        "--chunksize",
-        "10",
-    ] + extra_args
+        op.join(datadir, "toy.pairs"), f"toy.{binsize}.cool",
+        "-c1", "2",
+        "-p1", "3",
+        "-c2", "4",
+        "-p2", "5",
+        "--assembly", "toy",
+        "--chunksize", "10",
+        *extra_args
+    ]
+    # fmt: on
     return runner.invoke(cload_pairs, args)
 
 
@@ -143,7 +138,8 @@ def test_cload_field():
         # assert result.exit_code == 0
         # pixels = cooler.Cooler('toy.2.cool').pixels()[:]
         # assert 'count' not in pixels.columns
-        # assert 'score' in pixels.columns and types.is_float_dtype(pixels.dtypes['score'])
+        # assert ('score' in pixels.columns and
+        #          types.is_float_dtype(pixels.dtypes['score']))
 
 
 # '--metadata', '',
@@ -175,17 +171,16 @@ def test_cload_other_options():
 
 
 def _run_load(runner, matrix_file, format, binsize, extra_args):
+    # fmt: off
     args = [
-        "-f",
-        format,
+        "-f", format,
         op.join(datadir, "toy.chrom.sizes") + ":" + str(binsize),
-        op.join(datadir, matrix_file),
-        f"toy.{binsize}.cool",
-        "--assembly",
-        "toy",
-        "--chunksize",
-        "10",
-    ] + extra_args
+        op.join(datadir, matrix_file), f"toy.{binsize}.cool",
+        "--assembly", "toy",
+        "--chunksize", "10",
+        *extra_args
+    ]
+    # fmt: on
     return runner.invoke(load, args)
 
 
@@ -194,11 +189,11 @@ def _run_load(runner, matrix_file, format, binsize, extra_args):
 @pytest.mark.parametrize(
     "ref,extra_args",
     [
-        ("symm.upper", []),  # reflect tril pairs
-        (
-            "symm.upper",
-            ["--one-based", "--input-copy-status", "unique"],
-        ),  # reflect tril pairs
+        # reflect tril pairs
+        ("symm.upper", []),
+        # reflect tril pairs
+        ("symm.upper", ["--one-based", "--input-copy-status", "unique"]),
+        # asymmetric map
         ("asymm", ["--one-based", "--no-symmetric-upper"]),
     ],
 )

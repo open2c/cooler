@@ -5,7 +5,6 @@ import h5py
 import numpy as np
 import pandas as pd
 import pytest
-
 from cooler import util
 
 testdir = op.realpath(op.dirname(__file__))

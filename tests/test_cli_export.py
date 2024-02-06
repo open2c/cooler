@@ -1,12 +1,11 @@
 import os.path as op
 from io import StringIO
 
+import cooler
 import numpy as np
 import pandas as pd
 from _common import cooler_cmp
 from click.testing import CliRunner
-
-import cooler
 from cooler.cli.dump import dump
 
 ### EXPORT ###
