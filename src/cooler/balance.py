@@ -1,10 +1,15 @@
+from __future__ import annotations
+
 import warnings
 from functools import partial
 from operator import add
+from typing import Literal
 
 import numpy as np
 
 from ._logging import get_logger
+from ._typing import MapFunctor
+from .api import Cooler
 from .parallel import partition, split
 from .util import mad
 
@@ -251,25 +256,25 @@ def _balance_transonly(
 
 
 def balance_cooler(
-    clr,
+    clr: Cooler,
     *,
-    cis_only=False,
-    trans_only=False,
-    ignore_diags=2,
-    mad_max=5,
-    min_nnz=10,
-    min_count=0,
-    blacklist=None,
-    rescale_marginals=True,
-    x0=None,
-    tol=1e-5,
-    max_iters=200,
-    chunksize=10_000_000,
-    map=map,
-    use_lock=False,
-    store=False,
-    store_name="weight",
-):
+    cis_only: bool = False,
+    trans_only: bool = False,
+    ignore_diags: int | Literal[False] = 2,
+    mad_max: int = 5,
+    min_nnz: int = 10,
+    min_count: int = 0,
+    blacklist: str | None = None,
+    rescale_marginals: bool = True,
+    x0: np.ndarray | None = None,
+    tol: float = 1e-5,
+    max_iters: int = 200,
+    chunksize: int = 10_000_000,
+    map: MapFunctor = map,
+    use_lock: bool = False,
+    store: bool = False,
+    store_name: str = "weight",
+) -> tuple[np.ndarray, dict]:
     """
     Iterative correction or matrix balancing of a sparse Hi-C contact map in
     Cooler HDF5 format.

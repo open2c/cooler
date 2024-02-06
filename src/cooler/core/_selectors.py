@@ -1,3 +1,14 @@
+from __future__ import annotations
+
+from typing import Any, Callable, List, Optional, Tuple, Union, overload
+
+import pandas as pd
+
+ColumnsArg = Optional[Union[str, List[str]]]
+GenomicRangeArg = Optional[Union[str, Tuple[str, Optional[int], Optional[int]]]]
+FieldArg = Optional[str]
+
+
 class _IndexingMixin:
     def _unpack_index(self, key):
         if isinstance(key, tuple):
@@ -69,34 +80,51 @@ class RangeSelector1D(_IndexingMixin):
 
     """
 
-    def __init__(self, fields, slicer, fetcher, nmax):
+    def __init__(
+        self,
+        fields: str | list[str] | None,
+        slicer: Callable[[ColumnsArg, int, int], Any],
+        fetcher: Callable[[GenomicRangeArg], tuple[int, int]],
+        nmax: int
+    ):
         self.fields = fields
         self._slice = slicer
         self._fetch = fetcher
         self._shape = (nmax,)
 
     @property
-    def shape(self):
+    def shape(self) -> tuple[int]:
         return self._shape
 
     @property
-    def columns(self):
+    def columns(self) -> pd.Index:
         return self._slice(self.fields, 0, 0).columns
 
     @property
-    def dtypes(self):
+    def dtypes(self) -> pd.Series:
         return self._slice(self.fields, 0, 0).dtypes
 
-    def keys(self):
+    def keys(self) -> list[str]:
         return list(self.columns)
 
-    def __len__(self):
+    def __len__(self) -> int:
         return self._shape[0]
 
-    def __contains__(self, key):
+    def __contains__(self, key: str) -> bool:
         return key in self.columns
 
-    def __getitem__(self, key):
+    @overload
+    def __getitem__(self, key: str | list[str]) -> RangeSelector1D:
+        ...
+
+    @overload
+    def __getitem__(self, key: int | slice) -> pd.DataFrame | pd.Series:
+        ...
+
+    def __getitem__(
+        self,
+        key: str | list[str] | int | slice
+    ) -> RangeSelector1D | pd.DataFrame | pd.Series:
         # requesting a subset of columns
         if isinstance(key, (list, str)):
             return self.__class__(key, self._slice, self._fetch, self._shape[0])
@@ -110,7 +138,7 @@ class RangeSelector1D(_IndexingMixin):
         lo, hi = self._process_slice(key, self._shape[0])
         return self._slice(self.fields, lo, hi)
 
-    def fetch(self, *args, **kwargs):
+    def fetch(self, *args, **kwargs) -> pd.DataFrame | pd.Series:
         if self._fetch is not None:
             lo, hi = self._fetch(*args, **kwargs)
             return self._slice(self.fields, lo, hi)
@@ -125,26 +153,34 @@ class RangeSelector2D(_IndexingMixin):
 
     """
 
-    def __init__(self, field, slicer, fetcher, shape):
+    def __init__(
+        self,
+        field: str | None,
+        slicer: Callable[[FieldArg, int, int, int, int], Any],
+        fetcher: Callable[
+            [GenomicRangeArg, GenomicRangeArg | None], tuple[int, int, int, int]
+        ],
+        shape: tuple[int, int],
+    ):
         self.field = field
         self._slice = slicer
         self._fetch = fetcher
         self._shape = shape
 
     @property
-    def shape(self):
+    def shape(self) -> tuple[int, int]:
         return self._shape
 
-    def __len__(self):
+    def __len__(self) -> int:
         return self._shape[0]
 
-    def __getitem__(self, key):
+    def __getitem__(self, key: Any | tuple[Any, Any]) -> Any:
         s1, s2 = self._unpack_index(key)
         i0, i1 = self._process_slice(s1, self._shape[0])
         j0, j1 = self._process_slice(s2, self._shape[1])
         return self._slice(self.field, i0, i1, j0, j1)
 
-    def fetch(self, *args, **kwargs):
+    def fetch(self, *args, **kwargs) -> Any:
         if self._fetch is not None:
             i0, i1, j0, j1 = self._fetch(*args, **kwargs)
             return self._slice(self.field, i0, i1, j0, j1)

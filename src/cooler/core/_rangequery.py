@@ -1,10 +1,19 @@
-# import h5py
+from __future__ import annotations
+
+from typing import Any, Callable, Iterator
+
+import h5py
 import numpy as np
 import pandas as pd
 from cytoolz import compose
 
 
-def _region_to_extent(h5, chrom_ids, region, binsize):
+def _region_to_extent(
+    h5: h5py.Group,
+    chrom_ids: dict[str, int],
+    region: tuple[str, int, int],
+    binsize: int,
+) -> Iterator[int]:
     chrom, start, end = region
     cid = chrom_ids[chrom]
     if binsize is not None:
@@ -21,21 +30,35 @@ def _region_to_extent(h5, chrom_ids, region, binsize):
         yield chrom_lo + chrom_lo.dtype.type(np.searchsorted(chrom_bins, end, "left"))
 
 
-def region_to_offset(h5, chrom_ids, region, binsize=None):
+def region_to_offset(
+    h5: h5py.Group,
+    chrom_ids: dict[str, int],
+    region: tuple[str, int, int],
+    binsize: int | None = None
+) -> int:
     return next(_region_to_extent(h5, chrom_ids, region, binsize))
 
 
-def region_to_extent(h5, chrom_ids, region, binsize=None):
+def region_to_extent(
+    h5: h5py.Group,
+    chrom_ids: dict[str, int],
+    region: tuple[str, int, int],
+    binsize: int | None = None
+) -> tuple[int, int]:
     return tuple(_region_to_extent(h5, chrom_ids, region, binsize))
 
 
-def _comes_before(a0, a1, b0, b1, strict=False):
+def _comes_before(
+    a0: int, a1: int, b0: int, b1: int, strict: bool = False
+) -> bool:
     if a0 < b0:
         return a1 <= b0 if strict else a1 <= b1
     return False
 
 
-def _contains(a0, a1, b0, b1, strict=False):
+def _contains(
+    a0: int, a1: int, b0: int, b1: int, strict: bool = False
+) -> bool:
     if a0 > b0 or a1 < b1:
         return False
     if strict and (a0 == b0 or a1 == b1):
@@ -43,25 +66,38 @@ def _contains(a0, a1, b0, b1, strict=False):
     return a0 <= b0 and a1 >= b1
 
 
-def concat(*dcts):
+def concat(*dcts: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
     if not dcts:
         return {}
     return {key: np.concatenate([dct[key] for dct in dcts]) for key in dcts[0]}
 
 
-def transpose(dct):
+def transpose(dct: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
     x, y = dct["bin1_id"], dct["bin2_id"]
     dct["bin1_id"], dct["bin2_id"] = y, x
     return dct
 
 
-def frame_slice_from_dict(dct, field):
+def frame_slice_from_dict(dct: dict[str, np.ndarray], field: str) -> pd.DataFrame:
     index = dct.get("__index")
     return pd.DataFrame(dct, columns=["bin1_id", "bin2_id", field], index=index)
 
 
-def sparray_slice_from_dict(dct, row_start, row_stop, col_start, col_stop, field):
-    from sparse import COO
+def sparray_slice_from_dict(
+    dct: dict[str, np.ndarray],
+    row_start: int,
+    row_stop: int,
+    col_start: int,
+    col_stop: int,
+    field: str
+) -> Any:
+    try:
+        from sparse import COO
+    except ImportError:
+        raise ImportError(
+            "The 'sparse' package is required for pydata/sparse output. "
+            "You can install it with 'pip install sparse'."
+        )
 
     shape = (row_stop - row_start, col_stop - col_start)
     return COO(
@@ -71,7 +107,14 @@ def sparray_slice_from_dict(dct, row_start, row_stop, col_start, col_stop, field
     )
 
 
-def spmatrix_slice_from_dict(dct, row_start, row_stop, col_start, col_stop, field):
+def spmatrix_slice_from_dict(
+    dct: dict[str, np.ndarray],
+    row_start: int,
+    row_stop: int,
+    col_start: int,
+    col_stop: int,
+    field: str
+) -> Any:
     from scipy.sparse import coo_matrix
 
     shape = (row_stop - row_start, col_stop - col_start)
@@ -81,12 +124,19 @@ def spmatrix_slice_from_dict(dct, row_start, row_stop, col_start, col_stop, fiel
     )
 
 
-def array_slice_from_dict(dct, row_start, row_stop, col_start, col_stop, field):
+def array_slice_from_dict(
+    dct: dict[str, np.ndarray],
+    row_start: int,
+    row_stop: int,
+    col_start: int,
+    col_stop: int,
+    field: str
+) -> np.ndarray:
     mat = spmatrix_slice_from_dict(dct, row_start, row_stop, col_start, col_stop, field)
     return mat.toarray()
 
 
-def arg_prune_partition(seq, step):
+def arg_prune_partition(seq: np.ndarray, step: int) -> np.ndarray:
     """
     Take a monotonic sequence of integers and downsample it such that they
     are at least ``step`` apart (roughly), preserving the first and last
@@ -115,15 +165,19 @@ class CSRReader:
 
     def __init__(
         self,
-        pixel_grp,
-        bin1_offsets,
+        pixel_grp: h5py.Group,
+        bin1_offsets: np.ndarray,
     ):
         # TODO: replace with file_path/handle, pixel_table_path
         self.pixel_grp = pixel_grp
         self.dtypes = {col: pixel_grp[col].dtype for col in pixel_grp}
         self.bin1_offsets = bin1_offsets
 
-    def get_spans(self, bbox, chunksize):
+    def get_spans(
+        self,
+        bbox: tuple[int, int, int, int],
+        chunksize: int
+    ) -> list[tuple[int, int]]:
         # Prune away (downsample) some bin1 offsets so that we extract big
         # enough chunks of matrix rows at a time.
         i0, i1, j0, j1 = bbox
@@ -133,7 +187,7 @@ class CSRReader:
             edges = i0 + arg_prune_partition(self.bin1_offsets[i0 : i1 + 1], chunksize)
         return list(zip(edges[:-1], edges[1:]))
 
-    def get_dict_meta(self, field, return_index=False):
+    def get_dict_meta(self, field: str, return_index: bool = False) -> dict:
         dct = {
             "bin1_id": np.empty((0,), dtype=self.dtypes["bin1_id"]),
             "bin2_id": np.empty((0,), dtype=self.dtypes["bin2_id"]),
@@ -143,10 +197,17 @@ class CSRReader:
             dct["__index"] = np.empty((0,), dtype=np.int64)
         return dct
 
-    def get_frame_meta(self, field):
+    def get_frame_meta(self, field: str) -> pd.DataFrame:
         return pd.DataFrame(self.get_dict_meta(field))
 
-    def __call__(self, field, bbox, row_span=None, reflect=False, return_index=False):
+    def __call__(
+        self,
+        field: str,
+        bbox: tuple[int, int, int, int],
+        row_span: tuple[int, int] | None = None,
+        reflect: bool = False,
+        return_index: bool = False
+    ) -> dict[str, np.ndarray]:
         """
         Materialize a sparse 2D range query as a dict.
 
@@ -262,29 +323,39 @@ class BaseRangeQuery2D:
     pre-assembled tasks.
 
     """
+    reader: CSRReader
+    bbox: tuple[int, int, int, int]
+    field: int
+    return_index: bool
+    tasks: list[tuple[Callable, ...]]
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[dict[str, np.ndarray]]:
         for task in self.tasks:
             yield task[0](*task[1:])
 
     @property
-    def n_chunks(self):
+    def n_chunks(self) -> int:
         return len(self.tasks)
 
-    def get(self):
+    def get(self) -> dict[str, np.ndarray]:
         dct = concat(*self.__iter__())
         if not dct:
             return self.reader.get_dict_meta(self.field, self.return_index)
         return dct
 
-    def get_chunk(self, i):
+    def get_chunk(self, i) -> dict[str, np.ndarray]:
         if not (0 <= i < len(self.tasks)):
             raise IndexError
         task = self.tasks[i]
         return task[0](*task[1:])
 
-    def to_delayed(self):
-        from dask import delayed
+    def to_delayed(self) -> list:
+        try:
+            from dask import delayed
+        except ImportError:
+            raise ImportError(
+                "The 'dask' package is required for `dask.delayed` output."
+            )
 
         out = []
         for task in self.tasks:
@@ -292,21 +363,27 @@ class BaseRangeQuery2D:
             out.append(fetcher_delayed(*task[1:]))
         return out
 
-    def to_sparse_matrix(self):
+    def to_sparse_matrix(self) -> Any:
         return spmatrix_slice_from_dict(self.get(), *self.bbox, self.field)
 
-    def to_sparse_array(self):
+    def to_sparse_array(self) -> Any:
         return sparray_slice_from_dict(self.get(), *self.bbox, self.field)
 
-    def to_array(self):
+    def to_array(self) -> np.ndarray:
         return array_slice_from_dict(self.get(), *self.bbox, self.field)
 
-    def to_frame(self):
+    def to_frame(self) -> pd.DataFrame:
         return frame_slice_from_dict(self.get(), self.field)
 
-    def to_dask_frame(self):
-        from dask.base import tokenize
-        from dask.dataframe import DataFrame
+    def to_dask_frame(self) -> Any:
+        try:
+            from dask.base import tokenize
+            from dask.dataframe import DataFrame
+        except ImportError:
+            raise ImportError(
+                "The 'dask' package is required for dask DataFrame output. "
+                "Install dask[dataframe] or dask[complete] with pip."
+            )
 
         meta = self.reader.get_frame_meta(self.field)
         tasks = self.tasks
@@ -362,7 +439,14 @@ class DirectRangeQuery2D(BaseRangeQuery2D):
 
     """
 
-    def __init__(self, reader, field, bbox, chunksize, return_index=False):
+    def __init__(
+        self,
+        reader: CSRReader,
+        field: str,
+        bbox: tuple[int, int, int, int],
+        chunksize: int,
+        return_index: bool = False
+    ):
         self.reader = reader
         self.field = field
         self.bbox = bbox
@@ -418,7 +502,14 @@ class FillLowerRangeQuery2D(BaseRangeQuery2D):
 
     """
 
-    def __init__(self, reader, field, bbox, chunksize, return_index=False):
+    def __init__(
+        self,
+        reader: CSRReader,
+        field: str,
+        bbox: tuple[int, int, int, int],
+        chunksize: int,
+        return_index: bool = False
+    ):
         self.reader = reader
         self.field = field
         self.bbox = bbox

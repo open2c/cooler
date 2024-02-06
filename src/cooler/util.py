@@ -1,15 +1,20 @@
+from __future__ import annotations
+
 import os
 import re
 from collections import OrderedDict, defaultdict
 from contextlib import contextmanager
+from typing import IO, Any, ContextManager, Iterable, Iterator
 
 import h5py
 import numpy as np
 import pandas as pd
 from pandas.api.types import is_integer, is_scalar
 
+from ._typing import GenomicRangeSpecifier, GenomicRangeTuple
 
-def partition(start, stop, step):
+
+def partition(start: int, stop: int, step: int) -> Iterator[tuple[int, int]]:
     """Partition an integer interval into equally-sized subintervals.
     Like builtin :py:func:`range`, but yields pairs of end points.
 
@@ -27,7 +32,7 @@ def partition(start, stop, step):
     return ((i, min(i + step, stop)) for i in range(start, stop, step))
 
 
-def parse_cooler_uri(s):
+def parse_cooler_uri(s: str) -> tuple[str, str]:
     """
     Parse a Cooler URI string
 
@@ -46,11 +51,11 @@ def parse_cooler_uri(s):
     return file_path, group_path
 
 
-def atoi(s):
+def atoi(s: str) -> int:
     return int(s.replace(",", ""))
 
 
-def parse_humanized(s):
+def parse_humanized(s: str) -> int:
     _NUMERIC_RE = re.compile("([0-9,.]+)")
     _, value, unit = _NUMERIC_RE.split(s.replace(",", ""))
     if not len(unit):
@@ -69,7 +74,7 @@ def parse_humanized(s):
     return int(value)
 
 
-def parse_region_string(s):
+def parse_region_string(s: str) -> tuple[str, int | None, int | None]:
     """
     Parse a UCSC-style genomic region string into a triple.
 
@@ -134,7 +139,10 @@ def parse_region_string(s):
     return (chrom, start, end)
 
 
-def parse_region(reg, chromsizes=None):
+def parse_region(
+    reg: GenomicRangeSpecifier,
+    chromsizes: dict | pd.Series | None = None
+) -> GenomicRangeTuple:
     """
     Genomic regions are represented as half-open intervals (0-based starts,
     1-based ends) along the length coordinate of a contig/scaffold/chromosome.
@@ -180,15 +188,15 @@ def parse_region(reg, chromsizes=None):
     return chrom, start, end
 
 
-def natsort_key(s, _NS_REGEX=re.compile(r"(\d+)", re.U)):
+def natsort_key(s: str, _NS_REGEX=re.compile(r"(\d+)", re.U)) -> tuple:
     return tuple([int(x) if x.isdigit() else x for x in _NS_REGEX.split(s) if x])
 
 
-def natsorted(iterable):
+def natsorted(iterable: Iterable[str]) -> list[str]:
     return sorted(iterable, key=natsort_key)
 
 
-def argnatsort(array):
+def argnatsort(array: Iterable[str]) -> np.ndarray:
     array = np.asarray(array)
     if not len(array):
         return np.array([], dtype=int)
@@ -197,11 +205,11 @@ def argnatsort(array):
 
 
 def read_chromsizes(
-    filepath_or,
-    name_patterns=(r"^chr[0-9]+$", r"^chr[XY]$", r"^chrM$"),
-    all_names=False,
+    filepath_or: str | IO[str],
+    name_patterns: tuple[str, ...] = (r"^chr[0-9]+$", r"^chr[XY]$", r"^chrM$"),
+    all_names: bool = False,
     **kwargs,
-):
+) -> pd.Series:
     """
     Parse a ``<db>.chrom.sizes`` or ``<db>.chromInfo.txt`` file from the UCSC
     database, where ``db`` is a genome assembly name.
@@ -249,7 +257,7 @@ def read_chromsizes(
     return chromtable["length"]
 
 
-def fetch_chromsizes(db, **kwargs):
+def fetch_chromsizes(db: str, **kwargs) -> pd.Series:
     """
     Download chromosome sizes from UCSC as a :py:class:`pandas.Series`, indexed
     by chromosome label.
@@ -261,7 +269,7 @@ def fetch_chromsizes(db, **kwargs):
     )
 
 
-def load_fasta(names, *filepaths):
+def load_fasta(names: list[str], *filepaths: str) -> OrderedDict[str, Any]:
     """
     Load lazy FASTA records from one or multiple files without reading them
     into memory.
@@ -295,7 +303,7 @@ def load_fasta(names, *filepaths):
     return records
 
 
-def binnify(chromsizes, binsize):
+def binnify(chromsizes: pd.Series, binsize: int) -> pd.DataFrame:
     """
     Divide a genome into evenly sized bins.
 
@@ -335,7 +343,7 @@ def binnify(chromsizes, binsize):
 make_bintable = binnify
 
 
-def digest(fasta_records, enzyme):
+def digest(fasta_records: OrderedDict[str, Any], enzyme: str) -> pd.DataFrame:
     """
     Divide a genome into restriction fragments.
 
@@ -381,7 +389,7 @@ def digest(fasta_records, enzyme):
     return pd.concat(map(_each, chroms), axis=0, ignore_index=True)
 
 
-def get_binsize(bins):
+def get_binsize(bins: pd.DataFrame) -> int | None:
     """
     Infer bin size from a bin DataFrame. Assumes that the last bin of each
     contig is allowed to differ in size from the rest.
@@ -402,7 +410,7 @@ def get_binsize(bins):
         return None
 
 
-def get_chromsizes(bins):
+def get_chromsizes(bins: pd.DataFrame) -> pd.Series:
     """
     Infer chromsizes Series from a bin DataFrame. Assumes that the last bin of
     each contig is allowed to differ in size from the rest.
@@ -421,7 +429,11 @@ def get_chromsizes(bins):
     return pd.Series(index=chroms, data=lengths)
 
 
-def bedslice(grouped, chromsizes, region):
+def bedslice(
+    grouped,
+    chromsizes: pd.Series | dict,
+    region: GenomicRangeSpecifier,
+) -> pd.DataFrame:
     """
     Range query on a BED-like dataframe with non-overlapping intervals.
 
@@ -435,11 +447,14 @@ def bedslice(grouped, chromsizes, region):
     return result
 
 
-def asarray_or_dataset(x):
+def asarray_or_dataset(x: Any) -> np.ndarray | h5py.Dataset:
     return x if isinstance(x, h5py.Dataset) else np.asarray(x)
 
 
-def rlencode(array, chunksize=None):
+def rlencode(
+    array: np.ndarray,
+    chunksize: int | None = None
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     Run length encoding.
     Based on http://stackoverflow.com/a/32681075, which is based on the rle
@@ -487,19 +502,24 @@ def rlencode(array, chunksize=None):
     return starts, lengths, values
 
 
-def cmd_exists(cmd):
+def cmd_exists(cmd: str) -> bool:
     return any(
         os.access(os.path.join(path, cmd), os.X_OK)
         for path in os.environ["PATH"].split(os.pathsep)
     )
 
 
-def mad(data, axis=None):
+def mad(data: np.ndarray, axis: int | None = None) -> np.ndarray:
     return np.median(np.abs(data - np.median(data, axis)), axis)
 
 
 @contextmanager
-def open_hdf5(fp, mode="r", *args, **kwargs):
+def open_hdf5(
+    fp: str | h5py.Group,
+    mode: str = "r",
+    *args,
+    **kwargs
+) -> ContextManager[h5py.Group]:
     """
     Context manager like ``h5py.File`` but accepts already open HDF5 file
     handles which do not get closed on teardown.
@@ -543,20 +563,20 @@ def open_hdf5(fp, mode="r", *args, **kwargs):
 
 
 class closing_hdf5(h5py.Group):
-    def __init__(self, grp):
+    def __init__(self, grp: h5py.Group):
         super().__init__(grp.id)
 
-    def __enter__(self):
+    def __enter__(self) -> h5py.Group:
         return self
 
-    def __exit__(self, *exc_info):
+    def __exit__(self, *exc_info) -> None:
         return self.file.close()
 
-    def close(self):
+    def close(self) -> None:
         self.file.close()
 
 
-def attrs_to_jsonable(attrs):
+def attrs_to_jsonable(attrs: h5py.AttributeManager) -> dict:
     out = dict(attrs)
     for k, v in attrs.items():
         try:
@@ -724,7 +744,7 @@ def get_meta(
     return pd.DataFrame(col_dict, columns=columns, index=index)
 
 
-def check_bins(bins, chromsizes):
+def check_bins(bins: pd.DataFrame, chromsizes: pd.Series) -> pd.DataFrame:
     is_cat = pd.api.types.is_categorical_dtype(bins["chrom"])
     bins = bins.copy()
     if not is_cat:
@@ -737,7 +757,12 @@ def check_bins(bins, chromsizes):
     return bins
 
 
-def balanced_partition(gs, n_chunk_max, file_contigs, loadings=None):
+def balanced_partition(
+    gs: GenomeSegmentation,
+    n_chunk_max: int,
+    file_contigs: list[str],
+    loadings: list[int | float] | None = None
+) -> list[GenomicRangeTuple]:
     # n_bins = len(gs.bins)
     grouped = gs._bins_grouped
 
@@ -764,7 +789,7 @@ def balanced_partition(gs, n_chunk_max, file_contigs, loadings=None):
 
 
 class GenomeSegmentation:
-    def __init__(self, chromsizes, bins):
+    def __init__(self, chromsizes: pd.Series, bins: pd.DataFrame):
         bins = check_bins(bins, chromsizes)
         self._bins_grouped = bins.groupby("chrom", sort=False)
         nbins_per_chrom = self._bins_grouped.size().values
@@ -780,7 +805,7 @@ class GenomeSegmentation:
             self.chrom_abspos[bins["chrom"].cat.codes] + bins["start"].values
         )
 
-    def fetch(self, region):
+    def fetch(self, region: GenomicRangeSpecifier) -> pd.DataFrame:
         chrom, start, end = parse_region(region, self.chromsizes)
         result = self._bins_grouped.get_group(chrom)
         if start > 0 or end < self.chromsizes[chrom]:
@@ -790,7 +815,10 @@ class GenomeSegmentation:
         return result
 
 
-def buffered(chunks, size=10000000):
+def buffered(
+    chunks: Iterable[pd.DataFrame],
+    size: int = 10000000
+) -> Iterator[pd.DataFrame]:
     """
     Take an incoming iterator of small data frame chunks and buffer them into
     an outgoing iterator of larger chunks.

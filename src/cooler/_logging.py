@@ -1,7 +1,11 @@
+from __future__ import annotations
+
 import logging
 import sys
+from typing import IO, Literal, Optional
 
-_logging_context = None
+LoggingContext = Optional[Literal["cli", "lib"]]
+_logging_context: LoggingContext = None
 _loggers = {}
 
 verbosity_to_loglevel = {
@@ -24,17 +28,17 @@ loglevel_to_verbosity = {
 
 
 def configure(
-    logger,
-    stream=None,
-    filename=None,
-    open_kws=None,
-    handlers=None,
-    level=logging.WARNING,
-    format="{levelname}:{name}:{message}",
-    datefmt="%Y-%m-%d %I:%M:%S %p",
-    style="{",
-    propagate=False,
-):
+    logger: logging.Logger,
+    stream: IO[str] | None = None,
+    filename: str | None = None,
+    open_kws: dict | None = None,
+    handlers: list[logging.Handler] | None = None,
+    level: int = logging.WARNING,
+    format: str = "{levelname}:{name}:{message}",
+    datefmt: str = "%Y-%m-%d %I:%M:%S %p",
+    style: str = "{",
+    propagate: bool = False,
+) -> None:
     """
     Configure a logger for a stream or file or a custom set of handlers.
 
@@ -119,7 +123,7 @@ def configure(
     logger.propagate = propagate
 
 
-def set_logging_context(ctx):
+def set_logging_context(ctx: LoggingContext) -> None:
     global _logging_context
 
     logger = logging.getLogger("cooler")
@@ -133,7 +137,7 @@ def set_logging_context(ctx):
         elif ctx == "cli":
             configure(logger, stream=sys.stderr, level=logging.INFO)
             logging.captureWarnings(True)
-        elif ctx == "none":
+        elif ctx is None:
             for handler in logger.handlers[:]:
                 logger.removeHandler(handler)
                 handler.close()
@@ -143,11 +147,11 @@ def set_logging_context(ctx):
         _logging_context = ctx
 
 
-def get_logging_context():
+def get_logging_context() -> LoggingContext:
     return _logging_context
 
 
-def set_verbosity_level(level):
+def set_verbosity_level(level: int) -> None:
     logger = logging.getLogger("cooler")
     try:
         loglevel = verbosity_to_loglevel[level]
@@ -158,12 +162,12 @@ def set_verbosity_level(level):
     logger.setLevel(loglevel)
 
 
-def get_verbosity_level():
+def get_verbosity_level() -> int:
     logger = logging.getLogger("cooler")
     return loglevel_to_verbosity[logger.level]
 
 
-def get_logger(name="cooler"):
+def get_logger(name="cooler") -> logging.Logger:
     # Based on ipython traitlets
     global _loggers, _logging_context
 

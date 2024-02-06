@@ -1,7 +1,10 @@
+from __future__ import annotations
+
 import math
 import warnings
 from bisect import bisect_right
 from collections import OrderedDict, defaultdict
+from typing import Any, Iterator, Literal
 
 import h5py
 import multiprocess as mp
@@ -9,7 +12,9 @@ import numpy as np
 import pandas as pd
 
 from ._logging import get_logger
+from ._typing import MapFunctor
 from ._version import __format_version_mcool__
+from .api import Cooler
 from .create import ContactBinner, create
 from .parallel import lock
 from .util import GenomeSegmentation, parse_cooler_uri
@@ -18,7 +23,6 @@ __all__ = ["merge_coolers", "coarsen_cooler", "zoomify_cooler"]
 
 
 logger = get_logger(__name__)
-
 
 HIGLASS_TILE_DIM = 256
 
@@ -39,7 +43,10 @@ ZOOMS_4DN = [
 ]
 
 
-def merge_breakpoints(indexes, maxbuf):
+def merge_breakpoints(
+    indexes: list[np.ndarray],
+    maxbuf: int
+) -> tuple[np.ndarray, np.ndarray]:
     """
     Partition k offset arrays for performing a k-way external merge, such that
     no single merge pass loads more than ``maxbuf`` records  into memory, with
@@ -107,7 +114,13 @@ class CoolerMerger(ContactBinner):
 
     """
 
-    def __init__(self, coolers, maxbuf, columns=None, agg=None):
+    def __init__(
+        self,
+        coolers: list[Cooler],
+        maxbuf: int,
+        columns: list[str] | None = None,
+        agg: dict[str, Any] | None = None
+    ):
         self.coolers = list(coolers)
         self.maxbuf = maxbuf
         self.columns = ["count"] if columns is None else columns
@@ -131,7 +144,7 @@ class CoolerMerger(ContactBinner):
                 if (len(bins2) != len(bins)) or not np.all(bins2 == bins):
                     raise ValueError("Coolers must have same bin structure")
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[dict[str, np.ndarray]]:
         indexes = [c._load_dset("indexes/bin1_offset") for c in self.coolers]
         breakpoints, cum_offsets = merge_breakpoints(indexes, self.maxbuf)
         chunksizes = np.diff(cum_offsets)
@@ -169,8 +182,14 @@ class CoolerMerger(ContactBinner):
 
 
 def merge_coolers(
-    output_uri, input_uris, mergebuf, columns=None, dtypes=None, agg=None, **kwargs
-):
+    output_uri: str,
+    input_uris: list[str],
+    mergebuf: int,
+    columns: list[str] | None = None,
+    dtypes: dict[str, Any] | None = None,
+    agg: dict[str, Any] | None = None,
+    **kwargs
+) -> None:
     """
     Merge multiple coolers with identical axes.
 
@@ -211,8 +230,6 @@ def merge_coolers(
 
     """
     # TODO: combine metadata from inputs
-    from .api import Cooler
-
     logger.info("Merging:\n{}".format("\n".join(input_uris)))
 
     clrs = [Cooler(path) for path in input_uris]
@@ -262,45 +279,7 @@ def merge_coolers(
     )
 
 
-def _optimal_prune_partition(edges, maxlen):  # pragma: no cover
-    """Given an integer interval partition ``edges``, find the coarsened
-    partition with the longest subintervals such that no new subinterval
-    created by removing edges exceeds ``maxlen``.
-    """
-    n = len(edges)
-    if n < 2:
-        raise ValueError("Partition must have 2 or more edges.")
-    opt = np.zeros(n, dtype=int)
-    pred = np.zeros(n, dtype=int)
-
-    opt[0] = 0
-    for i in range(1, n):
-        # default to immediate predecessor edge
-        opt[i] = opt[i - 1] + min(maxlen, edges[i] - edges[i - 1])
-        pred[i] = i - 1
-        # try earlier predecessors until we exceed maxlen
-        for k in range(i - 2, -1, -1):
-            length = edges[i] - edges[k]
-            if length > maxlen:
-                break
-            s = opt[k] + length
-            if s >= opt[i]:
-                opt[i] = s
-                pred[i] = k
-
-    # backtrack to trace optimal path
-    path = np.zeros(n, dtype=int)
-    i = path[0] = n - 1
-    j = 1
-    while i > 0:
-        i = path[j] = pred[i]
-        j += 1
-    path = path[:j][::-1]
-
-    return edges[path]
-
-
-def _greedy_prune_partition(edges, maxlen):
+def _greedy_prune_partition(edges: np.ndarray, maxlen: int) -> np.ndarray:
     """Given an integer interval partition ``edges`` from 0..nnz, prune the
     edges to make the new subintervals roughly ``maxlen`` in length.
     """
@@ -313,7 +292,11 @@ def _greedy_prune_partition(edges, maxlen):
     return edges[idx]
 
 
-def get_quadtree_depth(chromsizes, base_binsize, bins_per_tile):
+def get_quadtree_depth(
+    chromsizes: pd.Series,
+    base_binsize: int,
+    bins_per_tile: int
+) -> int:
     """
     Number of zoom levels for a quad-tree tiling of a genomic heatmap.
 
@@ -336,7 +319,7 @@ def get_quadtree_depth(chromsizes, base_binsize, bins_per_tile):
     return n_zoom_levels
 
 
-def geomprog(start, mul):
+def geomprog(start: int, mul: int) -> Iterator[int]:
     """
     Generate a geometric progression of integers.
 
@@ -351,7 +334,7 @@ def geomprog(start, mul):
         yield start
 
 
-def niceprog(start):
+def niceprog(start: int) -> Iterator[int]:
     """
     Generate a nice progression of integers.
 
@@ -368,7 +351,11 @@ def niceprog(start):
         start *= 10
 
 
-def preferred_sequence(start, stop, style="nice"):
+def preferred_sequence(
+    start: int,
+    stop: int,
+    style: Literal["binary", "nice"] = "nice"
+) -> list[int]:
     """
     Return a sequence of integers with a "preferred" stepping pattern.
 
@@ -425,7 +412,10 @@ def preferred_sequence(start, stop, style="nice"):
     return seq
 
 
-def get_multiplier_sequence(resolutions, bases=None):
+def get_multiplier_sequence(
+    resolutions: list[int],
+    bases: list[int] | None = None
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     From a set of target resolutions and one or more base resolutions
     deduce the most efficient sequence of integer multiple aggregations
@@ -486,9 +476,16 @@ class CoolerCoarsener(ContactBinner):
 
     """
 
-    def __init__(self, source_uri, factor, chunksize, columns, agg, batchsize, map=map):
-        from .api import Cooler
-
+    def __init__(
+        self,
+        source_uri: str,
+        factor: int,
+        chunksize: int,
+        columns: list[str],
+        agg: dict[str, Any] | None,
+        batchsize: int,
+        map: MapFunctor = map,
+    ):
         self._map = map
 
         self.source_uri = source_uri
@@ -536,7 +533,9 @@ class CoolerCoarsener(ContactBinner):
         self.edges = _greedy_prune_partition(edges, self.chunksize)
 
     @staticmethod
-    def coarsen_bins(old_bins, chromsizes, factor):
+    def coarsen_bins(
+        old_bins: pd.DataFrame, chromsizes: pd.Series, factor: int
+    ) -> pd.DataFrame:
         def _each(group):
             out = group[["chrom", "start"]].copy().iloc[::factor]
             end = group["end"].iloc[factor - 1 :: factor].values
@@ -547,9 +546,7 @@ class CoolerCoarsener(ContactBinner):
 
         return old_bins.groupby("chrom").apply(_each).reset_index(drop=True)
 
-    def _aggregate(self, span):
-        from .api import Cooler
-
+    def _aggregate(self, span: tuple[int, int]) -> pd.DataFrame:
         lo, hi = span
 
         clr = Cooler(self.source_uri)
@@ -589,14 +586,14 @@ class CoolerCoarsener(ContactBinner):
             .reset_index()
         )
 
-    def aggregate(self, span):
+    def aggregate(self, span: tuple[int, int]) -> pd.DataFrame:
         try:
             chunk = self._aggregate(span)
         except MemoryError as e:  # pragma: no cover
             raise RuntimeError(str(e)) from e
         return chunk
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[dict[str, np.ndarray]]:
         # Distribute batches of `batchsize` pixel spans at once.
         batchsize = self.batchsize
         spans = list(zip(self.edges[:-1], self.edges[1:]))
@@ -613,16 +610,16 @@ class CoolerCoarsener(ContactBinner):
 
 
 def coarsen_cooler(
-    base_uri,
-    output_uri,
-    factor,
-    chunksize,
-    nproc=1,
-    columns=None,
-    dtypes=None,
-    agg=None,
+    base_uri: str,
+    output_uri: str,
+    factor: int,
+    chunksize: int,
+    nproc: int = 1,
+    columns: list[str] | None = None,
+    dtypes: dict[str, Any] | None = None,
+    agg: dict[str, Any] | None = None,
     **kwargs,
-):
+) -> None:
     """
     Coarsen a cooler to a lower resolution by an integer factor *k*.
 
@@ -666,9 +663,6 @@ def coarsen_cooler(
     """
     # TODO: decide whether to default to 'count' or whatever is there besides
     # bin1_id, bin2_id dtypes = dict(clr.pixels().dtypes.drop(['bin1_id', 'bin2_id']))
-
-    from .api import Cooler
-
     clr = Cooler(base_uri)
 
     factor = int(factor)
@@ -723,16 +717,16 @@ def coarsen_cooler(
 
 
 def zoomify_cooler(
-    base_uris,
-    outfile,
-    resolutions,
-    chunksize,
-    nproc=1,
-    columns=None,
-    dtypes=None,
-    agg=None,
+    base_uris: str | list[str],
+    outfile: str,
+    resolutions: list[int],
+    chunksize: int,
+    nproc: int = 1,
+    columns: list[str] | None = None,
+    dtypes: dict[str, Any] | None = None,
+    agg: dict[str, Any] | None = None,
     **kwargs,
-):
+) -> None:
     """
     Generate multiple cooler resolutions by recursive coarsening.
 
@@ -775,8 +769,6 @@ def zoomify_cooler(
 
     """
     # TODO: provide presets? {'pow2', '4dn'}
-    from .api import Cooler
-
     if isinstance(base_uris, str):
         base_uris = [base_uris]
 
@@ -847,13 +839,13 @@ def zoomify_cooler(
         )
 
 
-def legacy_zoomify(input_uri, outfile, nproc, chunksize, lock=None):
+def legacy_zoomify(
+    input_uri: str, outfile: str, nproc: int, chunksize: int, lock=None
+) -> tuple[int, dict[str, int]]:
     """
     Quad-tree tiling using legacy MCOOL layout (::0, ::1, ::2, etc.).
 
     """
-    from .api import Cooler
-
     infile, ingroup = parse_cooler_uri(input_uri)
 
     clr = Cooler(infile, ingroup)

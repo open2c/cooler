@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 
 import h5py
@@ -5,6 +7,7 @@ import numpy as np
 import pandas as pd
 import simplejson as json
 from pandas.api.types import is_integer_dtype
+from scipy.sparse import coo_matrix
 
 from .core import (
     CSRReader,
@@ -62,7 +65,7 @@ class Cooler:
 
     """
 
-    def __init__(self, store, root=None, **kwargs):
+    def __init__(self, store: str | h5py.Group, root: str | None = None, **kwargs):
         if isinstance(store, str):
             if root is None:
                 self.filename, self.root = parse_cooler_uri(store)
@@ -84,7 +87,7 @@ class Cooler:
             self.open_kws = {}
         self._refresh()
 
-    def _refresh(self):
+    def _refresh(self) -> None:
         try:
             with open_hdf5(self.store, **self.open_kws) as h5:
                 grp = h5[self.root]
@@ -105,17 +108,17 @@ class Cooler:
                 )
             raise KeyError(err_msg) from None
 
-    def _load_dset(self, path):
+    def _load_dset(self, path: str) -> np.ndarray:
         with open_hdf5(self.store, **self.open_kws) as h5:
             grp = h5[self.root]
             return grp[path][:]
 
-    def _load_attrs(self, path):
+    def _load_attrs(self, path: str) -> dict:
         with open_hdf5(self.store, **self.open_kws) as h5:
             grp = h5[self.root]
             return dict(grp[path].attrs)
 
-    def open(self, mode="r", **kwargs):
+    def open(self, mode: str = "r", **kwargs) -> h5py.Group:
         """Open the HDF5 group containing the Cooler with :py:mod:`h5py`
 
         Functions as a context manager. Any ``open_kws`` passed during
@@ -136,7 +139,7 @@ class Cooler:
         return closing_hdf5(grp)
 
     @property
-    def storage_mode(self):
+    def storage_mode(self) -> str:
         """Indicates whether ordinary sparse matrix encoding is used
         (``"square"``) or whether a symmetric matrix is encoded by storing only
         the upper triangular elements (``"symmetric-upper"``).
@@ -144,21 +147,21 @@ class Cooler:
         return self._info.get("storage-mode", "symmetric-upper")
 
     @property
-    def binsize(self):
+    def binsize(self) -> int | None:
         """Resolution in base pairs if uniform else None"""
         return self._info["bin-size"]
 
     @property
-    def chromsizes(self):
+    def chromsizes(self) -> pd.Series:
         """Ordered mapping of reference sequences to their lengths in bp"""
         return self._chromsizes
 
     @property
-    def chromnames(self):
+    def chromnames(self) -> list[str]:
         """List of reference sequence names"""
         return list(self._chromsizes.index)
 
-    def offset(self, region):
+    def offset(self, region: str | tuple[str, int, int]) -> int:
         """Bin ID containing the left end of a genomic region
 
         Parameters
@@ -185,7 +188,7 @@ class Cooler:
                 self.binsize,
             )
 
-    def extent(self, region):
+    def extent(self, region: str | tuple[str, int, int]) -> tuple[int, int]:
         """Bin IDs containing the left and right ends of a genomic region
 
         Parameters
@@ -213,7 +216,7 @@ class Cooler:
             )
 
     @property
-    def info(self):
+    def info(self) -> dict:
         """File information and metadata
 
         Returns
@@ -226,10 +229,10 @@ class Cooler:
             return info(grp)
 
     @property
-    def shape(self):
+    def shape(self) -> tuple[int, int]:
         return (self._info["nbins"],) * 2
 
-    def chroms(self, **kwargs):
+    def chroms(self, **kwargs) -> RangeSelector1D:
         """Chromosome table selector
 
         Returns
@@ -245,7 +248,7 @@ class Cooler:
 
         return RangeSelector1D(None, _slice, None, self._info["nchroms"])
 
-    def bins(self, **kwargs):
+    def bins(self, **kwargs) -> RangeSelector1D:
         """Bin table selector
 
         Returns
@@ -271,7 +274,7 @@ class Cooler:
 
         return RangeSelector1D(None, _slice, _fetch, self._info["nbins"])
 
-    def pixels(self, join=False, **kwargs):
+    def pixels(self, join: bool = False, **kwargs) -> RangeSelector1D:
         """Pixel table selector
 
         Parameters
@@ -308,15 +311,15 @@ class Cooler:
 
     def matrix(
         self,
-        field=None,
-        balance=True,
-        sparse=False,
-        as_pixels=False,
-        join=False,
-        ignore_index=True,
-        divisive_weights=None,
-        chunksize=10000000,
-    ):
+        field: str | None = None,
+        balance: bool | str = True,
+        sparse: bool = False,
+        as_pixels: bool = False,
+        join: bool = False,
+        ignore_index: bool = True,
+        divisive_weights: bool | None = None,
+        chunksize: int = 10000000,
+    ) -> RangeSelector2D:
         """Contact matrix selector
 
         Parameters
@@ -397,7 +400,7 @@ class Cooler:
 
         return RangeSelector2D(field, _slice, _fetch, (self._info["nbins"],) * 2)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         if isinstance(self.store, str):
             filename = os.path.basename(self.store)
             container = f"{filename}::{self.root}"
@@ -406,7 +409,7 @@ class Cooler:
         return f'<Cooler "{container}">'
 
 
-def info(h5):
+def info(h5: h5py.Group) -> dict:
     """
     File and user metadata dict.
 
@@ -431,7 +434,13 @@ def info(h5):
     return d
 
 
-def chroms(h5, lo=0, hi=None, fields=None, **kwargs):
+def chroms(
+    h5: h5py.Group,
+    lo: int = 0,
+    hi: int | None = None,
+    fields: list[str] | None = None,
+    **kwargs
+) -> pd.DataFrame:
     """
     Table describing the chromosomes/scaffolds/contigs used.
     They appear in the same order they occur in the heatmap.
@@ -459,7 +468,13 @@ def chroms(h5, lo=0, hi=None, fields=None, **kwargs):
     return get(h5["chroms"], lo, hi, fields, **kwargs)
 
 
-def bins(h5, lo=0, hi=None, fields=None, **kwargs):
+def bins(
+    h5: h5py.Group,
+    lo: int = 0,
+    hi: int | None = None,
+    fields: list[str] | None = None,
+    **kwargs
+) -> pd.DataFrame:
     """
     Table describing the genomic bins that make up the axes of the heatmap.
 
@@ -509,7 +524,14 @@ def bins(h5, lo=0, hi=None, fields=None, **kwargs):
     return out
 
 
-def pixels(h5, lo=0, hi=None, fields=None, join=True, **kwargs):
+def pixels(
+    h5: h5py.Group,
+    lo: int = 0,
+    hi: int | None = None,
+    fields: list[str] | None = None,
+    join: bool = True,
+    **kwargs
+) -> pd.DataFrame:
     """
     Table describing the nonzero upper triangular pixels of the Hi-C contact
     heatmap.
@@ -547,7 +569,11 @@ def pixels(h5, lo=0, hi=None, fields=None, join=True, **kwargs):
     return df
 
 
-def annotate(pixels, bins, replace=False):
+def annotate(
+    pixels: pd.DataFrame,
+    bins: pd.DataFrame | RangeSelector1D,
+    replace: bool = False
+) -> pd.DataFrame:
     """
     Add bin annotations to a data frame of pixels.
 
@@ -638,21 +664,21 @@ def annotate(pixels, bins, replace=False):
 
 
 def matrix(
-    h5,
-    i0,
-    i1,
-    j0,
-    j1,
-    field=None,
-    balance=True,
-    sparse=False,
-    as_pixels=False,
-    join=True,
-    ignore_index=True,
-    divisive_weights=False,
-    chunksize=10000000,
-    fill_lower=True,
-):
+    h5: h5py.Group,
+    i0: int,
+    i1: int,
+    j0: int,
+    j1: int,
+    field: str | None = None,
+    balance: bool | str = True,
+    sparse: bool = False,
+    as_pixels: bool = False,
+    join: bool = True,
+    ignore_index: bool = True,
+    divisive_weights: bool = False,
+    chunksize: int = 10000000,
+    fill_lower: bool = True,
+) -> np.ndarray | coo_matrix | pd.DataFrame:
     """
     Two-dimensional range query on the Hi-C contact heatmap.
     Depending on the options, returns either a 2D NumPy array, a rectangular
@@ -663,9 +689,9 @@ def matrix(
     h5 : :py:class:`h5py.File` or :py:class:`h5py.Group`
         Open handle to cooler file.
     i0, i1 : int, optional
-        Bin range along the 0th (row) axis of the heatap.
+        Bin range along the 0th (row) axis of the heatmap.
     j0, j1 : int, optional
-        Bin range along the 1st (col) axis of the heatap.
+        Bin range along the 1st (col) axis of the heatmap.
     field : str, optional
         Which column of the pixel table to fill the matrix with. By default,
         the 'count' column is used.

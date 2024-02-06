@@ -6,17 +6,22 @@ Binners are iterators that convert input data of various flavors into a
 properly sorted, chunked stream of binned contacts.
 
 """
+from __future__ import annotations
+
 import itertools
 import warnings
 from bisect import bisect_left
 from collections import Counter, OrderedDict
 from functools import partial
+from typing import Any, Callable
 
+import h5py
 import numpy as np
 import pandas as pd
 from pandas.api.types import is_integer_dtype
 
 from .._logging import get_logger
+from .._typing import MapFunctor
 from ..util import (
     GenomeSegmentation,
     balanced_partition,
@@ -220,7 +225,11 @@ def _sanitize_records(
     return chunk
 
 
-def sanitize_records(bins, schema=None, **kwargs):
+def sanitize_records(
+    bins: pd.DataFrame,
+    schema: str | None = None,
+    **kwargs
+) -> Callable[[pd.DataFrame], pd.DataFrame]:
     """
     Builds a funtion to sanitize and assign bin IDs to a data frame of
     paired genomic positions based on a provided genomic bin segmentation.
@@ -304,13 +313,17 @@ def _sanitize_pixels(
         chunk[bin1_field] -= 1
         chunk[bin2_field] -= 1
 
-    # Note: Swap assignment works as desired because boolean masks create copies
-    # See https://github.com/open2c/cooler/pull/229
+    # Note: Swap assignment syntax works as desired because boolean mask
+    # selection produces array copies rather than views.
+    # See https://github.com/open2c/cooler/pull/229.
     if tril_action is not None:
-        is_tril = chunk[bin1_field] > chunk[bin2_field]
+        is_tril = chunk[bin1_field] > chunk[bin2_field]  # boolean mask
         if np.any(is_tril):
             if tril_action == "reflect":
-                (chunk.loc[is_tril, bin1_field], chunk.loc[is_tril, bin2_field]) = (
+                (
+                    chunk.loc[is_tril, bin1_field],
+                    chunk.loc[is_tril, bin2_field],
+                ) = (
                     chunk.loc[is_tril, bin2_field],
                     chunk.loc[is_tril, bin1_field],
                 )
@@ -332,52 +345,10 @@ def _sanitize_pixels(
     return chunk.sort_values([bin1_field, bin2_field]) if sort else chunk
 
 
-def _validate_pixels(chunk, n_bins, boundscheck, triucheck, dupcheck, ensure_sorted):
-    if boundscheck:
-        is_neg = (chunk["bin1_id"] < 0) | (chunk["bin2_id"] < 0)
-        if np.any(is_neg):
-            raise BadInputError("Found bin ID < 0")
-        is_excess = (chunk["bin1_id"] >= n_bins) | (chunk["bin2_id"] >= n_bins)
-        if np.any(is_excess):
-            raise BadInputError(
-                "Found a bin ID that exceeds the declared number of bins. "
-                "Check whether your bin table is correct."
-            )
-
-    if triucheck:
-        is_tril = chunk["bin1_id"] > chunk["bin2_id"]
-        if np.any(is_tril):
-            raise BadInputError("Found bin1_id greater than bin2_id")
-
-    if not isinstance(chunk, pd.DataFrame):
-        chunk = pd.DataFrame(chunk)
-
-    if dupcheck:
-        is_dup = chunk.duplicated(["bin1_id", "bin2_id"])
-        if is_dup.any():
-            err = chunk[is_dup]
-            raise BadInputError(
-                "Found duplicate pixels:\n{}".format(err.head().to_csv(sep="\t"))
-            )
-
-    if ensure_sorted:
-        chunk = chunk.sort_values(["bin1_id", "bin2_id"])
-
-    return chunk
-
-
-def validate_pixels(n_bins, boundscheck, triucheck, dupcheck, ensure_sorted):
-    return partial(
-        _validate_pixels,
-        n_bins=n_bins,
-        boundscheck=boundscheck,
-        triucheck=triucheck,
-        dupcheck=dupcheck,
-        ensure_sorted=ensure_sorted,
-    )
-
-
-def sanitize_pixels(bins, **kwargs):
+def sanitize_pixels(
+    bins: pd.DataFrame,
+    **kwargs,
+) -> Callable[[pd.DataFrame], pd.DataFrame]:
     """
     Builds a function to sanitize an already-binned genomic data with
     genomic bin assignments.
@@ -426,7 +397,63 @@ def sanitize_pixels(bins, **kwargs):
     return partial(_sanitize_pixels, **kwargs)
 
 
-def aggregate_records(sort=True, count=True, agg=None, rename=None):
+def _validate_pixels(chunk, n_bins, boundscheck, triucheck, dupcheck, ensure_sorted):
+    if boundscheck:
+        is_neg = (chunk["bin1_id"] < 0) | (chunk["bin2_id"] < 0)
+        if np.any(is_neg):
+            raise BadInputError("Found bin ID < 0")
+        is_excess = (chunk["bin1_id"] >= n_bins) | (chunk["bin2_id"] >= n_bins)
+        if np.any(is_excess):
+            raise BadInputError(
+                "Found a bin ID that exceeds the declared number of bins. "
+                "Check whether your bin table is correct."
+            )
+
+    if triucheck:
+        is_tril = chunk["bin1_id"] > chunk["bin2_id"]
+        if np.any(is_tril):
+            raise BadInputError("Found bin1_id greater than bin2_id")
+
+    if not isinstance(chunk, pd.DataFrame):
+        chunk = pd.DataFrame(chunk)
+
+    if dupcheck:
+        is_dup = chunk.duplicated(["bin1_id", "bin2_id"])
+        if is_dup.any():
+            err = chunk[is_dup]
+            raise BadInputError(
+                "Found duplicate pixels:\n{}".format(err.head().to_csv(sep="\t"))
+            )
+
+    if ensure_sorted:
+        chunk = chunk.sort_values(["bin1_id", "bin2_id"])
+
+    return chunk
+
+
+def validate_pixels(
+    n_bins: pd.DataFrame,
+    boundscheck: bool,
+    triucheck: bool,
+    dupcheck: bool,
+    ensure_sorted: bool
+) -> Callable[[pd.DataFrame], pd.DataFrame]:
+    return partial(
+        _validate_pixels,
+        n_bins=n_bins,
+        boundscheck=boundscheck,
+        triucheck=triucheck,
+        dupcheck=dupcheck,
+        ensure_sorted=ensure_sorted,
+    )
+
+
+def aggregate_records(
+    sort: bool = True,
+    count: bool = True,
+    agg: dict[str, Any] | None = None,
+    rename: dict[str, str] | None = None
+) -> Callable[[pd.DataFrame], pd.DataFrame]:
     """
     Generates a function that aggregates bin-assigned records by pixel.
 
@@ -482,12 +509,12 @@ class ContactBinner:
 
     """
 
-    def __getstate__(self):
+    def __getstate__(self) -> dict:
         d = self.__dict__.copy()
         d.pop("_map", None)
         return d
 
-    def __iter__(self):
+    def __iter__(self) -> dict[str, np.ndarray]:
         """Iterator over chunks of binned contacts (i.e., nonzero pixels)
 
         Chunks are expected to have the following format:
@@ -506,7 +533,14 @@ class HDF5Aggregator(ContactBinner):
 
     """
 
-    def __init__(self, h5pairs, chromsizes, bins, chunksize, **kwargs):
+    def __init__(
+        self,
+        h5pairs: h5py.Group,
+        chromsizes: pd.Series,
+        bins: pd.DataFrame,
+        chunksize: int,
+        **kwargs
+    ):
         self.h5 = h5pairs
         self.C1 = kwargs.pop("C1", "chrms1")
         self.P1 = kwargs.pop("P1", "cuts1")
@@ -516,14 +550,14 @@ class HDF5Aggregator(ContactBinner):
         self.chunksize = chunksize
         self.partition = self._index_chroms()
 
-    def _index_chroms(self):
+    def _index_chroms(self) -> dict[str, tuple[int, int]]:
         # index extents of chromosomes on first axis of contact list
         starts, lengths, values = rlencode(self.h5[self.C1], self.chunksize)
         if len(set(values)) != len(values):
             raise ValueError("Read pair coordinates are not sorted on the first axis")
         return dict(zip(values, zip(starts, starts + lengths)))
 
-    def _load_chunk(self, lo, hi):
+    def _load_chunk(self, lo, hi) -> dict[str, np.ndarray]:
         data = OrderedDict(
             [
                 ("chrom_id1", self.h5[self.C1][lo:hi]),
@@ -534,7 +568,7 @@ class HDF5Aggregator(ContactBinner):
         )
         return pd.DataFrame(data)
 
-    def aggregate(self, chrom):  # pragma: no cover
+    def aggregate(self, chrom: str) -> pd.DataFrame:  # pragma: no cover
         h5pairs = self.h5
         C1, P1, C2, P2 = self.C1, self.P1, self.C2, self.P2
         chunksize = self.chunksize
@@ -596,10 +630,10 @@ class HDF5Aggregator(ContactBinner):
             )
             yield agg
 
-    def size(self):
+    def size(self) -> int:
         return len(self.h5["chrms1"])
 
-    def __iter__(self):
+    def __iter__(self) -> dict[str, np.ndarray]:
         for chrom in self.gs.contigs:
             for df in self.aggregate(chrom):
                 yield {k: v.values for k, v in df.items()}
@@ -614,12 +648,12 @@ class TabixAggregator(ContactBinner):
 
     def __init__(
         self,
-        filepath,
-        chromsizes,
-        bins,
-        map=map,
-        n_chunks=1,
-        is_one_based=False,
+        filepath: str,
+        chromsizes: pd.Series,
+        bins: pd.DataFrame,
+        map: MapFunctor = map,
+        n_chunks: int = 1,
+        is_one_based: bool = False,
         **kwargs,
     ):
         try:
@@ -753,12 +787,12 @@ class PairixAggregator(ContactBinner):
 
     def __init__(
         self,
-        filepath,
-        chromsizes,
-        bins,
-        map=map,
-        n_chunks=1,
-        is_one_based=False,
+        filepath: str,
+        chromsizes: pd.Series,
+        bins: pd.DataFrame,
+        map: MapFunctor = map,
+        n_chunks: int = 1,
+        is_one_based: bool = False,
         **kwargs,
     ):
         try:
@@ -826,7 +860,9 @@ class PairixAggregator(ContactBinner):
                     "Did not find contig " + f" '{chrom}' in contact list file."
                 )
 
-    def aggregate(self, grange):  # pragma: no cover
+    def aggregate(
+        self, grange: tuple[str, int, int]
+    ) -> pd.DataFrame | None:  # pragma: no cover
         chrom1, start, end = grange
         import pypairix
 
@@ -906,7 +942,7 @@ class PairixAggregator(ContactBinner):
 
         return pd.concat(rows, axis=0) if len(rows) else None
 
-    def __iter__(self):
+    def __iter__(self) -> dict[str, np.ndarray]:
         granges = balanced_partition(self.gs, self.n_chunks, self.file_contigs)
         for df in self._map(self.aggregate, granges):
             if df is not None:
@@ -945,7 +981,7 @@ class SparseBlockLoader(ContactBinner):  # pragma: no cover
                 raise
         return block
 
-    def __iter__(self):
+    def __iter__(self) -> dict[str, np.ndarray]:
         # n_bins = len(self.bins)
 
         import scipy.sparse
@@ -989,13 +1025,18 @@ class ArrayLoader(ContactBinner):
 
     """
 
-    def __init__(self, bins, array, chunksize):
+    def __init__(
+        self,
+        bins: pd.DataFrame,
+        array: np.ndarray | h5py.Dataset,
+        chunksize: int,
+    ):
         if len(bins) != array.shape[0]:
             raise ValueError("Number of bins must equal the dimenion of the matrix")
         self.array = array
         self.chunksize = chunksize
 
-    def __iter__(self):
+    def __iter__(self) -> dict[str, np.ndarray]:
         n_bins = self.array.shape[0]
         spans = partition(0, n_bins, self.chunksize)
 

@@ -1,9 +1,12 @@
+from __future__ import annotations
+
 import os
 import os.path as op
 import posixpath
 import tempfile
 import warnings
 from datetime import datetime
+from typing import Any, Iterable
 
 import h5py
 import numpy as np
@@ -12,6 +15,7 @@ import simplejson as json
 from pandas.api.types import is_categorical_dtype
 
 from .._logging import get_logger
+from .._typing import Tabular
 from .._version import __format_version__, __format_version_scool__, __version__
 from ..core import get, put
 from ..util import (
@@ -42,7 +46,7 @@ from ._ingest import validate_pixels
 logger = get_logger("cooler.create")
 
 
-def write_chroms(grp, chroms, h5opts):
+def write_chroms(grp: h5py.Group, chroms: pd.DataFrame, h5opts: dict) -> None:
     """
     Write the chromosome table.
 
@@ -77,7 +81,13 @@ def write_chroms(grp, chroms, h5opts):
         put(grp, chroms[columns])
 
 
-def write_bins(grp, bins, chromnames, h5opts, chrom_as_enum=True):
+def write_bins(
+    grp: h5py.Group,
+    bins: pd.DataFrame,
+    chromnames: list[str],
+    h5opts: dict,
+    chrom_as_enum: bool = True,
+) -> None:
     """
     Write the genomic bin table.
 
@@ -141,7 +151,14 @@ def write_bins(grp, bins, chromnames, h5opts, chrom_as_enum=True):
         put(grp, bins[columns])
 
 
-def prepare_pixels(grp, n_bins, max_size, columns, dtypes, h5opts):
+def prepare_pixels(
+    grp: h5py.Group,
+    n_bins: int,
+    max_size: int,
+    columns: pd.Index | list[str],
+    dtypes: pd.Series | dict[str, Any],
+    h5opts: dict,
+) -> None:
     columns = list(columns)
     init_size = min(5 * n_bins, max_size)
     grp.create_dataset(
@@ -185,7 +202,14 @@ def prepare_pixels(grp, n_bins, max_size, columns, dtypes, h5opts):
             )
 
 
-def write_pixels(filepath, grouppath, columns, iterable, h5opts, lock):
+def write_pixels(
+    filepath: str,
+    grouppath: str,
+    columns: pd.Index | list[str],
+    iterable: Tabular | Iterable[Tabular],
+    h5opts: dict,
+    lock: Any | None,
+) -> tuple[int, int]:
     """
     Write the non-zero pixel table.
 
@@ -240,7 +264,7 @@ def write_pixels(filepath, grouppath, columns, iterable, h5opts, lock):
     return nnz, total
 
 
-def index_pixels(grp, n_bins, nnz):
+def index_pixels(grp: h5py.Group, n_bins: int, nnz: int) -> np.ndarray:
     bin1 = grp["bin1_id"]
     bin1_offset = np.zeros(n_bins + 1, dtype=BIN1OFFSET_DTYPE)
     curr_val = 0
@@ -251,7 +275,7 @@ def index_pixels(grp, n_bins, nnz):
     return bin1_offset
 
 
-def index_bins(grp, n_chroms, n_bins):
+def index_bins(grp: h5py.Group, n_chroms: int, n_bins: int) -> np.ndarray:
     chrom_ids = grp["chrom"]
     chrom_offset = np.zeros(n_chroms + 1, dtype=CHROMOFFSET_DTYPE)
     curr_val = 0
@@ -262,7 +286,12 @@ def index_bins(grp, n_chroms, n_bins):
     return chrom_offset
 
 
-def write_indexes(grp, chrom_offset, bin1_offset, h5opts):
+def write_indexes(
+    grp: h5py.Group,
+    chrom_offset: np.ndarray,
+    bin1_offset: np.ndarray,
+    h5opts: dict
+) -> None:
     """
     Write the indexes.
 
@@ -294,7 +323,7 @@ def write_indexes(grp, chrom_offset, bin1_offset, h5opts):
     )
 
 
-def write_info(grp, info, scool=False):
+def write_info(grp: h5py.Group, info: dict, scool: bool = False) -> None:
     """
     Write the file description and metadata attributes.
 
@@ -331,7 +360,9 @@ def write_info(grp, info, scool=False):
     grp.attrs.update(info)
 
 
-def _rename_chroms(grp, rename_dict, h5opts):
+def _rename_chroms(
+    grp: h5py.Group, rename_dict: dict[str, str], h5opts: dict
+) -> None:
     chroms = get(grp["chroms"]).set_index("name")
     n_chroms = len(chroms)
     new_names = np.array(
@@ -365,7 +396,11 @@ def _rename_chroms(grp, rename_dict, h5opts):
             )
 
 
-def rename_chroms(clr, rename_dict, h5opts=None):
+def rename_chroms(
+    clr,
+    rename_dict: dict[str, str],
+    h5opts: dict | None = None
+) -> None:
     """
     Substitute existing chromosome/contig names for new ones. They will be
     written to the file and the Cooler object will be refreshed.
@@ -388,7 +423,10 @@ def rename_chroms(clr, rename_dict, h5opts=None):
     clr._refresh()
 
 
-def _get_dtypes_arg(dtypes, kwargs):
+def _get_dtypes_arg(
+    dtypes: pd.Series | dict | None,
+    kwargs: dict[str, Any]
+) -> pd.Series | dict | None:
     if "dtype" in kwargs:
         if dtypes is None:
             dtypes = kwargs.pop("dtype")
@@ -402,7 +440,7 @@ def _get_dtypes_arg(dtypes, kwargs):
     return dtypes
 
 
-def _set_h5opts(h5opts):
+def _set_h5opts(h5opts: dict[str, Any]) -> dict[str, Any]:
     result = {}
     if h5opts is not None:
         result.update(h5opts)
@@ -968,27 +1006,27 @@ def _format_docstring(**kwargs):
 
 @_format_docstring(other_parameters=_DOC_OTHER_PARAMS, notes=_DOC_NOTES)
 def create_cooler(
-    cool_uri,
-    bins,
-    pixels,
-    columns=None,
-    dtypes=None,
-    metadata=None,
-    assembly=None,
-    ordered=False,
-    symmetric_upper=True,
-    mode="w",
-    mergebuf=20_000_000,
-    delete_temp=True,
-    temp_dir=None,
-    max_merge=200,
-    boundscheck=True,
-    dupcheck=True,
-    triucheck=True,
-    ensure_sorted=False,
-    h5opts=None,
-    lock=None,
-):
+    cool_uri: str,
+    bins: pd.DataFrame,
+    pixels: Tabular | Iterable[Tabular],
+    columns: list[str] | None = None,
+    dtypes: dict[str, Any] | None = None,
+    metadata: dict | None = None,
+    assembly: str | None = None,
+    ordered: bool = False,
+    symmetric_upper: bool = True,
+    mode: str = "w",
+    mergebuf: int = 20_000_000,
+    delete_temp: bool = True,
+    temp_dir: str | None = None,
+    max_merge: str = 200,
+    boundscheck: bool = True,
+    dupcheck: bool = True,
+    triucheck: bool = True,
+    ensure_sorted: bool = False,
+    h5opts: dict | None = None,
+    lock: Any | None = None,
+) -> None:
     r"""
     Create a cooler from bins and pixels at the specified URI.
 
@@ -1076,28 +1114,28 @@ def create_cooler(
 
 @_format_docstring(other_parameters=_DOC_OTHER_PARAMS, notes=_DOC_NOTES)
 def create_scool(
-    cool_uri,
-    bins,
-    cell_name_pixels_dict,
-    columns=None,
-    dtypes=None,
-    metadata=None,
-    assembly=None,
-    ordered=False,
-    symmetric_upper=True,
-    mode="w",
-    mergebuf=20_000_000,
-    delete_temp=True,
-    temp_dir=None,
-    max_merge=200,
-    boundscheck=True,
-    dupcheck=True,
-    triucheck=True,
-    ensure_sorted=False,
-    h5opts=None,
-    lock=None,
+    cool_uri: str,
+    bins: pd.DataFrame,
+    cell_name_pixels_dict: dict[str, pd.DataFrame],
+    columns: list[str] | None = None,
+    dtypes: dict[str, Any] | None = None,
+    metadata: dict | None = None,
+    assembly: str | None = None,
+    ordered: bool = False,
+    symmetric_upper: bool = True,
+    mode: str = "w",
+    mergebuf: int = 20_000_000,
+    delete_temp: bool = True,
+    temp_dir: str | None = None,
+    max_merge: int = 200,
+    boundscheck: bool = True,
+    dupcheck: bool = True,
+    triucheck: bool = True,
+    ensure_sorted: bool = False,
+    h5opts: dict | None = None,
+    lock: Any | None = None,
     **kwargs,
-):
+) -> None:
     r"""
     Create a single-cell (scool) file.
 
