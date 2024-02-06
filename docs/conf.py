@@ -14,8 +14,6 @@
 
 import os
 import re
-import sys
-from unittest import mock
 
 # -- Path setup --------------------------------------------------------------
 
@@ -34,27 +32,26 @@ from unittest import mock
 #     'cytoolz',
 # ]
 
-
-MOCK_MODULES = [
-    "cytoolz",
-    "dask",
-    "dask.base",
-    "dask.array",
-    "dask.dataframe",
-    "dask.dataframe.core",
-    "dask.dataframe.utils",
-    "h5py",
-    "numpy",
-    "pandas",
-    "pandas.algos",
-    "pandas.api",
-    "pandas.api.types",
-    "scipy",
-    "scipy.sparse",
-    "sparse",
-]
-for mod_name in MOCK_MODULES:
-    sys.modules[mod_name] = mock.Mock()
+# MOCK_MODULES = [
+#     "cytoolz",
+#     "dask",
+#     "dask.base",
+#     "dask.array",
+#     "dask.dataframe",
+#     "dask.dataframe.core",
+#     "dask.dataframe.utils",
+#     "h5py",
+#     "numpy",
+#     "pandas",
+#     "pandas.algos",
+#     "pandas.api",
+#     "pandas.api.types",
+#     "scipy",
+#     "scipy.sparse",
+#     "sparse",
+# ]
+# for mod_name in MOCK_MODULES:
+#     sys.modules[mod_name] = mock.Mock()
 
 
 # -- Project information -----------------------------------------------------
@@ -110,6 +107,13 @@ extensions = [
 
 numpydoc_show_class_members = False
 napoleon_use_rtype = False
+
+# https://sphinx-themes.org/sample-sites/sphinx-rtd-theme/kitchen-sink/api/
+# Automatically extract typehints when specified and place them in
+# descriptions of the relevant function/method.
+autodoc_typehints = "description"
+# Don't show class signature with the class' name.
+autodoc_class_signature = "separated"
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
