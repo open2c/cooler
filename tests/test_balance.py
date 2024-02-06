@@ -1,10 +1,9 @@
 import os
 
+import cooler
 import h5py
 import numpy as np
 import pytest
-
-import cooler
 from cooler import balance
 
 testdir = os.path.dirname(os.path.realpath(__file__))

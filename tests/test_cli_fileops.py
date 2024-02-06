@@ -1,7 +1,6 @@
 import os.path as op
 
 from click.testing import CliRunner
-
 from cooler.cli import cli
 
 testdir = op.realpath(op.dirname(__file__))

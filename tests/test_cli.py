@@ -12,7 +12,6 @@ import os.path as op
 import click
 import pytest
 from click.testing import CliRunner
-
 from cooler.cli import _util as util
 from cooler.cli import cli
 from cooler.util import cmd_exists
@@ -77,7 +76,10 @@ def test_makebins():
     )
 
 
-@pytest.mark.skipif(os.name == "nt", reason="Non-reproducible off-by-one bug on Win32 GitHub runner")
+@pytest.mark.skipif(
+    os.name == "nt",
+    reason="Non-reproducible off-by-one bug on Win32 GitHub runner"
+)
 def test_digest():
     runner = CliRunner()
     result = runner.invoke(

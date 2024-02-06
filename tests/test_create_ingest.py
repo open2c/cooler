@@ -4,17 +4,16 @@ import os
 import os.path as op
 import tempfile
 
+import cooler
 import h5py
 import numpy as np
 import pandas as pd
 import pytest
-from pandas.api import types
-
-import cooler
 from cooler.cli.cload import pairix as cload_pairix
 from cooler.cli.cload import pairs as cload_pairs
 from cooler.cli.cload import tabix as cload_tabix
 from cooler.cli.load import load
+from pandas.api import types
 
 pysam_missing = importlib.util.find_spec("pysam") is None
 pairix_missing = importlib.util.find_spec("pairix") is None
