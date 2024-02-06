@@ -263,7 +263,6 @@ def csort(
 
     **Notes**
 
-    \b
     - csort can also be used to sort and index a text representation of
       a contact *matrix* in bedGraph-like format. In this case, substitute
       `pos1` and `pos2` with `start1` and `start2`, respectively.
@@ -271,7 +270,6 @@ def csort(
 
     If indexing with Tabix, the output file will have the following properties:
 
-    \b
     - Upper triangular: the read pairs on each row are assigned to side 1 or 2
       in such a way that (chrom1, pos1) is always "less than" (chrom2, pos2)
     - Rows are lexicographically sorted by chrom1, pos1, chrom2, pos2;
@@ -281,7 +279,6 @@ def csort(
 
     If indexing with Pairix, the output file will have the following properties:
 
-    \b
     - Upper triangular: the read pairs on each row are assigned to side 1 or 2
       in such a way that (chrom1, pos1) is always "less than" (chrom2, pos2)
     - Rows are lexicographically sorted by chrom1, chrom2, pos1, pos2; i.e.
@@ -289,7 +286,6 @@ def csort(
     - Compressed with bgzip [*]
     - Indexed using Pairix [+] on chrom1, chrom2 and pos1.
 
-    \b
     [*] Tabix manpage: <http://www.htslib.org/doc/tabix.html>.
     [+] Pairix on Github: <https://github.com/4dn-dcic/pairix>
 

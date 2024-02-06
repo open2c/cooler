@@ -5,9 +5,8 @@ Code adapted from the sphinx-click project.
 
 """
 import click
-from docutils import statemachine
-
 import cooler.cli
+from docutils import statemachine
 
 
 def _indent(text, level=1):
@@ -369,9 +368,9 @@ Quick reference
     * -  Export/visualization
       -
     * - `cooler info`_
-      - Display a cooler’s info and metadata.
+      - Display a cooler`s info and metadata.
     * - `cooler dump`_
-      - Dump a cooler’s data to a text stream.
+      - Dump a cooler`s data to a text stream.
     * - `cooler show`_
       - Display and browse a cooler with matplotlib.
 
@@ -383,9 +382,9 @@ Quick reference
     * -  File manipulation/info
       -
     * - `cooler tree`_
-      - Display a file’s data hierarchy.
+      - Display a file`s data hierarchy.
     * - `cooler attrs`_
-      - Display a file’s attribute hierarchy.
+      - Display a file`s attribute hierarchy.
     * - `cooler ls`_
       - List all coolers inside a file.
     * - `cooler cp`_
