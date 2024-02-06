@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "cooler"
 description = "Sparse binary format for genomic interaction matrices."
-requires-python = ">=3.6"
+requires-python = ">=3.8"
 license = {text = "BSD-3-Clause"}
 authors = [
   {name = "Nezar Abdennur", email = "nabdennur@gmail.com"},
@@ -41,7 +41,7 @@ readme = "README.md"
 dependencies = [
     "numpy>=1.9",
     "scipy>=0.16",
-    "pandas>1.0",
+    "pandas>1.5",
     "h5py>=2.5",
     "click>=7",
     "cytoolz",
@@ -144,3 +144,11 @@ fix = "ruff --fix ."
 lint = "ruff src/cooler"  #tests
 test = "pytest ."
 docs = "sphinx-autobuild docs docs/_build/html"
+
+[tool.hatch.envs.test]
+template = "default"
+skip-install = false
+features = ["dev", "test"]
+
+[[tool.hatch.envs.test.matrix]]
+python = ["3.8", "3.9", "3.10", "3.11"]
