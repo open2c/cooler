@@ -5,8 +5,9 @@ Code adapted from the sphinx-click project.
 
 """
 import click
-import cooler.cli
 from docutils import statemachine
+
+import cooler.cli
 
 
 def _indent(text, level=1):

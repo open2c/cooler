@@ -3,7 +3,6 @@ import os.path as op
 import tempfile
 from glob import glob
 
-import cooler
 import numpy as np
 import pandas as pd
 import pytest
@@ -11,11 +10,13 @@ import simplejson as json
 
 # from _common import cooler_cmp
 from click.testing import CliRunner
+from pandas.api import types
+
+import cooler
 
 ### INGEST AND AGGREGATION ###
 from cooler.cli.cload import pairs as cload_pairs
 from cooler.cli.load import load
-from pandas.api import types
 
 tmp = tempfile.gettempdir()
 testdir = op.realpath(op.dirname(__file__))

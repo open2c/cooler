@@ -1,10 +1,11 @@
 import os.path as op
 from io import StringIO
 
-import cooler
 import numpy as np
 import pandas as pd
 import pytest
+
+import cooler
 from cooler.create import (
     BadInputError,
     aggregate_records,

@@ -3,6 +3,7 @@ import shutil
 
 import h5py
 from _common import cooler_cmp, isolated_filesystem
+
 from cooler import fileops
 
 testdir = op.realpath(op.dirname(__file__))

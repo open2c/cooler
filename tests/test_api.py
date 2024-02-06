@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import pytest
 import scipy.sparse as sps
+
 from cooler import api
 
 testdir = op.realpath(op.dirname(__file__))

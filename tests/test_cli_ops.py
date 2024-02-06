@@ -1,9 +1,10 @@
 import os.path as op
 
-import cooler
 import numpy as np
 import pandas as pd
 from click.testing import CliRunner
+
+import cooler
 
 ### COMPUTE ###
 from cooler.cli.balance import balance

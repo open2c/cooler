@@ -3,9 +3,10 @@ import os
 import shutil
 import tempfile
 
-import cooler
 import numpy as np
 from pandas.api.types import is_numeric_dtype
+
+import cooler
 
 
 @contextlib.contextmanager
