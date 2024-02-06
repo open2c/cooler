@@ -12,6 +12,7 @@ import os.path as op
 import click
 import pytest
 from click.testing import CliRunner
+
 from cooler.cli import _util as util
 from cooler.cli import cli
 from cooler.util import cmd_exists

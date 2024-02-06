@@ -1,10 +1,11 @@
 import os.path as op
 
-import cooler
 import h5py
 import numpy as np
 import pytest
 from _common import cooler_cmp, isolated_filesystem
+
+import cooler
 from cooler.reduce import coarsen_cooler, legacy_zoomify, merge_coolers, zoomify_cooler
 
 testdir = op.realpath(op.dirname(__file__))
