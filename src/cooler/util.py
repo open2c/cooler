@@ -264,7 +264,7 @@ def fetch_chromsizes(db: str, **kwargs) -> pd.Series:
 
     """
     return read_chromsizes(
-        f"http://hgdownload.cse.ucsc.edu/goldenPath/{db}/database/chromInfo.txt.gz",
+        f"http://hgdownload.soe.ucsc.edu/goldenPath/{db}/database/chromInfo.txt.gz",
         **kwargs,
     )
 
