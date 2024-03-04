@@ -20,7 +20,7 @@ repos:
           - --py36-plus
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.2.2
+    rev: v0.3.0
     hooks:
       - id: ruff
         args: ["--exit-zero", "src/cooler"]
