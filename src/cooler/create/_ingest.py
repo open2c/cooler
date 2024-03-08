@@ -13,7 +13,7 @@ import warnings
 from bisect import bisect_left
 from collections import Counter, OrderedDict
 from functools import partial
-from typing import Any, Callable
+from typing import Any, Callable, Iterator
 
 import h5py
 import numpy as np
@@ -514,7 +514,7 @@ class ContactBinner:
         d.pop("_map", None)
         return d
 
-    def __iter__(self) -> dict[str, np.ndarray]:
+    def __iter__(self) -> Iterator[dict[str, np.ndarray]]:
         """Iterator over chunks of binned contacts (i.e., nonzero pixels)
 
         Chunks are expected to have the following format:
@@ -633,7 +633,7 @@ class HDF5Aggregator(ContactBinner):
     def size(self) -> int:
         return len(self.h5["chrms1"])
 
-    def __iter__(self) -> dict[str, np.ndarray]:
+    def __iter__(self) -> Iterator[dict[str, np.ndarray]]:
         for chrom in self.gs.contigs:
             for df in self.aggregate(chrom):
                 yield {k: v.values for k, v in df.items()}
@@ -700,7 +700,9 @@ class TabixAggregator(ContactBinner):
             "ordering of read ends in the contact list file."
         )
 
-    def aggregate(self, grange):  # pragma: no cover
+    def aggregate(
+        self, grange: tuple[str, int, int]
+    ) -> pd.DataFrame | None:  # pragma: no cover
         chrom1, start, end = grange
         import pysam
 
@@ -771,7 +773,7 @@ class TabixAggregator(ContactBinner):
 
         return pd.concat(rows, axis=0) if len(rows) else None
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[dict[str, np.ndarray]]:
         granges = balanced_partition(self.gs, self.n_chunks, self.file_contigs)
         for df in self._map(self.aggregate, granges):
             if df is not None:
@@ -793,6 +795,7 @@ class PairixAggregator(ContactBinner):
         map: MapFunctor = map,
         n_chunks: int = 1,
         is_one_based: bool = False,
+        block_char: str = "|",
         **kwargs,
     ):
         try:
@@ -811,13 +814,24 @@ class PairixAggregator(ContactBinner):
         self._map = map
         self.n_chunks = n_chunks
         self.is_one_based = bool(is_one_based)
+        self.block_char = block_char
+
         f = pypairix.open(filepath, "r")
         self.C1 = f.get_chr1_col()
         self.C2 = f.get_chr2_col()
         self.P1 = f.get_startpos1_col()
         self.P2 = f.get_startpos2_col()
+        blocknames = f.get_blocknames()
+        if block_char not in blocknames[0]:
+            raise ValueError(
+                f"The contig separator character `{block_char}` does not appear "
+                f"appear in the first block name `{blocknames[0]}`. Please "
+                "specify the correct character as `block_char`."
+            )
         self.file_contigs = set(
-            itertools.chain.from_iterable([b.split("|") for b in f.get_blocknames()])
+            itertools.chain.from_iterable([
+                blockname.split(block_char) for blockname in blocknames
+            ])
         )
 
         if not len(self.file_contigs):
@@ -826,7 +840,7 @@ class PairixAggregator(ContactBinner):
             if f.exists2(c1, c2) and f.exists2(c2, c1):
                 raise RuntimeError(
                     "Pairs are not triangular: found blocks "
-                    + f"'{c1}|{c2}'' and '{c2}|{c1}'"
+                    + f"'{c1}{block_char}{c2}'' and '{c2}{block_char}{c1}'"
                 )
 
         # dumb heuristic to prevent excessively large chunks on one worker
@@ -942,7 +956,7 @@ class PairixAggregator(ContactBinner):
 
         return pd.concat(rows, axis=0) if len(rows) else None
 
-    def __iter__(self) -> dict[str, np.ndarray]:
+    def __iter__(self) -> Iterator[dict[str, np.ndarray]]:
         granges = balanced_partition(self.gs, self.n_chunks, self.file_contigs)
         for df in self._map(self.aggregate, granges):
             if df is not None:
@@ -981,7 +995,7 @@ class SparseBlockLoader(ContactBinner):  # pragma: no cover
                 raise
         return block
 
-    def __iter__(self) -> dict[str, np.ndarray]:
+    def __iter__(self) -> Iterator[dict[str, np.ndarray]]:
         # n_bins = len(self.bins)
 
         import scipy.sparse
@@ -1036,7 +1050,7 @@ class ArrayLoader(ContactBinner):
         self.array = array
         self.chunksize = chunksize
 
-    def __iter__(self) -> dict[str, np.ndarray]:
+    def __iter__(self) -> Iterator[dict[str, np.ndarray]]:
         n_bins = self.array.shape[0]
         spans = partition(0, n_bins, self.chunksize)
 
