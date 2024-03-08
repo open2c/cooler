@@ -258,6 +258,7 @@ def test_cload_pairix(bins_path, pairs_path, ref_path, nproc):
         pass
 
 
+@pytest.mark.skipif(pairix_missing, reason="pairix not installed")
 def test_cload_pairix_wrong_block_char():
     with pytest.raises(ValueError):
         cload_pairix.callback(
