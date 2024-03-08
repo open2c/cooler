@@ -100,7 +100,7 @@ To get started:
 
 - [Install](#Installation) cooler
 - Read the [documentation](http://cooler.readthedocs.org/en/stable/) and see the Jupyter Notebook [walkthrough](https://github.com/open2c/cooler-binder).
-- _cool_ files from published Hi-C data sets are available at `ftp://cooler.csail.mit.edu/coolers`.
+- _cool_ files from published Hi-C data sets are available [here](https://usgs2.osn.mghpcc.org/cooler01/index.html) or via s3 (bucket `s3://cooler01 --endpoint-url https://usgs2.osn.mghpcc.org --no-sign-request`).
 - Many more multires (_mcool_) files are available on the [4DN data portal](https://data.4dnucleome.org/visualization/index).
 
 ### Installation
@@ -145,6 +145,8 @@ Interested in contributing to cooler? That's great! To get started, check out th
 - Visualize your cooler data with [HiGlass](http://higlass.io)!
 
 
-### Affiliations
+### Affiliations and Acknowledgements
 
-Cooler is an Affiliated Project of [NumFOCUS](https://www.numfocus.org/).
+* Cooler is an Affiliated Project of [NumFOCUS](https://www.numfocus.org/).
+* Cooler development has received support from the NIH [4D Nucleome](https://www.4dnucleome.org/) Consortium.
+* We are grateful for a storage allocation from NSF's [ACCESS Cyberinfrastucture](https://access-ci.org/) Open Storage Network to host example cooler data.
