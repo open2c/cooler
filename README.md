@@ -140,10 +140,9 @@ Interested in contributing to cooler? That's great! To get started, check out th
 
 ### Related projects
 
-- Process Hi-C data with [distiller](https://github.com/open2c/distiller)!
-- Downstream analysis with [cooltools](https://github.com/open2c/cooltools)!
+- See other Open2C tools to process Hi-C data ([pairtools](https://github.com/open2c/pairtools), [distiller](https://github.com/open2c/distiller-nf)) and analyze Hi-C data ([cooltools](https://github.com/open2c/cooltools))!
 - Visualize your cooler data with [HiGlass](http://higlass.io)!
-
+- Check out this list of [3D genomics tools and papers](https://github.com/mdozmorov/HiC_tools), most of which accept cooler files.
 
 ### Affiliations and Acknowledgements
 
