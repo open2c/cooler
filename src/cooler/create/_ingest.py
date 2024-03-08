@@ -824,7 +824,7 @@ class PairixAggregator(ContactBinner):
         blocknames = f.get_blocknames()
         if block_char not in blocknames[0]:
             raise ValueError(
-                f"The contig separator character `{block_char}` does not appear "
+                f"The contig separator character `{block_char}` does not "
                 f"appear in the first block name `{blocknames[0]}`. Please "
                 "specify the correct character as `block_char`."
             )
