@@ -292,8 +292,24 @@ def tabix(
     default=2,
     show_default=True,
 )
+@click.option(
+    "--block-char",
+    help="Character separating contig names in the block names of the pairix "
+    "index.",
+    type=str,
+    default="|",
+    show_default=True,
+)
 def pairix(
-    bins, pairs_path, cool_path, metadata, assembly, nproc, zero_based, max_split
+    bins,
+    pairs_path,
+    cool_path,
+    metadata,
+    assembly,
+    nproc,
+    zero_based,
+    max_split,
+    block_char,
 ):
     """
     Bin a pairix-indexed contact list file.
@@ -326,6 +342,7 @@ def pairix(
             map=map_func,
             is_one_based=(not zero_based),
             n_chunks=max_split,
+            block_char=block_char,
         )
 
         create_cooler(

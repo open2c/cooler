@@ -17,7 +17,7 @@ from cooler.cli.cload import tabix as cload_tabix
 from cooler.cli.load import load
 
 pysam_missing = importlib.util.find_spec("pysam") is None
-pairix_missing = importlib.util.find_spec("pairix") is None
+pairix_missing = importlib.util.find_spec("pypairix") is None
 _pandas_major_version = int(pd.__version__.split(".")[0])
 
 tmp = tempfile.gettempdir()
@@ -246,6 +246,7 @@ def test_cload_pairix(bins_path, pairs_path, ref_path, nproc):
         nproc=nproc,
         zero_based=False,
         max_split=2,
+        block_char="|",
     )
     with h5py.File(testcool_path, "r") as f1, h5py.File(ref_path, "r") as f2:
         assert np.all(f1["pixels/bin1_id"][:] == f2["pixels/bin1_id"][:])
@@ -255,6 +256,22 @@ def test_cload_pairix(bins_path, pairs_path, ref_path, nproc):
         os.remove(testcool_path)
     except OSError:
         pass
+
+
+@pytest.mark.skipif(pairix_missing, reason="pairix not installed")
+def test_cload_pairix_wrong_block_char():
+    with pytest.raises(ValueError):
+        cload_pairix.callback(
+            op.join(testdir, "data", "hg19.bins.2000kb.bed.gz"),
+            op.join(testdir, "data", "hg19.GM12878-MboI.pairs.subsample.blksrt.txt.gz"),
+            testcool_path,
+            metadata=None,
+            assembly="hg19",
+            nproc=1,
+            zero_based=False,
+            max_split=2,
+            block_char="?",
+        )
 
 
 @pytest.mark.skipif(
