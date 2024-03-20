@@ -429,15 +429,18 @@ def pairix(
 #     default=False)
 @click.option(
     "--chunksize",
-    help="Number of input lines to process per chunk.",
+    "-c",
+    help="Size in number of lines/records of data chunks to read and process "
+    "from the input stream at a time. These chunks will be saved as temporary "
+    "partial coolers and then merged.",
     type=int,
     default=15_000_000,
 )
 @click.option(
     "--mergebuf",
-    help="Number of records to allocate per chunk for merging.",
+    help="Total number of pixel records to buffer per epoch of merging data. "
+    "Defaults to the same value as `chunksize`.",
     type=int,
-    default=1_000_000,
 )
 @click.option(
     "--max-merge",
@@ -508,6 +511,8 @@ def pairs(
 
     """
     chromsizes, bins = parse_bins(bins)
+    if mergebuf is None:
+        mergebuf = chunksize
 
     symmetric_upper = not no_symmetric_upper
     tril_action = None

@@ -92,17 +92,17 @@ from ._util import parse_bins, parse_field_param, parse_kv_list_param
 @click.option(
     "--chunksize",
     "-c",
-    help="Size (in number of lines/records) of data chunks to read and process "
-    "from the input file at a time. These chunks will be saved as "
-    "temporary partial Coolers and merged at the end.",
+    help="Size in number of lines/records of data chunks to read and process "
+    "from the input stream at a time. These chunks will be saved as temporary "
+    "partial coolers and then merged.",
     type=int,
     default=20_000_000,
 )
 @click.option(
     "--mergebuf",
-    help="Number of records to allocate per chunk for merging.",
+    help="Total number of records to buffer per epoch of merging data. Defaults "
+    "to the same value as `chunksize`.",
     type=int,
-    default=1_000_000,
 )
 @click.option(
     "--temp-dir",
@@ -184,6 +184,8 @@ def load(
     """
     logger = get_logger(__name__)
     chromsizes, bins = parse_bins(bins_path)
+    if mergebuf is None:
+        mergebuf = chunksize
 
     symmetric_upper = not no_symmetric_upper
     tril_action = None

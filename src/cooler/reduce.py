@@ -48,66 +48,85 @@ def merge_breakpoints(
     maxbuf: int
 ) -> tuple[np.ndarray, np.ndarray]:
     """
-    Partition k offset arrays for performing a k-way external merge, such that
-    no single merge pass loads more than ``maxbuf`` records  into memory, with
-    one exception (see Notes).
+    Given ``k`` bin1_offset indexes, determine how to partition the data from
+    ``k`` corresponding pixel tables for a k-way merge.
+
+    The paritition is a subsequence of bin1 IDs, defining the bounds of chunks
+    of data that will be loaded into memory from each table in a single "epoch"
+    of merging data. The bounds are calculated such that no single epoch will
+    load more than ``maxbuf`` records into memory.
+
+    However, the ``maxbuf`` condition is not guaranteed and a warning will be
+    raised if it cannot be satisfied for one or more epochs (see Notes).
 
     Parameters
     ----------
     indexes : sequence of 1D arrays of equal length
-        These offset-array indexes map non-negative integers to their offset
-        locations in a corresponding data table
+        Offset arrays that map bin1 IDs to their offset locations in a
+        corresponding pixel table.
     maxbuf : int
-        Maximum cumulative number of records loaded into memory for a single
-        merge pass
+        Maximum number of pixel records loaded into memory in a single merge
+        epoch.
 
     Returns
     -------
-    breakpoints : 1D array
-        breakpoint locations to segment all the offset arrays
-    cum_offset : 1D array
-        cumulative number of records that will be processed at each breakpoint
+    bin1_partition : 1D array
+        Bin1 IDs defining where to partition all the tables for merging.
+    cum_nrecords : 1D array
+        Cumulative number of records (from all pixel tables combined) that will
+        be processed at each epoch.
 
     Notes
     -----
-    The one exception to the post-condition is if any single increment of the
-    indexes maps to more than ``maxbuf`` records, these will produce
-    oversized chunks.
-
+    The one exception to the post-condition is when a single bin1 increment in
+    a table contains more than ``maxbuf`` records.
     """
-    # k = len(indexes)
-
-    # the virtual cumulative index if no pixels were merged
-    cumindex = np.zeros(indexes[0].shape)
+    # This is a "virtual" cumulative index if all the tables were concatenated
+    # and sorted but no pixel records were aggregated. It helps us track how
+    # many records would be processed at each merge epoch.
+    combined_index = np.zeros(indexes[0].shape)
     for i in range(len(indexes)):
-        cumindex += indexes[i]
-    cum_start = 0
-    cum_nnz = cumindex[-1]
-    # n = len(cumindex)
+        combined_index += indexes[i]
+    combined_start = 0
+    combined_nnz = combined_index[-1]
 
-    breakpoints = [0]
-    cum_offsets = [0]
+    bin1_partition = [0]
+    cum_nrecords = [0]
     lo = 0
     while True:
-        # find the next mark
-        hi = bisect_right(cumindex, min(cum_start + maxbuf, cum_nnz), lo=lo) - 1
+        # Find the next bin1 ID from the combined index
+        hi = bisect_right(
+            combined_index,
+            min(combined_start + maxbuf, combined_nnz),
+            lo=lo
+        ) - 1
+
         if hi == lo:
-            # number of records to nearest mark exceeds `maxbuf`
-            # check for oversized chunks afterwards
+            # This means number of records to nearest mark exceeds `maxbuf`.
+            # Check for oversized chunks afterwards.
             hi += 1
 
-        breakpoints.append(hi)
-        cum_offsets.append(cumindex[hi])
+        bin1_partition.append(hi)
+        cum_nrecords.append(combined_index[hi])
 
-        if cumindex[hi] == cum_nnz:
+        if combined_index[hi] == combined_nnz:
             break
 
         lo = hi
-        cum_start = cumindex[hi]
+        combined_start = combined_index[hi]
 
-    breakpoints = np.array(breakpoints)
-    cum_offsets = np.array(cum_offsets)
-    return breakpoints, cum_offsets
+    bin1_partition = np.array(bin1_partition)
+    cum_nrecords = np.array(cum_nrecords)
+
+    nrecords_per_epoch = np.diff(cum_nrecords)
+    n_over = (nrecords_per_epoch > maxbuf).sum()
+    if n_over > 0:
+        warnings.warn(
+            f"{n_over} merge epochs will require buffering more than {maxbuf} "
+            f"pixel records, with as many as {nrecords_per_epoch.max()}."
+        )
+
+    return bin1_partition, cum_nrecords
 
 
 class CoolerMerger(ContactBinner):
@@ -147,21 +166,24 @@ class CoolerMerger(ContactBinner):
                     raise ValueError("Coolers must have same bin structure")
 
     def __iter__(self) -> Iterator[dict[str, np.ndarray]]:
+        # Load bin1_offset indexes lazily.
         indexes = [c.open("r")["indexes/bin1_offset"] for c in self.coolers]
-        breakpoints, cum_offsets = merge_breakpoints(indexes, self.maxbuf)
-        logger.debug(f"breakpoints: {breakpoints}")
-        logger.debug(f"cum_offsets: {cum_offsets}")
 
-        chunksizes = np.diff(cum_offsets)
-        if chunksizes.max() > self.maxbuf:
-            warnings.warn(f"Some merge passes will use more than {self.maxbuf} pixels")
+        # Calculate the common partition of bin1 offsets that define the epochs
+        # of merging data.
+        bin1_partition, cum_nrecords = merge_breakpoints(indexes, self.maxbuf)
+        nrecords_per_epoch = np.diff(cum_nrecords)
+        logger.info(f"n_merge_epochs: {len(nrecords_per_epoch)}")
+        logger.debug(f"bin1_partition: {bin1_partition}")
+        logger.debug(f"nrecords_per_merge_epoch: {nrecords_per_epoch}")
+
         nnzs = [len(c.pixels()) for c in self.coolers]
         logger.info(f"nnzs: {nnzs}")
 
         starts = [0] * len(self.coolers)
-        for bp in breakpoints[1:]:
+        for bp in bin1_partition[1:]:
             stops = [index[bp] for index in indexes]
-            logger.info(f"current: {stops}")
+            logger.info(f"records merged: {stops}")
 
             # extract, concat
             combined = pd.concat(
