@@ -44,7 +44,7 @@ ZOOMS_4DN = [
 
 
 def merge_breakpoints(
-    indexes: list[np.ndarray],
+    indexes: list[np.ndarray | h5py.Dataset],
     maxbuf: int
 ) -> tuple[np.ndarray, np.ndarray]:
     """
@@ -78,7 +78,9 @@ def merge_breakpoints(
     # k = len(indexes)
 
     # the virtual cumulative index if no pixels were merged
-    cumindex = np.vstack(indexes).sum(axis=0)
+    cumindex = np.zeros(indexes[0].shape)
+    for i in range(len(indexes)):
+        cumindex += indexes[i]
     cum_start = 0
     cum_nnz = cumindex[-1]
     # n = len(cumindex)
@@ -145,8 +147,11 @@ class CoolerMerger(ContactBinner):
                     raise ValueError("Coolers must have same bin structure")
 
     def __iter__(self) -> Iterator[dict[str, np.ndarray]]:
-        indexes = [c._load_dset("indexes/bin1_offset") for c in self.coolers]
+        indexes = [c.open("r")["indexes/bin1_offset"] for c in self.coolers]
         breakpoints, cum_offsets = merge_breakpoints(indexes, self.maxbuf)
+        logger.debug(f"breakpoints: {breakpoints}")
+        logger.debug(f"cum_offsets: {cum_offsets}")
+
         chunksizes = np.diff(cum_offsets)
         if chunksizes.max() > self.maxbuf:
             warnings.warn(f"Some merge passes will use more than {self.maxbuf} pixels")
