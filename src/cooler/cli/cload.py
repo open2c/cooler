@@ -373,12 +373,6 @@ def pairix(
     "--pos2", "-p2", help="pos2 field number (one-based)", type=int, required=True
 )
 @click.option(
-    "--chunksize",
-    help="Number of input lines to load at a time",
-    type=int,
-    default=int(15e6),
-)
-@click.option(
     "--zero-based",
     "-0",
     help="Positions are zero-based",
@@ -434,6 +428,25 @@ def pairix(
 #     is_flag=True,
 #     default=False)
 @click.option(
+    "--chunksize",
+    help="Number of input lines to process per chunk.",
+    type=int,
+    default=15_000_000,
+)
+@click.option(
+    "--mergebuf",
+    help="Number of records to allocate per chunk for merging.",
+    type=int,
+    default=1_000_000,
+)
+@click.option(
+    "--max-merge",
+    help="Maximum number of chunks to merge in a single pass.",
+    type=int,
+    default=200,
+    show_default=True,
+)
+@click.option(
     "--temp-dir",
     help="Create temporary files in a specified directory. Pass ``-`` to use "
     "the platform default temp dir.",
@@ -444,13 +457,6 @@ def pairix(
     help="Do not delete temporary files when finished.",
     is_flag=True,
     default=False,
-)
-@click.option(
-    "--max-merge",
-    help="Maximum number of chunks to merge before invoking recursive merging",
-    type=int,
-    default=200,
-    show_default=True,
 )
 @click.option(
     "--storage-options",
@@ -478,12 +484,13 @@ def pairs(
     cool_path,
     metadata,
     assembly,
-    chunksize,
     zero_based,
     comment_char,
     input_copy_status,
     no_symmetric_upper,
     field,
+    chunksize,
+    mergebuf,
     temp_dir,
     no_delete_temp,
     max_merge,
@@ -639,7 +646,7 @@ def pairs(
         dtypes=output_field_dtypes,
         metadata=metadata,
         assembly=assembly,
-        mergebuf=chunksize,
+        mergebuf=mergebuf,
         max_merge=max_merge,
         temp_dir=temp_dir,
         delete_temp=not no_delete_temp,

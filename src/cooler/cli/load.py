@@ -47,16 +47,6 @@ from ._util import parse_bins, parse_field_param, parse_kv_list_param
     multiple=True,
 )
 @click.option(
-    "--chunksize",
-    "-c",
-    help="Size (in number of lines/records) of data chunks to read and process "
-    "from the input file at a time. These chunks will be saved as "
-    "temporary partial Coolers and merged at the end. Also specifies the "
-    "size of the buffer during the merge step.",
-    type=int,
-    default=int(20e6),
-)
-@click.option(
     "--count-as-float",
     is_flag=True,
     default=False,
@@ -100,6 +90,21 @@ from ._util import parse_bins, parse_field_param, parse_kv_list_param
     show_default=True,
 )
 @click.option(
+    "--chunksize",
+    "-c",
+    help="Size (in number of lines/records) of data chunks to read and process "
+    "from the input file at a time. These chunks will be saved as "
+    "temporary partial Coolers and merged at the end.",
+    type=int,
+    default=20_000_000,
+)
+@click.option(
+    "--mergebuf",
+    help="Number of records to allocate per chunk for merging.",
+    type=int,
+    default=1_000_000,
+)
+@click.option(
     "--temp-dir",
     help="Create temporary files in a specified directory. Pass ``-`` to use "
     "the platform default temp dir.",
@@ -133,13 +138,14 @@ def load(
     format,
     metadata,
     assembly,
-    chunksize,
     field,
     count_as_float,
     one_based,
     comment_char,
     input_copy_status,
     no_symmetric_upper,
+    chunksize,
+    mergebuf,
     temp_dir,
     no_delete_temp,
     storage_options,
@@ -334,7 +340,7 @@ def load(
         dtypes=output_field_dtypes,
         metadata=metadata,
         assembly=assembly,
-        mergebuf=chunksize,
+        mergebuf=mergebuf,
         ensure_sorted=False,
         temp_dir=temp_dir,
         delete_temp=not no_delete_temp,
