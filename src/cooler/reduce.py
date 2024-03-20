@@ -183,9 +183,8 @@ class CoolerMerger(ContactBinner):
         logger.info(f"nnzs: {nnzs}")
 
         starts = [0] * len(self.coolers)
-        for bp in bin1_partition[1:]:
-            stops = [index[bp] for index in indexes]
-            logger.info(f"records consumed: {stops}")
+        for bin1_id in bin1_partition[1:]:
+            stops = [index[bin1_id] for index in indexes]
 
             # extract, concat
             combined = pd.concat(
@@ -207,6 +206,7 @@ class CoolerMerger(ContactBinner):
 
             yield {k: v.values for k, v in df.items()}
 
+            logger.info(f"records consumed: {stops}")
             starts = stops
 
 
