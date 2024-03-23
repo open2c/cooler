@@ -47,16 +47,6 @@ from ._util import parse_bins, parse_field_param, parse_kv_list_param
     multiple=True,
 )
 @click.option(
-    "--chunksize",
-    "-c",
-    help="Size (in number of lines/records) of data chunks to read and process "
-    "from the input file at a time. These chunks will be saved as "
-    "temporary partial Coolers and merged at the end. Also specifies the "
-    "size of the buffer during the merge step.",
-    type=int,
-    default=int(20e6),
-)
-@click.option(
     "--count-as-float",
     is_flag=True,
     default=False,
@@ -100,10 +90,32 @@ from ._util import parse_bins, parse_field_param, parse_kv_list_param
     show_default=True,
 )
 @click.option(
+    "--chunksize",
+    "-c",
+    help="Size in number of lines/records of data chunks to read and process "
+    "from the input stream at a time. These chunks will be saved as temporary "
+    "partial coolers and then merged.",
+    type=int,
+    default=20_000_000,
+)
+@click.option(
+    "--mergebuf",
+    help="Total number of records to buffer per epoch of merging data. Defaults "
+    "to the same value as `chunksize`.",
+    type=int,
+)
+@click.option(
     "--temp-dir",
     help="Create temporary files in a specified directory. Pass ``-`` to use "
     "the platform default temp dir.",
     type=click.Path(exists=True, file_okay=False, dir_okay=True, allow_dash=True),
+)
+@click.option(
+    "--max-merge",
+    help="Maximum number of chunks to merge in a single pass.",
+    type=int,
+    default=200,
+    show_default=True,
 )
 @click.option(
     "--no-delete-temp",
@@ -133,13 +145,15 @@ def load(
     format,
     metadata,
     assembly,
-    chunksize,
     field,
     count_as_float,
     one_based,
     comment_char,
     input_copy_status,
     no_symmetric_upper,
+    chunksize,
+    mergebuf,
+    max_merge,
     temp_dir,
     no_delete_temp,
     storage_options,
@@ -178,6 +192,8 @@ def load(
     """
     logger = get_logger(__name__)
     chromsizes, bins = parse_bins(bins_path)
+    if mergebuf is None:
+        mergebuf = chunksize
 
     symmetric_upper = not no_symmetric_upper
     tril_action = None
@@ -334,10 +350,11 @@ def load(
         dtypes=output_field_dtypes,
         metadata=metadata,
         assembly=assembly,
-        mergebuf=chunksize,
-        ensure_sorted=False,
+        mergebuf=mergebuf,
+        max_merge=max_merge,
         temp_dir=temp_dir,
         delete_temp=not no_delete_temp,
+        ensure_sorted=False,
         # boundscheck=True,
         # dupcheck=True,
         triucheck=True if symmetric_upper else False,
