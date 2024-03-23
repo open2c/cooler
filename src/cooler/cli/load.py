@@ -111,6 +111,13 @@ from ._util import parse_bins, parse_field_param, parse_kv_list_param
     type=click.Path(exists=True, file_okay=False, dir_okay=True, allow_dash=True),
 )
 @click.option(
+    "--max-merge",
+    help="Maximum number of chunks to merge in a single pass.",
+    type=int,
+    default=200,
+    show_default=True,
+)
+@click.option(
     "--no-delete-temp",
     help="Do not delete temporary files when finished.",
     is_flag=True,
@@ -146,6 +153,7 @@ def load(
     no_symmetric_upper,
     chunksize,
     mergebuf,
+    max_merge,
     temp_dir,
     no_delete_temp,
     storage_options,
@@ -343,9 +351,10 @@ def load(
         metadata=metadata,
         assembly=assembly,
         mergebuf=mergebuf,
-        ensure_sorted=False,
+        max_merge=max_merge,
         temp_dir=temp_dir,
         delete_temp=not no_delete_temp,
+        ensure_sorted=False,
         # boundscheck=True,
         # dupcheck=True,
         triucheck=True if symmetric_upper else False,
