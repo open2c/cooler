@@ -12,7 +12,7 @@
 ### Bug fixes
 
 Several fixes from @robomics
-* Improve handling of uint attributes
+* Improve handling of unit attributes
 * Fix incorrect variance stored by _balance_cisonly
 * cload.py: fix detection of pandas v2.*.* causing IOHandles error
 
@@ -43,11 +43,11 @@ Date 2023-01-18
 
 ### Maintenance
 
-* Dropped Python 2 support.
+* Dropped Python `2` support.
 * Removed deprecated `io` module.
 * Deprecated `tools` module; renamed `parallel`.
 * Various dependency maintenance upgrades.
-* Modernized CI and dev tools.
+* Modernized CI and Dev tools.
 * Migrated to pyproject.toml and modernized packaging infra.
 
 ## [v0.8.11](https://github.com/open2c/cooler/compare/v0.8.10...v0.8.11)
@@ -79,10 +79,10 @@ Date : 2020-07-17
 Date : 2020-06-23
 
 ### Maintenance
-* Improved code coverage
-* Added missing autodoc for cooler balance
-* Dropped pysam and biopython as hard dependencies
-* Officially sunsetting Python 2.7 support
+* Increased code coverage for improved testing.
+* Added autodocumentation for cooler balance functionality.
+* Removed unnecessary dependencies (pysam & biopython).
+* Officially ended Python 2.7 support (consider migration guide for transition).
 
 ### Enhancements
 * Added zoom progressions (#203)
@@ -97,7 +97,7 @@ Date: 2020-01-12
 
 ### Maintenance
 * Code styling with black
-* Add coverage reporting
+* Add coverage for reporting
 
 ### Bug fixes
 * Replace `json` with `simplejson` to deal with attrs stored as bytes
@@ -111,7 +111,7 @@ Date: 2019-08-12
 * Added contributing guidelines
 
 ### Bug fixes
-* Fixed a related regression that affected selection of the `chrom` column.
+* Fixed a related regression that affected selection of the `chrome` column.
 
 Post-release `v0.8.6.post0`: requirements files added to MANIFEST.in
 
@@ -254,7 +254,7 @@ Date: 2018-05-07
 Date: 2018-03-30
 
 * Indexed pairs loading commands now provide option for 0- or 1-based positions (1-based by default). #115
-* Fixed error introduced into cload pairix in last release.
+* Fixed error introduced into the cload pairix in last release.
 
 
 ## [v0.7.8](https://github.com/open2c/cooler/compare/v0.7.7...v0.7.8)
