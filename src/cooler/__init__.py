@@ -9,7 +9,7 @@ A cool place to store your Hi-C.
 :license: BSD
 
 """
-from . import balance, create, fileops, parallel, tools
+from . import balance, create, fileops, parallel
 from ._logging import get_verbosity_level, set_verbosity_level
 from ._version import __format_version__, __version__
 from .api import Cooler, annotate
