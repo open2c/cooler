@@ -81,7 +81,7 @@ def test_put():
     assert h5py.check_dtype(enum=f["table/chrom_enum"].dtype)
     out = core.get(f["table"])
     assert len(out.columns) == 5
-    assert pd.api.types.is_categorical_dtype(out["chrom_enum"].dtype)
+    assert isinstance(out["chrom_enum"].dtype, pd.CategoricalDtype)
     out = core.get(f["table"], convert_enum=False)
     assert len(out.columns) == 5
     assert pd.api.types.is_integer_dtype(out["chrom_enum"].dtype)
@@ -91,7 +91,7 @@ def test_put():
     core.put(f["table"], s, store_categories=False)
     out = core.get(f["table"])
     assert len(out.columns) == 6
-    assert not pd.api.types.is_categorical_dtype(out["chrom_string"].dtype)
+    assert not isinstance(out["chrom_string"].dtype, pd.CategoricalDtype)
 
     # scalar input
     core.put(f["table"], {"foo": 42})

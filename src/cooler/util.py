@@ -400,7 +400,7 @@ def get_binsize(bins: pd.DataFrame) -> int | None:
 
     """
     sizes = set()
-    for _chrom, group in bins.groupby("chrom"):
+    for _chrom, group in bins.groupby("chrom", observed=True):
         sizes.update((group["end"] - group["start"]).iloc[:-1].unique())
         if len(sizes) > 1:
             return None
@@ -745,7 +745,7 @@ def get_meta(
 
 
 def check_bins(bins: pd.DataFrame, chromsizes: pd.Series) -> pd.DataFrame:
-    is_cat = pd.api.types.is_categorical_dtype(bins["chrom"])
+    is_cat = isinstance(bins["chrom"].dtype, pd.CategoricalDtype)
     bins = bins.copy()
     if not is_cat:
         bins["chrom"] = pd.Categorical(
@@ -791,7 +791,7 @@ def balanced_partition(
 class GenomeSegmentation:
     def __init__(self, chromsizes: pd.Series, bins: pd.DataFrame):
         bins = check_bins(bins, chromsizes)
-        self._bins_grouped = bins.groupby("chrom", sort=False)
+        self._bins_grouped = bins.groupby("chrom", observed=True, sort=False)
         nbins_per_chrom = self._bins_grouped.size().values
 
         self.chromsizes = chromsizes

@@ -133,8 +133,8 @@ def _sanitize_records(
                 "when loading. \n{}".format(err.head().to_csv(sep="\t"))
             )
 
-        chromsizes1 = gs.chromsizes[chrom1_ids].values
-        chromsizes2 = gs.chromsizes[chrom2_ids].values
+        chromsizes1 = gs.chromsizes.values[chrom1_ids]
+        chromsizes2 = gs.chromsizes.values[chrom2_ids]
         is_excess = (anchor1 > chromsizes1) | (anchor2 > chromsizes2)
         if np.any(is_excess):
             err = chunk[is_excess]

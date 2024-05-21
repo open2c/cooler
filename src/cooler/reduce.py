@@ -290,7 +290,8 @@ def merge_coolers(
         dtypes = {}
     for col in columns:
         if col not in dtypes:
-            dtypes[col] = np.find_common_type(dtype_map[col], [])
+            # Find a common dtype to accomodate all the inputs being merged.
+            dtypes[col] = np.result_type(*dtype_map[col])
 
     bins = clrs[0].bins()[["chrom", "start", "end"]][:]
     assembly = clrs[0].info.get("genome-assembly", None)
@@ -573,7 +574,12 @@ class CoolerCoarsener(ContactBinner):
             out["end"] = end
             return out
 
-        return old_bins.groupby("chrom").apply(_each).reset_index(drop=True)
+        return (
+            old_bins
+            .groupby("chrom", observed=True)[["chrom", "start", "end"]]
+            .apply(_each)
+            .reset_index(drop=True)
+        )
 
     def _aggregate(self, span: tuple[int, int]) -> pd.DataFrame:
         lo, hi = span
@@ -809,7 +815,12 @@ def zoomify_cooler(
         clr = Cooler(infile, ingroup)
         base_binsize = 1 if clr.binsize is None else clr.binsize
         parsed_uris[base_binsize] = (infile, ingroup)
-        n_bins_longest_chrom[base_binsize] = clr.bins()[:].groupby("chrom").size().max()
+        n_bins_longest_chrom[base_binsize] = (
+            clr.bins()[:]
+            .groupby("chrom", observed=True)
+            .size()
+            .max()
+        )
         base_resolutions.add(base_binsize)
 
     # Determine the sequence of reductions.

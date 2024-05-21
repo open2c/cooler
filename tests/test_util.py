@@ -227,7 +227,7 @@ def test_get_chromsizes():
 def test_bedslice():
     chromsizes = util.read_chromsizes(op.join(datadir, "toy.chrom.sizes"))
     bins = util.binnify(chromsizes, 10)
-    grouped = bins.groupby("chrom")
+    grouped = bins.groupby("chrom", observed=True)
     df = util.bedslice(grouped, chromsizes, "chr1:0-12")
     assert df["chrom"].tolist() == ["chr1", "chr1"]
     assert df["start"].tolist() == [0, 10]
@@ -306,7 +306,7 @@ def test_check_bins():
     bins = util.binnify(chromsizes, 10)
     bins["chrom"] = bins["chrom"].astype(str)
     bins = util.check_bins(bins, chromsizes)
-    assert pd.api.types.is_categorical_dtype(bins["chrom"])
+    assert isinstance(bins["chrom"].dtype, pd.CategoricalDtype)
 
 
 def test_genome_segmentation():

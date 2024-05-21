@@ -220,7 +220,7 @@ def balance(
                 names=["chrom", "start", "end"],
                 dtype={"chrom": str},
             )
-        bins_grouped = clr.bins()[:].groupby("chrom")
+        bins_grouped = clr.bins()[:].groupby("chrom", observed=True)
         chromsizes = clr.chromsizes
 
         bad_bins = []

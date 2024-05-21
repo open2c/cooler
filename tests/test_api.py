@@ -40,14 +40,14 @@ def test_bintable_many_contigs():
     # so chromosome names are taken from the chroms/name
     clr = api.Cooler(op.join(datadir, "manycontigs.1.cool"))
     bins = clr.bins()[:10]
-    assert pd.api.types.is_categorical_dtype(bins["chrom"].dtype)
+    assert isinstance(bins["chrom"].dtype, pd.CategoricalDtype)
 
     bins = clr.bins()[["chrom", "start"]][:10]
-    assert pd.api.types.is_categorical_dtype(bins["chrom"].dtype)
+    assert isinstance(bins["chrom"].dtype, pd.CategoricalDtype)
 
     chroms = clr.bins()["chrom"][:10]
     clr.bins()["start"][:10]
-    assert pd.api.types.is_categorical_dtype(chroms.dtype)
+    assert isinstance(chroms.dtype, pd.CategoricalDtype)
 
 
 def test_pixeltable(mock_cooler):

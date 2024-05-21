@@ -43,7 +43,7 @@ def makebins(chromsizes, binsize, out, header, rel_ids):
     bins = util.binnify(chromsizes, binsize)
 
     if rel_ids is not None:
-        bins["id"] = bins.groupby("chrom").cumcount()
+        bins["id"] = bins.groupby("chrom", observed=True).cumcount()
         if int(rel_ids) == 1:
             bins["id"] += 1
 

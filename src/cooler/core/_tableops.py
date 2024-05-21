@@ -5,7 +5,6 @@ from typing import Literal, overload
 import h5py
 import numpy as np
 import pandas as pd
-from pandas.api.types import is_categorical_dtype
 
 
 @overload
@@ -169,7 +168,7 @@ def put(
             data = np.array([data])
             dtype = data.dtype
             fillvalue = None
-        elif is_categorical_dtype(data):
+        elif isinstance(data.dtype, pd.CategoricalDtype):
             if store_categories:
                 cats = data.cat.categories
                 enum = (data.cat.codes.dtype, dict(zip(cats, range(len(cats)))))

@@ -378,7 +378,7 @@ def _rename_chroms(
     # Replace the bins/chroms enum mapping if applicable
     bins = get(grp["bins"])
     n_bins = len(bins)
-    if is_categorical_dtype(bins["chrom"]):
+    if isinstance(bins["chrom"].dtype, pd.CategoricalDtype):
         idmap = dict(zip(new_names, range(n_chroms)))
         chrom_ids = bins["chrom"].cat.codes
         chrom_dtype = h5py.special_dtype(enum=(CHROMID_DTYPE, idmap))
