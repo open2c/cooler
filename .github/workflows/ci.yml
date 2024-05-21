@@ -3,37 +3,21 @@ name: CI
 on:
   push:
     branches: [ master ]
-    tags:
-      - "v*"  # Tag events matching v*, i.e. v1.0, v20.15.10
   pull_request:
     branches: [ master ]
 
-
 jobs:
-
-  Lint:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: "3.x"
-    - run: |
-        python -m pip install --upgrade hatch
-        pip install -e .[dev]
-        hatch run lint
 
   Test:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        python-version: [ "3.8", "3.9", "3.10", "3.11" ]
+        python-version: [ "3.8", "3.9", "3.10", "3.11", "3.12" ]
         include:
           - os: windows-latest
-            python-version: "3.11"
+            python-version: "3.12"
           - os: macos-latest
-            python-version: "3.11"
+            python-version: "3.12"
 
     runs-on: ${{ matrix.os }}
     steps:
@@ -47,11 +31,5 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e .[dev]
           # stop the build if there are Python syntax errors or undefined names
-          ruff . --select=E9,F63,F7,F82
+          ruff check . --select=E9,F63,F7,F82
           pytest
-
-  Release:
-    # Only run on v* tag events
-    if: startsWith(github.ref, 'refs/tags/v')
-    needs: [Lint, Test]
-    uses: open2c/cooler/.github/workflows/publish.yml@master

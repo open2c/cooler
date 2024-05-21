@@ -1,11 +1,15 @@
 name: Publish Python Package to PyPI
 
 on:
-  workflow_call:
+  release:
+    types: [published]
   workflow_dispatch:
 
 jobs:
   Publish:
+    # prevents this action from running on forks
+    if: github.repository == 'open2c/cooler'
+    
     runs-on: ubuntu-latest
     permissions:
       id-token: write
