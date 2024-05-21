@@ -118,7 +118,10 @@ def _is_cooler(grp: h5py.Group) -> bool:
     if fmt == MAGIC:
         keys = ("chroms", "bins", "pixels", "indexes")
         if not all(name in grp.keys() for name in keys):
-            warnings.warn(f"Cooler path {grp.name} appears to be corrupt")
+            warnings.warn(
+                f"Cooler path {grp.name} appears to be corrupt",
+                stacklevel=2,
+            )
         return True
     return False
 
@@ -172,7 +175,10 @@ def is_scool_file(filepath: str) -> bool:
         if fmt == MAGIC_SCOOL:
             keys = ("chroms", "bins", "cells")
             if not all(name in f.keys() for name in keys):
-                warnings.warn("Scool file appears to be corrupt")
+                warnings.warn(
+                    "Scool file appears to be corrupt",
+                    stacklevel=2,
+                )
                 return False
             if "cells" in f.keys() and len(f["cells"].keys()) > 0:
                 for cells in f["cells"].keys():

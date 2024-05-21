@@ -160,6 +160,4 @@ def test_list_scool_cells():
     ]
     cell_paths = fileops.list_scool_cells(src_file)
     assert len(cell_paths) == 5
-    for cell in paths:
-        if cell not in cell_paths:
-            assert False
+    assert all([cell in paths for cell in cell_paths])

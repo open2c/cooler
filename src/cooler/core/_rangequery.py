@@ -97,7 +97,7 @@ def sparray_slice_from_dict(
         raise ImportError(
             "The 'sparse' package is required for pydata/sparse output. "
             "You can install it with 'pip install sparse'."
-        )
+        ) from None
 
     shape = (row_stop - row_start, col_stop - col_start)
     return COO(
@@ -355,7 +355,7 @@ class BaseRangeQuery2D:
         except ImportError:
             raise ImportError(
                 "The 'dask' package is required for `dask.delayed` output."
-            )
+            ) from None
 
         out = []
         for task in self.tasks:
@@ -383,7 +383,7 @@ class BaseRangeQuery2D:
             raise ImportError(
                 "The 'dask' package is required for dask DataFrame output. "
                 "Install dask[dataframe] or dask[complete] with pip."
-            )
+            ) from None
 
         meta = self.reader.get_frame_meta(self.field)
         tasks = self.tasks

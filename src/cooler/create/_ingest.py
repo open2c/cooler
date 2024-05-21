@@ -691,13 +691,15 @@ class TabixAggregator(ContactBinner):
         for chrom in self.gs.contigs:
             if chrom not in self.file_contigs:
                 warnings.warn(
-                    "Did not find contig " + f" '{chrom}' in contact list file."
+                    "Did not find contig " + f" '{chrom}' in contact list file.",
+                    stacklevel=2,
                 )
 
         warnings.warn(
             "NOTE: When using the Tabix aggregator, make sure the order of "
             "chromosomes in the provided chromsizes agrees with the chromosome "
-            "ordering of read ends in the contact list file."
+            "ordering of read ends in the contact list file.",
+            stacklevel=2,
         )
 
     def aggregate(
@@ -871,7 +873,8 @@ class PairixAggregator(ContactBinner):
         for chrom in self.gs.contigs:
             if chrom not in self.file_contigs:
                 warnings.warn(
-                    "Did not find contig " + f" '{chrom}' in contact list file."
+                    "Did not find contig " + f" '{chrom}' in contact list file.",
+                    stacklevel=2,
                 )
 
     def aggregate(
@@ -991,7 +994,10 @@ class SparseBlockLoader(ContactBinner):  # pragma: no cover
             try:
                 block = self.mapping[chrom2, chrom1].T
             except KeyError:
-                warnings.warn(f"Block for {{{chrom1}, {chrom2}}} not found")
+                warnings.warn(
+                    f"Block for {{{chrom1}, {chrom2}}} not found",
+                    stacklevel=2,
+                )
                 raise
         return block
 
@@ -1097,7 +1103,10 @@ class ArrayBlockLoader(ContactBinner):  # pragma: no cover
             try:
                 block = self.mapping[chrom2, chrom1].T
             except KeyError:
-                warnings.warn(f"Block for {{{chrom1}, {chrom2}}} not found")
+                warnings.warn(
+                    f"Block for {{{chrom1}, {chrom2}}} not found",
+                    stacklevel=2,
+                )
                 raise
         return block
 
