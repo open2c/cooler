@@ -12,7 +12,6 @@ import h5py
 import numpy as np
 import pandas as pd
 import simplejson as json
-from pandas.api.types import is_categorical_dtype
 
 from .._logging import get_logger
 from .._typing import Tabular

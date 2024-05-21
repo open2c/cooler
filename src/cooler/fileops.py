@@ -363,7 +363,7 @@ def tree_widget(group: h5py.Group, expand: bool, level: int | None) -> Any:
         elif stype in {"Group", "File"}:
             return "folder"
         else:
-            raise ValueError("Unknown type: %s" % stype)
+            raise ValueError(f"Unknown type: {stype}")
 
     def _tree_widget_sublist(
         node: TreeNode, root: bool = False, expand: bool = False

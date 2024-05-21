@@ -56,7 +56,7 @@ def test_makebins():
     assert result.exit_code == 0
     assert (
         result.output
-        == "chr1\t0\t8\nchr1\t8\t16\nchr1\t16\t24\nchr1\t24\t32\nchr2\t0\t8\nchr2\t8\t16\nchr2\t16\t24\nchr2\t24\t32\n"
+        == "chr1\t0\t8\nchr1\t8\t16\nchr1\t16\t24\nchr1\t24\t32\nchr2\t0\t8\nchr2\t8\t16\nchr2\t16\t24\nchr2\t24\t32\n"  # noqa
     )
 
     result = runner.invoke(
@@ -73,7 +73,7 @@ def test_makebins():
     assert result.exit_code == 0
     assert (
         result.output
-        == "chrom\tstart\tend\tid\nchr1\t0\t8\t1\nchr1\t8\t16\t2\nchr1\t16\t24\t3\nchr1\t24\t32\t4\nchr2\t0\t8\t1\nchr2\t8\t16\t2\nchr2\t16\t24\t3\nchr2\t24\t32\t4\n"
+        == "chrom\tstart\tend\tid\nchr1\t0\t8\t1\nchr1\t8\t16\t2\nchr1\t16\t24\t3\nchr1\t24\t32\t4\nchr2\t0\t8\t1\nchr2\t8\t16\t2\nchr2\t16\t24\t3\nchr2\t24\t32\t4\n"  # noqa
     )
 
 

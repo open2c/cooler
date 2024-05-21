@@ -20,7 +20,7 @@ class DelimitedTuple(click.types.ParamType):
 
     @property
     def name(self):
-        return "separated[%s]" % self.sep
+        return f"separated[{self.sep}]"
 
     def convert(self, value, param, ctx):
         # needs to pass through value = None unchanged

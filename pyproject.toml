@@ -102,6 +102,8 @@ exclude = [
     "__init__.py",
     "__main__.py",
 ]
+
+[tool.ruff.lint]
 extend-select = [
     "E",  # style errors
     # "D",  # pydocstyle
@@ -112,10 +114,8 @@ extend-select = [
     "W",  # style  warnings
 ]
 
-[tool.isort]
-profile = "black"
-skip_gitignore = true
-known_first_party = "cooler"
+[tool.ruff.lint.isort]
+known-first-party = ["cooler"]
 
 [tool.pytest.ini_options]
 addopts = "--cov cooler --cov-config pyproject.toml --cov-report term-missing --cov-report html --cov-report=xml"
