@@ -9,7 +9,7 @@ jobs:
   Publish:
     # prevents this action from running on forks
     if: github.repository == 'open2c/cooler'
-    
+
     runs-on: ubuntu-latest
     permissions:
       id-token: write
