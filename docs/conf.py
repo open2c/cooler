@@ -12,8 +12,8 @@
 # All configuration values have a default; values that are commented out
 # serve to show the default.
 
-import os
-import re
+from importlib.metadata import metadata
+from datetime import datetime
 
 # -- Path setup --------------------------------------------------------------
 
@@ -57,28 +57,17 @@ import re
 # -- Project information -----------------------------------------------------
 
 # General information about the project.
-project = "cooler"
-copyright = "2016-2019, Nezar Abdennur"
+info = metadata("cooler")
+project = info["Name"]
 author = "Nezar Abdennur"
+copyright = f"2016-{datetime.now():%Y}, {author}."
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
 # built documents.
-#
-
-
-def _get_version():
-    init = os.path.join("..", "src", "cooler", "_version.py")
-    with open(init) as fh:
-        text = fh.read()
-    version = re.search(
-        r'^__version__\s*=\s*[\'"]([^\'"]*)[\'"]', text, re.MULTILINE
-    ).group(1)
-    return version
-
 
 # The full version, including alpha/beta/rc tags.
-release = _get_version()
+release = info["Version"]
 
 # The short X.Y version.
 version = release.rsplit(".", maxsplit=1)[0]
