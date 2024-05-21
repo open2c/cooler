@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "cooler"
-version = "0.9.3"
+version = "0.10.0"
 description = "Sparse binary format for genomic interaction matrices."
 requires-python = ">=3.8"
 license = {text = "BSD-3-Clause"}
@@ -35,6 +35,7 @@ classifiers = [
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
 ]
 
 readme = "README.md"
@@ -54,22 +55,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-test = [
-    "coverage[toml]",
-    "isort",
-    "pytest",
-    "pytest-cov",
-    "ruff",
-]
-docs = [
-    "autodocsumm",
-    "m2r",
-    "recommonmark",
-    "Sphinx>=1.6",
-    "sphinx-autobuild",
-    "sphinx_rtd_theme",
-]
-complete = [
+all = [
     "biopython",
     "dask[array,dataframe]",
     "ipytree>=0.2.2",
@@ -79,9 +65,24 @@ complete = [
     "psutil",
     "pysam; platform_system != 'Windows'",
 ]
+test = [
+    "coverage[toml]",
+    "isort",
+    "pytest",
+    "pytest-cov",
+    "ruff",
+]
 dev = [
-    "cooler[complete,test]",
+    "cooler[all,test]",
     "pre-commit"
+]
+docs = [
+    "autodocsumm",
+    "m2r",
+    "recommonmark",
+    "Sphinx>=1.6",
+    "sphinx-autobuild",
+    "sphinx_rtd_theme",
 ]
 
 [project.urls]
@@ -150,4 +151,4 @@ skip-install = false
 features = ["dev", "test"]
 
 [[tool.hatch.envs.test.matrix]]
-python = ["3.8", "3.9", "3.10", "3.11"]
+python = ["3.8", "3.9", "3.10", "3.11", "3.12"]

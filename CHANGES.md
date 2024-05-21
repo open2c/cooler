@@ -1,5 +1,26 @@
 # Release notes #
 
+## [v0.10.0](https://github.com/open2c/cooler/compare/v0.9.3...v0.10.0)
+
+### New features
+* Support custom contig separator characters in pairix index by @nvictus in https://github.com/open2c/cooler/pull/398
+
+### Performance improvements and bug fixes
+* Make annotate faster by using indexing instead of merge by @Phlya in https://github.com/open2c/cooler/pull/353
+* Fix input text file handling on certain pandas versions by @thomas-reimonn in https://github.com/open2c/cooler/pull/384
+* Reduce memory consumption of very high-resolution merges by @nvictus in https://github.com/open2c/cooler/pull/408
+
+### Maintenance
+* Add windows and macos platforms to CI by @nvictus in https://github.com/open2c/cooler/pull/383
+* Add type annotations by @GarrettNg in https://github.com/open2c/cooler/pull/387
+* docs: Replace ftp with OSN storage bucket for example data. by @nvictus in https://github.com/open2c/cooler/pull/399
+
+### New Contributors
+* @a-detiste made their first contribution in https://github.com/open2c/cooler/pull/346
+* @manzt made their first contribution in https://github.com/open2c/cooler/pull/363
+* @thomas-reimonn made their first contribution in https://github.com/open2c/cooler/pull/380
+* @GarrettNg made their first contribution in https://github.com/open2c/cooler/pull/387
+
 ## [v0.9.3](https://github.com/open2c/cooler/compare/v0.9.2...v0.9.3)
 
 ### Bug fixes
