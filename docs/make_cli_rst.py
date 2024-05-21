@@ -52,7 +52,7 @@ def _get_help_record(opt):
     if opt.default is not None and opt.show_default:
         extra.append(
             "default: {}".format(
-                ", ".join("%s" % d for d in opt.default)
+                ", ".join(f"{d}" for d in opt.default)
                 if isinstance(opt.default, (list, tuple))
                 else opt.default
             )
@@ -161,7 +161,7 @@ def _format_envvar(param):
 
 def _format_envvars(ctx):
     """Format all envvars for a `click.Command`."""
-    params = [x for x in ctx.command.params if getattr(x, "envvar")]
+    params = [x for x in ctx.command.params if x.envvar]
 
     for param in params:
         yield ".. _{command_name}-{param_name}-{envvar}:".format(

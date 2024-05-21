@@ -197,7 +197,8 @@ def zoomify(
             if "n" in res or "b" in res and maxres < curres:
                 warnings.warn(
                     "Map is already < 256 x 256. Provide resolutions "
-                    "explicitly if you want to coarsen more."
+                    "explicitly if you want to coarsen more.",
+                    stacklevel=1,
                 )
             if res == "n":
                 r = preferred_sequence(curres, maxres, "nice")

@@ -96,6 +96,7 @@ cooler = "cooler.cli:cli"
 path = "src/cooler/_version.py"
 
 [tool.ruff]
+src = ["src"]
 exclude = [
     ".venv",
     "__init__.py",

@@ -429,7 +429,9 @@ def _get_dtypes_arg(
     if "dtype" in kwargs:
         if dtypes is None:
             dtypes = kwargs.pop("dtype")
-            warnings.warn("Use dtypes= instead of dtype=", FutureWarning)
+            warnings.warn(
+                "Use dtypes= instead of dtype=", FutureWarning, stacklevel=2
+            )
         else:
             raise ValueError(
                 'Received both "dtypes" and "dtype" arguments. '
@@ -593,7 +595,8 @@ def create(
     if not symmetric_upper and triucheck:
         warnings.warn(
             "Creating a non-symmetric matrix, but `triucheck` was set to "
-            "True. Changing to False."
+            "True. Changing to False.",
+            stacklevel=2,
         )
         triucheck = False
 

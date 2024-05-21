@@ -125,7 +125,8 @@ def merge_breakpoints(
     if n_over > 0:
         warnings.warn(
             f"{n_over} merge epochs will require buffering more than {bufsize} "
-            f"pixel records, with as many as {nrecords_per_epoch.max():g}."
+            f"pixel records, with as many as {nrecords_per_epoch.max():g}.",
+            stacklevel=2,
         )
 
     return bin1_partition, cum_nrecords

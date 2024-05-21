@@ -111,7 +111,9 @@ def _balance_genomewide(
             break
     else:
         warnings.warn(
-            "Iteration limit reached without convergence.", ConvergenceWarning
+            "Iteration limit reached without convergence.",
+            ConvergenceWarning,
+            stacklevel=1,
         )
 
     scale = nzmarg.mean()
@@ -180,6 +182,7 @@ def _balance_cisonly(
             warnings.warn(
                 f"Iteration limit reached without convergence on {chroms[cid]}.",
                 ConvergenceWarning,
+                stacklevel=1,
             )
 
         scale = nzmarg.mean()
@@ -244,7 +247,9 @@ def _balance_transonly(
             break
     else:
         warnings.warn(
-            "Iteration limit reached without convergence.", ConvergenceWarning
+            "Iteration limit reached without convergence.",
+            ConvergenceWarning,
+            stacklevel=1,
         )
 
     scale = nzmarg.mean()
