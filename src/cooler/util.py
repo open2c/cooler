@@ -4,7 +4,7 @@ import os
 import re
 from collections import OrderedDict, defaultdict
 from contextlib import contextmanager
-from typing import IO, Any, ContextManager, Iterable, Iterator
+from typing import IO, Any, Generator, Iterable, Iterator
 
 import h5py
 import numpy as np
@@ -519,7 +519,7 @@ def open_hdf5(
     mode: str = "r",
     *args,
     **kwargs
-) -> ContextManager[h5py.Group]:
+) -> Generator[h5py.Group, None, None]:
     """
     Context manager like ``h5py.File`` but accepts already open HDF5 file
     handles which do not get closed on teardown.
