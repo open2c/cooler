@@ -1,6 +1,6 @@
 import click
 
-from ..reduce import merge_coolers
+from .._reduce import merge_coolers
 from . import cli
 from ._util import parse_field_param
 
