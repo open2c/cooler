@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 from multiprocess import Pool
 
-from .. import ice
+from .._balance import balance_cooler
 from ..api import Cooler
 from ..util import bedslice, parse_cooler_uri
 from . import cli, get_logger
@@ -241,7 +241,7 @@ def balance(
         else:
             map_ = map
 
-        bias, stats = ice.iterative_correction(
+        bias, stats = balance_cooler(
             clr,
             chunksize=chunksize,
             cis_only=cis_only,

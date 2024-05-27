@@ -3,7 +3,7 @@ import os.path as op
 import click
 
 from ..parallel import lock
-from ..reduce import coarsen_cooler
+from .._reduce import coarsen_cooler
 from ..util import parse_cooler_uri
 from . import cli
 from ._util import parse_field_param

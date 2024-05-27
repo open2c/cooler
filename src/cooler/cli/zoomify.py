@@ -6,7 +6,7 @@ import click
 
 from .. import api
 from ..parallel import lock
-from ..reduce import (
+from .._reduce import (
     HIGLASS_TILE_DIM,
     legacy_zoomify,
     preferred_sequence,
