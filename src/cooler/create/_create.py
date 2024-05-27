@@ -734,7 +734,7 @@ def create_from_unordered(
 
     """
     from ..api import Cooler
-    from ..reduce import CoolerMerger
+    from .._reduce import CoolerMerger
 
     # chromsizes = get_chromsizes(bins)
     bins = bins.copy()

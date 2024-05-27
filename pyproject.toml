@@ -99,7 +99,6 @@ path = "src/cooler/_version.py"
 src = ["src"]
 exclude = [
     ".venv",
-    "__init__.py",
     "__main__.py",
 ]
 
