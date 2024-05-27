@@ -5,13 +5,13 @@ from math import ceil
 import click
 
 from .. import api
-from ..parallel import lock
 from .._reduce import (
     HIGLASS_TILE_DIM,
     legacy_zoomify,
     preferred_sequence,
     zoomify_cooler,
 )
+from ..parallel import lock
 from ..util import parse_cooler_uri
 from . import cli, get_logger
 from ._util import parse_field_param
