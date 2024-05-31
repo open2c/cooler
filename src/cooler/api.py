@@ -439,7 +439,7 @@ def chroms(
     lo: int = 0,
     hi: int | None = None,
     fields: list[str] | None = None,
-    **kwargs
+    **kwargs,
 ) -> pd.DataFrame:
     """
     Table describing the chromosomes/scaffolds/contigs used.
@@ -473,7 +473,7 @@ def bins(
     lo: int = 0,
     hi: int | None = None,
     fields: list[str] | None = None,
-    **kwargs
+    **kwargs,
 ) -> pd.DataFrame:
     """
     Table describing the genomic bins that make up the axes of the heatmap.
@@ -530,7 +530,7 @@ def pixels(
     hi: int | None = None,
     fields: list[str] | None = None,
     join: bool = True,
-    **kwargs
+    **kwargs,
 ) -> pd.DataFrame:
     """
     Table describing the nonzero upper triangular pixels of the Hi-C contact
@@ -570,9 +570,7 @@ def pixels(
 
 
 def annotate(
-    pixels: pd.DataFrame,
-    bins: pd.DataFrame | RangeSelector1D,
-    replace: bool = False
+    pixels: pd.DataFrame, bins: pd.DataFrame | RangeSelector1D, replace: bool = False
 ) -> pd.DataFrame:
     """
     Add bin annotations to a data frame of pixels.
@@ -609,6 +607,7 @@ def annotate(
         def _loc_slice(sel, beg, end):
             # slicing a range selector is end-exclusive like iloc
             return sel[beg : end + 1 if end is not None else None]
+
     else:
 
         def _loc_slice(df, beg, end):
@@ -631,7 +630,7 @@ def annotate(
             bmin, bmax = 0, None
         ann1 = _loc_slice(bins, bmin, bmax)
         anns.append(
-            ann1.iloc[bin1 - bmin]
+            ann1.iloc[bin1 - ann1.index[0]]
             .rename(columns=lambda x: x + "1")
             .reset_index(drop=True)
         )
@@ -647,7 +646,7 @@ def annotate(
             bmin, bmax = 0, None
         ann2 = _loc_slice(bins, bmin, bmax)
         anns.append(
-            ann2.iloc[bin2 - bmin]
+            ann2.iloc[bin2 - ann2.index[0]]
             .rename(columns=lambda x: x + "2")
             .reset_index(drop=True)
         )
