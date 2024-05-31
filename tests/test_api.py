@@ -99,6 +99,28 @@ def test_annotate_with_partial_bins():
         assert out[col].notnull().all()
 
 
+def test_annotate_with_partial_bins_and_partial_pixels():
+    # Addresses a bug where annotating only certain pixels with a partial
+    # bin-table dataframe would lead to IndexError
+
+    clr = api.Cooler(op.join(datadir, "hg19.GM12878-MboI.matrix.2000kb.cool"))
+    region = "chr2:0-1000000"
+
+    pix = clr.matrix(as_pixels=True, balance=False).fetch(region)
+
+    # Use partial bin table
+    bins_region = clr.bins().fetch(region)
+    out = api.annotate(pix, bins_region)
+    for col in ["chrom1", "start1", "end1", "chrom2", "start2", "end2"]:
+        assert out[col].notnull().all()
+
+    # Compare with full bin table as selector
+    pd.testing.assert_frame_equal(out, api.annotate(pix, clr.bins()))
+
+    # Compare with full bin table materialized
+    pd.testing.assert_frame_equal(out, api.annotate(pix, clr.bins()[:]))
+
+
 def test_matrix():
     clr = api.Cooler(op.join(datadir, "yeast.10kb.cool"))
     region = ("chrI:100345-220254", "chrII:200789-813183")
