@@ -631,7 +631,7 @@ def annotate(
             bmin, bmax = 0, None
         ann1 = _loc_slice(bins, bmin, bmax)
         anns.append(
-            ann1.iloc[bin1 - bmin]
+            ann1.loc[bin1]
             .rename(columns=lambda x: x + "1")
             .reset_index(drop=True)
         )
@@ -647,7 +647,7 @@ def annotate(
             bmin, bmax = 0, None
         ann2 = _loc_slice(bins, bmin, bmax)
         anns.append(
-            ann2.iloc[bin2 - bmin]
+            ann2.loc[bin2]
             .rename(columns=lambda x: x + "2")
             .reset_index(drop=True)
         )
