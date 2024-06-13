@@ -5,7 +5,7 @@ from ._rangequery import (
     region_to_extent,
     region_to_offset,
 )
-from ._selectors import RangeSelector1D, RangeSelector2D
+from ._selectors import RangeSelector1D, RangeSelector2D, _IndexingMixin
 from ._tableops import delete, get, put
 
 __all__ = [
