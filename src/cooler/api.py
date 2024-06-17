@@ -661,16 +661,6 @@ def annotate(
     out.index = pixels.index
     return out
 
-    # Drop original bin IDs if not wanted
-    if replace:
-        cols_to_drop = [col for col in ("bin1_id", "bin2_id") if col in columns]
-        pixels = pixels.drop(cols_to_drop, axis=1)
-
-    # Concatenate bin annotations with pixels
-    out = pd.concat([*anns, pixels.reset_index(drop=True)], axis=1)
-    out.index = pixels.index
-    return out
-
 
 def matrix(
     h5: h5py.Group,
