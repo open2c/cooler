@@ -1,5 +1,10 @@
 # Release notes #
 
+## [v0.10.2](https://github.com/open2c/cooler/compare/v0.10.0...v0.10.1)
+
+## Maintenance
+* NumPy 2.0 was released. Pin `numpy < 2` until we achieve compatibility.
+
 ## [v0.10.1](https://github.com/open2c/cooler/compare/v0.10.0...v0.10.1)
 
 ## Bug fixes
