@@ -1,5 +1,10 @@
 # Release notes #
 
+## [v0.10.1](https://github.com/open2c/cooler/compare/v0.10.0...v0.10.1)
+
+## Bug fixes
+* fix: Pixel annotation with partial bin table in https://github.com/open2c/cooler/pull/422
+
 ## [v0.10.0](https://github.com/open2c/cooler/compare/v0.9.3...v0.10.0)
 
 ### New features
