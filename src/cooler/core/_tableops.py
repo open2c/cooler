@@ -102,7 +102,7 @@ def get(
             data[field] = pd.Categorical.from_codes(
                 dset[lo:hi], sorted(dt, key=dt.__getitem__), ordered=True
             )
-        elif dset.dtype.type == np.string_:
+        elif dset.dtype.type == np.bytes_:
             data[field] = dset[lo:hi].astype("U")
         else:
             data[field] = dset[lo:hi]
