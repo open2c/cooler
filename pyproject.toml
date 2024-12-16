@@ -59,7 +59,7 @@ all = [
     "ipytree>=0.2.2",
     "ipywidgets>=8.0.0",
     "matplotlib",
-    "pypairix; platform_system != 'Windows'",
+#    "pypairix; platform_system != 'Windows'", # doesn't compile, see 4dn-dcic/pairix#79
     "psutil",
     "pysam; platform_system != 'Windows'",
 ]
