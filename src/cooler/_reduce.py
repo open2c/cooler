@@ -19,7 +19,7 @@ from .create import ContactBinner, create
 from .parallel import lock
 from .util import GenomeSegmentation, parse_cooler_uri
 
-__all__ = ["merge_coolers", "coarsen_cooler", "zoomify_cooler"]
+__all__ = ["coarsen_cooler", "merge_coolers", "zoomify_cooler"]
 
 
 logger = get_logger(__name__)

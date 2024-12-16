@@ -15,7 +15,7 @@ from .api import Cooler
 from .core import get
 from .util import partition
 
-__all__ = ["partition", "split", "lock"]
+__all__ = ["lock", "partition", "split"]
 
 """
 Two possible reasons for using a lock

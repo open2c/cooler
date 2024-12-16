@@ -12,4 +12,4 @@ GenomicRangeSpecifier = Union[str , Tuple[str, Optional[int], Optional[int]]]
 GenomicRangeTuple = Tuple[str, int, int]
 Tabular = Union[pd.DataFrame, Dict[str, np.ndarray]]
 
-__all__ = ["MapFunctor", "GenomicRangeSpecifier", "GenomicRangeTuple", "Tabular"]
+__all__ = ["GenomicRangeSpecifier", "GenomicRangeTuple", "MapFunctor", "Tabular"]

@@ -24,7 +24,7 @@ from asciitree.traversal import Traversal
 from .create import MAGIC, MAGIC_SCOOL
 from .util import natsorted, parse_cooler_uri
 
-__all__ = ["is_cooler", "is_multires_file", "list_coolers", "cp", "mv", "ln"]
+__all__ = ["cp", "is_cooler", "is_multires_file", "list_coolers", "ln", "mv"]
 
 
 def json_dumps(o: object) -> str:

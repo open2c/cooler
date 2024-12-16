@@ -60,7 +60,7 @@ def _get_help_record(opt):
     if opt.required:
         extra.append("required")
     if extra:
-        help = "{}[{}]".format(help and help + "  " or "", "; ".join(extra))
+        help = "{}[{}]".format((help and help + "  ") or "", "; ".join(extra))
 
     return ", ".join(rv), help
 

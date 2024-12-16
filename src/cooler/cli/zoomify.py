@@ -194,7 +194,7 @@ def zoomify(
         # Parse and expand user-provided resolutions
         resolutions, rstring = [], resolutions
         for res in [s.strip().lower() for s in rstring.split(",")]:
-            if "n" in res or "b" in res and maxres < curres:
+            if "n" in res or ("b" in res and maxres < curres):
                 warnings.warn(
                     "Map is already < 256 x 256. Provide resolutions "
                     "explicitly if you want to coarsen more.",

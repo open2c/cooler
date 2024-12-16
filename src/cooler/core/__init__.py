@@ -14,9 +14,9 @@ __all__ = [
     "FillLowerRangeQuery2D",
     "RangeSelector1D",
     "RangeSelector2D",
-    "region_to_extent",
-    "region_to_offset",
     "delete",
     "get",
     "put",
+    "region_to_extent",
+    "region_to_offset",
 ]
