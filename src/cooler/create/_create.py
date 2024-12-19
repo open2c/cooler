@@ -5,8 +5,9 @@ import os.path as op
 import posixpath
 import tempfile
 import warnings
+from collections.abc import Iterable
 from datetime import datetime
-from typing import Any, Iterable
+from typing import Any
 
 import h5py
 import numpy as np
