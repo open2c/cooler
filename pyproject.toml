@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 name = "cooler"
 version = "0.10.2"
 description = "Sparse binary format for genomic interaction matrices."
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 license = {text = "BSD-3-Clause"}
 authors = [
   {name = "Nezar Abdennur", email = "nabdennur@gmail.com"},
@@ -29,7 +29,6 @@ classifiers = [
     "Operating System :: OS Independent",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
@@ -39,7 +38,7 @@ classifiers = [
 readme = "README.md"
 
 dependencies = [
-    "numpy>=1.9, <2",
+    "numpy>=1.26,<3",
     "scipy>=0.16",
     "pandas>1.5",
     "h5py>=2.5",
@@ -59,7 +58,7 @@ all = [
     "ipytree>=0.2.2",
     "ipywidgets>=8.0.0",
     "matplotlib",
-    "pypairix; platform_system != 'Windows'",
+#    "pypairix; platform_system != 'Windows'", # doesn't compile, see 4dn-dcic/pairix#79
     "psutil",
     "pysam; platform_system != 'Windows'",
 ]

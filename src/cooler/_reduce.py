@@ -4,7 +4,8 @@ import math
 import warnings
 from bisect import bisect_right
 from collections import OrderedDict, defaultdict
-from typing import Any, Iterator, Literal
+from collections.abc import Iterator
+from typing import Any, Literal
 
 import h5py
 import multiprocess as mp

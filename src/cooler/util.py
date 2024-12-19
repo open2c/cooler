@@ -3,8 +3,9 @@ from __future__ import annotations
 import os
 import re
 from collections import OrderedDict, defaultdict
+from collections.abc import Generator, Iterable, Iterator
 from contextlib import contextmanager
-from typing import IO, Any, Generator, Iterable, Iterator
+from typing import IO, Any
 
 import h5py
 import numpy as np
@@ -627,7 +628,7 @@ def infer_meta(x, index=None):  # pragma: no cover
         "m": np.timedelta64(1),
         "S": np.str_("foo"),
         "a": np.str_("foo"),
-        "U": np.unicode_("foo"),
+        "U": np.str_("foo"),
         "O": "foo",
     }
 

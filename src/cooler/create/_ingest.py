@@ -12,8 +12,9 @@ import itertools
 import warnings
 from bisect import bisect_left
 from collections import Counter, OrderedDict
+from collections.abc import Iterator
 from functools import partial
-from typing import Any, Callable, Iterator
+from typing import Any, Callable
 
 import h5py
 import numpy as np
@@ -112,8 +113,8 @@ def _sanitize_records(
         return chunk
 
     # Find positional anchor columns, convert to zero-based if needed
-    anchor1 = np.array(chunk[anchor_field + suffixes[0]])
-    anchor2 = np.array(chunk[anchor_field + suffixes[1]])
+    anchor1 = chunk[anchor_field + suffixes[0]].to_numpy(copy=True)
+    anchor2 = chunk[anchor_field + suffixes[1]].to_numpy(copy=True)
     if is_one_based:
         anchor1 -= 1
         anchor2 -= 1

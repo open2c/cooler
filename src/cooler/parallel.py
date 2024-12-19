@@ -5,8 +5,9 @@ coolers.
 """
 from __future__ import annotations
 
+from collections.abc import Iterable, Iterator, Sequence
 from functools import partial, reduce
-from typing import Any, Callable, Iterable, Iterator, Sequence
+from typing import Any, Callable
 
 from multiprocess import Lock
 
