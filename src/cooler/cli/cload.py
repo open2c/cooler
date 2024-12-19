@@ -2,11 +2,11 @@ import sys
 
 import click
 import h5py
+import multiprocess as mp
 import numpy as np
 import pandas as pd
 import simplejson as json
 from cytoolz import compose
-from multiprocess import Pool
 
 from ..create import (
     HDF5Aggregator,
@@ -230,7 +230,8 @@ def tabix(
     try:
         map_func = map
         if nproc > 1:
-            pool = Pool(nproc)
+            ctx = mp.get_context("fork")
+            pool = ctx.Pool(nproc)
             logger.info(f"Using {nproc} cores")
             map_func = pool.imap
 
@@ -331,7 +332,8 @@ def pairix(
     try:
         map_func = map
         if nproc > 1:
-            pool = Pool(nproc)
+            ctx = mp.get_context("fork")
+            pool = ctx.Pool(nproc)
             logger.info(f"Using {nproc} cores")
             map_func = pool.imap
 

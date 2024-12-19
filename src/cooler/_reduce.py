@@ -722,7 +722,8 @@ def coarsen_cooler(
     try:
         # Note: fork before opening to prevent inconsistent global HDF5 state
         if nproc > 1:
-            pool = mp.Pool(nproc)
+            ctx = mp.get_context("fork")
+            pool = ctx.Pool(nproc)
             kwargs.setdefault("lock", lock)
 
         iterator = CoolerCoarsener(

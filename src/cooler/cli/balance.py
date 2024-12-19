@@ -2,9 +2,9 @@ import sys
 
 import click
 import h5py
+import multiprocess as mp
 import numpy as np
 import pandas as pd
-from multiprocess import Pool
 
 from .._balance import balance_cooler
 from ..api import Cooler
@@ -236,7 +236,8 @@ def balance(
 
     try:
         if nproc > 1:
-            pool = Pool(nproc)
+            ctx = mp.get_context("fork")
+            pool = ctx.Pool(nproc)
             map_ = pool.imap_unordered
         else:
             map_ = map
