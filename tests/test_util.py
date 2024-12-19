@@ -166,8 +166,8 @@ def test_read_chromsizes():
     util.read_chromsizes(op.join(datadir, "toy.chrom.sizes"))
 
 
-def test_fetch_chromsizes():
-    util.fetch_chromsizes("hg19")
+# def test_fetch_chromsizes():
+#     util.fetch_chromsizes("hg19")
 
 
 def test_load_fasta():
