@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from typing import Any, Callable, List, Optional, Tuple, Union, overload
+from typing import Any, Callable, Optional, Union, overload
 
 import pandas as pd
 
-ColumnsArg = Optional[Union[str, List[str]]]
-GenomicRangeArg = Optional[Union[str, Tuple[str, Optional[int], Optional[int]]]]
+ColumnsArg = Optional[Union[str, list[str]]]
+GenomicRangeArg = Optional[Union[str, tuple[str, Optional[int], Optional[int]]]]
 FieldArg = Optional[str]
 
 

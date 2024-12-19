@@ -12,8 +12,9 @@ import itertools
 import warnings
 from bisect import bisect_left
 from collections import Counter, OrderedDict
+from collections.abc import Iterator
 from functools import partial
-from typing import Any, Callable, Iterator
+from typing import Any, Callable
 
 import h5py
 import numpy as np
