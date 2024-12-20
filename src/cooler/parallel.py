@@ -1,53 +1,125 @@
-"""
-Experimental API for developing split-apply-combine style algorithms on
-coolers.
+"""Experimental API for split-apply-combine style algorithms on coolers."""
 
-"""
 from __future__ import annotations
 
+import multiprocessing as mp
+import os
+import sys
 from collections.abc import Iterable, Iterator, Sequence
 from functools import partial, reduce
-from typing import Any, Callable
-
-from multiprocess import Lock
+from typing import Any, Callable, Literal
 
 from ._typing import MapFunctor
 from .api import Cooler
 from .core import get
 from .util import partition
 
-__all__ = ["lock", "partition", "split"]
-
-"""
-Two possible reasons for using a lock
-
-(1) Prevent a concurrent process from opening an HDF5 file while the same
-file is open for writing. In order for reading processes to obtain the correct
-state, make sure the writing process finishes writing (flushes its buffers and
-actually closes the file) before reading processes attempt to open it.
-This explicit synchronization shouldn't be necessary if using the file in
-SWMR mode.
-
-See also:
-* <https://support.hdfgroup.org/HDF5/hdf5-quest.html#grdwt>
-* <https://support.hdfgroup.org/projects/SWMR>
-
-(2) Synchronize file access when opened before a fork(). Fork-based (Unix)
-multiprocessing and concurrent reading are compatible as long as the fork
-happens before the child processes open the file. If an HDF5 file is already
-open before forking, the child processes inherit the same global HDF5 state,
-which leads to a race condition that causes simultaneous access to fail. One
-can either use a lock to prevent the race condition, or close and re-open the
-file in the workers after the fork.
-
-See also:
-* <https://groups.google.com/forum/#!topic/h5py/bJVtWdFtZQM>
-* <https://github.com/h5py/h5py/issues/591#issuecomment-116785660>.
-
-"""
-lock = Lock()
+__all__ = ["clear_mp_context", "get_mp_context", "get_mp_lock", "partition", "split"]
 
 KeyType = Any
+_ctx = None
+_lock = None
+
+
+def get_mp_context(
+    method: Literal["fork", "spawn", "forkserver"] | None = None,
+) -> mp.context.BaseContext:
+    """Get a global multiprocessing context.
+
+    The context will be initialized on the first call.
+
+    Parameters
+    ----------
+    method : Literal["fork", "spawn", "forkserver"], optional
+        The method to use for starting child processes. The default is "fork"
+        on POSIX and "spawn" on Windows, which can be overridden by setting the
+        environment variable ``COOLER_DEFAULT_MP_METHOD``.
+
+    Returns
+    -------
+    mp.context.BaseContext
+
+    Notes
+    -----
+    As of Python 3.14, "fork" is no longer the default start method on any
+    platform. This function preserves "fork" as the default start method on
+    POSIX systems and "spawn" on Windows systems.
+    """
+    global _ctx
+    if _ctx is None:
+        if sys.platform == "win32":
+            default_method = "spawn"
+        else:
+            default_method = "fork"
+        default_method = os.getenv("COOLER_DEFAULT_MP_METHOD", default_method)
+        _ctx = mp.get_context(method or default_method)
+    elif method is not None:
+        if _ctx.get_start_method() != method:
+            raise RuntimeError(
+                "Cooler's multiprocessing context has already been set with "
+                "a different start method. Clear before resetting."
+            )
+    return _ctx
+
+
+def get_mp_lock() -> mp.synchronize.Lock:
+    """Get a global multiprocessing lock.
+
+    The lock is initialized on the first call and reused thereafter until
+    cleared. If the global context has not already been set, the default
+    context is created.
+
+    Returns
+    -------
+    lock : mp.synchronize.Lock
+
+    See also
+    --------
+    clear_mp_lock
+
+    Notes
+    -----
+    Consider two reasons for using a lock:
+
+    (1) Prevent a concurrent process from opening an HDF5 file while the same
+    file is open for writing. In order for reading processes to obtain the correct
+    state, make sure the writing process finishes writing (flushes its buffers and
+    actually closes the file) before reading processes attempt to open it.
+    This explicit synchronization shouldn't be necessary if using the file in
+    SWMR mode.
+
+    See also:
+    * <https://support.hdfgroup.org/HDF5/hdf5-quest.html#grdwt>
+    * <https://support.hdfgroup.org/projects/SWMR>
+
+    (2) Synchronize file access when opened before a fork(). Fork-based (Unix)
+    multiprocessing and concurrent reading are compatible as long as the fork
+    happens before the child processes open the file. If an HDF5 file is already
+    open before forking, the child processes inherit the same global HDF5 state,
+    which leads to a race condition that causes simultaneous access to fail. One
+    can either use a lock to prevent the race condition, or close and re-open the
+    file in the workers after the fork.
+
+    See also:
+    * <https://groups.google.com/forum/#!topic/h5py/bJVtWdFtZQM>
+    * <https://github.com/h5py/h5py/issues/591#issuecomment-116785660>.
+    """
+    global _lock
+
+    if _lock is None:
+        ctx = get_mp_context()
+        _lock = ctx.Lock()
+
+    return _lock
+
+
+def clear_mp_context() -> None:
+    """Clear the global multiprocessing context and lock."""
+    global _ctx, _lock
+    if _ctx is not None:
+        _ctx = None
+    if _lock is not None:
+        _lock = None
 
 
 def apply_pipeline(
@@ -189,10 +261,7 @@ class MultiplexDataPipe:
         return self
 
     def pipe(
-        self,
-        func: Callable[[Any], Any] | Callable[[Any, Any], Any],
-        *args,
-        **kwargs
+        self, func: Callable[[Any], Any] | Callable[[Any, Any], Any], *args, **kwargs
     ) -> MultiplexDataPipe:
         """
         Append new task(s) to the pipeline
@@ -230,10 +299,7 @@ class MultiplexDataPipe:
         return self.map(pipeline, self.keys)
 
     def gather(
-        self,
-        combine: Callable[[Iterable], Sequence] = list,
-        *args,
-        **kwargs
+        self, combine: Callable[[Iterable], Sequence] = list, *args, **kwargs
     ) -> Sequence[Any]:
         """
         Run the pipeline and gather outputs
@@ -291,6 +357,7 @@ class chunkgetter:
         chunk = {}
         try:
             if self.use_lock:
+                lock = get_mp_lock()
                 lock.acquire()
             with self.cooler.open("r") as grp:
                 if self.include_chroms:
@@ -309,12 +376,8 @@ def split(
     map: MapFunctor = map,
     chunksize: int = 10_000_000,
     spans: Iterable[tuple[int, int]] | None = None,
-    **kwargs
+    **kwargs,
 ) -> MultiplexDataPipe:
     if spans is None:
         spans = partition(0, int(clr.info["nnz"]), chunksize)
-    return MultiplexDataPipe(
-        get=chunkgetter(clr, **kwargs),
-        keys=spans,
-        map=map
-    )
+    return MultiplexDataPipe(get=chunkgetter(clr, **kwargs), keys=spans, map=map)

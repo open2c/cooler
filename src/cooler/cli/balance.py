@@ -2,12 +2,12 @@ import sys
 
 import click
 import h5py
-import multiprocess as mp
 import numpy as np
 import pandas as pd
 
 from .._balance import balance_cooler
 from ..api import Cooler
+from ..parallel import get_mp_context
 from ..util import bedslice, parse_cooler_uri
 from . import cli, get_logger
 
@@ -236,7 +236,7 @@ def balance(
 
     try:
         if nproc > 1:
-            ctx = mp.get_context("fork")
+            ctx = get_mp_context()
             pool = ctx.Pool(nproc)
             map_ = pool.imap_unordered
         else:

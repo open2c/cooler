@@ -2,7 +2,6 @@ import sys
 
 import click
 import h5py
-import multiprocess as mp
 import numpy as np
 import pandas as pd
 import simplejson as json
@@ -16,6 +15,7 @@ from ..create import (
     create_cooler,
     sanitize_records,
 )
+from ..parallel import get_mp_context
 from . import cli, get_logger
 from ._util import parse_bins, parse_field_param, parse_kv_list_param
 
@@ -230,7 +230,7 @@ def tabix(
     try:
         map_func = map
         if nproc > 1:
-            ctx = mp.get_context("fork")
+            ctx = get_mp_context()
             pool = ctx.Pool(nproc)
             logger.info(f"Using {nproc} cores")
             map_func = pool.imap
@@ -332,7 +332,7 @@ def pairix(
     try:
         map_func = map
         if nproc > 1:
-            ctx = mp.get_context("fork")
+            ctx = get_mp_context()
             pool = ctx.Pool(nproc)
             logger.info(f"Using {nproc} cores")
             map_func = pool.imap

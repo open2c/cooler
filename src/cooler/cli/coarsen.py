@@ -3,7 +3,7 @@ import os.path as op
 import click
 
 from .._reduce import coarsen_cooler
-from ..parallel import lock
+from ..parallel import get_mp_lock
 from ..util import parse_cooler_uri
 from . import cli
 from ._util import parse_field_param
@@ -90,6 +90,6 @@ def coarsen(cool_uri, factor, nproc, chunksize, field, out, append):
         columns=columns,
         dtypes=dtypes,
         agg=agg,
-        lock=lock if same_file else None,
+        lock=get_mp_lock() if same_file else None,
         mode="a" if append else "w",
     )
