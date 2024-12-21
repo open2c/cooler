@@ -1,13 +1,19 @@
 # Release notes #
 
-## [v0.10.2](https://github.com/open2c/cooler/compare/v0.10.0...v0.10.1)
+## [v0.10.3](https://github.com/open2c/cooler/compare/v0.10.2...v0.10.3)
 
-## Maintenance
+### Maintenance
+* Update to support numpy>=1.26 and numpy 2.x by @lrauschning in https://github.com/open2c/cooler/pull/446
+* Dropped support for numpy < 1.26 and Python 3.8
+
+## [v0.10.2](https://github.com/open2c/cooler/compare/v0.10.1...v0.10.2)
+
+### Maintenance
 * NumPy 2.0 was released. Pin `numpy < 2` until we achieve compatibility.
 
 ## [v0.10.1](https://github.com/open2c/cooler/compare/v0.10.0...v0.10.1)
 
-## Bug fixes
+### Bug fixes
 * fix: Pixel annotation with partial bin table in https://github.com/open2c/cooler/pull/426
 
 ## [v0.10.0](https://github.com/open2c/cooler/compare/v0.9.3...v0.10.0)
