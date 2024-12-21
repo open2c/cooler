@@ -4,7 +4,8 @@
 
 ### Maintenance
 * Update to support numpy>=1.26 and numpy 2.x by @lrauschning in https://github.com/open2c/cooler/pull/446
-* Dropped support for numpy < 1.26 and Python 3.8
+* Dropped support for numpy < 1.26 and Python 3.8.
+* Dropping pypairix dependency from `cooler[all]` until compilation issues are resolved.
 
 ## [v0.10.2](https://github.com/open2c/cooler/compare/v0.10.1...v0.10.2)
 
