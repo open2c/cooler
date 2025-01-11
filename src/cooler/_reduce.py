@@ -16,7 +16,6 @@ from ._typing import MapFunctor
 from ._version import __format_version_mcool__
 from .api import Cooler
 from .create import ContactBinner, create
-from .parallel import get_mp_context, get_mp_lock
 from .util import GenomeSegmentation, parse_cooler_uri
 
 __all__ = ["coarsen_cooler", "merge_coolers", "zoomify_cooler"]
@@ -516,8 +515,10 @@ class CoolerCoarsener(ContactBinner):
         agg: dict[str, Any] | None,
         batchsize: int,
         map: MapFunctor = map,
+        lock=None,
     ):
         self._map = map
+        self.lock = lock
 
         self.source_uri = source_uri
         self.batchsize = batchsize
@@ -582,7 +583,7 @@ class CoolerCoarsener(ContactBinner):
             .reset_index(drop=True)
         )
 
-    def _aggregate(self, span: tuple[int, int]) -> pd.DataFrame:
+    def aggregate(self, span: tuple[int, int]) -> pd.DataFrame:
         lo, hi = span
 
         clr = Cooler(self.source_uri)
@@ -622,26 +623,20 @@ class CoolerCoarsener(ContactBinner):
             .reset_index()
         )
 
-    def aggregate(self, span: tuple[int, int]) -> pd.DataFrame:
-        try:
-            chunk = self._aggregate(span)
-        except MemoryError as e:  # pragma: no cover
-            raise RuntimeError(str(e)) from e
-        return chunk
-
     def __iter__(self) -> Iterator[dict[str, np.ndarray]]:
-        # Distribute batches of `batchsize` pixel spans at once.
+        # Distribute consecutive pixel spans across the workers in batches.
+        # In the single-process case, each batch is one pixel span.
+        # With n processes, each batch is n pixel spans - one span per process.
         batchsize = self.batchsize
         spans = list(zip(self.edges[:-1], self.edges[1:]))
         for i in range(0, len(spans), batchsize):
             try:
-                if batchsize > 1:
-                    lock = get_mp_lock()
-                    lock.acquire()
+                if batchsize > 1 and self.lock is not None:
+                    self.lock.acquire()
                 results = self._map(self.aggregate, spans[i : i + batchsize])
             finally:
-                if batchsize > 1:
-                    lock.release()
+                if batchsize > 1 and self.lock is not None:
+                    self.lock.release()
             for df in results:
                 yield {k: v.values for k, v in df.items()}
 
@@ -655,6 +650,7 @@ def coarsen_cooler(
     columns: list[str] | None = None,
     dtypes: dict[str, Any] | None = None,
     agg: dict[str, Any] | None = None,
+    map: MapFunctor = map,
     **kwargs,
 ) -> None:
     """
@@ -719,40 +715,29 @@ def coarsen_cooler(
         else:
             dtypes.setdefault(col, input_dtypes[col])
 
-    try:
-        # Note: fork before opening to prevent inconsistent global HDF5 state
-        if nproc > 1:
-            ctx = get_mp_context()
-            lock = get_mp_lock()
-            pool = ctx.Pool(nproc)
-            kwargs.setdefault("lock", lock)
+    iterator = CoolerCoarsener(
+        base_uri,
+        factor,
+        chunksize,
+        columns=columns,
+        agg=agg,
+        batchsize=nproc,
+        map=map,
+        lock=kwargs.get("lock", None),
+    )
 
-        iterator = CoolerCoarsener(
-            base_uri,
-            factor,
-            chunksize,
-            columns=columns,
-            agg=agg,
-            batchsize=nproc,
-            map=pool.map if nproc > 1 else map,
-        )
+    new_bins = iterator.new_bins
 
-        new_bins = iterator.new_bins
+    kwargs.setdefault("append", True)
 
-        kwargs.setdefault("append", True)
-
-        create(
-            output_uri,
-            new_bins,
-            iterator,
-            dtypes=dtypes,
-            symmetric_upper=clr.storage_mode == "symmetric-upper",
-            **kwargs,
-        )
-
-    finally:
-        if nproc > 1:
-            pool.close()
+    create(
+        output_uri,
+        new_bins,
+        iterator,
+        dtypes=dtypes,
+        symmetric_upper=clr.storage_mode == "symmetric-upper",
+        **kwargs,
+    )
 
 
 def zoomify_cooler(
@@ -764,6 +749,7 @@ def zoomify_cooler(
     columns: list[str] | None = None,
     dtypes: dict[str, Any] | None = None,
     agg: dict[str, Any] | None = None,
+    map: MapFunctor = map,
     **kwargs,
 ) -> None:
     """
@@ -874,6 +860,7 @@ def zoomify_cooler(
             dtypes=dtypes,
             agg=agg,
             mode="r+",
+            map=map,
             **kwargs,
         )
 

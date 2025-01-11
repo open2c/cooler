@@ -3,7 +3,7 @@ from __future__ import annotations
 import warnings
 from functools import partial
 from operator import add
-from typing import Literal
+from typing import Any, Literal
 
 import numpy as np
 
@@ -79,14 +79,14 @@ def _balance_genomewide(
     tol,
     max_iters,
     rescale_marginals,
-    use_lock,
+    lock,
 ):
     scale = 1.0
     n_bins = len(bias)
 
     for _ in range(max_iters):
         marg = (
-            split(clr, spans=spans, map=map, use_lock=use_lock)
+            split(clr, spans=spans, map=map, lock=lock)
             .prepare(_init)
             .pipe(filters)
             .pipe(_timesouterproduct, bias)
@@ -134,7 +134,7 @@ def _balance_cisonly(
     tol,
     max_iters,
     rescale_marginals,
-    use_lock,
+    lock,
 ):
     chroms = clr.chroms()["name"][:]
     chrom_ids = np.arange(len(clr.chroms()))
@@ -153,7 +153,7 @@ def _balance_cisonly(
         var = np.nan
         for _ in range(max_iters):
             marg = (
-                split(clr, spans=spans, map=map, use_lock=use_lock)
+                split(clr, spans=spans, map=map, lock=lock)
                 .prepare(_init)
                 .pipe(filters)
                 .pipe(_timesouterproduct, bias)
@@ -206,7 +206,7 @@ def _balance_transonly(
     tol,
     max_iters,
     rescale_marginals,
-    use_lock,
+    lock,
 ):
     scale = 1.0
     n_bins = len(bias)
@@ -221,7 +221,7 @@ def _balance_transonly(
 
     for _ in range(max_iters):
         marg = (
-            split(clr, spans=spans, map=map, use_lock=use_lock)
+            split(clr, spans=spans, map=map, lock=lock)
             .prepare(_init)
             .pipe(filters)
             .pipe(_zero_cis)
@@ -276,7 +276,7 @@ def balance_cooler(
     max_iters: int = 200,
     chunksize: int = 10_000_000,
     map: MapFunctor = map,
-    use_lock: bool = False,
+    lock: Any | None = None,
     store: bool = False,
     store_name: str = "weight",
 ) -> tuple[np.ndarray, dict]:
@@ -375,7 +375,7 @@ def balance_cooler(
     if min_nnz > 0:
         filters = [_binarize, *base_filters]
         marg_nnz = (
-            split(clr, spans=spans, map=map, use_lock=use_lock)
+            split(clr, spans=spans, map=map, lock=lock)
             .prepare(_init)
             .pipe(filters)
             .pipe(_marginalize)
@@ -385,7 +385,7 @@ def balance_cooler(
 
     filters = base_filters
     marg = (
-        split(clr, spans=spans, map=map, use_lock=use_lock)
+        split(clr, spans=spans, map=map, lock=lock)
         .prepare(_init)
         .pipe(filters)
         .pipe(_marginalize)
@@ -424,7 +424,7 @@ def balance_cooler(
             tol,
             max_iters,
             rescale_marginals,
-            use_lock,
+            lock,
         )
     elif trans_only:
         bias, scale, var = _balance_transonly(
@@ -437,7 +437,7 @@ def balance_cooler(
             tol,
             max_iters,
             rescale_marginals,
-            use_lock,
+            lock,
         )
     else:
         bias, scale, var = _balance_genomewide(
@@ -450,7 +450,7 @@ def balance_cooler(
             tol,
             max_iters,
             rescale_marginals,
-            use_lock,
+            lock,
         )
 
     stats = {

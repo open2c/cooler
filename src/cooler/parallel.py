@@ -228,10 +228,8 @@ class MultiplexDataPipe:
         other._prepare = self._prepare
         return other
 
-    def __reduce__(self) -> dict:
-        d = self.__dict__.copy()
-        d.pop("map", None)
-        return d
+    def __reduce__(self) -> tuple[Callable, tuple]:
+        return self.__class__, (self.get, self.keys, None)
 
     def __iter__(self) -> Iterator[Any]:
         return iter(self.run())
@@ -345,20 +343,25 @@ class chunkgetter:
         clr: Cooler,
         include_chroms: bool = False,
         include_bins: bool = True,
-        use_lock: bool = False,
+        lock: mp.synchronize.Lock | None = None,
     ):
         self.cooler = clr
         self.include_chroms = include_chroms
         self.include_bins = include_bins
-        self.use_lock = use_lock
+        self.lock = lock
+
+    def __reduce__(self) -> tuple[Callable, tuple]:
+        return (
+            self.__class__,
+            (self.cooler, self.include_chroms, self.include_bins, None)
+        )
 
     def __call__(self, span: tuple[int, int]) -> dict[str, Any]:
         lo, hi = span
         chunk = {}
         try:
-            if self.use_lock:
-                lock = get_mp_lock()
-                lock.acquire()
+            if self.lock:
+                self.lock.acquire()
             with self.cooler.open("r") as grp:
                 if self.include_chroms:
                     chunk["chroms"] = get(grp["chroms"], as_dict=True)
@@ -366,8 +369,8 @@ class chunkgetter:
                     chunk["bins"] = get(grp["bins"], as_dict=True)
                 chunk["pixels"] = get(grp["pixels"], lo, hi, as_dict=True)
         finally:
-            if self.use_lock:
-                lock.release()
+            if self.lock:
+                self.lock.release()
         return chunk
 
 

@@ -255,7 +255,6 @@ def balance(
             max_iters=max_iters,
             ignore_diags=ignore_diags,
             rescale_marginals=True,
-            use_lock=False,
             map=map_,
         )
 

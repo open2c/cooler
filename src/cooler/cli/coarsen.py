@@ -3,7 +3,7 @@ import os.path as op
 import click
 
 from .._reduce import coarsen_cooler
-from ..parallel import get_mp_lock
+from ..parallel import get_mp_context, get_mp_lock
 from ..util import parse_cooler_uri
 from . import cli
 from ._util import parse_field_param
@@ -81,15 +81,26 @@ def coarsen(cool_uri, factor, nproc, chunksize, field, out, append):
         # Default aggregation. Dtype will be inferred.
         columns, dtypes, agg = ["count"], None, None
 
-    coarsen_cooler(
-        cool_uri,
-        out,
-        factor,
-        chunksize=chunksize,
-        nproc=nproc,
-        columns=columns,
-        dtypes=dtypes,
-        agg=agg,
-        lock=get_mp_lock() if same_file else None,
-        mode="a" if append else "w",
-    )
+    try:
+        map_func = map
+        if nproc > 1:
+            ctx = get_mp_context()
+            pool = ctx.Pool(nproc)
+            map_func = pool.map
+
+        coarsen_cooler(
+            cool_uri,
+            out,
+            factor,
+            chunksize=chunksize,
+            columns=columns,
+            dtypes=dtypes,
+            agg=agg,
+            nproc=nproc,
+            map=map_func,
+            lock=get_mp_lock() if same_file else None,
+            mode="a" if append else "w",
+        )
+    finally:
+        if nproc > 1:
+            pool.close()
