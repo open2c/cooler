@@ -1,4 +1,5 @@
 # from io import StringIO
+import json
 import os.path as op
 import tempfile
 from glob import glob
@@ -6,7 +7,6 @@ from glob import glob
 import numpy as np
 import pandas as pd
 import pytest
-import simplejson as json
 
 # from _common import cooler_cmp
 from click.testing import CliRunner

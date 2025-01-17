@@ -8,4 +8,3 @@ multiprocess
 click
 asciitree
 pyyaml
-simplejson

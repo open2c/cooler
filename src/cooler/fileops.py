@@ -3,13 +3,12 @@ from __future__ import annotations
 import os
 
 # from textwrap import dedent
+import json
 import warnings
 from collections.abc import Callable
 from datetime import datetime
 from numbers import Number
 from typing import Any, Literal
-
-import simplejson as json
 
 try:
     from simplejson import JSONDecodeError

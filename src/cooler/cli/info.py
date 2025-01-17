@@ -1,7 +1,7 @@
+import json
 import sys
 
 import click
-import simplejson as json
 
 from ..api import Cooler
 from ..util import attrs_to_jsonable
