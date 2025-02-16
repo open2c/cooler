@@ -82,7 +82,7 @@ def parse_region_string(s: str) -> tuple[str, int | None, int | None]:
     Parameters
     ----------
     s : str
-        UCSC-style string, e.g. "chr5:10,100,000-30,000,000". Ensembl and FASTA
+        UCSC-style string, e.g. "chr5:10,100,001-30,000,000". Ensembl and FASTA
         style sequence names are allowed. End coordinate must be greater than
         or equal to start.
 
@@ -115,6 +115,9 @@ def parse_region_string(s: str) -> tuple[str, int | None, int | None]:
         typ, token = next(tokens, (None, None))
         _check_token(typ, token, ["COORD"])
         start = parse_humanized(token)
+        if start == 0:
+            raise ValueError("Ranges are 1-based and hence cannot start at 0")
+        start -= 1
 
         typ, token = next(tokens, (None, None))
         _check_token(typ, token, ["HYPHEN"])
@@ -145,8 +148,7 @@ def parse_region(
     chromsizes: dict | pd.Series | None = None
 ) -> GenomicRangeTuple:
     """
-    Genomic regions are represented as half-open intervals (0-based starts,
-    1-based ends) along the length coordinate of a contig/scaffold/chromosome.
+    Genomic regions are represented as half-open intervals along the length coordinate of a contig/scaffold/chromosome.
 
     Parameters
     ----------
