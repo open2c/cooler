@@ -1267,7 +1267,7 @@ def create_scool(
                 else:
                     logger.info("Bins differ; re-creating bins group.")
                     del grp["bins"]
-            # Always re-create chroms for consistency 
+            # Always re-create chroms for consistency
             # (or add a similar check if desired)
             if "chroms" in grp:
                 del grp["chroms"]
