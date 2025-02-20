@@ -1261,7 +1261,8 @@ def create_scool(
                 }).reset_index(drop=True)
                 new_bins = bins[["chrom", "start", "end"]].reset_index(drop=True)
                 if existing_bins.equals(new_bins):
-                    logger.info("Existing bins are identical; skipping bins re-creation."
+                    logger.info(
+                        "Existing bins are identical; skipping bins re-creation."
                     )
                     bins_identical = True
                 else:
