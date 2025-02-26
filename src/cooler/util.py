@@ -235,7 +235,6 @@ def read_chromsizes(
     ----------
     * `UCSC assembly terminology <http://genome.ucsc.edu/FAQ/FAQdownloads.html#download9>`_
     * `GRC assembly terminology <https://www.ncbi.nlm.nih.gov/grc/help/definitions>`_
-
     """
     if isinstance(filepath_or, str) and filepath_or.endswith(".gz"):
         kwargs.setdefault("compression", "gzip")
@@ -247,6 +246,17 @@ def read_chromsizes(
         dtype={"name": str},
         **kwargs,
     )
+
+    # Convert the "length" column to numeric values.
+    chromtable["length"] = pd.to_numeric(chromtable["length"], errors="coerce")
+    if chromtable["length"].isnull().any():
+        raise ValueError(
+            f"Chromsizes file '{filepath_or}' contains missing or invalid "
+            "length values. Please ensure that the file is properly formatted "
+            "as tab-delimited with two columns: sequence name and integer "
+            "length. Check for extraneous spaces or hidden characters."
+        )
+
     if not all_names:
         parts = []
         for pattern in name_patterns:
