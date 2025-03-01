@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import io
 import os
 import re
 from collections import OrderedDict, defaultdict
 from collections.abc import Generator, Iterable, Iterator
 from contextlib import contextmanager
-from typing import IO, Any
+from typing import Any
 
 import h5py
 import numpy as np
@@ -204,16 +205,16 @@ def argnatsort(array: Iterable[str]) -> np.ndarray:
     cols = tuple(zip(*(natsort_key(x) for x in array)))
     return np.lexsort(cols[::-1])
 
-
 def read_chromsizes(
-    filepath_or: str | IO[str],
+    filepath_or: str | io.StringIO,
     name_patterns: tuple[str, ...] = (r"^chr[0-9]+$", r"^chr[XY]$", r"^chrM$"),
     all_names: bool = False,
+    verbose: bool = False,  # Optional parameter to enable verbose output
     **kwargs,
 ) -> pd.Series:
     """
-    Parse a ``<db>.chrom.sizes`` or ``<db>.chromInfo.txt`` file from the UCSC
-    database, where ``db`` is a genome assembly name.
+    Parse a `<db>.chrom.sizes` or `<db>.chromInfo.txt` file from the UCSC
+    database, where `db` is a genome assembly name.
 
     Parameters
     ----------
@@ -221,42 +222,52 @@ def read_chromsizes(
         Path or url to text file, or buffer.
     name_patterns : sequence, optional
         Sequence of regular expressions to capture desired sequence names.
-        Each corresponding set of records will be sorted in natural order.
     all_names : bool, optional
-        Whether to return all contigs listed in the file. Default is
-        ``False``.
-
-    Returns
-    -------
-    :py:class:`pandas.Series`
-        Series of integer bp lengths indexed by sequence name.
-
-    References
-    ----------
-    * `UCSC assembly terminology <http://genome.ucsc.edu/FAQ/FAQdownloads.html#download9>`_
-    * `GRC assembly terminology <https://www.ncbi.nlm.nih.gov/grc/help/definitions>`_
+        Whether to return all contigs listed in the file.
+    verbose : bool, optional
+        Whether to enable verbose logging for diagnostics.
     """
-    if isinstance(filepath_or, str) and filepath_or.endswith(".gz"):
-        kwargs.setdefault("compression", "gzip")
+    # Check if the input is a file-like object (StringIO or file path) and inspect the first line for delimiters
+    if isinstance(filepath_or, (str, io.StringIO)):
+        first_line = None
+        if isinstance(filepath_or, io.StringIO):
+            first_line = filepath_or.getvalue().splitlines()[0]
+        elif isinstance(filepath_or, str):
+            with open(filepath_or) as file:
+                first_line = file.readline()
+
+        if first_line and ' ' in first_line:
+            raise ValueError(f"Chromsizes file '{filepath_or}' uses spaces instead of tabs as delimiters. Please use tabs.")
+
+    # Read the chromosome size file into a DataFrame
+    if verbose:
+        print(f"Reading chromsizes file: {filepath_or}")
+
     chromtable = pd.read_csv(
         filepath_or,
-        sep="\t",
+        sep="\t",  # Ensuring tab is the delimiter
         usecols=[0, 1],
         names=["name", "length"],
         dtype={"name": str},
         **kwargs,
     )
 
-    # Convert the "length" column to numeric values.
+
+    # Convert the "length" column to numeric values, coercing errors to NaN
     chromtable["length"] = pd.to_numeric(chromtable["length"], errors="coerce")
+
+    # Check for NaN values after reading the file
     if chromtable["length"].isnull().any():
+        invalid_rows = chromtable[chromtable["length"].isnull()]
+        if verbose:
+            print(f"Invalid rows detected: {invalid_rows}")
         raise ValueError(
-            f"Chromsizes file '{filepath_or}' contains missing or invalid "
-            "length values. Please ensure that the file is properly formatted "
-            "as tab-delimited with two columns: sequence name and integer "
-            "length. Check for extraneous spaces or hidden characters."
+            f"Chromsizes file '{filepath_or}' contains missing or invalid length values. "
+            "Please ensure that the file is properly formatted as tab-delimited with two columns: sequence name and integer length. "
+            "Check for extraneous spaces or hidden characters. Invalid rows: \n{invalid_rows}"
         )
 
+    # Filter by patterns if needed
     if not all_names:
         parts = []
         for pattern in name_patterns:
@@ -264,9 +275,9 @@ def read_chromsizes(
             part = part.iloc[argnatsort(part["name"])]
             parts.append(part)
         chromtable = pd.concat(parts, axis=0)
+
     chromtable.index = chromtable["name"].values
     return chromtable["length"]
-
 
 def fetch_chromsizes(db: str, **kwargs) -> pd.Series:
     """
