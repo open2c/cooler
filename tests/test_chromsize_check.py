@@ -1,10 +1,11 @@
+import io
+
+import pytest
+
 from cooler.util import (
     read_chromsizes,  # Correctly import from the 'cooler.util' module
 )
 
-import io
-
-import pytest
 
 # Test for the read_chromsizes function with invalid length value (non-numeric value)
 def test_read_chromsizes_bad_input():
