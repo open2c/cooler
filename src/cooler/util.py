@@ -227,7 +227,8 @@ def read_chromsizes(
     verbose : bool, optional
         Whether to enable verbose logging for diagnostics.
     """
-    # Check if the input is a file-like object (StringIO or file path) and inspect the first line for delimiters
+    # Check if the input is a file-like object (StringIO or file path) and
+    # inspect the first line for delimiters
     if isinstance(filepath_or, (str, io.StringIO)):
         first_line = None
         if isinstance(filepath_or, io.StringIO):
@@ -237,7 +238,9 @@ def read_chromsizes(
                 first_line = file.readline()
 
         if first_line and ' ' in first_line:
-            raise ValueError(f"Chromsizes file '{filepath_or}' uses spaces instead of tabs as delimiters. Please use tabs.")
+            raise ValueError(
+                f"Chromsizes file '{filepath_or}' uses spaces instead of tabs "
+                "as delimiters. Please use tabs.")
 
     # Read the chromosome size file into a DataFrame
     if verbose:
@@ -262,9 +265,11 @@ def read_chromsizes(
         if verbose:
             print(f"Invalid rows detected: {invalid_rows}")
         raise ValueError(
-            f"Chromsizes file '{filepath_or}' contains missing or invalid length values. "
-            "Please ensure that the file is properly formatted as tab-delimited with two columns: sequence name and integer length. "
-            "Check for extraneous spaces or hidden characters. Invalid rows: \n{invalid_rows}"
+            f"Chromsizes file '{filepath_or}' contains missing or invalid "
+            "length values. Please ensure that the file is properly formatted "
+            "as tab-delimited with two columns: sequence name and integer "
+            "length. Check for extraneous spaces or hidden characters. "
+            "Invalid rows: \n{invalid_rows}"
         )
 
     # Filter by patterns if needed
@@ -278,6 +283,7 @@ def read_chromsizes(
 
     chromtable.index = chromtable["name"].values
     return chromtable["length"]
+
 
 def fetch_chromsizes(db: str, **kwargs) -> pd.Series:
     """
