@@ -248,7 +248,7 @@ def read_chromsizes(
 
     chromtable = pd.read_csv(
         filepath_or,
-        sep="\t",  # Ensuring tab is the delimiter
+        sep="\t", 
         usecols=[0, 1],
         names=["name", "length"],
         dtype={"name": str},
