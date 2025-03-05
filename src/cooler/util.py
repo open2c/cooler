@@ -209,7 +209,6 @@ def read_chromsizes(
     filepath_or: str | io.StringIO,
     name_patterns: tuple[str, ...] = (r"^chr[0-9]+$", r"^chr[XY]$", r"^chrM$"),
     all_names: bool = False,
-    verbose: bool = False,  # Optional parameter to enable verbose output
     **kwargs,
 ) -> pd.Series:
     """
@@ -242,16 +241,16 @@ def read_chromsizes(
                 f"Chromsizes file '{filepath_or}' uses spaces instead of tabs "
                 "as delimiters. Please use tabs.")
 
-    # Read the chromosome size file into a DataFrame
-    if verbose:
-        print(f"Reading chromsizes file: {filepath_or}")
-
+     # Read the chromosome size file into a DataFrame
+    # on_bad_lines="error" will raise an error if any row does not have exactly two
+    # columns.
     chromtable = pd.read_csv(
         filepath_or,
-        sep="\t",
+        sep="\t",  # Ensuring tab is the delimiter
         usecols=[0, 1],
         names=["name", "length"],
         dtype={"name": str},
+        on_bad_lines="error",
         **kwargs,
     )
 
@@ -259,17 +258,16 @@ def read_chromsizes(
     # Convert the "length" column to numeric values, coercing errors to NaN
     chromtable["length"] = pd.to_numeric(chromtable["length"], errors="coerce")
 
-    # Check for NaN values after reading the file
+    # Check for NaN values after conversion and raise an error if any are found.
     if chromtable["length"].isnull().any():
-        invalid_rows = chromtable[chromtable["length"].isnull()]
-        if verbose:
-            print(f"Invalid rows detected: {invalid_rows}")
         raise ValueError(
-            f"Chromsizes file '{filepath_or}' contains missing or invalid "
-            "length values. Please ensure that the file is properly formatted "
-            "as tab-delimited with two columns: sequence name and integer "
-            "length. Check for extraneous spaces or hidden characters. "
-            "Invalid rows: \n{invalid_rows}"
+            f"Chromsizes file '{filepath_or}' contains missing or invalid length "
+            "values. "
+            "Please ensure that the file is properly formatted as tab-delimited with "
+            "two columns: "
+            "sequence name and integer length. "
+            "Check for extraneous spaces or hidden characters. "
+            f"Invalid rows: \n{chromtable[chromtable['length'].isnull()]}"
         )
 
     # Filter by patterns if needed
