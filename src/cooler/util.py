@@ -225,6 +225,12 @@ def read_chromsizes(
         Whether to return all contigs listed in the file.
     verbose : bool, optional
         Whether to enable verbose logging for diagnostics.
+
+        References
+    ----------
+    * `UCSC assembly terminology <http://genome.ucsc.edu/FAQ/FAQdownloads.html#download9>`_
+    * `GRC assembly terminology <https://www.ncbi.nlm.nih.gov/grc/help/definitions>`_
+
     """
     # Check if the input is a file-like object (StringIO or file path) and
     # inspect the first line for delimiters
