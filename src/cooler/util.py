@@ -226,53 +226,57 @@ def read_chromsizes(
     verbose : bool, optional
         Whether to enable verbose logging for diagnostics.
 
-        References
+    References
     ----------
     * `UCSC assembly terminology <http://genome.ucsc.edu/FAQ/FAQdownloads.html#download9>`_
     * `GRC assembly terminology <https://www.ncbi.nlm.nih.gov/grc/help/definitions>`_
-
     """
-    # Check if the input is a file-like object (StringIO or file path) and
-    # inspect the first line for delimiters
-    if isinstance(filepath_or, (str, io.StringIO)):
-        first_line = None
-        if isinstance(filepath_or, io.StringIO):
-            first_line = filepath_or.getvalue().splitlines()[0]
-        elif isinstance(filepath_or, str):
-            with open(filepath_or) as file:
-                first_line = file.readline()
+    # Handle URL case separately
+    if isinstance(filepath_or, str) and filepath_or.startswith(('http://', 'https://')):
+        try:
+            # Use pandas' built-in URL handling
+            chromtable = pd.read_csv(
+                filepath_or,
+                sep="\t",
+                usecols=[0, 1],
+                names=["name", "length"],
+                dtype={"name": str},
+                on_bad_lines="error",
+                **kwargs,
+            )
+        except Exception as e:
+            raise ValueError(f"Failed to fetch URL {filepath_or}: {e!s}") from e
+    else:
+        # Original validation for local files/StringIO
+        if isinstance(filepath_or, (str, io.StringIO)):
+            first_line = None
+            if isinstance(filepath_or, io.StringIO):
+                first_line = filepath_or.getvalue().splitlines()[0]
+            elif isinstance(filepath_or, str):
+                with open(filepath_or) as file:
+                    first_line = file.readline()
 
-        if first_line and ' ' in first_line:
-            raise ValueError(
-                f"Chromsizes file '{filepath_or}' uses spaces instead of tabs "
-                "as delimiters. Please use tabs.")
+            if first_line and ' ' in first_line:
+                raise ValueError(
+                    f"Chromsizes file '{filepath_or}' uses spaces instead of tabs "
+                    "as delimiters. Please use tabs.")
 
-     # Read the chromosome size file into a DataFrame
-    # on_bad_lines="error" will raise an error if any row does not have exactly two
-    # columns.
-    chromtable = pd.read_csv(
-        filepath_or,
-        sep="\t",  # Ensuring tab is the delimiter
-        usecols=[0, 1],
-        names=["name", "length"],
-        dtype={"name": str},
-        on_bad_lines="error",
-        **kwargs,
-    )
+        # Read the file
+        chromtable = pd.read_csv(
+            filepath_or,
+            sep="\t",
+            usecols=[0, 1],
+            names=["name", "length"],
+            dtype={"name": str},
+            on_bad_lines="error",
+            **kwargs,
+        )
 
-
-    # Convert the "length" column to numeric values, coercing errors to NaN
+    # Common validation for both URL and local files
     chromtable["length"] = pd.to_numeric(chromtable["length"], errors="coerce")
-
-    # Check for NaN values after conversion and raise an error if any are found.
     if chromtable["length"].isnull().any():
         raise ValueError(
-            f"Chromsizes file '{filepath_or}' contains missing or invalid length "
-            "values. "
-            "Please ensure that the file is properly formatted as tab-delimited with "
-            "two columns: "
-            "sequence name and integer length. "
-            "Check for extraneous spaces or hidden characters. "
+            f"Chromsizes file contains missing/invalid length values. "
             f"Invalid rows: \n{chromtable[chromtable['length'].isnull()]}"
         )
 
