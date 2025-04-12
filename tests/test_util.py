@@ -180,12 +180,6 @@ def test_read_chromsizes_bad_delimiter():
         util.read_chromsizes(broken_file)
 
 
-# Main function to run the tests
-if __name__ == "__main__":
-    pytest.main([__file__])
-
-
-
 # def test_fetch_chromsizes():
 #     util.fetch_chromsizes("hg19")
 
