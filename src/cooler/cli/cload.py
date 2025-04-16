@@ -7,6 +7,7 @@ import io
 import numpy as np
 import pandas as pd
 import simplejson as json
+from typing import Union
 from cytoolz import compose
 from multiprocess import Pool
 
@@ -68,7 +69,7 @@ def get_header(instream, comment_char="#"):
     remainder_stream = StringIO("".join(buffered_lines) + instream.read()) if buffered_lines else instream
     return header, remainder_stream
 
-def validate_pairs_columns(file_path: str, field_numbers: dict[str, int], is_stdin: bool = False) -> io.StringIO | io.TextIOBase:
+def validate_pairs_columns(file_path: str, field_numbers: dict[str, int], is_stdin: bool = False) -> Union[io.StringIO, io.TextIOBase]:
     """
     Validate that column indices for chrom1, pos1, chrom2, pos2, and any additional fields
     do not exceed the number of columns in the pairs file. Returns the stream positioned after headers.
