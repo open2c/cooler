@@ -4,6 +4,7 @@ import click
 from .. import create_cooler
 import h5py
 import io
+import gzip
 import numpy as np
 import pandas as pd
 import simplejson as json
@@ -49,15 +50,16 @@ def get_header(instream, comment_char="#"):
         raise ValueError("Please, provide a comment char!")
 
     header = []
-    # Buffer the input stream to handle non-peekable streams like StringIO
     buffered_lines = []
     readline_f = instream.readline
+    is_bytes = False
 
     while True:
         line = readline_f()
         if not line:  # End of stream
             break
         if isinstance(line, bytes):
+            is_bytes = True
             line = line.decode()
         if not line.startswith(comment_char):
             buffered_lines.append(line)
@@ -65,9 +67,29 @@ def get_header(instream, comment_char="#"):
         header.append(line.strip())
 
     # Create a new stream with the remaining data
-    from io import StringIO
-    remainder_stream = StringIO("".join(buffered_lines) + instream.read()) if buffered_lines else instream
+    from io import StringIO, BytesIO
+    if buffered_lines:
+        if is_bytes:
+            # For binary streams, read remaining data as bytes
+            remainder = instream.read()
+            if isinstance(remainder, str):
+                remainder = remainder.encode()
+            remainder_stream = BytesIO(b"".join([line.encode() for line in buffered_lines]) + remainder)
+        else:
+            # For text streams, read remaining data as text
+            remainder = instream.read()
+            if isinstance(remainder, bytes):
+                remainder = remainder.decode()
+            remainder_stream = StringIO("".join(buffered_lines) + remainder)
+    else:
+        remainder_stream = instream
+
     return header, remainder_stream
+
+def open_maybe_gzip(path, mode="rt"):
+    if isinstance(path, str) and path.endswith(".gz"):
+        return gzip.open(path, mode)
+    return open(path, mode)
 
 def validate_pairs_columns(file_path: str, field_numbers: dict[str, int], is_stdin: bool = False) -> Union[io.StringIO, io.TextIOBase]:
     """
@@ -89,11 +111,17 @@ def validate_pairs_columns(file_path: str, field_numbers: dict[str, int], is_std
         input_data = sys.stdin.read() if hasattr(sys.stdin, 'read') else sys.stdin.getvalue()
         f = io.StringIO(input_data)
     else:
-        f = open(file_path, 'r')
+        f = open_maybe_gzip(file_path, 'r')
 
     _, f = get_header(f, comment_char="#")
     pos = f.tell()
-    first_data_line = f.readline().strip()
+
+    # Read first data line and check column count
+    first_data_line = f.readline()
+    if isinstance(first_data_line, bytes):
+        first_data_line = first_data_line.decode()
+    first_data_line = first_data_line.strip()
+
     f.seek(pos)  # Rewind to preserve the stream
     if not first_data_line:
         raise ValueError(f"Pairs file '{file_path}' is empty or contains only header lines")
