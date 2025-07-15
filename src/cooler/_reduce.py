@@ -102,13 +102,9 @@ def merge_breakpoints(
             combined_index,
             min(combined_start + bufsize, combined_nnz),
             lo=lo
-        ) - 1
+        )
 
-        if hi == lo:
-            # This means number of records to nearest mark exceeds `bufsize`.
-            # Check for oversized chunks afterwards.
-            hi += 1
-
+        hi = min(hi, len(combined_index) - 1)
         bin1_partition.append(hi)
         cum_nrecords.append(combined_index[hi])
 
