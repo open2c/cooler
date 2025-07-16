@@ -227,14 +227,30 @@ def test_append_mode():
 
 
 @pytest.mark.parametrize(
-    ["indexes", "bufsize"],
+    ["indexes", "bufsize", "expected"],
     [
-        ([np.array([0, 40]), np.array([0, 60])], 99),
-        ([np.array([0, 0, 40]), np.array([0, 0, 60])], 99),
-        ([np.array([0, 0, 0, 40]), np.array([0, 0, 0, 60])], 99),
+        ([np.array([0, 40]), np.array([0, 60])], 99, ([0, 1], [0, 100])),
+        ([np.array([0, 0, 40]), np.array([0, 0, 60])], 99, ([0, 2], [0, 100])),
+        ([np.array([0, 0, 0, 40]), np.array([0, 0, 0, 60])], 99, ([0, 3], [0, 100])),
+        ([np.array([0, 40, 40]), np.array([0, 60, 60])], 99, ([0, 1], [0, 100])),
+        (
+            [np.array([0, 40, 40, 40]), np.array([0, 60, 60, 60])],
+            99,
+            ([0, 1], [0, 100]),
+        ),
+        (
+            [np.array([0, 40, 40, 60]), np.array([0, 60, 60, 80])],
+            99,
+            ([0, 1, 3], [0, 100, 140]),
+        ),
+        (
+            [np.array([0, 40, 40, 40, 60]), np.array([0, 60, 60, 60, 80])],
+            99,
+            ([0, 1, 4], [0, 100, 140]),
+        ),
     ],
 )
-def test_merge_breakpoints(indexes, bufsize):
+def test_merge_breakpoints(indexes, bufsize, expected):
     bin1_partition, cum_nrecords = merge_breakpoints(indexes, bufsize)
-    assert bin1_partition.tolist() == [0, len(indexes[0]) - 1]
-    assert cum_nrecords.tolist() == [0, 100]
+    assert bin1_partition.tolist() == expected[0]
+    assert cum_nrecords.tolist() == expected[1]
