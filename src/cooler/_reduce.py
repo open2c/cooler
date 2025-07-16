@@ -87,7 +87,7 @@ def merge_breakpoints(
     # many records would be processed at each merge epoch.
     # NOTE: We sum these incrementally in case the indexes are lazy to avoid
     # loading all indexes into memory at once.
-    combined_index = np.zeros(indexes[0].shape)
+    combined_index = np.zeros(indexes[0].shape, dtype=np.int64)
     for i in range(len(indexes)):
         combined_index += indexes[i]
     combined_start = 0
