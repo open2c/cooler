@@ -1,11 +1,14 @@
 import os.path as op
 
 import h5py
+import hypothesis.strategies as st
 import numpy as np
 import pytest
-from _common import cooler_cmp, isolated_filesystem
+from hypothesis import given, settings
+from hypothesis.extra.numpy import arrays
 
 import cooler
+from _common import cooler_cmp, isolated_filesystem
 from cooler._reduce import (
     coarsen_cooler,
     legacy_zoomify,
@@ -254,3 +257,42 @@ def test_merge_breakpoints(indexes, bufsize, expected):
     bin1_partition, cum_nrecords = merge_breakpoints(indexes, bufsize)
     assert bin1_partition.tolist() == expected[0]
     assert cum_nrecords.tolist() == expected[1]
+
+
+def monotonic_index_array(length: int):
+    # Generate (length - 1) non-negative integers and append to 0
+    assert length >= 2
+    tail = arrays(
+        dtype=np.int64,
+        shape=length - 1,
+        elements=st.integers(min_value=0, max_value=100),
+    ).filter(lambda arr: np.any(arr > 0))
+    return tail.map(lambda arr: np.sort(np.concatenate([[0], arr])))
+
+
+@st.composite
+def input_strategy(draw):
+    length = draw(st.integers(min_value=2, max_value=100))
+    n_arrays = draw(st.integers(min_value=2, max_value=5))
+    indexes = [draw(monotonic_index_array(length)) for _ in range(n_arrays)]
+    nnz = sum(index[-1] for index in indexes)
+    bufsize = draw(st.integers(min_value=1, max_value=max(1, nnz)))
+    return indexes, bufsize
+
+
+@given(input_strategy())
+@settings(max_examples=200)
+def test_merge_breakpoints_fuzz(data):
+    indexes, bufsize = data
+
+    partition, cum_nrecords = merge_breakpoints(indexes, bufsize)
+
+    # Postcondition 1: Strictly increasing, no repeats
+    assert np.all(np.diff(partition) > 0), "Partition is not strictly increasing"
+    assert np.all(np.diff(cum_nrecords) > 0), "cum_nrecords is not strictly increasing"
+
+    # Postcondition 2: boundary conditions
+    assert partition[0] == 0, "partition[0] != 0"
+    assert cum_nrecords[0] == 0, "cum_nrecords[0] != 0"
+    nnz = sum(index[-1] for index in indexes)
+    assert cum_nrecords[-1] == nnz, f"cum_nrecords[-1] != {nnz}"

@@ -65,6 +65,7 @@ all = [
 test = [
     "coverage[toml]",
     "isort",
+    "hypothesis",
     "pytest",
     "pytest-cov",
     "ruff",
