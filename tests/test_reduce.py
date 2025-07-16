@@ -4,11 +4,11 @@ import h5py
 import hypothesis.strategies as st
 import numpy as np
 import pytest
+from _common import cooler_cmp, isolated_filesystem
 from hypothesis import given, settings
 from hypothesis.extra.numpy import arrays
 
 import cooler
-from _common import cooler_cmp, isolated_filesystem
 from cooler._reduce import (
     coarsen_cooler,
     legacy_zoomify,
