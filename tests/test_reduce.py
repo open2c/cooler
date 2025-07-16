@@ -6,7 +6,13 @@ import pytest
 from _common import cooler_cmp, isolated_filesystem
 
 import cooler
-from cooler._reduce import coarsen_cooler, legacy_zoomify, merge_coolers, zoomify_cooler
+from cooler._reduce import (
+    coarsen_cooler,
+    legacy_zoomify,
+    merge_breakpoints,
+    merge_coolers,
+    zoomify_cooler,
+)
 
 testdir = op.realpath(op.dirname(__file__))
 datadir = op.join(testdir, "data")
@@ -19,10 +25,7 @@ datadir = op.join(testdir, "data")
             op.join(datadir, "hg19.GM12878-MboI.matrix.2000kb.cool"),
             op.join(datadir, "hg19.GM12878-MboI.matrix.2000kb.cool"),
         ),
-        (
-            op.join(datadir, "toy.asymm.2.cool"),
-            op.join(datadir, "toy.asymm.2.cool")
-        ),
+        (op.join(datadir, "toy.asymm.2.cool"), op.join(datadir, "toy.asymm.2.cool")),
     ],
 )
 def test_merge(path1, path2):
@@ -82,11 +85,7 @@ def test_merge2():
             2,
             op.join(datadir, "toy.symm.upper.4.cool"),
         ),
-        (
-            op.join(datadir, "toy.asymm.2.cool"),
-            2,
-            op.join(datadir, "toy.asymm.4.cool")
-        ),
+        (op.join(datadir, "toy.asymm.2.cool"), 2, op.join(datadir, "toy.asymm.4.cool")),
         (
             op.join(datadir, "toy.symm.upper.var.cool"),
             2,
@@ -225,3 +224,17 @@ def test_append_mode():
                     assert "xxxx" in f.attrs
                 else:
                     assert "xxxx" not in f.attrs
+
+
+@pytest.mark.parametrize(
+    ["indexes", "bufsize"],
+    [
+        ([np.array([0, 40]), np.array([0, 60])], 99),
+        ([np.array([0, 0, 40]), np.array([0, 0, 60])], 99),
+        ([np.array([0, 0, 0, 40]), np.array([0, 0, 0, 60])], 99),
+    ],
+)
+def test_merge_breakpoints(indexes, bufsize):
+    bin1_partition, cum_nrecords = merge_breakpoints(indexes, bufsize)
+    assert bin1_partition.tolist() == [0, len(indexes[0]) - 1]
+    assert cum_nrecords.tolist() == [0, 100]
