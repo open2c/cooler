@@ -1,5 +1,10 @@
 # Release notes #
 
+## [v0.10.4](https://github.com/open2c/cooler/compare/v0.10.3...v0.10.4)
+
+### Bug fixes
+* fix: Fix indexing in `merge_breakpoints` by @conradbzura in https://github.com/open2c/cooler/pull/468
+
 ## [v0.10.3](https://github.com/open2c/cooler/compare/v0.10.2...v0.10.3)
 
 ### Maintenance
