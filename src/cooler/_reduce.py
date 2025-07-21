@@ -87,7 +87,7 @@ def merge_breakpoints(
     # many records would be processed at each merge epoch.
     # NOTE: We sum these incrementally in case the indexes are lazy to avoid
     # loading all indexes into memory at once.
-    combined_index = np.zeros(indexes[0].shape)
+    combined_index = np.zeros(indexes[0].shape, dtype=np.int64)
     for i in range(len(indexes)):
         combined_index += indexes[i]
     combined_start = 0
@@ -102,13 +102,9 @@ def merge_breakpoints(
             combined_index,
             min(combined_start + bufsize, combined_nnz),
             lo=lo
-        ) - 1
+        )
 
-        if hi == lo:
-            # This means number of records to nearest mark exceeds `bufsize`.
-            # Check for oversized chunks afterwards.
-            hi += 1
-
+        hi = min(hi, len(combined_index) - 1)
         bin1_partition.append(hi)
         cum_nrecords.append(combined_index[hi])
 
