@@ -1,5 +1,5 @@
 import os.path as op
-from io import BytesIO
+from io import BytesIO, StringIO
 
 import h5py
 import numpy as np
@@ -164,6 +164,26 @@ def test_natsort():
 
 def test_read_chromsizes():
     util.read_chromsizes(op.join(datadir, "toy.chrom.sizes"))
+
+
+def test_read_chromsizes_bad_input():
+    broken_data = "chr1\t1000\nchr2\tbad_value\nchr3\t2000\n"
+    broken_file = StringIO(broken_data)
+    with pytest.raises(ValueError):
+        util.read_chromsizes(broken_file)
+
+
+def test_read_chromsizes_bad_delimiter():
+    broken_data = "chr1 1000\nchr2 bad_value\nchr3 2000\n"
+    broken_file = StringIO(broken_data)
+    with pytest.raises(ValueError):
+        util.read_chromsizes(broken_file)
+
+
+# Main function to run the tests
+if __name__ == "__main__":
+    pytest.main([__file__])
+
 
 
 # def test_fetch_chromsizes():
