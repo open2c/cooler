@@ -20,7 +20,7 @@ def get_matrix_size(c, row_region, col_region):
 def load_matrix(c, row_region, col_region, field, balanced, scale, weights):
     if balanced and weights != 'weight':
         balanced = weights
-        
+
     mat = c.matrix(balance=balanced, field=field).fetch(row_region, col_region)
 
     if scale == "log2":
