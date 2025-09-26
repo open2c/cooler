@@ -228,7 +228,6 @@ def show(
         vmin=zmin,
         vmax=zmax,
         cmap=cmap,
-        interpolation='none',
     )
 
     # If plotting into a file, plot and quit
