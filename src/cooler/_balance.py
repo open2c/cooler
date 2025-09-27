@@ -63,7 +63,8 @@ def _timesouterproduct(vec, chunk, data):
 def _marginalize(chunk, data):
     n = len(chunk["bins"]["chrom"])
     pixels = chunk["pixels"]
-    marg = np.bincount(pixels["bin1_id"], weights=data, minlength=n) + np.bincount(
+    not_self = pixels["bin1_id"] != pixels["bin2_id"]  # Only include self-interactions once.
+    marg = np.bincount(pixels["bin1_id"] * not_self, weights=data, minlength=n) + np.bincount(
         pixels["bin2_id"], weights=data, minlength=n
     )
     return marg
