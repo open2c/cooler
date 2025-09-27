@@ -1,20 +1,13 @@
 from __future__ import annotations
 
-import os
-
 # from textwrap import dedent
+import json
+import os
 import warnings
 from collections.abc import Callable
 from datetime import datetime
 from numbers import Number
 from typing import Any, Literal
-
-import simplejson as json
-
-try:
-    from simplejson import JSONDecodeError
-except ImportError:
-    JSONDecodeError = ValueError  # PY35+
 
 import h5py
 import numpy as np
@@ -56,7 +49,7 @@ def decode_attr_value(
         except ValueError:
             try:
                 o = json.loads(obj)
-            except JSONDecodeError:
+            except ValueError:
                 o = obj
     else:
         o = obj
