@@ -6,11 +6,11 @@ from contextlib import contextmanager
 from functools import wraps
 
 import click
-import multiprocess as mp
 import numpy as np
 import pandas as pd
 
 from .. import util
+from ..parallel import get_mp_context
 
 
 class DelimitedTuple(click.types.ParamType):
@@ -149,7 +149,7 @@ def check_ncpus(arg_value):
     if arg_value <= 0:
         raise click.BadParameter("n_cpus must be >= 1")
     else:
-        return min(arg_value, mp.cpu_count())
+        return min(arg_value, get_mp_context().cpu_count())
 
 
 @contextmanager
