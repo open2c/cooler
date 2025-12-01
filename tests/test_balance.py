@@ -16,7 +16,7 @@ testdir = os.path.dirname(os.path.realpath(__file__))
 )
 def test_balancing_genomewide(fp, tol):
     clr = cooler.Cooler(fp)
-    weights, stats = _balance.iterative_correction(
+    weights, _stats = _balance.iterative_correction(
         clr, ignore_diags=1, min_nnz=10, tol=tol
     )
 
@@ -53,7 +53,7 @@ def test_balancing_cisonly(fp, tol):
     with h5py.File(fp, "r") as h5:
         clr = cooler.Cooler(h5)
         chrom_offsets = h5["indexes/chrom_offset"][:]
-        weights, stats = _balance.iterative_correction(
+        weights, _stats = _balance.iterative_correction(
             clr, ignore_diags=1, min_nnz=10, tol=tol, cis_only=True
         )
 
@@ -103,7 +103,7 @@ def test_balancing_transonly(fp, tol):
     with h5py.File(fp, "r") as h5:
         clr = cooler.Cooler(h5)
         chrom_offsets = h5["indexes/chrom_offset"][:]
-        weights, stats = _balance.iterative_correction(
+        weights, _stats = _balance.iterative_correction(
             clr, ignore_diags=1, min_nnz=10, tol=tol, trans_only=True
         )
 
@@ -138,19 +138,21 @@ def test_balancing_transonly(fp, tol):
 )
 def test_balancing_other_options(fp, tol):
     clr = cooler.Cooler(fp)
-    weights, stats = _balance.iterative_correction(
+    _weights, stats = _balance.iterative_correction(
         clr, ignore_diags=1, min_nnz=10, tol=tol, x0=np.random.rand(len(clr.bins()))
     )
+    assert stats['converged']
 
-    weights, stats = _balance.iterative_correction(
+    _weights, stats = _balance.iterative_correction(
         clr,
         chunksize=3,
         ignore_diags=1,
         min_nnz=10,
         tol=tol,
     )
+    assert stats['converged']
 
-    weights, stats = _balance.iterative_correction(
+    _weights, stats = _balance.iterative_correction(
         clr,
         ignore_diags=1,
         min_nnz=10,
@@ -158,7 +160,9 @@ def test_balancing_other_options(fp, tol):
         mad_max=12,
         tol=tol,
     )
+    assert stats['converged']
 
-    weights, stats = _balance.iterative_correction(
+    _weights, stats = _balance.iterative_correction(
         clr, ignore_diags=1, min_nnz=10, tol=tol, blacklist=[0, 4]
     )
+    assert stats['converged']
