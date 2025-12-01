@@ -342,7 +342,7 @@ def get_quadtree_depth(
     n_tiles = math.ceil(total_bp / tile_length_bp)
 
     # number of aggregation levels required to reach a single tile
-    n_zoom_levels = int(math.ceil(np.log2(n_tiles)))
+    n_zoom_levels = math.ceil(np.log2(n_tiles))
 
     return n_zoom_levels
 
