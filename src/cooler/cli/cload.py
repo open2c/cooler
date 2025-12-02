@@ -6,7 +6,6 @@ import numpy as np
 import pandas as pd
 import simplejson as json
 from cytoolz import compose
-from multiprocess import Pool
 
 from ..create import (
     HDF5Aggregator,
@@ -16,6 +15,7 @@ from ..create import (
     create_cooler,
     sanitize_records,
 )
+from ..parallel import get_mp_context
 from . import cli, get_logger
 from ._util import parse_bins, parse_field_param, parse_kv_list_param
 
@@ -230,7 +230,8 @@ def tabix(
     try:
         map_func = map
         if nproc > 1:
-            pool = Pool(nproc)
+            ctx = get_mp_context()
+            pool = ctx.Pool(nproc)
             logger.info(f"Using {nproc} cores")
             map_func = pool.imap
 
@@ -331,7 +332,8 @@ def pairix(
     try:
         map_func = map
         if nproc > 1:
-            pool = Pool(nproc)
+            ctx = get_mp_context()
+            pool = ctx.Pool(nproc)
             logger.info(f"Using {nproc} cores")
             map_func = pool.imap
 
