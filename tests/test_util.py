@@ -68,13 +68,13 @@ def test_atoi():
 def test_parse_region_string():
     # UCSC-style names
     assert util.parse_region_string("chr21") == ("chr21", None, None)
-    assert util.parse_region_string("chr21:1000-2000") == ("chr21", 1000, 2000)
-    assert util.parse_region_string("chr21:1,000-2,000") == ("chr21", 1000, 2000)
+    assert util.parse_region_string("chr21:1001-2000") == ("chr21", 1000, 2000)
+    assert util.parse_region_string("chr21:1,001-2,000") == ("chr21", 1000, 2000)
 
     # Ensembl style names
     assert util.parse_region_string("6") == ("6", None, None)
-    assert util.parse_region_string("6:1000-2000") == ("6", 1000, 2000)
-    assert util.parse_region_string("6:1,000-2,000") == ("6", 1000, 2000)
+    assert util.parse_region_string("6:1001-2000") == ("6", 1000, 2000)
+    assert util.parse_region_string("6:1,001-2,000") == ("6", 1000, 2000)
 
     # FASTA style names
     assert util.parse_region_string("gb|accession|locus") == (
@@ -82,12 +82,12 @@ def test_parse_region_string():
         None,
         None,
     )
-    assert util.parse_region_string("gb|accession|locus:1000-2000") == (
+    assert util.parse_region_string("gb|accession|locus:1001-2000") == (
         "gb|accession|locus",
         1000,
         2000,
     )
-    assert util.parse_region_string("gb|accession|locus:1,000-2,000") == (
+    assert util.parse_region_string("gb|accession|locus:1,001-2,000") == (
         "gb|accession|locus",
         1000,
         2000,
@@ -100,23 +100,24 @@ def test_parse_region_string():
         None,
     )
     assert util.parse_region_string("GL000207.1") == ("GL000207.1", None, None)
-    assert util.parse_region_string("GL000207.1:1000-2000") == (
+    assert util.parse_region_string("GL000207.1:1001-2000") == (
         "GL000207.1",
         1000,
         2000,
     )
 
     # Trailing dash
-    assert util.parse_region_string("chr21:1000-") == ("chr21", 1000, None)
+    assert util.parse_region_string("chr21:1001-") == ("chr21", 1000, None)
 
     # Humanized units
-    assert util.parse_region_string("6:1kb-2kb") == ("6", 1000, 2000)
-    assert util.parse_region_string("6:1k-2000") == ("6", 1000, 2000)
-    assert util.parse_region_string("6:1kb-2M") == ("6", 1000, 2000000)
-    assert util.parse_region_string("6:1Gb-") == ("6", 1000000000, None)
+    assert util.parse_region_string("6:1kb-2kb") == ("6", 999, 2000)
+    assert util.parse_region_string("6:1k-2000") == ("6", 999, 2000)
+    assert util.parse_region_string("6:1kb-2M") == ("6", 999, 2000000)
+    assert util.parse_region_string("6:1Gb-") == ("6", 1000000000 - 1, None)
 
     # Bad inputs
     for region in [
+        "chr1:0-100", # coords start at 1
         "chr1:2,000-1,000",  # reverse selection
         "chr1::1000-2000",  # more than one colon
         "chr1:1kb-2kDa",  # unknown unit kDa
@@ -132,13 +133,13 @@ def test_parse_region_string():
 def test_parse_region():
     chromsizes = util.read_chromsizes(op.join(datadir, "toy.chrom.sizes"))
     assert util.parse_region(("chr1", 0, 10)) == ("chr1", 0, 10)
-    assert util.parse_region("chr1:0-10") == ("chr1", 0, 10)
-    assert util.parse_region("chr1:0-", chromsizes) == ("chr1", 0, chromsizes["chr1"])
+    assert util.parse_region("chr1:1-10") == ("chr1", 0, 10)
+    assert util.parse_region("chr1:1-", chromsizes) == ("chr1", 0, chromsizes["chr1"])
 
     # Don't accept undefined end unless chromsizes exists
     # NOTE: parse_region_string works here
     with pytest.raises(ValueError):
-        util.parse_region("chr1:0-")
+        util.parse_region("chr1:1-")
 
     # catch end < start in non-string case
     with pytest.raises(ValueError):
