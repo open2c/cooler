@@ -1,10 +1,14 @@
 import sys
 
 import click
+from .. import create_cooler
 import h5py
+import io
+import gzip
 import numpy as np
 import pandas as pd
 import simplejson as json
+from typing import Union
 from cytoolz import compose
 from multiprocess import Pool
 
@@ -24,10 +28,10 @@ if int(_pandas_version[0]) > 0:
     from pandas.io.common import get_handle
 
 
-# Copied from pairtools._headerops
 def get_header(instream, comment_char="#"):
-    """Returns a header from the stream and an the reaminder of the stream
+    """Returns a header from the stream and the remainder of the stream
     with the actual data.
+
     Parameters
     ----------
     instream : a file object
@@ -41,39 +45,94 @@ def get_header(instream, comment_char="#"):
         The header lines, stripped of terminal spaces and newline characters.
     remainder_stream : stream/file-like object
         Stream with the remaining lines.
-
     """
-    header = []
     if not comment_char:
         raise ValueError("Please, provide a comment char!")
-    comment_byte = comment_char.encode()
-    # get peekable buffer for the instream
-    read_f, peek_f = None, None
-    if hasattr(instream, "buffer"):
-        peek_f = instream.buffer.peek
-        readline_f = instream.buffer.readline
-    elif hasattr(instream, "peek"):
-        peek_f = instream.peek
-        readline_f = instream.readline
-    else:
-        raise ValueError("Cannot find the peek() function of the provided stream!")
 
-    current_peek = peek_f(1)
-    while current_peek.startswith(comment_byte):
-        # consuming a line from buffer guarantees
-        # that the remainder of the buffer starts
-        # with the beginning of the line.
+    header = []
+    buffered_lines = []
+    readline_f = instream.readline
+    is_bytes = False
+
+    while True:
         line = readline_f()
+        if not line:  # End of stream
+            break
         if isinstance(line, bytes):
+            is_bytes = True
             line = line.decode()
-        # append line to header, since it does start with header
+        if not line.startswith(comment_char):
+            buffered_lines.append(line)
+            break
         header.append(line.strip())
-        # peek into the remainder of the instream
-        current_peek = peek_f(1)
-    # apparently, next line does not start with the comment
-    # return header and the instream, advanced to the beginning of the data
-    return header, instream
 
+    # Create a new stream with the remaining data
+    from io import StringIO, BytesIO
+    if buffered_lines:
+        if is_bytes:
+            # For binary streams, read remaining data as bytes
+            remainder = instream.read()
+            if isinstance(remainder, str):
+                remainder = remainder.encode()
+            remainder_stream = BytesIO(b"".join([line.encode() for line in buffered_lines]) + remainder)
+        else:
+            # For text streams, read remaining data as text
+            remainder = instream.read()
+            if isinstance(remainder, bytes):
+                remainder = remainder.decode()
+            remainder_stream = StringIO("".join(buffered_lines) + remainder)
+    else:
+        remainder_stream = instream
+
+    return header, remainder_stream
+
+def open_maybe_gzip(path, mode="rt"):
+    if isinstance(path, str) and path.endswith(".gz"):
+        return gzip.open(path, mode)
+    return open(path, mode)
+
+def validate_pairs_columns(file_path: str, field_numbers: dict[str, int], is_stdin: bool = False) -> Union[io.StringIO, io.TextIOBase]:
+    """
+    Validate that column indices for chrom1, pos1, chrom2, pos2, and any additional fields
+    do not exceed the number of columns in the pairs file. Returns the stream positioned after headers.
+
+    Args:
+        file_path: Path to the pairs file or '-' for stdin.
+        field_numbers: Dictionary mapping field names (e.g., 'chrom1') to zero-based column indices.
+        is_stdin: True if input is from stdin.
+
+    Returns:
+        File-like object positioned at the start of data.
+
+    Raises:
+        ValueError: If any column index exceeds the number of columns in the file.
+    """
+    if is_stdin:
+        input_data = sys.stdin.read() if hasattr(sys.stdin, 'read') else sys.stdin.getvalue()
+        f = io.StringIO(input_data)
+    else:
+        f = open_maybe_gzip(file_path, 'r')
+
+    _, f = get_header(f, comment_char="#")
+    pos = f.tell()
+
+    # Read first data line and check column count
+    first_data_line = f.readline()
+    if isinstance(first_data_line, bytes):
+        first_data_line = first_data_line.decode()
+    first_data_line = first_data_line.strip()
+
+    f.seek(pos)  # Rewind to preserve the stream
+    if not first_data_line:
+        raise ValueError(f"Pairs file '{file_path}' is empty or contains only header lines")
+
+    num_cols = len(first_data_line.split("\t"))
+    for name, idx in field_numbers.items():
+        if idx >= num_cols:
+            raise ValueError(
+                f"Column index {idx + 1} ({name}) exceeds number of columns ({num_cols}) in '{file_path}'"
+            )
+    return f
 
 @cli.group()
 def cload():
@@ -551,9 +610,6 @@ def pairs(
     if len(field):
         for arg in field:
             name, colnum, dtype, agg = parse_field_param(arg)
-
-            # Special cases: these do not have input fields.
-            # Omit field number and agg to change standard dtypes.
             if colnum is None:
                 if (
                     agg is None
@@ -584,18 +640,11 @@ def pairs(
             else:
                 aggregations[name] = "sum"
 
-    # # Pairs counts are always produced, unless supressed explicitly
-    # do_count = not no_count
-    # if do_count:
-    #     if 'count' not in output_field_names:
-    #         output_field_names.append('count')  # default dtype and agg
-    # else:
-    #     if not len(output_field_names):
-    #         click.BadParameter(
-    #             "To pass `--no-count`, specify at least one input "
-    #             "value-column using `--field`.")
     if "count" not in output_field_names:
         output_field_names.append("count")
+
+    # Validate and get the stream
+    f_in = validate_pairs_columns(pairs_path, input_field_numbers, is_stdin=(pairs_path == "-"))
 
     # Customize the HDF5 filters
     if storage_options is not None:
@@ -606,19 +655,8 @@ def pairs(
     else:
         h5opts = None
 
-    # Initialize the input stream
-    # TODO: we could save the header into metadata
+    # Explicitly set kwargs to empty to avoid passing Click options to read_csv
     kwargs = {}
-    if pairs_path == "-":
-        f_in = sys.stdin
-    elif int(_pandas_version[0]) == 1 and int(_pandas_version[1]) < 2:
-        # get_handle returns a pair of objects in pandas 1.0 and 1.1
-        f_in = get_handle(pairs_path, mode="r", compression="infer")[0]
-    else:
-        # get_handle returns a single wrapper object in pandas 1.2+ and 2.*
-        f_in = get_handle(pairs_path, mode="r", compression="infer").handle
-
-    _, f_in = get_header(f_in)
 
     reader = pd.read_csv(
         f_in,
