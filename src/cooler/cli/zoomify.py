@@ -11,7 +11,7 @@ from .._reduce import (
     preferred_sequence,
     zoomify_cooler,
 )
-from ..parallel import lock
+from ..parallel import get_mp_context, get_mp_lock
 from ..util import parse_cooler_uri
 from . import cli, get_logger
 from ._util import parse_field_param
@@ -142,7 +142,7 @@ def zoomify(
 
     if legacy:
         n_zooms, zoom_levels = legacy_zoomify(
-            cool_uri, outfile, nproc, chunksize, lock=lock
+            cool_uri, outfile, nproc, chunksize, lock=get_mp_lock()
         )
 
         if balance:
@@ -230,18 +230,28 @@ def zoomify(
             columns, dtypes, agg = ["count"], None, None
 
         # logger.info("Applying resolutions {}".format(resolutions))
+        try:
+            map_func = map
+            if nproc > 1:
+                ctx = get_mp_context()
+                pool = ctx.Pool(nproc)
+                map_func = pool.map
 
-        zoomify_cooler(
-            [cool_uri, *list(base_uri)],
-            outfile,
-            resolutions,
-            chunksize,
-            nproc=nproc,
-            lock=lock,
-            columns=columns,
-            dtypes=dtypes,
-            agg=agg,
-        )
+            zoomify_cooler(
+                [cool_uri, *list(base_uri)],
+                outfile,
+                resolutions,
+                chunksize,
+                nproc=nproc,
+                map=map_func,
+                lock=get_mp_lock(),
+                columns=columns,
+                dtypes=dtypes,
+                agg=agg,
+            )
+        finally:
+            if nproc > 1:
+                pool.close()
 
         if balance:
             invoke_balance(balance_args, resolutions, outfile)

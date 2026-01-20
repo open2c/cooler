@@ -1,4 +1,5 @@
 import os.path as op
+from multiprocessing import Lock
 from operator import add
 
 import cooler
@@ -55,7 +56,7 @@ def test_chunkgetter():
     assert "bins" in chunk
     assert "pixels" in chunk
 
-    getter = parallel.chunkgetter(clr, use_lock=True)
+    getter = parallel.chunkgetter(clr, lock=Lock())
     chunk = getter((lo, hi))
     assert isinstance(chunk, dict)
     assert len(chunk["pixels"]["bin1_id"]) == 2

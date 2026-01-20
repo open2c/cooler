@@ -4,10 +4,10 @@ import click
 import h5py
 import numpy as np
 import pandas as pd
-from multiprocess import Pool
 
 from .._balance import balance_cooler
 from ..api import Cooler
+from ..parallel import get_mp_context
 from ..util import bedslice, parse_cooler_uri
 from . import cli, get_logger
 
@@ -236,7 +236,8 @@ def balance(
 
     try:
         if nproc > 1:
-            pool = Pool(nproc)
+            ctx = get_mp_context()
+            pool = ctx.Pool(nproc)
             map_ = pool.imap_unordered
         else:
             map_ = map
@@ -254,7 +255,6 @@ def balance(
             max_iters=max_iters,
             ignore_diags=ignore_diags,
             rescale_marginals=True,
-            use_lock=False,
             map=map_,
         )
 
