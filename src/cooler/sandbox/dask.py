@@ -108,7 +108,7 @@ def read_table(group_uri, keys=None, chunksize=10_000_000, index=None, lock=None
     task_name = "daskify-h5py-table-" + token
 
     # Partition the table
-    divisions = (0,) + tuple(range(-1, nrows, chunksize))[1:]
+    divisions = (0, *tuple(range(-1, nrows, chunksize))[1:])
     if divisions[-1] != nrows - 1:
         divisions = (
             *divisions,
@@ -117,7 +117,7 @@ def read_table(group_uri, keys=None, chunksize=10_000_000, index=None, lock=None
 
     # Build the task graph
     dsk = {}
-    for i in range(0, int(ceil(nrows / chunksize))):
+    for i in range(0, ceil(nrows / chunksize)):
         slc = slice(i * chunksize, (i + 1) * chunksize)
         data_dict = (_slice_group, filepath, grouppath, keys, slc, lock)
         if categoricals:

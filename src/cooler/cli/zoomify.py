@@ -179,12 +179,12 @@ def zoomify(
         # Determine the coarsest resolution based on fitting the entire genome
         # in a single 256 x 256 tile.
         if clr.binsize:
-            maxres = int(ceil(genome_length / HIGLASS_TILE_DIM))
+            maxres = ceil(genome_length / HIGLASS_TILE_DIM)
             curres = clr.binsize
         else:
             bins = clr.bins()[["start", "end"]][:]
             mean_fragsize = (bins["end"] - bins["start"]).mean()
-            maxres = int(ceil(genome_length / mean_fragsize / HIGLASS_TILE_DIM))
+            maxres = ceil(genome_length / mean_fragsize / HIGLASS_TILE_DIM)
             curres = 1
 
         # Default is to use a binary geometric progression

@@ -191,7 +191,7 @@ def load(
 
     """
     logger = get_logger(__name__)
-    chromsizes, bins = parse_bins(bins_path)
+    _chromsizes, bins = parse_bins(bins_path)
     if mergebuf is None:
         mergebuf = chunksize
 

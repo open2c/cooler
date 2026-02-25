@@ -624,7 +624,7 @@ def create(
 
     # Write chroms, bins and pixels
     if append_scool:
-        src_path, src_group = parse_cooler_uri(scool_root_uri)
+        src_path, _src_group = parse_cooler_uri(scool_root_uri)
         dst_path, dst_group = parse_cooler_uri(cool_uri)
 
         with h5py.File(src_path, "r+") as src, h5py.File(dst_path, "r+") as dst:

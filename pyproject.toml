@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "cooler"
-version = "0.10.3"
+version = "0.10.4"
 description = "Sparse binary format for genomic interaction matrices."
 requires-python = ">=3.9"
 license = {text = "BSD-3-Clause"}
@@ -65,6 +65,7 @@ all = [
 test = [
     "coverage[toml]",
     "isort",
+    "hypothesis",
     "pytest",
     "pytest-cov",
     "ruff",

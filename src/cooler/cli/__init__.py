@@ -48,7 +48,7 @@ def setup_psutil_at_exit(logger):
 
     attrs = [
         "cmdline",
-        "connections",
+        # "connections",
         "cpu_affinity",
         "cpu_num",
         "cpu_percent",
