@@ -153,7 +153,9 @@ cooler cload pairs
 
     Bin any text file or stream of pairs.
 
-    Pairs data need not be sorted. Accepts compressed files.
+    Pairs data need not be sorted. For file paths, compression is inferred from the
+    filename extension using formats supported by pandas.read_csv. LZ4 is not
+    supported.
     To pipe input from stdin, set PAIRS_PATH to '-'.
 
 
