@@ -128,6 +128,10 @@ def zoomify(
 
     COOL_PATH : Path to a COOL file or Cooler URI.
 
+    If you encounter HDF5 file-locking errors (``BlockingIOError``) on a
+    networked/NFS-mounted filesystem, try setting the environment variable
+    ``HDF5_USE_FILE_LOCKING=FALSE`` before running cooler.
+
     """
     logger = get_logger(__name__)
     infile, _ = parse_cooler_uri(cool_uri)
