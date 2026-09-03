@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import re
+import time
 from collections import OrderedDict, defaultdict
 from collections.abc import Generator, Iterable, Iterator
 from contextlib import contextmanager
@@ -13,6 +14,43 @@ import pandas as pd
 from pandas.api.types import is_integer, is_scalar
 
 from ._typing import GenomicRangeSpecifier, GenomicRangeTuple
+
+
+def open_hdf5_with_retry(
+    filepath: str, mode: str = "r", retries: int = 5, delay: float = 0.2
+) -> h5py.File:
+    """Open an HDF5 file, retrying on transient OS-level lock failures.
+
+    Drop-in replacement for ``h5py.File(filepath, mode)``. On some
+    NFS-mounted filesystems, the ``flock()`` call HDF5 issues to acquire
+    its file lock can fail transiently with ``BlockingIOError`` even when
+    no other cooler process is actually writing to the file at that
+    instant -- this is a known NFS/HDF5 locking compatibility issue, not a
+    sign of a real read/write race (cooler's own multiprocessing lock,
+    see :mod:`cooler.parallel`, already prevents those). Retrying with
+    exponential backoff is enough to ride out the transient failure; the
+    original error is re-raised if all attempts are exhausted.
+
+    Parameters
+    ----------
+    filepath : str
+        Path to the HDF5 file.
+    mode : str, optional
+        File mode, as accepted by ``h5py.File``.
+    retries : int, optional
+        Maximum number of attempts before giving up.
+    delay : float, optional
+        Base delay in seconds before the first retry; doubles after each
+        subsequent failed attempt.
+
+    """
+    for attempt in range(retries):
+        try:
+            return h5py.File(filepath, mode)
+        except BlockingIOError:
+            if attempt == retries - 1:
+                raise
+            time.sleep(delay * 2**attempt)
 
 
 def partition(start: int, stop: int, step: int) -> Iterator[tuple[int, int]]:

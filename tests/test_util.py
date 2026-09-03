@@ -26,6 +26,41 @@ def test_buffered():
     assert len(next(it)) == 3
 
 
+def test_open_hdf5_with_retry(tmp_path, monkeypatch):
+    path = tmp_path / "test.h5"
+    with h5py.File(path, "w") as f:
+        f.create_dataset("x", data=[1, 2, 3])
+
+    real_open = h5py.File
+    calls = {"n": 0}
+
+    def flaky_open(filepath, mode):
+        calls["n"] += 1
+        if calls["n"] < 3:
+            raise BlockingIOError(11, "Resource temporarily unavailable")
+        return real_open(filepath, mode)
+
+    monkeypatch.setattr(util.h5py, "File", flaky_open)
+
+    with util.open_hdf5_with_retry(str(path), "r", retries=5, delay=0) as f:
+        assert list(f["x"][:]) == [1, 2, 3]
+    assert calls["n"] == 3
+
+
+def test_open_hdf5_with_retry_exhausted(tmp_path, monkeypatch):
+    path = tmp_path / "test.h5"
+    with h5py.File(path, "w"):
+        pass
+
+    def always_fails(filepath, mode):
+        raise BlockingIOError(11, "Resource temporarily unavailable")
+
+    monkeypatch.setattr(util.h5py, "File", always_fails)
+
+    with pytest.raises(BlockingIOError):
+        util.open_hdf5_with_retry(str(path), "r", retries=3, delay=0)
+
+
 def test_rlencode():
     s, l, v = util.rlencode([1, 1, 1, 1, 5, 5, 5, 5, 3, 3, 8, 9, 9])  # noqa
     assert list(s) == [0, 4, 8, 10, 11]

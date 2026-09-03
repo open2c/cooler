@@ -1,14 +1,13 @@
 import sys
 
 import click
-import h5py
 import numpy as np
 import pandas as pd
 from multiprocess import Pool
 
 from .._balance import balance_cooler
 from ..api import Cooler
-from ..util import bedslice, parse_cooler_uri
+from ..util import bedslice, open_hdf5_with_retry, parse_cooler_uri
 from . import cli, get_logger
 
 
@@ -173,12 +172,16 @@ def balance(
 
     COOL_PATH : Path to a COOL file.
 
+    If you encounter HDF5 file-locking errors (``BlockingIOError``) on a
+    networked/NFS-mounted filesystem, try setting the environment variable
+    ``HDF5_USE_FILE_LOCKING=FALSE`` before running cooler.
+
     """
     logger = get_logger(__name__)
     cool_path, group_path = parse_cooler_uri(cool_uri)
 
     if check:
-        with h5py.File(cool_path, "r") as h5:
+        with open_hdf5_with_retry(cool_path, "r") as h5:
             grp = h5[group_path]
             if name not in grp["bins"]:
                 click.echo(f"{cool_path}: No '{name}' column found.")
@@ -192,7 +195,7 @@ def balance(
             "Provide at most one of --cis-only and --trans-only flags"
         )
 
-    with h5py.File(cool_path, "r+") as h5:
+    with open_hdf5_with_retry(cool_path, "r+") as h5:
         grp = h5[group_path]
         if name in grp["bins"] and not stdout:
             if not force:
@@ -281,7 +284,7 @@ def balance(
             sys.stdout, header=False, index=False, na_rep="", float_format="%g"
         )
     else:
-        with h5py.File(cool_path, "r+") as h5:
+        with open_hdf5_with_retry(cool_path, "r+") as h5:
             grp = h5[group_path]
             # add the bias column to the file
             h5opts = {"compression": "gzip", "compression_opts": 6}
