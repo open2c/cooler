@@ -267,15 +267,13 @@ def test_hdf5_contextmanagers():
     assert f.id
 
     # can't change mode on open file
-    with pytest.raises(ValueError):
-        with util.open_hdf5(f, "r+"):
-            pass
+    with pytest.raises(ValueError), util.open_hdf5(f, "r+"):
+        pass
 
     # not allowed on open files
     for mode in ["w", "w-", "x"]:
-        with pytest.raises(ValueError):
-            with util.open_hdf5(f, mode):
-                pass
+        with pytest.raises(ValueError), util.open_hdf5(f, mode):
+            pass
 
     # group's parent file gets closed on teardown
     with util.closing_hdf5(f["chroms"]):

@@ -117,7 +117,7 @@ def read_table(group_uri, keys=None, chunksize=10_000_000, index=None, lock=None
 
     # Build the task graph
     dsk = {}
-    for i in range(0, ceil(nrows / chunksize)):
+    for i in range(ceil(nrows / chunksize)):
         slc = slice(i * chunksize, (i + 1) * chunksize)
         data_dict = (_slice_group, filepath, grouppath, keys, slc, lock)
         if categoricals:
