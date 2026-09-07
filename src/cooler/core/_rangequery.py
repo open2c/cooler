@@ -295,7 +295,7 @@ class CSRReader:
 
         # Concatenate outputs
         if len(result["bin1_id"]):
-            for key in result.keys():
+            for key in result:
                 result[key] = np.concatenate(result[key], axis=0)
 
             if reflect:
