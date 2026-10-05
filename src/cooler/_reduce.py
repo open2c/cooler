@@ -314,7 +314,7 @@ def _greedy_prune_partition(edges: np.ndarray, maxlen: int) -> np.ndarray:
     edges = np.asarray(edges)
     assert len(edges) >= 2 and edges[0] == 0
     cumlen = np.r_[0, np.cumsum(np.diff(edges))]
-    cuts = [maxlen * i for i in range(0, int(np.ceil(cumlen[-1] / maxlen)))]
+    cuts = [maxlen * i for i in range(int(np.ceil(cumlen[-1] / maxlen)))]
     cuts.append(cumlen[-1])
     idx = np.unique(np.searchsorted(cumlen, cuts))
     return edges[idx]

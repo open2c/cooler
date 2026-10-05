@@ -457,7 +457,7 @@ def _set_h5opts(h5opts: dict[str, Any]) -> dict[str, Any]:
         "fillvalue",
         "track_times",
     }
-    for key in result.keys():
+    for key in result:
         if key not in available_opts:
             raise ValueError(f"Unknown storage option '{key}'.")
     result.setdefault("compression", "gzip")
