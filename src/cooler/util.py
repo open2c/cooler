@@ -189,7 +189,7 @@ def parse_region(
     return chrom, start, end
 
 
-def natsort_key(s: str, _NS_REGEX=re.compile(r"(\d+)", re.U)) -> tuple:
+def natsort_key(s: str, _NS_REGEX=re.compile(r"(\d+)", re.UNICODE)) -> tuple:
     return tuple([int(x) if x.isdigit() else x for x in _NS_REGEX.split(s) if x])
 
 
