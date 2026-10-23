@@ -48,7 +48,6 @@ dependencies = [
     "pyfaidx",
     "asciitree",
     "pyyaml",
-    "simplejson",
 ]
 
 [project.optional-dependencies]
@@ -62,19 +61,22 @@ all = [
     "psutil",
     "pysam; platform_system != 'Windows'",
 ]
+
+[dependency-groups]
 test = [
     "coverage[toml]",
-    "isort",
     "hypothesis",
     "pytest",
     "pytest-cov",
-    "ruff",
 ]
 dev = [
-    "cooler[all,test]",
-    "pre-commit"
+    "cooler[all]",
+    {include-group = "test"},
+    "pre-commit",
+    "ruff>=0.17.2",
 ]
 docs = [
+    "cooler[all]",
     "autodocsumm",
     "m2r",
     "recommonmark",
@@ -113,6 +115,9 @@ extend-select = [
     "RUF", # ruff-specific rules
     "UP", # pyupgrade
     "W",  # style  warnings
+]
+ignore = [
+    "SIM115",  # open-file-with-context-handler: we often return/close handles later
 ]
 
 [tool.ruff.lint.isort]
@@ -155,6 +160,9 @@ exclude_lines = [
     "raise NotImplementedError"
 ]
 
+[tool.hatch.envs.default]
+dependency-groups = ["dev", "docs"]
+
 [tool.hatch.envs.default.scripts]
 fix = "ruff check --fix src tests"
 lint = "ruff check src tests"
@@ -162,7 +170,7 @@ test = "pytest ."
 docs = "sphinx-autobuild docs docs/_build/html"
 
 [tool.hatch.envs.test]
-features = ["dev"]
+dependency-groups = ["dev"]
 
 [[tool.hatch.envs.test.matrix]]
-python = ["3.8", "3.9", "3.10", "3.11", "3.12"]
+python = ["3.9", "3.10", "3.11", "3.12"]

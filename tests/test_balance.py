@@ -44,6 +44,43 @@ def test_balancing_genomewide(fp, tol):
     assert np.isclose(conv_marg, 1, atol=err_marg)
 
 
+def test_marginalize_counts_diagonal_once():
+    # Upper triangle of a symmetric 3x3 matrix, with diagonal entries
+    pixels = {
+        "bin1_id": np.array([0, 0, 1, 1, 2]),
+        "bin2_id": np.array([0, 1, 1, 2, 2]),
+    }
+    data = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
+    chunk = {"bins": {"chrom": np.zeros(3, dtype=int)}, "pixels": pixels}
+    dense = np.array([[1, 2, 0], [2, 3, 4], [0, 4, 5]])
+    assert np.allclose(_balance._marginalize(chunk, data), dense.sum(axis=0))
+
+
+@pytest.mark.parametrize(
+    "fp,tol",
+    [(os.path.join(testdir, "data", "hg19.GM12878-MboI.matrix.2000kb.cool"), 1e-5)],
+)
+def test_balancing_no_ignore_diags(fp, tol):
+    # The main diagonal must be counted once per bin in the marginals
+    clr = cooler.Cooler(fp)
+    weights, _stats = _balance.iterative_correction(
+        clr, ignore_diags=0, min_nnz=10, tol=tol, max_iters=1000
+    )
+
+    mat = cooler.Cooler(fp).matrix(balance=False, sparse=True)[:, :]
+    mat.data = weights[mat.row] * weights[mat.col] * mat.data
+    arr = mat.toarray()
+
+    mask = np.isnan(weights)
+    arr[mask, :] = 0
+    arr[:, mask] = 0
+
+    # Check that the balanced marginal, including the diagonal, is flat
+    marg = np.sum(arr, axis=0)
+    var = np.var(marg[marg != 0])
+    assert var < tol
+
+
 @pytest.mark.filterwarnings("ignore")
 @pytest.mark.parametrize(
     "fp,tol",

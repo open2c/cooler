@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import os.path as op
 import posixpath
@@ -12,7 +13,6 @@ from typing import Any
 import h5py
 import numpy as np
 import pandas as pd
-import simplejson as json
 
 from .._logging import get_logger
 from .._typing import Tabular
@@ -457,7 +457,7 @@ def _set_h5opts(h5opts: dict[str, Any]) -> dict[str, Any]:
         "fillvalue",
         "track_times",
     }
-    for key in result.keys():
+    for key in result:
         if key not in available_opts:
             raise ValueError(f"Unknown storage option '{key}'.")
     result.setdefault("compression", "gzip")
@@ -513,7 +513,7 @@ def create(
     h5opts = _set_h5opts(h5opts)
 
     if not isinstance(bins, pd.DataFrame):
-        raise ValueError(
+        raise ValueError(  # noqa: TRY004
             "Second positional argument must be a pandas DataFrame. "
             "Note that the `chromsizes` argument is now deprecated: "
             "see documentation for `create`."
@@ -894,7 +894,7 @@ def append(
                     i += len(chunk)
         elif chunked:
             # iterate over chunks from each column
-            for key in data.keys():
+            for key in data:
                 i = 0
                 for chunk in data[key]:
                     try:

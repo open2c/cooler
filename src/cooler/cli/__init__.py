@@ -93,7 +93,7 @@ def setup_psutil_at_exit(logger):
 
 
 def setup_postmortem_debugger():
-    import pdb
+    import pdb  # noqa: T100
     import traceback
 
     def _excepthook(exc_type, value, tb):

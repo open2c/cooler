@@ -968,8 +968,6 @@ class PairixAggregator(ContactBinner):
 
 
 class SparseBlockLoader(ContactBinner):  # pragma: no cover
-    """ """
-
     def __init__(self, chromsizes, bins, mapping, chunksize):
         bins = check_bins(bins, chromsizes)
         self.bins = bins
@@ -1077,8 +1075,6 @@ class ArrayLoader(ContactBinner):
 
 
 class ArrayBlockLoader(ContactBinner):  # pragma: no cover
-    """ """
-
     def __init__(self, chromsizes, bins, mapping, chunksize):
         bins = check_bins(bins, chromsizes)
         self.bins = bins

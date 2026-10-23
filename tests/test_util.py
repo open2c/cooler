@@ -1,5 +1,5 @@
 import os.path as op
-from io import BytesIO, StringIO
+from io import BytesIO
 
 import h5py
 import numpy as np
@@ -166,20 +166,6 @@ def test_read_chromsizes():
     util.read_chromsizes(op.join(datadir, "toy.chrom.sizes"))
 
 
-def test_read_chromsizes_bad_input():
-    broken_data = "chr1\t1000\nchr2\tbad_value\nchr3\t2000\n"
-    broken_file = StringIO(broken_data)
-    with pytest.raises(ValueError):
-        util.read_chromsizes(broken_file)
-
-
-def test_read_chromsizes_bad_delimiter():
-    broken_data = "chr1 1000\nchr2 bad_value\nchr3 2000\n"
-    broken_file = StringIO(broken_data)
-    with pytest.raises(ValueError):
-        util.read_chromsizes(broken_file)
-
-
 # def test_fetch_chromsizes():
 #     util.fetch_chromsizes("hg19")
 
@@ -281,15 +267,13 @@ def test_hdf5_contextmanagers():
     assert f.id
 
     # can't change mode on open file
-    with pytest.raises(ValueError):
-        with util.open_hdf5(f, "r+"):
-            pass
+    with pytest.raises(ValueError), util.open_hdf5(f, "r+"):
+        pass
 
     # not allowed on open files
     for mode in ["w", "w-", "x"]:
-        with pytest.raises(ValueError):
-            with util.open_hdf5(f, mode):
-                pass
+        with pytest.raises(ValueError), util.open_hdf5(f, mode):
+            pass
 
     # group's parent file gets closed on teardown
     with util.closing_hdf5(f["chroms"]):

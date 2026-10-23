@@ -298,27 +298,27 @@ def test_cload_pairix_wrong_block_char():
     ],
 )
 def test_cload_pairs(bins_path, pairs_path, ref_path):
-    kwargs = dict(
-        metadata=None,
-        assembly="hg19",
-        zero_based=False,
-        comment_char="#",
-        input_copy_status="unique",
-        no_symmetric_upper=False,
-        field=(),
-        chunksize=int(15e6),
-        mergebuf=int(20e6),
-        max_merge=200,
-        temp_dir=None,
-        no_delete_temp=False,
-        storage_options=None,
-        no_count=False,
-        chrom1=2,
-        pos1=3,
-        chrom2=4,
-        pos2=5,
-        append=False,
-    )
+    kwargs = {
+        "metadata": None,
+        "assembly": "hg19",
+        "zero_based": False,
+        "comment_char": "#",
+        "input_copy_status": "unique",
+        "no_symmetric_upper": False,
+        "field": (),
+        "chunksize": int(15e6),
+        "mergebuf": int(20e6),
+        "max_merge": 200,
+        "temp_dir": None,
+        "no_delete_temp": False,
+        "storage_options": None,
+        "no_count": False,
+        "chrom1": 2,
+        "pos1": 3,
+        "chrom2": 4,
+        "pos2": 5,
+        "append": False,
+    }
     cload_pairs.callback(bins_path, pairs_path, testcool_path, **kwargs)
     with h5py.File(testcool_path, "r") as f1, h5py.File(ref_path, "r") as f2:
         assert np.all(f1["pixels/bin1_id"][:] == f2["pixels/bin1_id"][:])
@@ -340,26 +340,26 @@ def test_cload_pairs(bins_path, pairs_path, ref_path):
     ],
 )
 def test_cload_field(bins_path, pairs_path):
-    kwargs = dict(
-        metadata=None,
-        assembly="toy",
-        zero_based=False,
-        comment_char="#",
-        input_copy_status="unique",
-        no_symmetric_upper=False,
-        chunksize=10,
-        mergebuf=10,
-        max_merge=200,
-        temp_dir=None,
-        no_delete_temp=False,
-        storage_options=None,
-        no_count=True,
-        chrom1=2,
-        pos1=3,
-        chrom2=4,
-        pos2=5,
-        append=False,
-    )
+    kwargs = {
+        "metadata": None,
+        "assembly": "toy",
+        "zero_based": False,
+        "comment_char": "#",
+        "input_copy_status": "unique",
+        "no_symmetric_upper": False,
+        "chunksize": 10,
+        "mergebuf": 10,
+        "max_merge": 200,
+        "temp_dir": None,
+        "no_delete_temp": False,
+        "storage_options": None,
+        "no_count": True,
+        "chrom1": 2,
+        "pos1": 3,
+        "chrom2": 4,
+        "pos2": 5,
+        "append": False,
+    }
     cload_pairs.callback(
         bins_path, pairs_path, testcool_path, field=("score=8:dtype=float",), **kwargs
     )
@@ -410,23 +410,23 @@ def test_cload_custom_tempdir(bins_path, pairs_path):
 
 
 def test_load_bg2_vs_coo():
-    kwargs = dict(
-        metadata=None,
-        assembly="hg19",
-        chunksize=int(20e6),
-        mergebuf=int(15e6),
-        max_merge=200,
-        field=(),
-        count_as_float=False,
-        one_based=False,
-        comment_char="#",
-        input_copy_status="unique",
-        no_symmetric_upper=False,
-        temp_dir=None,
-        no_delete_temp=False,
-        storage_options=None,
-        append=False,
-    )
+    kwargs = {
+        "metadata": None,
+        "assembly": "hg19",
+        "chunksize": int(20e6),
+        "mergebuf": int(15e6),
+        "max_merge": 200,
+        "field": (),
+        "count_as_float": False,
+        "one_based": False,
+        "comment_char": "#",
+        "input_copy_status": "unique",
+        "no_symmetric_upper": False,
+        "temp_dir": None,
+        "no_delete_temp": False,
+        "storage_options": None,
+        "append": False,
+    }
 
     out_path1 = op.join(tmp, "test1.cool")
     out_path2 = op.join(tmp, "test2.cool")
@@ -458,23 +458,23 @@ def test_load_bg2_vs_coo():
 
 
 def test_load_zero_one_based_bg2():
-    kwargs = dict(
-        format="bg2",
-        metadata=None,
-        assembly="toy",
-        chunksize=10,
-        mergebuf=10,
-        max_merge=200,
-        field=(),
-        count_as_float=False,
-        comment_char="#",
-        input_copy_status="unique",
-        no_symmetric_upper=False,
-        temp_dir=None,
-        no_delete_temp=False,
-        storage_options=None,
-        append=False,
-    )
+    kwargs = {
+        "format": "bg2",
+        "metadata": None,
+        "assembly": "toy",
+        "chunksize": 10,
+        "mergebuf": 10,
+        "max_merge": 200,
+        "field": (),
+        "count_as_float": False,
+        "comment_char": "#",
+        "input_copy_status": "unique",
+        "no_symmetric_upper": False,
+        "temp_dir": None,
+        "no_delete_temp": False,
+        "storage_options": None,
+        "append": False,
+    }
     # 1-based-start BG2 input
     ref = "toy.symm.upper.1.ob.bg2"
     bins_path = op.join(testdir, "data", "toy.chrom.sizes") + ":1"
@@ -509,23 +509,23 @@ def test_load_zero_one_based_bg2():
 
 
 def test_load_zero_one_based_coo():
-    kwargs = dict(
-        format="coo",
-        metadata=None,
-        assembly="toy",
-        chunksize=10,
-        mergebuf=10,
-        max_merge=200,
-        field=(),
-        count_as_float=False,
-        comment_char="#",
-        input_copy_status="unique",
-        no_symmetric_upper=False,
-        temp_dir=None,
-        no_delete_temp=False,
-        storage_options=None,
-        append=False,
-    )
+    kwargs = {
+        "format": "coo",
+        "metadata": None,
+        "assembly": "toy",
+        "chunksize": 10,
+        "mergebuf": 10,
+        "max_merge": 200,
+        "field": (),
+        "count_as_float": False,
+        "comment_char": "#",
+        "input_copy_status": "unique",
+        "no_symmetric_upper": False,
+        "temp_dir": None,
+        "no_delete_temp": False,
+        "storage_options": None,
+        "append": False,
+    }
     # 1-based-start COO input
     ref = "toy.symm.upper.1.ob.coo"
     bins_path = op.join(testdir, "data", "toy.chrom.sizes") + ":1"
@@ -571,27 +571,27 @@ def test_cload_append_mode():
         out_path = op.join(tmp, "test.cool")
         with h5py.File(out_path, "w") as f:
             f.attrs["xxxx"] = True
-        kwargs = dict(
-            metadata=None,
-            assembly="hg19",
-            chunksize=int(15e6),
-            mergebuf=int(15e6),
-            zero_based=False,
-            comment_char="#",
-            input_copy_status="unique",
-            no_symmetric_upper=False,
-            field=(),
-            temp_dir=None,
-            no_delete_temp=False,
-            storage_options=None,
-            no_count=False,
-            max_merge=200,
-            chrom1=2,
-            pos1=3,
-            chrom2=4,
-            pos2=5,
-            append=append,
-        )
+        kwargs = {
+            "metadata": None,
+            "assembly": "hg19",
+            "chunksize": int(15e6),
+            "mergebuf": int(15e6),
+            "zero_based": False,
+            "comment_char": "#",
+            "input_copy_status": "unique",
+            "no_symmetric_upper": False,
+            "field": (),
+            "temp_dir": None,
+            "no_delete_temp": False,
+            "storage_options": None,
+            "no_count": False,
+            "max_merge": 200,
+            "chrom1": 2,
+            "pos1": 3,
+            "chrom2": 4,
+            "pos2": 5,
+            "append": append,
+        }
         cload_pairs.callback(
             op.join(testdir, "data", "toy.bins.var.bed"),
             op.join(testdir, "data", "toy.pairs"),
@@ -614,23 +614,23 @@ def test_load_append_mode():
         out_path = op.join(tmp, "test.cool")
         with h5py.File(out_path, "w") as f:
             f.attrs["xxxx"] = True
-        kwargs = dict(
-            metadata=None,
-            assembly="hg19",
-            chunksize=int(20e6),
-            mergebuf=int(20e6),
-            max_merge=200,
-            field=(),
-            count_as_float=False,
-            one_based=False,
-            comment_char="#",
-            input_copy_status="unique",
-            no_symmetric_upper=False,
-            temp_dir=None,
-            no_delete_temp=False,
-            storage_options=None,
-            append=append,
-        )
+        kwargs = {
+            "metadata": None,
+            "assembly": "hg19",
+            "chunksize": int(20e6),
+            "mergebuf": int(20e6),
+            "max_merge": 200,
+            "field": (),
+            "count_as_float": False,
+            "one_based": False,
+            "comment_char": "#",
+            "input_copy_status": "unique",
+            "no_symmetric_upper": False,
+            "temp_dir": None,
+            "no_delete_temp": False,
+            "storage_options": None,
+            "append": append,
+        }
         load.callback(
             op.join(testdir, "data", "hg19.bins.2000kb.bed.gz"),
             op.join(testdir, "data", "hg19.GM12878-MboI.matrix.2000kb.coo.txt"),

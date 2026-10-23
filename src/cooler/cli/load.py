@@ -1,9 +1,9 @@
+import json
 import sys
 
 import click
 import numpy as np
 import pandas as pd
-import simplejson as json
 
 from ..create import (
     BIN_DTYPE,
@@ -357,7 +357,7 @@ def load(
         ensure_sorted=False,
         # boundscheck=True,
         # dupcheck=True,
-        triucheck=True if symmetric_upper else False,
+        triucheck=bool(symmetric_upper),
         symmetric_upper=symmetric_upper,
         h5opts=h5opts,
         mode="a" if append else "w",

@@ -18,15 +18,19 @@ This project has a number of requirements for all code contributed.
 
 ## Setting up Your Development Environment
 
-After forking and cloning the repository, install in "editable" (i.e. development) mode using the `-e` option:
+After forking and cloning the repository, create the development environment with [uv](https://docs.astral.sh/uv/):
 
 ```sh
 git clone https://github.com/open2c/cooler.git
 cd cooler
-pip install -e .[all]
+uv sync
 ```
 
-Editable mode installs the package by creating a "link" to the working (repo) directory.
+This installs cooler in editable mode, along with all optional dependencies and the `dev` dependency group (test and lint tools), pinned by `uv.lock`. If you change dependencies in `pyproject.toml`, run `uv lock` and commit the updated `uv.lock`.
+
+If you prefer pip (>=25.1), use `pip install -e .[all] --group dev`.
+
+Install the git hooks with `uv run pre-commit install`.
 
 
 ## Running/Adding Unit Tests
@@ -36,10 +40,10 @@ It is best if all new functionality and/or bug fixes have unit tests added with 
 We use [pytest](https://docs.pytest.org/en/latest) as our unit testing framework. Once you've configured your environment, you can just `cd` to the root of your repository and run
 
 ```sh
-pytest
+uv run pytest
 ```
 
-Unit tests are automatically run on Travis CI for pull requests.
+Unit tests are automatically run on GitHub Actions for pull requests.
 
 
 ## Adding/Building the Documentation
@@ -50,13 +54,14 @@ We use [Numpy style docstrings](https://numpydoc.readthedocs.io/en/latest/format
 
 We use the [Sphinx Autosummary extension](http://www.sphinx-doc.org/en/stable/ext/autosummary.html) to generate API references. You may want to look at `docs/api.rst` to see how these files look and where to add new functions, classes or modules.
 
-To build the documentation:
+To build the documentation, install the `docs` dependency group and run Sphinx:
 
 ```sh
-make docs
+uv sync --group docs
+uv run sphinx-build docs docs/_build/html
 ```
 
-After this, you can find an HTML version of the documentation in `docs/_build/html/index.html`.
+After this, you can find an HTML version of the documentation in `docs/_build/html/index.html`. To rebuild automatically on changes and serve the result locally, use `uv run sphinx-autobuild docs docs/_build/html` instead.
 
 Documentation from `master` and tagged releases is automatically built and hosted thanks to [readthedocs](https://readthedocs.org/).
 

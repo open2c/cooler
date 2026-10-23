@@ -153,7 +153,9 @@ cooler cload pairs
 
     Bin any text file or stream of pairs.
 
-    Pairs data need not be sorted. Accepts compressed files.
+    Pairs data need not be sorted. For file paths, compression is inferred from the
+    filename extension using formats supported by pandas.read_csv. LZ4 is not
+    supported.
     To pipe input from stdin, set PAIRS_PATH to '-'.
 
 
@@ -940,6 +942,10 @@ cooler dump
 
     Apply balancing weights to data. This will print an extra column called `balanced`  [default: False]
 
+.. option:: --weight-name <weight_name>
+
+    Name of the bin table column containing the balancing weights. Implies --balanced. [default: weight]
+
 .. option:: --join
 
     Print the full chromosome bin coordinates instead of bin IDs. This will replace the `bin1_id` column with `chrom1`, `start1`, and `end1`, and the `bin2_id` column with `chrom2`, `start2` and `end2`.  [default: False]
@@ -1036,6 +1042,10 @@ cooler show
 .. option:: --field <field>
 
     Pixel values to display.  [default: count]
+
+.. option:: --weight-name <weight_name>
+
+    Name of the bin table column containing the balancing weights. Implies --balanced. [default: weight]
 
 
 ----
