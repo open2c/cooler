@@ -229,3 +229,31 @@ def test_balance():
             ],
         )
         assert result.exit_code == 0
+
+        # blacklist with a single line, header/track lines, or no records
+        for content in [
+            "chr1\t5\t10\n",
+            "track name=bl\nchrom\tstart\tend\nchr1\t5\t10\n",
+            "#chrom\tstart\tend\nchr1\t5\t10\n",
+            "",
+        ]:
+            with open("blacklist.bed", "w") as f:
+                f.write(content)
+            result = runner.invoke(
+                balance,
+                [
+                    f_in,
+                    "--ignore-diags",
+                    "2",
+                    "--mad-max",
+                    "0",
+                    "--min-nnz",
+                    "0",
+                    "--tol",
+                    "0.05",
+                    "--blacklist",
+                    "blacklist.bed",
+                    "--stdout",
+                ],
+            )
+            assert result.exit_code == 0, content
