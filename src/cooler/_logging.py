@@ -169,7 +169,6 @@ def get_verbosity_level() -> int:
 
 def get_logger(name="cooler") -> logging.Logger:
     # Based on ipython traitlets
-    global _loggers, _logging_context
 
     if _logging_context is None:
         set_logging_context("lib")

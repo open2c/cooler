@@ -177,8 +177,25 @@ def interactive(
 @click.option(
     "--field", default="count", show_default=True, help="Pixel values to display."
 )
+@click.option(
+    "--weight-name",
+    help="Name of the bin table column containing the balancing weights. "
+    "Implies --balanced. [default: weight]",
+)
 def show(
-    cool_uri, range, range2, balanced, out, dpi, scale, force, zmin, zmax, cmap, field
+    cool_uri,
+    range,
+    range2,
+    balanced,
+    out,
+    dpi,
+    scale,
+    force,
+    zmin,
+    zmax,
+    cmap,
+    field,
+    weight_name,
 ):
     """
     Display and browse a cooler in matplotlib.
@@ -200,6 +217,9 @@ def show(
         sys.exit(1)
 
     c = Cooler(cool_uri)
+
+    if weight_name is not None or balanced:
+        balanced = weight_name or "weight"
 
     chromsizes = c.chromsizes
     row_region = range

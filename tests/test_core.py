@@ -14,7 +14,7 @@ from cooler.core._selectors import _IndexingMixin
 def make_hdf5_table(mode):
     s = BytesIO()
     f = h5py.File(s, mode)
-    h5opts = dict(compression="gzip", compression_opts=6, maxshape=(None,))
+    h5opts = {"compression": "gzip", "compression_opts": 6, "maxshape": (None,)}
     grp = f.create_group("table")
     grp.create_dataset(
         "chrom",
