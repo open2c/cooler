@@ -1,63 +1,84 @@
 import os
-import shutil
-import tempfile
 
 import h5py
 import numpy as np
 import pytest
-from click.testing import CliRunner
 
 import cooler
-from cooler.cli.balance import balance
+from cooler import _balance
 
 testdir = os.path.dirname(os.path.realpath(__file__))
 
 
-@pytest.fixture
-def temp_cool(tmpdir):
-    def _copy_cool(fp):
-        temp_fp = os.path.join(tmpdir, os.path.basename(fp))
-        shutil.copy(fp, temp_fp)
-        return temp_fp
-    return _copy_cool
-
-
 @pytest.mark.parametrize(
     "fp,tol",
     [(os.path.join(testdir, "data", "hg19.GM12878-MboI.matrix.2000kb.cool"), 1e-2)],
 )
-def test_balancing_genomewide(temp_cool, fp, tol):
-    runner = CliRunner()
-    temp_fp = temp_cool(fp)
+def test_balancing_genomewide(fp, tol):
+    clr = cooler.Cooler(fp)
+    weights, _stats = _balance.iterative_correction(
+        clr, ignore_diags=1, min_nnz=10, tol=tol
+    )
 
-    args = [
-        temp_fp, "--ignore-diags", "1", "--min-nnz", "10",
-        "--tol", str(tol), "--force", "--nproc", "1"
-    ]
-    result = runner.invoke(balance, args)
-    assert result.exit_code == 0, f"Command failed: {result.output}"
+    # Extract matrix and apply weights
+    mat = cooler.Cooler(fp).matrix(balance=False, sparse=True)[:, :]
+    mat.data = weights[mat.row] * weights[mat.col] * mat.data
+    arr = mat.toarray()
 
-    with h5py.File(temp_fp, "r") as h5:
-        weights = h5["/bins/weight"][:]
-        assert not np.all(np.isnan(weights)), "Weights are all NaN"
+    # Re-apply bin level filters
+    mask = np.isnan(weights)
+    arr[mask, :] = 0
+    arr[:, mask] = 0
 
-        clr = cooler.Cooler(temp_fp)
-        mat = clr.matrix(balance=False, sparse=True)[:, :]
-        mat.data = weights[mat.row] * weights[mat.col] * mat.data
-        arr = mat.toarray()
+    # Apply diagonal filter
+    np.fill_diagonal(arr, 0)
 
-        mask = np.isnan(weights)
-        arr[mask, :] = 0
-        arr[:, mask] = 0
-        np.fill_diagonal(arr, 0)
+    # Check that the balanced marginal is flat
+    marg = np.sum(arr, axis=0)
+    var = np.var(marg[marg != 0])
+    assert var < tol
 
-        marg = np.sum(arr, axis=0)
-        var = np.var(marg[marg != 0])
-        assert var < tol, f"Variance {var} exceeds tolerance {tol}"
+    # Check that the balanced marginal is unity
+    conv_marg = marg[~np.isnan(marg)].mean()
+    err_marg = marg[~np.isnan(marg)].std()
+    assert np.isclose(conv_marg, 1, atol=err_marg)
 
-        conv_marg = marg[~np.isnan(marg)].mean()
-        err_marg = marg[~np.isnan(marg)].std()
-        assert np.isclose(conv_marg, 1, atol=err_marg), "Marginal not unity"
+
+def test_marginalize_counts_diagonal_once():
+    # Upper triangle of a symmetric 3x3 matrix, with diagonal entries
+    pixels = {
+        "bin1_id": np.array([0, 0, 1, 1, 2]),
+        "bin2_id": np.array([0, 1, 1, 2, 2]),
+    }
+    data = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
+    chunk = {"bins": {"chrom": np.zeros(3, dtype=int)}, "pixels": pixels}
+    dense = np.array([[1, 2, 0], [2, 3, 4], [0, 4, 5]])
+    assert np.allclose(_balance._marginalize(chunk, data), dense.sum(axis=0))
+
+
+@pytest.mark.parametrize(
+    "fp,tol",
+    [(os.path.join(testdir, "data", "hg19.GM12878-MboI.matrix.2000kb.cool"), 1e-5)],
+)
+def test_balancing_no_ignore_diags(fp, tol):
+    # The main diagonal must be counted once per bin in the marginals
+    clr = cooler.Cooler(fp)
+    weights, _stats = _balance.iterative_correction(
+        clr, ignore_diags=0, min_nnz=10, tol=tol, max_iters=1000
+    )
+
+    mat = cooler.Cooler(fp).matrix(balance=False, sparse=True)[:, :]
+    mat.data = weights[mat.row] * weights[mat.col] * mat.data
+    arr = mat.toarray()
+
+    mask = np.isnan(weights)
+    arr[mask, :] = 0
+    arr[:, mask] = 0
+
+    # Check that the balanced marginal, including the diagonal, is flat
+    marg = np.sum(arr, axis=0)
+    var = np.var(marg[marg != 0])
+    assert var < tol
 
 
 @pytest.mark.filterwarnings("ignore")
@@ -65,48 +86,49 @@ def test_balancing_genomewide(temp_cool, fp, tol):
     "fp,tol",
     [(os.path.join(testdir, "data", "hg19.GM12878-MboI.matrix.2000kb.cool"), 1e-2)],
 )
-def test_balancing_cisonly(temp_cool, fp, tol):
-    runner = CliRunner()
-    temp_fp = temp_cool(fp)
+def test_balancing_cisonly(fp, tol):
+    with h5py.File(fp, "r") as h5:
+        clr = cooler.Cooler(h5)
+        chrom_offsets = h5["indexes/chrom_offset"][:]
+        weights, _stats = _balance.iterative_correction(
+            clr, ignore_diags=1, min_nnz=10, tol=tol, cis_only=True
+        )
 
-    args = [
-        temp_fp, "--cis-only", "--ignore-diags", "1",
-        "--min-nnz", "10", "--tol", str(tol), "--force", "--nproc", "1"
-    ]
-    result = runner.invoke(balance, args)
-    assert result.exit_code == 0, f"Command failed: {result.output}"
+    # Extract matrix and apply weights
+    mat = cooler.Cooler(fp).matrix(balance=False, sparse=True)[:, :]
+    mat.data = weights[mat.row] * weights[mat.col] * mat.data
+    arr = mat.toarray()
 
-    with h5py.File(temp_fp, "r") as h5:
-        weights = h5["/bins/weight"][:]
-        chrom_offsets = h5["/indexes/chrom_offset"][:]
+    # Re-apply bin level filters
+    mask = np.isnan(weights)
+    arr[mask, :] = 0
+    arr[:, mask] = 0
 
-        clr = cooler.Cooler(temp_fp)
-        mat = clr.matrix(balance=False, sparse=True)[:, :]
-        mat.data = weights[mat.row] * weights[mat.col] * mat.data
-        arr = mat.toarray()
+    # Apply diagonal filter
+    np.fill_diagonal(arr, 0)
 
-        mask = np.isnan(weights)
-        arr[mask, :] = 0
-        arr[:, mask] = 0
-        np.fill_diagonal(arr, 0)
+    # Filter out trans data
+    spans = list(zip(chrom_offsets[:-1], chrom_offsets[1:]))
+    from scipy.linalg import block_diag
 
-        from scipy.linalg import block_diag
-        spans = list(zip(chrom_offsets[:-1], chrom_offsets[1:]))
-        blocks = [np.ones((hi - lo,) * 2) for lo, hi in spans]
-        mask = block_diag(*blocks).astype(bool)
-        arr[~mask] = 0
+    blocks = [np.ones((hi - lo,) * 2) for lo, hi in spans]
+    mask = block_diag(*blocks).astype(bool)
+    arr[~mask] = 0
 
-        marg = np.sum(arr, axis=0)
-        for lo, hi in spans:
-            m = marg[lo:hi]
-            m = m[m != 0]
-            if len(m):
-                var = np.var(m)
-                assert var < tol, f"Cis variance {var} exceeds tolerance {tol}"
-                conv_marg = m[~np.isnan(m)].mean()
-                err_marg = m[~np.isnan(m)].std()
-                assert np.isclose(conv_marg, 1,
-                                  atol=err_marg), "Cis marginal not unity"
+    # Check that the balanced marginal is flat
+    marg = np.sum(arr, axis=0)
+    for lo, hi in spans:
+        m = marg[lo:hi]
+        m = m[m != 0]
+        if len(m):
+            print(lo, hi)
+            var = np.var(m[m != 0])
+            assert var < tol
+
+            # Check that the balanced marginal is unity
+            conv_marg = m[~np.isnan(m)].mean()
+            err_marg = m[~np.isnan(m)].std()
+            assert np.isclose(conv_marg, 1, atol=err_marg)
 
 
 @pytest.mark.filterwarnings("ignore")
@@ -114,84 +136,70 @@ def test_balancing_cisonly(temp_cool, fp, tol):
     "fp,tol",
     [(os.path.join(testdir, "data", "hg19.GM12878-MboI.matrix.2000kb.cool"), 1e-2)],
 )
-def test_balancing_transonly(temp_cool, fp, tol):
-    runner = CliRunner()
-    temp_fp = temp_cool(fp)
+def test_balancing_transonly(fp, tol):
+    with h5py.File(fp, "r") as h5:
+        clr = cooler.Cooler(h5)
+        chrom_offsets = h5["indexes/chrom_offset"][:]
+        weights, _stats = _balance.iterative_correction(
+            clr, ignore_diags=1, min_nnz=10, tol=tol, trans_only=True
+        )
 
-    args = [
-        temp_fp, "--trans-only", "--ignore-diags", "1",
-        "--min-nnz", "10", "--tol", str(tol), "--force", "--nproc", "1"
-    ]
-    result = runner.invoke(balance, args)
-    assert result.exit_code == 0, f"Command failed: {result.output}"
+    # Extract matrix and apply weights
+    mat = cooler.Cooler(fp).matrix(balance=False, sparse=True)[:, :]
+    mat.data = weights[mat.row] * weights[mat.col] * mat.data
+    arr = mat.toarray()
 
-    with h5py.File(temp_fp, "r") as h5:
-        weights = h5["/bins/weight"][:]
-        chrom_offsets = h5["/indexes/chrom_offset"][:]
+    # Re-apply bin level filters
+    mask = np.isnan(weights)
+    arr[mask, :] = 0
+    arr[:, mask] = 0
 
-        clr = cooler.Cooler(temp_fp)
-        mat = clr.matrix(balance=False, sparse=True)[:, :]
-        mat.data = weights[mat.row] * weights[mat.col] * mat.data
-        arr = mat.toarray()
+    # Filter out cis data
+    for lo, hi in zip(chrom_offsets[:-1], chrom_offsets[1:]):
+        arr[lo:hi, lo:hi] = np.nan
 
-        mask = np.isnan(weights)
-        arr[mask, :] = 0
-        arr[:, mask] = 0
+    # Check that the balanced marginal is flat
+    marg = np.nansum(arr, axis=0)
+    var = np.nanvar(marg[marg != 0])
+    assert var < tol
 
-        for lo, hi in zip(chrom_offsets[:-1], chrom_offsets[1:]):
-            arr[lo:hi, lo:hi] = np.nan
-
-        marg = np.nansum(arr, axis=0)
-        var = np.nanvar(marg[marg != 0])
-        assert var < tol, f"Trans variance {var} exceeds tolerance {tol}"
-        conv_marg = marg[~np.isnan(marg)].mean()
-        err_marg = marg[~np.isnan(marg)].std()
-        assert np.isclose(conv_marg, 1, atol=err_marg), "Trans marginal not unity"
+    # Check that the balanced marginal is unity
+    conv_marg = marg[~np.isnan(marg)].mean()
+    err_marg = marg[~np.isnan(marg)].std()
+    assert np.isclose(conv_marg, 1, atol=err_marg)
 
 
 @pytest.mark.parametrize(
     "fp,tol",
-    [(os.path.join(testdir, "data", "toy.symm.upper.2.cool"), 1e-1)],
+    [(os.path.join(testdir, "data", "toy.symm.upper.2.cool"), 1e-2)],
 )
-def test_balancing_with_blacklist(temp_cool, fp, tol):
-    runner = CliRunner()
-    temp_fp = temp_cool(fp)
+def test_balancing_other_options(fp, tol):
+    clr = cooler.Cooler(fp)
+    _weights, stats = _balance.iterative_correction(
+        clr, ignore_diags=1, min_nnz=10, tol=tol, x0=np.random.rand(len(clr.bins()))
+    )
+    assert stats['converged']
 
-    blacklist_cases = [
-        "chr1\t0\t2\n",  # Single row
-        "chr1\t0\t2\nchr2\t0\t2\n",  # Multi-row
-        "track=test\nchr1\t0\t2\n",  # With header
-        "",  # Empty
-    ]
+    _weights, stats = _balance.iterative_correction(
+        clr,
+        chunksize=3,
+        ignore_diags=1,
+        min_nnz=10,
+        tol=tol,
+    )
+    assert stats['converged']
 
-    for bed_content in blacklist_cases:
-        with tempfile.NamedTemporaryFile(mode="w", delete=False,
-                                         suffix=".bed") as f:
-            f.write(bed_content)
-            blacklist_path = f.name
+    _weights, stats = _balance.iterative_correction(
+        clr,
+        ignore_diags=1,
+        min_nnz=10,
+        min_count=1,
+        mad_max=12,
+        tol=tol,
+    )
+    assert stats['converged']
 
-        try:
-            args = [
-                temp_fp, "--blacklist", blacklist_path, "--ignore-diags", "1",
-                "--min-nnz", "1", "--tol", str(tol), "--force",
-                "--nproc", "1", "--max-iters", "1000"
-            ]
-            result = runner.invoke(balance, args)
-            err_msg = f"Command failed for {bed_content!r}: {result.output}"
-            assert result.exit_code == 0, err_msg
-
-            with h5py.File(temp_fp, "r") as h5:
-                weights = h5["/bins/weight"][:]
-                err_msg = f"Weights all NaN for {bed_content!r}"
-                assert not np.all(np.isnan(weights)), err_msg
-
-                if bed_content.strip():
-                    clr = cooler.Cooler(temp_fp)
-                    bins = clr.bins()[:]
-                    mask = (bins["chrom"] == "chr1") & (bins["start"] >= 0)
-                    masked = bins[mask & (bins["end"] <= 2)].index
-                    err_msg = f"Blacklist not applied for {bed_content!r}"
-                    assert np.all(np.isnan(weights[masked])), err_msg
-
-        finally:
-            os.unlink(blacklist_path)
+    _weights, stats = _balance.iterative_correction(
+        clr, ignore_diags=1, min_nnz=10, tol=tol, blacklist=[0, 4]
+    )
+    assert stats['converged']

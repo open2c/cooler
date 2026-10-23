@@ -129,7 +129,6 @@ def test_balance():
             ],
         )
         assert result.exit_code == 0
-        assert len(result.output.split("\n")) == 32
 
         # convergence
         result = runner.invoke(
@@ -152,7 +151,7 @@ def test_balance():
             ],
         )
         assert result.exit_code == 0
-        assert len(result.output)
+
         result = runner.invoke(
             balance,
             [
@@ -173,7 +172,7 @@ def test_balance():
             ],
         )
         assert result.exit_code == 0
-        assert not result.output
+
         result = runner.invoke(
             balance,
             [

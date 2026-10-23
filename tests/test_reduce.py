@@ -1,12 +1,21 @@
 import os.path as op
 
 import h5py
+import hypothesis.strategies as st
 import numpy as np
 import pytest
 from _common import cooler_cmp, isolated_filesystem
+from hypothesis import given, settings
+from hypothesis.extra.numpy import arrays
 
 import cooler
-from cooler._reduce import coarsen_cooler, legacy_zoomify, merge_coolers, zoomify_cooler
+from cooler._reduce import (
+    coarsen_cooler,
+    legacy_zoomify,
+    merge_breakpoints,
+    merge_coolers,
+    zoomify_cooler,
+)
 
 testdir = op.realpath(op.dirname(__file__))
 datadir = op.join(testdir, "data")
@@ -19,10 +28,7 @@ datadir = op.join(testdir, "data")
             op.join(datadir, "hg19.GM12878-MboI.matrix.2000kb.cool"),
             op.join(datadir, "hg19.GM12878-MboI.matrix.2000kb.cool"),
         ),
-        (
-            op.join(datadir, "toy.asymm.2.cool"),
-            op.join(datadir, "toy.asymm.2.cool")
-        ),
+        (op.join(datadir, "toy.asymm.2.cool"), op.join(datadir, "toy.asymm.2.cool")),
     ],
 )
 def test_merge(path1, path2):
@@ -82,11 +88,7 @@ def test_merge2():
             2,
             op.join(datadir, "toy.symm.upper.4.cool"),
         ),
-        (
-            op.join(datadir, "toy.asymm.2.cool"),
-            2,
-            op.join(datadir, "toy.asymm.4.cool")
-        ),
+        (op.join(datadir, "toy.asymm.2.cool"), 2, op.join(datadir, "toy.asymm.4.cool")),
         (
             op.join(datadir, "toy.symm.upper.var.cool"),
             2,
@@ -96,34 +98,53 @@ def test_merge2():
 )
 def test_coarsen(input_uri, factor, ref_uri):
     with isolated_filesystem():
-        kwargs = dict(chunksize=10, nproc=1, columns=None, dtypes=None, agg=None)
+        kwargs = {
+            "chunksize": 10, "nproc": 1, "columns": None, "dtypes": None, "agg": None
+        }
         coarsen_cooler(input_uri, "test.cool", factor, **kwargs)
         cooler_cmp("test.cool", ref_uri)
 
         # custom dtype
-        kwargs = dict(chunksize=10, nproc=1, columns=None, dtypes={"count": np.float64})
+        kwargs = {
+            "chunksize": 10,
+            "nproc": 1,
+            "columns": None,
+            "dtypes": {"count": np.float64},
+        }
         coarsen_cooler(input_uri, "test.cool", factor, **kwargs)
         with h5py.File("test.cool", "r") as f:
             assert f["pixels/count"].dtype.kind == "f"
 
         # custom aggregator
-        kwargs = dict(
-            chunksize=10, nproc=1, columns=None, dtypes=None, agg={"count": "mean"}
-        )
+        kwargs = {
+            "chunksize": 10,
+            "nproc": 1,
+            "columns": None,
+            "dtypes": None,
+            "agg": {"count": "mean"},
+        }
         coarsen_cooler(input_uri, "test.cool", factor, **kwargs)
 
         # parallel
-        kwargs = dict(chunksize=10, nproc=2, columns=None, dtypes=None, agg=None)
+        kwargs = {
+            "chunksize": 10, "nproc": 2, "columns": None, "dtypes": None, "agg": None
+        }
         coarsen_cooler(input_uri, "test.cool", factor, **kwargs)
 
         # raise on missing value column
-        kwargs = dict(chunksize=10, nproc=2, columns=["missing"], dtypes=None, agg=None)
+        kwargs = {
+            "chunksize": 10,
+            "nproc": 2,
+            "columns": ["missing"],
+            "dtypes": None,
+            "agg": None,
+        }
         with pytest.raises(ValueError):
             coarsen_cooler(input_uri, "test.cool", factor, **kwargs)
 
 
 def test_coarsen_partitions_correctly():
-    kwargs = dict(nproc=1, columns=None, dtypes=None, agg=None)
+    kwargs = {"nproc": 1, "columns": None, "dtypes": None, "agg": None}
     with isolated_filesystem():
         f_ref = op.join(datadir, "odd.4.cool")
         f_in = op.join(datadir, "odd.1.cool")
@@ -136,7 +157,7 @@ def test_coarsen_partitions_correctly():
 
 
 def test_zoomify():
-    kwargs = dict(chunksize=10, nproc=1, columns=None, dtypes=None, agg=None)
+    kwargs = {"chunksize": 10, "nproc": 1, "columns": None, "dtypes": None, "agg": None}
     with isolated_filesystem():
         zoomify_cooler(
             op.join(datadir, "toy.asymm.2.cool"),
@@ -225,3 +246,72 @@ def test_append_mode():
                     assert "xxxx" in f.attrs
                 else:
                     assert "xxxx" not in f.attrs
+
+
+@pytest.mark.parametrize(
+    ["indexes", "bufsize", "expected"],
+    [
+        ([np.array([0, 40]), np.array([0, 60])], 99, ([0, 1], [0, 100])),
+        ([np.array([0, 0, 40]), np.array([0, 0, 60])], 99, ([0, 2], [0, 100])),
+        ([np.array([0, 0, 0, 40]), np.array([0, 0, 0, 60])], 99, ([0, 3], [0, 100])),
+        ([np.array([0, 40, 40]), np.array([0, 60, 60])], 99, ([0, 1], [0, 100])),
+        (
+            [np.array([0, 40, 40, 40]), np.array([0, 60, 60, 60])],
+            99,
+            ([0, 1], [0, 100]),
+        ),
+        (
+            [np.array([0, 40, 40, 60]), np.array([0, 60, 60, 80])],
+            99,
+            ([0, 1, 3], [0, 100, 140]),
+        ),
+        (
+            [np.array([0, 40, 40, 40, 60]), np.array([0, 60, 60, 60, 80])],
+            99,
+            ([0, 1, 4], [0, 100, 140]),
+        ),
+    ],
+)
+def test_merge_breakpoints(indexes, bufsize, expected):
+    bin1_partition, cum_nrecords = merge_breakpoints(indexes, bufsize)
+    assert bin1_partition.tolist() == expected[0]
+    assert cum_nrecords.tolist() == expected[1]
+
+
+def monotonic_index_array(length: int):
+    # Generate (length - 1) non-negative integers and append to 0
+    assert length >= 2
+    tail = arrays(
+        dtype=np.int64,
+        shape=length - 1,
+        elements=st.integers(min_value=0, max_value=100),
+    ).filter(lambda arr: np.any(arr > 0))
+    return tail.map(lambda arr: np.sort(np.concatenate([[0], arr])))
+
+
+@st.composite
+def input_strategy(draw):
+    length = draw(st.integers(min_value=2, max_value=100))
+    n_arrays = draw(st.integers(min_value=2, max_value=5))
+    indexes = [draw(monotonic_index_array(length)) for _ in range(n_arrays)]
+    nnz = sum(index[-1] for index in indexes)
+    bufsize = draw(st.integers(min_value=1, max_value=max(1, nnz)))
+    return indexes, bufsize
+
+
+@given(input_strategy())
+@settings(max_examples=200)
+def test_merge_breakpoints_fuzz(data):
+    indexes, bufsize = data
+
+    partition, cum_nrecords = merge_breakpoints(indexes, bufsize)
+
+    # Postcondition 1: Strictly increasing, no repeats
+    assert np.all(np.diff(partition) > 0), "Partition is not strictly increasing"
+    assert np.all(np.diff(cum_nrecords) > 0), "cum_nrecords is not strictly increasing"
+
+    # Postcondition 2: boundary conditions
+    assert partition[0] == 0, "partition[0] != 0"
+    assert cum_nrecords[0] == 0, "cum_nrecords[0] != 0"
+    nnz = sum(index[-1] for index in indexes)
+    assert cum_nrecords[-1] == nnz, f"cum_nrecords[-1] != {nnz}"

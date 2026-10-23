@@ -30,8 +30,8 @@ def make_annotator(bins, balanced, join, annotate, one_based_ids, one_based_star
             )
 
         if balanced:
-            df = api.annotate(chunk, bins[["weight"]])
-            chunk["balanced"] = df["weight1"] * df["weight2"] * chunk["count"]
+            df = api.annotate(chunk, bins[[balanced]])
+            chunk["balanced"] = df[f"{balanced}1"] * df[f"{balanced}2"] * chunk["count"]
 
         if join:
             chunk = api.annotate(chunk, bins[["chrom", "start", "end"]], replace=True)
@@ -127,6 +127,11 @@ def make_annotator(bins, balanced, join, annotate, one_based_ids, one_based_star
     show_default=True,
 )
 @click.option(
+    "--weight-name",
+    help="Name of the bin table column containing the balancing weights. "
+    "Implies --balanced. [default: weight]",
+)
+@click.option(
     "--join",
     help="Print the full chromosome bin coordinates instead of bin IDs. "
     "This will replace the `bin1_id` column with `chrom1`, `start1`, and "
@@ -180,6 +185,7 @@ def dump(
     range2,
     fill_lower,
     balanced,
+    weight_name,
     join,
     annotate,
     one_based_ids,
@@ -223,9 +229,11 @@ def dump(
         if chunksize is None:
             chunksize = len(bins)
 
-        if balanced and "weight" not in bins.columns:
-            print("Balancing weights not found", file=sys.stderr)
-            sys.exit(1)
+        if weight_name is not None or balanced:
+            balanced = weight_name or "weight"
+            if balanced not in bins.columns:
+                print(f"Balancing weights '{balanced}' not found", file=sys.stderr)
+                sys.exit(1)
 
         h5 = clr.open("r")
         reader = CSRReader(h5["pixels"], h5["indexes/bin1_offset"][:])
@@ -300,5 +308,4 @@ def dump(
             na_rep=na_rep,
         )
 
-    else:
-        f.flush()
+    f.flush()

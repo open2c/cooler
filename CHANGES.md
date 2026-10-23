@@ -1,5 +1,15 @@
 # Release notes #
 
+## Unreleased
+
+### Bug fixes
+* fix: Count main diagonal pixels once when computing balancing marginals. This only affects balancing with `ignore_diags=0` (`--ignore-diags 0`), whose weights will change. By @jpaggi in https://github.com/open2c/cooler/pull/471
+
+## [v0.10.4](https://github.com/open2c/cooler/compare/v0.10.3...v0.10.4)
+
+### Bug fixes
+* fix: Fix indexing in `merge_breakpoints` by @conradbzura in https://github.com/open2c/cooler/pull/468
+
 ## [v0.10.3](https://github.com/open2c/cooler/compare/v0.10.2...v0.10.3)
 
 ### Maintenance

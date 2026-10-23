@@ -38,8 +38,8 @@ def _get_group_info(path, grouppath, keys):
             {key: np.array([], dtype=grp[key].dtype) for key in keys}, columns=keys
         )
 
-        for key in categoricals:
-            meta[key] = pd.Categorical([], categories=categoricals[key], ordered=True)
+        for key, categories in categoricals.items():
+            meta[key] = pd.Categorical([], categories=categories, ordered=True)
 
     return nrows, keys, meta, categoricals
 
@@ -108,7 +108,7 @@ def read_table(group_uri, keys=None, chunksize=10_000_000, index=None, lock=None
     task_name = "daskify-h5py-table-" + token
 
     # Partition the table
-    divisions = (0,) + tuple(range(-1, nrows, chunksize))[1:]
+    divisions = (0, *tuple(range(-1, nrows, chunksize))[1:])
     if divisions[-1] != nrows - 1:
         divisions = (
             *divisions,
@@ -117,7 +117,7 @@ def read_table(group_uri, keys=None, chunksize=10_000_000, index=None, lock=None
 
     # Build the task graph
     dsk = {}
-    for i in range(0, int(ceil(nrows / chunksize))):
+    for i in range(ceil(nrows / chunksize)):
         slc = slice(i * chunksize, (i + 1) * chunksize)
         data_dict = (_slice_group, filepath, grouppath, keys, slc, lock)
         if categoricals:
