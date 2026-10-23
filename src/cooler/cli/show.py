@@ -17,10 +17,7 @@ def get_matrix_size(c, row_region, col_region):
     return ncols * nrows
 
 
-def load_matrix(c, row_region, col_region, field, balanced, scale, weights):
-    if balanced and weights != 'weight':
-        balanced = weights
-
+def load_matrix(c, row_region, col_region, field, balanced, scale):
     mat = c.matrix(balance=balanced, field=field).fetch(row_region, col_region)
 
     if scale == "log2":
@@ -181,10 +178,24 @@ def interactive(
     "--field", default="count", show_default=True, help="Pixel values to display."
 )
 @click.option(
-    "--weights", default="weight", show_default=True, help="weight column to use when --balanced = True"
+    "--weight-name",
+    help="Name of the bin table column containing the balancing weights. "
+    "Implies --balanced. [default: weight]",
 )
 def show(
-    cool_uri, range, range2, balanced, out, dpi, scale, force, zmin, zmax, cmap, field, weights
+    cool_uri,
+    range,
+    range2,
+    balanced,
+    out,
+    dpi,
+    scale,
+    force,
+    zmin,
+    zmax,
+    cmap,
+    field,
+    weight_name,
 ):
     """
     Display and browse a cooler in matplotlib.
@@ -207,6 +218,9 @@ def show(
 
     c = Cooler(cool_uri)
 
+    if weight_name is not None or balanced:
+        balanced = weight_name or "weight"
+
     chromsizes = c.chromsizes
     row_region = range
     col_region = row_region if range2 is None else range2
@@ -228,7 +242,7 @@ def show(
     plt.get_current_fig_manager().set_window_title("Contact matrix")
     plt.title("")
     plt.imshow(
-        load_matrix(c, row_region, col_region, field, balanced, scale, weights),
+        load_matrix(c, row_region, col_region, field, balanced, scale),
         interpolation="none",
         extent=[col_lo, col_hi, row_hi, row_lo],
         vmin=zmin,
