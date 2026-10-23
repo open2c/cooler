@@ -66,13 +66,14 @@ class TreeNode:
         return type(self.obj).__name__
 
     def get_children(self) -> list[TreeNode]:
-        if hasattr(self.obj, "values"):
-            if self.level is None or self.depth < self.level:
-                depth = self.depth + 1
-                children = self.obj.values()
-                return [
-                    self.__class__(o, depth=depth, level=self.level) for o in children
-                ]
+        if hasattr(self.obj, "values") and (
+            self.level is None or self.depth < self.level
+        ):
+            depth = self.depth + 1
+            children = self.obj.values()
+            return [
+                self.__class__(o, depth=depth, level=self.level) for o in children
+            ]
         return []
 
     def get_text(self) -> str:
@@ -110,7 +111,7 @@ def _is_cooler(grp: h5py.Group) -> bool:
     fmt = grp.attrs.get("format", None)
     if fmt == MAGIC:
         keys = ("chroms", "bins", "pixels", "indexes")
-        if not all(name in grp.keys() for name in keys):
+        if not all(name in grp for name in keys):
             warnings.warn(
                 f"Cooler path {grp.name} appears to be corrupt",
                 stacklevel=2,
@@ -143,11 +144,11 @@ def is_multires_file(filepath: str, min_version: int = 1) -> bool:
 
     with h5py.File(filepath) as f:
         fmt = f.attrs.get("format", None)
-        if "resolutions" in f.keys() and len(f["resolutions"].keys()) > 0:
+        if "resolutions" in f and len(f["resolutions"].keys()) > 0:
             name = next(iter(f["resolutions"].keys()))
             if fmt == "HDF5::MCOOL" and _is_cooler(f["resolutions"][name]):
                 return True
-        elif "0" in f.keys() and _is_cooler(f["0"]) and min_version < 2:
+        elif "0" in f and _is_cooler(f["0"]) and min_version < 2:
             return True
 
     return False
@@ -167,14 +168,14 @@ def is_scool_file(filepath: str) -> bool:
         fmt = f.attrs.get("format", None)
         if fmt == MAGIC_SCOOL:
             keys = ("chroms", "bins", "cells")
-            if not all(name in f.keys() for name in keys):
+            if not all(name in f for name in keys):
                 warnings.warn(
                     "Scool file appears to be corrupt",
                     stacklevel=2,
                 )
                 return False
-            if "cells" in f.keys() and len(f["cells"].keys()) > 0:
-                for cells in f["cells"].keys():
+            if "cells" in f and len(f["cells"].keys()) > 0:
+                for cells in f["cells"]:
                     if not _is_cooler(f["cells"][cells]):
                         return False
                 return True
@@ -314,7 +315,7 @@ def _copy(
                 dst[dst_group] = h5py.ExternalLink(src_path, src_group)
             else:
                 if dst_group == "/":
-                    for subgrp in src[src_group].keys():
+                    for subgrp in src[src_group]:
                         src.copy(src_group + "/" + subgrp, dst, subgrp)
                     dst[dst_group].attrs.update(src[src_group].attrs)
                 else:

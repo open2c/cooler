@@ -3,17 +3,12 @@ import os.path as op
 import shlex
 import subprocess
 import sys
+from subprocess import DEVNULL
 
 import click
 
 from ..util import cmd_exists
 from . import cli, get_logger
-
-try:
-    from subprocess import DEVNULL  # py3
-except ImportError:
-    DEVNULL = open(os.devnull, "wb")
-
 
 logger = get_logger(__name__)
 

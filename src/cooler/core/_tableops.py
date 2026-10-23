@@ -235,5 +235,5 @@ def delete(grp: h5py.Group, fields: str | list[str] | None = None) -> None:
     elif isinstance(fields, str):
         fields = [fields]
     for field in fields:
-        if field in grp.keys():
+        if field in grp:
             del grp[field]
