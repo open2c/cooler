@@ -61,14 +61,6 @@ all = [
     "psutil",
     "pysam; platform_system != 'Windows'",
 ]
-docs = [
-    "autodocsumm",
-    "m2r",
-    "recommonmark",
-    "Sphinx>=1.6",
-    "sphinx-autobuild",
-    "sphinx_rtd_theme",
-]
 
 [dependency-groups]
 test = [
@@ -82,6 +74,15 @@ dev = [
     {include-group = "test"},
     "pre-commit",
     "ruff>=0.17.2",
+]
+docs = [
+    "cooler[all]",
+    "autodocsumm",
+    "m2r",
+    "recommonmark",
+    "Sphinx>=1.6",
+    "sphinx-autobuild",
+    "sphinx_rtd_theme",
 ]
 
 [project.urls]
@@ -158,6 +159,9 @@ exclude_lines = [
     "return NotImplemented",
     "raise NotImplementedError"
 ]
+
+[tool.hatch.envs.default]
+dependency-groups = ["dev", "docs"]
 
 [tool.hatch.envs.default.scripts]
 fix = "ruff check --fix src tests"

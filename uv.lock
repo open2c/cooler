@@ -948,19 +948,6 @@ all = [
     { name = "psutil" },
     { name = "pysam", marker = "sys_platform != 'win32'" },
 ]
-docs = [
-    { name = "autodocsumm" },
-    { name = "m2r" },
-    { name = "recommonmark" },
-    { name = "sphinx", version = "7.4.7", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "sphinx", version = "8.1.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.10.*'" },
-    { name = "sphinx", version = "9.0.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.11.*'" },
-    { name = "sphinx", version = "9.1.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.12.*'" },
-    { name = "sphinx", version = "9.2.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.13'" },
-    { name = "sphinx-autobuild", version = "2024.10.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
-    { name = "sphinx-autobuild", version = "2025.8.25", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
-    { name = "sphinx-rtd-theme" },
-]
 
 [package.dev-dependencies]
 dev = [
@@ -979,6 +966,20 @@ dev = [
     { name = "pytest-cov" },
     { name = "ruff" },
 ]
+docs = [
+    { name = "autodocsumm" },
+    { name = "cooler", extra = ["all"] },
+    { name = "m2r" },
+    { name = "recommonmark" },
+    { name = "sphinx", version = "7.4.7", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "sphinx", version = "8.1.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.10.*'" },
+    { name = "sphinx", version = "9.0.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.11.*'" },
+    { name = "sphinx", version = "9.1.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.12.*'" },
+    { name = "sphinx", version = "9.2.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.13'" },
+    { name = "sphinx-autobuild", version = "2024.10.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "sphinx-autobuild", version = "2025.8.25", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "sphinx-rtd-theme" },
+]
 test = [
     { name = "coverage", version = "7.10.7", source = { registry = "https://pypi.org/simple" }, extra = ["toml"], marker = "python_full_version < '3.10'" },
     { name = "coverage", version = "7.16.2", source = { registry = "https://pypi.org/simple" }, extra = ["toml"], marker = "python_full_version == '3.10.*'" },
@@ -994,7 +995,6 @@ test = [
 [package.metadata]
 requires-dist = [
     { name = "asciitree" },
-    { name = "autodocsumm", marker = "extra == 'docs'" },
     { name = "biopython", marker = "extra == 'all'" },
     { name = "click", specifier = ">=7" },
     { name = "cytoolz" },
@@ -1002,7 +1002,6 @@ requires-dist = [
     { name = "h5py", specifier = ">=2.5" },
     { name = "ipytree", marker = "extra == 'all'", specifier = ">=0.2.2" },
     { name = "ipywidgets", marker = "extra == 'all'", specifier = ">=8.0.0" },
-    { name = "m2r", marker = "extra == 'docs'" },
     { name = "matplotlib", marker = "extra == 'all'" },
     { name = "multiprocess" },
     { name = "numpy", specifier = ">=1.26,<3" },
@@ -1011,13 +1010,9 @@ requires-dist = [
     { name = "pyfaidx" },
     { name = "pysam", marker = "sys_platform != 'win32' and extra == 'all'" },
     { name = "pyyaml" },
-    { name = "recommonmark", marker = "extra == 'docs'" },
     { name = "scipy", specifier = ">=0.16" },
-    { name = "sphinx", marker = "extra == 'docs'", specifier = ">=1.6" },
-    { name = "sphinx-autobuild", marker = "extra == 'docs'" },
-    { name = "sphinx-rtd-theme", marker = "extra == 'docs'" },
 ]
-provides-extras = ["all", "docs"]
+provides-extras = ["all"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -1028,6 +1023,15 @@ dev = [
     { name = "pytest" },
     { name = "pytest-cov" },
     { name = "ruff", specifier = ">=0.17.2" },
+]
+docs = [
+    { name = "autodocsumm" },
+    { name = "cooler", extras = ["all"] },
+    { name = "m2r" },
+    { name = "recommonmark" },
+    { name = "sphinx", specifier = ">=1.6" },
+    { name = "sphinx-autobuild" },
+    { name = "sphinx-rtd-theme" },
 ]
 test = [
     { name = "coverage", extras = ["toml"] },
