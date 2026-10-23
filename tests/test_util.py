@@ -1,5 +1,5 @@
 import os.path as op
-from io import BytesIO
+from io import BytesIO, StringIO
 
 import h5py
 import numpy as np
@@ -164,6 +164,11 @@ def test_natsort():
 
 def test_read_chromsizes():
     util.read_chromsizes(op.join(datadir, "toy.chrom.sizes"))
+
+    # space instead of tab, non-integer length
+    for bad in ["chr1\t1000\nchr2 800\n", "chr1\t1000\nchr2\t8OO\n"]:
+        with pytest.raises(ValueError, match="chr2"):
+            util.read_chromsizes(StringIO(bad))
 
 
 # def test_fetch_chromsizes():
