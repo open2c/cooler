@@ -61,18 +61,6 @@ all = [
     "psutil",
     "pysam; platform_system != 'Windows'",
 ]
-test = [
-    "coverage[toml]",
-    "isort",
-    "hypothesis",
-    "pytest",
-    "pytest-cov",
-    "ruff",
-]
-dev = [
-    "cooler[all,test]",
-    "pre-commit"
-]
 docs = [
     "autodocsumm",
     "m2r",
@@ -80,6 +68,20 @@ docs = [
     "Sphinx>=1.6",
     "sphinx-autobuild",
     "sphinx_rtd_theme",
+]
+
+[dependency-groups]
+test = [
+    "coverage[toml]",
+    "hypothesis",
+    "pytest",
+    "pytest-cov",
+]
+dev = [
+    "cooler[all]",
+    {include-group = "test"},
+    "pre-commit",
+    "ruff>=0.17.2",
 ]
 
 [project.urls]
@@ -112,6 +114,9 @@ extend-select = [
     "RUF", # ruff-specific rules
     "UP", # pyupgrade
     "W",  # style  warnings
+]
+ignore = [
+    "SIM115",  # open-file-with-context-handler: we often return/close handles later
 ]
 
 [tool.ruff.lint.isort]
@@ -161,7 +166,7 @@ test = "pytest ."
 docs = "sphinx-autobuild docs docs/_build/html"
 
 [tool.hatch.envs.test]
-features = ["dev"]
+dependency-groups = ["dev"]
 
 [[tool.hatch.envs.test.matrix]]
-python = ["3.8", "3.9", "3.10", "3.11", "3.12"]
+python = ["3.9", "3.10", "3.11", "3.12"]

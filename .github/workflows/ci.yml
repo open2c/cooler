@@ -22,14 +22,29 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v7
+      - name: Set up uv and Python ${{ matrix.python-version }}
+        uses: astral-sh/setup-uv@v10.2.0
         with:
           python-version: ${{ matrix.python-version }}
+      - name: Install dependencies from lockfile
+        run: uv sync --locked
       - name: Run tests on ${{ matrix.os }}
         run: |
-          python -m pip install --upgrade pip
-          pip install -e .[dev]
           # stop the build if there are Python syntax errors or undefined names
-          ruff check . --select=E9,F63,F7,F82
-          pytest
+          uv run --locked ruff check . --select=E9,F63,F7,F82
+          uv run --locked pytest
+
+  Test-latest-deps:
+    # Resolve the newest available dependencies, ignoring the lockfile, to catch
+    # upstream breakage before users do.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Set up uv and Python
+        uses: astral-sh/setup-uv@v10.2.0
+        with:
+          python-version: "3.12"
+      - name: Install latest dependencies
+        run: uv sync --upgrade
+      - name: Run tests
+        run: uv run --frozen pytest

@@ -98,34 +98,53 @@ def test_merge2():
 )
 def test_coarsen(input_uri, factor, ref_uri):
     with isolated_filesystem():
-        kwargs = dict(chunksize=10, nproc=1, columns=None, dtypes=None, agg=None)
+        kwargs = {
+            "chunksize": 10, "nproc": 1, "columns": None, "dtypes": None, "agg": None
+        }
         coarsen_cooler(input_uri, "test.cool", factor, **kwargs)
         cooler_cmp("test.cool", ref_uri)
 
         # custom dtype
-        kwargs = dict(chunksize=10, nproc=1, columns=None, dtypes={"count": np.float64})
+        kwargs = {
+            "chunksize": 10,
+            "nproc": 1,
+            "columns": None,
+            "dtypes": {"count": np.float64},
+        }
         coarsen_cooler(input_uri, "test.cool", factor, **kwargs)
         with h5py.File("test.cool", "r") as f:
             assert f["pixels/count"].dtype.kind == "f"
 
         # custom aggregator
-        kwargs = dict(
-            chunksize=10, nproc=1, columns=None, dtypes=None, agg={"count": "mean"}
-        )
+        kwargs = {
+            "chunksize": 10,
+            "nproc": 1,
+            "columns": None,
+            "dtypes": None,
+            "agg": {"count": "mean"},
+        }
         coarsen_cooler(input_uri, "test.cool", factor, **kwargs)
 
         # parallel
-        kwargs = dict(chunksize=10, nproc=2, columns=None, dtypes=None, agg=None)
+        kwargs = {
+            "chunksize": 10, "nproc": 2, "columns": None, "dtypes": None, "agg": None
+        }
         coarsen_cooler(input_uri, "test.cool", factor, **kwargs)
 
         # raise on missing value column
-        kwargs = dict(chunksize=10, nproc=2, columns=["missing"], dtypes=None, agg=None)
+        kwargs = {
+            "chunksize": 10,
+            "nproc": 2,
+            "columns": ["missing"],
+            "dtypes": None,
+            "agg": None,
+        }
         with pytest.raises(ValueError):
             coarsen_cooler(input_uri, "test.cool", factor, **kwargs)
 
 
 def test_coarsen_partitions_correctly():
-    kwargs = dict(nproc=1, columns=None, dtypes=None, agg=None)
+    kwargs = {"nproc": 1, "columns": None, "dtypes": None, "agg": None}
     with isolated_filesystem():
         f_ref = op.join(datadir, "odd.4.cool")
         f_in = op.join(datadir, "odd.1.cool")
@@ -138,7 +157,7 @@ def test_coarsen_partitions_correctly():
 
 
 def test_zoomify():
-    kwargs = dict(chunksize=10, nproc=1, columns=None, dtypes=None, agg=None)
+    kwargs = {"chunksize": 10, "nproc": 1, "columns": None, "dtypes": None, "agg": None}
     with isolated_filesystem():
         zoomify_cooler(
             op.join(datadir, "toy.asymm.2.cool"),

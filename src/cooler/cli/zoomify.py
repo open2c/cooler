@@ -43,7 +43,7 @@ def invoke_balance(args, resolutions, outfile):
                 exit_code = 0
 
             if exit_code != 0:
-                raise e
+                raise
 
 
 @cli.command()
@@ -156,9 +156,8 @@ def zoomify(
 
             for level, res in reversed(list(zoom_levels.items())):
                 uri = outfile + "::" + str(level)
-                if level == str(n_zooms):
-                    if "weight" in api.Cooler(uri).bins():
-                        continue
+                if level == str(n_zooms) and "weight" in api.Cooler(uri).bins():
+                    continue
                 logger.info(f"Balancing zoom level {level}, bin size {res}")
                 try:
                     balance_cmd.main(args=[uri, *balance_args], prog_name="cooler")
@@ -170,7 +169,7 @@ def zoomify(
                         exit_code = 0
 
                     if exit_code != 0:
-                        raise e
+                        raise
 
     else:
         clr = api.Cooler(cool_uri)

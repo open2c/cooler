@@ -357,7 +357,7 @@ def load(
         ensure_sorted=False,
         # boundscheck=True,
         # dupcheck=True,
-        triucheck=True if symmetric_upper else False,
+        triucheck=bool(symmetric_upper),
         symmetric_upper=symmetric_upper,
         h5opts=h5opts,
         mode="a" if append else "w",

@@ -308,5 +308,4 @@ def dump(
             na_rep=na_rep,
         )
 
-    else:
-        f.flush()
+    f.flush()
