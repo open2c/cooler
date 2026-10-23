@@ -23,7 +23,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Set up uv and Python ${{ matrix.python-version }}
-        uses: astral-sh/setup-uv@v10
+        uses: astral-sh/setup-uv@v10.2.0
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install dependencies from lockfile
@@ -41,7 +41,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Set up uv and Python
-        uses: astral-sh/setup-uv@v10
+        uses: astral-sh/setup-uv@v10.2.0
         with:
           python-version: "3.12"
       - name: Install latest dependencies
