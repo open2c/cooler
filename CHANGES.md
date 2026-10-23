@@ -4,6 +4,7 @@
 
 ### Bug fixes
 * fix: Count main diagonal pixels once when computing balancing marginals. This only affects balancing with `ignore_diags=0` (`--ignore-diags 0`), whose weights will change. By @jpaggi in https://github.com/open2c/cooler/pull/471
+* fix: `cooler balance --blacklist` no longer fails on single-line or empty BED files, and skips header, track and browser lines. By @ShigrafS in https://github.com/open2c/cooler/pull/462
 
 ## [v0.10.4](https://github.com/open2c/cooler/compare/v0.10.3...v0.10.4)
 

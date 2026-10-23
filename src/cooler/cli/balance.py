@@ -208,18 +208,29 @@ def balance(
     logger.info(f'Balancing "{cool_uri}"')
     clr = Cooler(cool_uri)
 
+    bad_bins = None
     if blacklist is not None:
-        import csv
-
-        with open(blacklist) as f:
+        try:
             bad_regions = pd.read_csv(
                 blacklist,
                 sep="\t",
-                header=0 if csv.Sniffer().has_header(f.read(1024)) else None,
+                header=None,
                 usecols=[0, 1, 2],
                 names=["chrom", "start", "end"],
-                dtype={"chrom": str},
+                dtype=str,
+                comment="#",
             )
+        except pd.errors.EmptyDataError:
+            bad_regions = pd.DataFrame(columns=["chrom", "start", "end"])
+
+        # Drop header, track and browser lines: any row without integer coords
+        coords = bad_regions[["start", "end"]].apply(pd.to_numeric, errors="coerce")
+        is_record = coords.notna().all(axis=1)
+        bad_regions = bad_regions[is_record].assign(
+            start=coords["start"][is_record].astype(int),
+            end=coords["end"][is_record].astype(int),
+        )
+
         bins_grouped = clr.bins()[:].groupby("chrom", observed=True)
         chromsizes = clr.chromsizes
 
@@ -227,9 +238,7 @@ def balance(
         for _, reg in bad_regions.iterrows():
             result = bedslice(bins_grouped, chromsizes, (reg.chrom, reg.start, reg.end))
             bad_bins.append(result.index.values)
-        bad_bins = np.concatenate(bad_bins)
-    else:
-        bad_bins = None
+        bad_bins = np.concatenate(bad_bins) if bad_bins else None
 
     if ignore_dist is not None:
         ignore_diags = max(ignore_diags, int(np.ceil(ignore_dist / clr.binsize)))
