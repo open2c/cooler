@@ -1,5 +1,21 @@
 # Release notes #
 
+## [Unreleased]
+
+### Bug fixes
+* fix: Retry `h5py.File` opens on `BlockingIOError` in the `create`/`coarsen`/`balance`
+  write paths, to tolerate transient HDF5 file-locking failures on some
+  NFS-mounted filesystems (e.g. `cooler zoomify --balance -p N>1`). The
+  `zoomify`/`balance` help text now also documents the
+  `HDF5_USE_FILE_LOCKING=FALSE` environment variable as a workaround.
+  Fixes #486.
+  * Note for future work: the retry is a targeted mitigation, not a fix for
+    the underlying cause of the lock churn. `write_pixels()` in
+    `cooler/create/_create.py` opens and closes the output file once per
+    pixel chunk; holding a single file handle open across the whole write
+    loop instead would reduce lock-acquisition frequency at the source and
+    is a more thorough (but riskier, performance-path-touching) follow-up.
+
 ## [v0.10.4](https://github.com/open2c/cooler/compare/v0.10.3...v0.10.4)
 
 ### Bug fixes

@@ -23,6 +23,7 @@ from ..util import (
     get_chromsizes,
     get_meta,
     infer_meta,
+    open_hdf5_with_retry,
     parse_cooler_uri,
     rlencode,
 )
@@ -243,7 +244,16 @@ def write_pixels(
 
             logger.debug(f"writing chunk {i}")
 
-            with h5py.File(filepath, "r+") as fw:
+            # This opens and closes the file once per chunk, which on an
+            # NFS-mounted file means one lock-acquire/release cycle per
+            # chunk -- for the finest/largest resolution (most chunks) this
+            # is the actual source of the transient BlockingIOErrors that
+            # open_hdf5_with_retry works around below. Holding a single
+            # open handle across the whole write loop instead (still
+            # bounded by `lock`) would cut lock-acquisition frequency at
+            # the source rather than just tolerating its failures -- left
+            # as follow-up work (see CHANGES.md).
+            with open_hdf5_with_retry(filepath, "r+") as fw:
                 grp = fw[grouppath]
                 dsets = [grp[col] for col in columns]
 
@@ -609,7 +619,7 @@ def create(
         iterable = map(validator, iterable)
 
     # Create root group
-    with h5py.File(file_path, mode) as f:
+    with open_hdf5_with_retry(file_path, mode) as f:
         logger.info(f'Creating cooler at "{file_path}::{group_path}"')
         if group_path == "/":
             for name in ["chroms", "bins", "pixels", "indexes"]:
@@ -627,7 +637,10 @@ def create(
         src_path, _src_group = parse_cooler_uri(scool_root_uri)
         dst_path, dst_group = parse_cooler_uri(cool_uri)
 
-        with h5py.File(src_path, "r+") as src, h5py.File(dst_path, "r+") as dst:
+        with (
+            open_hdf5_with_retry(src_path, "r+") as src,
+            open_hdf5_with_retry(dst_path, "r+") as dst,
+        ):
             dst[dst_group]["chroms"] = src["chroms"]
 
             # hard link to root bins table, but only the three main datasets
@@ -642,7 +655,7 @@ def create(
                 columns.remove(col)
             if columns:
                 put(dst[dst_group]["bins"], bins[columns])
-        with h5py.File(file_path, "r+") as f:
+        with open_hdf5_with_retry(file_path, "r+") as f:
             h5 = f[group_path]
             grp = h5.create_group("pixels")
             if symmetric_upper:
@@ -653,7 +666,7 @@ def create(
                 grp, n_bins, max_size, meta.columns, dict(meta.dtypes), h5opts
             )
     else:
-        with h5py.File(file_path, "r+") as f:
+        with open_hdf5_with_retry(file_path, "r+") as f:
             h5 = f[group_path]
 
             logger.info("Writing chroms")
@@ -687,7 +700,7 @@ def create(
     )
 
     # Write indexes
-    with h5py.File(file_path, "r+") as f:
+    with open_hdf5_with_retry(file_path, "r+") as f:
         h5 = f[group_path]
 
         logger.info("Writing indexes")
