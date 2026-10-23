@@ -1,9 +1,9 @@
+import json
 import sys
 
 import click
 import numpy as np
 import pandas as pd
-import simplejson as json
 
 from ..create import (
     BIN_DTYPE,

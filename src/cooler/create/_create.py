@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import os.path as op
 import posixpath
@@ -12,7 +13,6 @@ from typing import Any
 import h5py
 import numpy as np
 import pandas as pd
-import simplejson as json
 
 from .._logging import get_logger
 from .._typing import Tabular

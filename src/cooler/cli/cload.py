@@ -1,10 +1,10 @@
+import json
 import sys
 
 import click
 import h5py
 import numpy as np
 import pandas as pd
-import simplejson as json
 from cytoolz import compose
 from multiprocess import Pool
 
