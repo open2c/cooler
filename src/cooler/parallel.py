@@ -16,7 +16,7 @@ from .api import Cooler
 from .core import get
 from .util import partition
 
-__all__ = ["lock", "partition", "split"]
+__all__ = ["get_lock", "partition", "split"]
 
 """
 Two possible reasons for using a lock
@@ -45,7 +45,32 @@ See also:
 * <https://github.com/h5py/h5py/issues/591#issuecomment-116785660>.
 
 """
-lock = Lock()
+_lock = None
+
+
+def get_lock() -> Any:
+    """
+    Return the global lock used to synchronize HDF5 file access between
+    processes.
+
+    The lock is created on first use rather than on import, so that cooler can
+    be imported in environments that don't support process-shared semaphores
+    (e.g. AWS Lambda). To share it with fork-based worker processes, call this
+    before creating the process pool.
+
+    """
+    global _lock
+    if _lock is None:
+        _lock = Lock()
+    return _lock
+
+
+def __getattr__(name: str) -> Any:
+    # Keep `cooler.parallel.lock` working, but create it lazily
+    if name == "lock":
+        return get_lock()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
 
 KeyType = Any
 
@@ -289,8 +314,9 @@ class chunkgetter:
     def __call__(self, span: tuple[int, int]) -> dict[str, Any]:
         lo, hi = span
         chunk = {}
+        lock = get_lock() if self.use_lock else None
         try:
-            if self.use_lock:
+            if lock is not None:
                 lock.acquire()
             with self.cooler.open("r") as grp:
                 if self.include_chroms:
@@ -299,7 +325,7 @@ class chunkgetter:
                     chunk["bins"] = get(grp["bins"], as_dict=True)
                 chunk["pixels"] = get(grp["pixels"], lo, hi, as_dict=True)
         finally:
-            if self.use_lock:
+            if lock is not None:
                 lock.release()
         return chunk
 

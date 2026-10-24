@@ -17,7 +17,7 @@ from ._typing import MapFunctor
 from ._version import __format_version_mcool__
 from .api import Cooler
 from .create import ContactBinner, create
-from .parallel import lock
+from .parallel import get_lock
 from .util import GenomeSegmentation, parse_cooler_uri
 
 __all__ = ["coarsen_cooler", "merge_coolers", "zoomify_cooler"]
@@ -633,11 +633,11 @@ class CoolerCoarsener(ContactBinner):
         for i in range(0, len(spans), batchsize):
             try:
                 if batchsize > 1:
-                    lock.acquire()
+                    get_lock().acquire()
                 results = self._map(self.aggregate, spans[i : i + batchsize])
             finally:
                 if batchsize > 1:
-                    lock.release()
+                    get_lock().release()
             for df in results:
                 yield {k: v.values for k, v in df.items()}
 
@@ -718,8 +718,8 @@ def coarsen_cooler(
     try:
         # Note: fork before opening to prevent inconsistent global HDF5 state
         if nproc > 1:
+            kwargs.setdefault("lock", get_lock())
             pool = mp.Pool(nproc)
-            kwargs.setdefault("lock", lock)
 
         iterator = CoolerCoarsener(
             base_uri,

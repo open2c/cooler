@@ -1,4 +1,6 @@
 import os.path as op
+import subprocess
+import sys
 from operator import add
 
 import cooler
@@ -66,3 +68,30 @@ def test_split():
     clr = cooler.Cooler(path)
     parallel.split(clr, map, chunksize=2)
     parallel.split(clr, map, spans=[(0, 2), (2, 4)])
+
+
+def test_lock_is_lazy():
+    assert parallel.get_lock() is parallel.get_lock()
+    assert parallel.lock is parallel.get_lock()
+
+
+def test_import_without_semaphores():
+    # Simulate environments without process-shared semaphores, like AWS Lambda
+    script = """
+import errno
+import multiprocess.synchronize as sync
+
+def _no_semaphores(self, *args, **kwargs):
+    raise OSError(errno.ENOSYS, "Function not implemented")
+
+sync.SemLock.__init__ = _no_semaphores
+
+import cooler
+import cooler.parallel
+
+assert cooler.parallel._lock is None
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", script], check=False, capture_output=True, text=True
+    )
+    assert result.returncode == 0, result.stderr
