@@ -295,8 +295,8 @@ class CSRReader:
 
         # Concatenate outputs
         if len(result["bin1_id"]):
-            for key in result.keys():
-                result[key] = np.concatenate(result[key], axis=0)
+            for key, arrays in result.items():
+                result[key] = np.concatenate(arrays, axis=0)
 
             if reflect:
                 to_duplex = (result["bin1_id"] != result["bin2_id"]) & (
@@ -558,8 +558,8 @@ class FillLowerRangeQuery2D(BaseRangeQuery2D):
             raise ValueError("This shouldn't happen.")
 
         self.tasks = []
-        for fetcher, bbox in zip(fetchers, self._bboxes):
-            spans = self.reader.get_spans(bbox, chunksize)
+        for fetcher, box in zip(fetchers, self._bboxes):
+            spans = self.reader.get_spans(box, chunksize)
             self.tasks += [
-                (fetcher, field, bbox, span, True, return_index) for span in spans
+                (fetcher, field, box, span, True, return_index) for span in spans
             ]

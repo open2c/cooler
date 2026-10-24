@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import os.path as op
 import posixpath
@@ -12,7 +13,6 @@ from typing import Any
 import h5py
 import numpy as np
 import pandas as pd
-import simplejson as json
 
 from .._logging import get_logger
 from .._typing import Tabular
@@ -457,7 +457,7 @@ def _set_h5opts(h5opts: dict[str, Any]) -> dict[str, Any]:
         "fillvalue",
         "track_times",
     }
-    for key in result.keys():
+    for key in result:
         if key not in available_opts:
             raise ValueError(f"Unknown storage option '{key}'.")
     result.setdefault("compression", "gzip")
@@ -513,7 +513,7 @@ def create(
     h5opts = _set_h5opts(h5opts)
 
     if not isinstance(bins, pd.DataFrame):
-        raise ValueError(
+        raise ValueError(  # noqa: TRY004
             "Second positional argument must be a pandas DataFrame. "
             "Note that the `chromsizes` argument is now deprecated: "
             "see documentation for `create`."
@@ -624,7 +624,7 @@ def create(
 
     # Write chroms, bins and pixels
     if append_scool:
-        src_path, src_group = parse_cooler_uri(scool_root_uri)
+        src_path, _src_group = parse_cooler_uri(scool_root_uri)
         dst_path, dst_group = parse_cooler_uri(cool_uri)
 
         with h5py.File(src_path, "r+") as src, h5py.File(dst_path, "r+") as dst:
@@ -894,7 +894,7 @@ def append(
                     i += len(chunk)
         elif chunked:
             # iterate over chunks from each column
-            for key in data.keys():
+            for key in data:
                 i = 0
                 for chunk in data[key]:
                     try:
@@ -1239,39 +1239,13 @@ def create_scool(
     n_chroms = len(chroms)
     n_bins = len(bins)
 
-    # Create root group (updated)
-    bins_identical = False
+    # Create root group
     with h5py.File(file_path, mode) as f:
         logger.info(f'Creating cooler at "{file_path}::{group_path}"')
-        if group_path in f:
-            grp = f[group_path]
-            # Check if a bins group already exists
-            if "bins" in grp:
-                # Read the existing bins datasets
-                existing_chrom = grp["bins/chrom"][()]
-                existing_start = grp["bins/start"][()]
-                existing_end = grp["bins/end"][()]
-                # If stored as bytes, decode to string
-                if existing_chrom.dtype.kind == "S":
-                    existing_chrom = np.char.decode(existing_chrom, "utf-8")
-                existing_bins = pd.DataFrame({
-                    "chrom": existing_chrom,
-                    "start": existing_start,
-                    "end": existing_end,
-                }).reset_index(drop=True)
-                new_bins = bins[["chrom", "start", "end"]].reset_index(drop=True)
-                if existing_bins.equals(new_bins):
-                    logger.info(
-                        "Existing bins are identical; skipping bins re-creation."
-                    )
-                    bins_identical = True
-                else:
-                    logger.info("Bins differ; re-creating bins group.")
-                    del grp["bins"]
-            # Always re-create chroms for consistency
-            # (or add a similar check if desired)
-            if "chroms" in grp:
-                del grp["chroms"]
+        if group_path == "/":
+            for name in ["chroms", "bins"]:
+                if name in f:
+                    del f[name]
         else:
             try:
                 f.create_group(group_path)
@@ -1279,22 +1253,20 @@ def create_scool(
                 del f[group_path]
                 f.create_group(group_path)
 
-    # Write chroms and bins
     with h5py.File(file_path, "r+") as f:
         h5 = f[group_path]
+
         logger.info("Writing chroms")
         grp = h5.create_group("chroms")
         write_chroms(grp, chroms, h5opts)
-        if not bins_identical:
-            logger.info("Writing bins")
-            grp = h5.create_group("bins")
-            write_bins(grp, bins, chroms["name"], h5opts)
-        else:
-            logger.info("Skipping writing bins since they are identical.")
 
-    # Write info
+        logger.info("Writing bins")
+        grp = h5.create_group("bins")
+        write_bins(grp, bins, chroms["name"], h5opts)
+
     with h5py.File(file_path, "r+") as f:
         h5 = f[group_path]
+
         logger.info("Writing info")
         info = {}
         info["bin-type"] = "fixed" if binsize is not None else "variable"
@@ -1310,7 +1282,11 @@ def create_scool(
 
     # Append single cells
     for key in cell_names:
-        cell_name = key.split("/")[-1] if "/" in key else key
+        if "/" in key:
+            cell_name = key.split("/")[-1]
+        else:
+            cell_name = key
+
         create(
             cool_uri + "::/cells/" + cell_name,
             bins_dict[key],

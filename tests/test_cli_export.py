@@ -1,4 +1,5 @@
 import os.path as op
+import shutil
 from io import StringIO
 
 import numpy as np
@@ -111,9 +112,43 @@ def test_dump():
         assert np.allclose(lower1, lower2)
 
 
+def test_dump_weight_name():
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        shutil.copy(op.join(datadir, "toy.symm.upper.2.cool"), "test.cool")
+        n_bins = cooler.Cooler("test.cool").info["nbins"]
+        cooler.create.append(
+            "test.cool", "bins", {"custom": np.full(n_bins, 2.0)}, force=True
+        )
+
+        # --weight-name implies --balanced
+        result = runner.invoke(dump, ["test.cool", "-H", "--weight-name", "custom"])
+        assert result.exit_code == 0
+        pixels = pd.read_csv(StringIO(result.output), sep="\t")
+        assert np.allclose(pixels["balanced"], 4 * pixels["count"])
+
+        result = runner.invoke(dump, ["test.cool", "--weight-name", "doesnotexist"])
+        assert result.exit_code == 1
+
+
 def test_show():
     runner = CliRunner()
     with runner.isolated_filesystem():
         f_in = op.join(datadir, "toy.symm.upper.2.cool")
         result = runner.invoke(show, [f_in, "chr1", "-o", "bla"])
         assert result.exit_code == 0
+
+        shutil.copy(f_in, "test.cool")
+        n_bins = cooler.Cooler("test.cool").info["nbins"]
+        cooler.create.append(
+            "test.cool", "bins", {"custom": np.full(n_bins, 2.0)}, force=True
+        )
+        result = runner.invoke(
+            show, ["test.cool", "chr1", "-o", "bla", "--weight-name", "custom"]
+        )
+        assert result.exit_code == 0
+
+        result = runner.invoke(
+            show, ["test.cool", "chr1", "-o", "bla", "--weight-name", "doesnotexist"]
+        )
+        assert result.exit_code != 0

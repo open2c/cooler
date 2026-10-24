@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-#
 # cooler documentation build configuration file, created by
 # sphinx-quickstart on Sun Jan 17 11:53:23 2016.
 #

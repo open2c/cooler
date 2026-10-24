@@ -87,7 +87,7 @@ def merge_breakpoints(
     # many records would be processed at each merge epoch.
     # NOTE: We sum these incrementally in case the indexes are lazy to avoid
     # loading all indexes into memory at once.
-    combined_index = np.zeros(indexes[0].shape)
+    combined_index = np.zeros(indexes[0].shape, dtype=np.int64)
     for i in range(len(indexes)):
         combined_index += indexes[i]
     combined_start = 0
@@ -102,13 +102,9 @@ def merge_breakpoints(
             combined_index,
             min(combined_start + bufsize, combined_nnz),
             lo=lo
-        ) - 1
+        )
 
-        if hi == lo:
-            # This means number of records to nearest mark exceeds `bufsize`.
-            # Check for oversized chunks afterwards.
-            hi += 1
-
+        hi = min(hi, len(combined_index) - 1)
         bin1_partition.append(hi)
         cum_nrecords.append(combined_index[hi])
 
@@ -318,7 +314,7 @@ def _greedy_prune_partition(edges: np.ndarray, maxlen: int) -> np.ndarray:
     edges = np.asarray(edges)
     assert len(edges) >= 2 and edges[0] == 0
     cumlen = np.r_[0, np.cumsum(np.diff(edges))]
-    cuts = [maxlen * i for i in range(0, int(np.ceil(cumlen[-1] / maxlen)))]
+    cuts = [maxlen * i for i in range(int(np.ceil(cumlen[-1] / maxlen)))]
     cuts.append(cumlen[-1])
     idx = np.unique(np.searchsorted(cumlen, cuts))
     return edges[idx]
@@ -346,7 +342,7 @@ def get_quadtree_depth(
     n_tiles = math.ceil(total_bp / tile_length_bp)
 
     # number of aggregation levels required to reach a single tile
-    n_zoom_levels = int(math.ceil(np.log2(n_tiles)))
+    n_zoom_levels = math.ceil(np.log2(n_tiles))
 
     return n_zoom_levels
 
@@ -432,7 +428,7 @@ def preferred_sequence(
     elif style == "nice":
         gen = niceprog(start)
     else:
-        ValueError(f"Expected style value of 'binary' or 'nice'; got '{style}'.")
+        raise ValueError(f"Expected style value of 'binary' or 'nice'; got '{style}'.")
 
     seq = [next(gen)]
     while True:
@@ -556,7 +552,7 @@ class CoolerCoarsener(ContactBinner):
         # edges of this partition to make bigger groups of pixels. This way
         # we ensure that none of the original groups gets split.
         edges = []
-        for _chrom, i in self.gs.idmap.items():
+        for i in self.gs.idmap.to_numpy():
             # Respect chrom1 boundaries
             c0 = self.old_chrom_offset[i]
             c1 = self.old_chrom_offset[i + 1]

@@ -1,5 +1,5 @@
 import os.path as op
-from io import BytesIO
+from io import BytesIO, StringIO
 
 import h5py
 import numpy as np
@@ -165,6 +165,11 @@ def test_natsort():
 def test_read_chromsizes():
     util.read_chromsizes(op.join(datadir, "toy.chrom.sizes"))
 
+    # space instead of tab, non-integer length
+    for bad in ["chr1\t1000\nchr2 800\n", "chr1\t1000\nchr2\t8OO\n"]:
+        with pytest.raises(ValueError, match="chr2"):
+            util.read_chromsizes(StringIO(bad))
+
 
 # def test_fetch_chromsizes():
 #     util.fetch_chromsizes("hg19")
@@ -267,15 +272,13 @@ def test_hdf5_contextmanagers():
     assert f.id
 
     # can't change mode on open file
-    with pytest.raises(ValueError):
-        with util.open_hdf5(f, "r+"):
-            pass
+    with pytest.raises(ValueError), util.open_hdf5(f, "r+"):
+        pass
 
     # not allowed on open files
     for mode in ["w", "w-", "x"]:
-        with pytest.raises(ValueError):
-            with util.open_hdf5(f, mode):
-                pass
+        with pytest.raises(ValueError), util.open_hdf5(f, mode):
+            pass
 
     # group's parent file gets closed on teardown
     with util.closing_hdf5(f["chroms"]):

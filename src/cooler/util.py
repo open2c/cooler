@@ -189,7 +189,7 @@ def parse_region(
     return chrom, start, end
 
 
-def natsort_key(s: str, _NS_REGEX=re.compile(r"(\d+)", re.U)) -> tuple:
+def natsort_key(s: str, _NS_REGEX=re.compile(r"(\d+)", re.UNICODE)) -> tuple:
     return tuple([int(x) if x.isdigit() else x for x in _NS_REGEX.split(s) if x])
 
 
@@ -247,6 +247,16 @@ def read_chromsizes(
         dtype={"name": str},
         **kwargs,
     )
+    lengths = pd.to_numeric(chromtable["length"], errors="coerce")
+    invalid = lengths.isna() | (lengths % 1 != 0)
+    if invalid.any():
+        bad_rows = chromtable[invalid].head()
+        raise ValueError(
+            "Chromsizes file must have two tab-separated columns: sequence name "
+            "and integer length. Could not parse the following rows:\n"
+            + bad_rows.to_string(index=False, header=False)
+        )
+    chromtable["length"] = lengths.astype(np.int64)
     if not all_names:
         parts = []
         for pattern in name_patterns:
