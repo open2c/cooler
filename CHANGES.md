@@ -8,6 +8,7 @@
 * fix: `read_chromsizes` raises a clear error for malformed rows (e.g. spaces instead of tabs) instead of failing later with a cryptic error. By @ShigrafS in https://github.com/open2c/cooler/pull/458
 * fix: Appending cells to an scool file with `create_scool(..., mode="a")` reuses the existing bin table instead of writing a new copy each time, raises an error if the bin table differs, and keeps the `ncells` count correct. By @Snowman-cpu and @nvictus in https://github.com/open2c/cooler/pull/457
 * fix: Wait for worker processes to exit after parallel `balance`, `coarsen`/`zoomify` and `cload` runs, so no lingering workers can hold HDF5 file locks. By @nvictus in https://github.com/open2c/cooler/pull/495
+* fix: `cooler` can be imported in environments without process-shared semaphores, such as AWS Lambda (#329). The global lock in `cooler.parallel` is now created on first use; `cooler.parallel.lock` still works, and `cooler.parallel.get_lock()` is the preferred accessor. By @nvictus in https://github.com/open2c/cooler/pull/497
 
 ## [v0.10.4](https://github.com/open2c/cooler/compare/v0.10.3...v0.10.4)
 
