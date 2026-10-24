@@ -270,6 +270,7 @@ def balance(
     finally:
         if nproc > 1:
             pool.close()
+            pool.join()
 
     if not np.all(stats["converged"]):
         logger.error("Iteration limit reached without convergence")

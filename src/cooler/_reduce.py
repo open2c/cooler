@@ -747,6 +747,7 @@ def coarsen_cooler(
     finally:
         if nproc > 1:
             pool.close()
+            pool.join()
 
 
 def zoomify_cooler(

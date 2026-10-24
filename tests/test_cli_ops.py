@@ -1,5 +1,6 @@
 import os.path as op
 
+import multiprocess as mp
 import numpy as np
 import pandas as pd
 from click.testing import CliRunner
@@ -129,6 +130,8 @@ def test_balance():
             ],
         )
         assert result.exit_code == 0
+        # worker processes have exited
+        assert not mp.active_children()
 
         # convergence
         result = runner.invoke(
