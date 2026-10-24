@@ -1,6 +1,10 @@
 # Release notes #
 
-## Unreleased
+## [v0.11.0](https://github.com/open2c/cooler/compare/v0.10.4...v0.11.0)
+
+### New features
+* `cooler show` and `cooler dump` accept `--weight-name` to select a balancing weight column other than `weight` (implies `--balanced`). By @dmalzl and @nvictus in https://github.com/open2c/cooler/pull/472
+* `cooler.parallel.get_lock()` returns the global multiprocessing lock, creating it on first use. By @nvictus in https://github.com/open2c/cooler/pull/497
 
 ### Bug fixes
 * fix: Count main diagonal pixels once when computing balancing marginals. This only affects balancing with `ignore_diags=0` (`--ignore-diags 0`), whose weights will change. By @jpaggi in https://github.com/open2c/cooler/pull/471
@@ -9,6 +13,22 @@
 * fix: Appending cells to an scool file with `create_scool(..., mode="a")` reuses the existing bin table instead of writing a new copy each time, raises an error if the bin table differs, and keeps the `ncells` count correct. By @Snowman-cpu and @nvictus in https://github.com/open2c/cooler/pull/457
 * fix: Wait for worker processes to exit after parallel `balance`, `coarsen`/`zoomify` and `cload` runs, so no lingering workers can hold HDF5 file locks. By @nvictus in https://github.com/open2c/cooler/pull/495
 * fix: `cooler` can be imported in environments without process-shared semaphores, such as AWS Lambda (#329). The global lock in `cooler.parallel` is now created on first use; `cooler.parallel.lock` still works, and `cooler.parallel.get_lock()` is the preferred accessor. By @nvictus in https://github.com/open2c/cooler/pull/497
+* fix: `cooler show` no longer blurs heatmaps by interpolating between pixels.
+* fix: The process info logged at exit with `-vv` is limited to a small set of attributes that are stable across psutil versions and platforms. It no longer includes environment variables, which could leak secrets into logs. By @nvictus in https://github.com/open2c/cooler/pull/498
+
+### Behavior changes
+* Balancing weights computed with `ignore_diags=0` will differ from previous versions (#471).
+* `read_chromsizes` raises an error for malformed rows that were previously dropped or misparsed (#458).
+* Appending cells with a different bin table to an existing scool file now raises an error (#457).
+
+### Maintenance
+* Removed the `simplejson` dependency in favor of the standard library `json` module. By @a-detiste in https://github.com/open2c/cooler/pull/454
+* Development tooling moved to uv and PEP 735 dependency groups, with a committed `uv.lock`. The `cooler[test]`, `cooler[dev]` and `cooler[docs]` extras are removed; use `uv sync` or `pip install -e .[all] --group dev` instead. https://github.com/open2c/cooler/pull/489, https://github.com/open2c/cooler/pull/491
+* Upgraded ruff to v0.17 and fixed new lint findings, including a missing `raise` in `preferred_sequence`. https://github.com/open2c/cooler/pull/489
+
+### Documentation
+* Documented that genomic coordinates and range strings are zero-based and half-open. https://github.com/open2c/cooler/pull/496
+* Clarified which compression formats `cooler cload pairs` accepts. By @sapunyangkut in https://github.com/open2c/cooler/pull/483
 
 ## [v0.10.4](https://github.com/open2c/cooler/compare/v0.10.3...v0.10.4)
 

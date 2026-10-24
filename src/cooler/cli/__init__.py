@@ -23,63 +23,19 @@ def setup_psutil_at_exit(logger):
         logger.warning("Install psutil to see process information.")
         return
 
-    attrs_available = {
-        x
-        for x in dir(psutil.Process)
-        if not x.startswith("_")
-        and x
-        not in {
-            "send_signal",
-            "suspend",
-            "resume",
-            "terminate",
-            "kill",
-            "wait",
-            "is_running",
-            "as_dict",
-            "parent",
-            "parents",
-            "children",
-            "rlimit",
-            "memory_info_ex",
-            "oneshot",
-        }
-    }
-
+    # A small set of attributes available on all platforms and stable across
+    # psutil releases. Avoid `environ`, which can leak secrets into logs.
     attrs = [
-        "cmdline",
-        # "connections",
-        "cpu_affinity",
-        "cpu_num",
-        "cpu_percent",
-        "cpu_times",
-        "create_time",
-        "cwd",
-        "environ",
-        "exe",
-        "gids",
-        "io_counters",
-        "ionice",
-        "memory_full_info",
-        "memory_info",
-        "memory_maps",
-        "memory_percent",
-        "name",
-        "nice",
-        "num_ctx_switches",
-        "num_fds",
-        "num_threads",
-        "open_files",
         "pid",
         "ppid",
+        "name",
+        "cmdline",
         "status",
-        "terminal",
-        # "threads",  # RuntimeError on MacOS Big Sur
-        "uids",
-        "username",
+        "create_time",
+        "cpu_times",
+        "memory_info",
+        "num_threads",
     ]
-
-    attrs = [attr for attr in attrs if attr in attrs_available]
 
     @atexit.register
     def process_dump_at_exit():
