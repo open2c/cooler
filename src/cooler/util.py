@@ -77,14 +77,16 @@ def parse_humanized(s: str) -> int:
 
 def parse_region_string(s: str) -> tuple[str, int | None, int | None]:
     """
-    Parse a UCSC-style genomic region string into a triple.
+    Parse a genomic region string into a triple.
 
     Parameters
     ----------
     s : str
-        UCSC-style string, e.g. "chr5:10,100,000-30,000,000". Ensembl and FASTA
-        style sequence names are allowed. End coordinate must be greater than
-        or equal to start.
+        Region string of the form ``chrom:start-end``, e.g.
+        "chr5:10,100,000-30,000,000". Coordinates are zero-based and
+        half-open, and are returned as given (no conversion from one-based
+        coordinates is done). Ensembl and FASTA style sequence names are
+        allowed. End coordinate must be greater than or equal to start.
 
     Returns
     -------
@@ -145,14 +147,15 @@ def parse_region(
     chromsizes: dict | pd.Series | None = None
 ) -> GenomicRangeTuple:
     """
-    Genomic regions are represented as half-open intervals (0-based starts,
-    1-based ends) along the length coordinate of a contig/scaffold/chromosome.
+    Genomic regions are represented as zero-based, half-open intervals
+    [start, end) along the length coordinate of a contig/scaffold/chromosome.
 
     Parameters
     ----------
     reg : str or tuple
-        UCSC-style genomic region string, or
-        Triple (chrom, start, end), where ``start`` or ``end`` may be ``None``.
+        Genomic region string of the form ``chrom:start-end``, or
+        triple (chrom, start, end), where ``start`` or ``end`` may be ``None``.
+        Both forms use zero-based, half-open coordinates.
     chromsizes : mapping, optional
         Lookup table of scaffold lengths to check against ``chrom`` and the
         ``end`` coordinate. Required if ``end`` is not supplied.

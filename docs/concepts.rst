@@ -21,9 +21,21 @@ However, coolers can be stored at any level of the HDF5 hierarchy and qualified 
 The current standard for Hi-C coolers is to name multi-resolution coolers under ``.mcool`` extension,
 and store differrent resolutions in an HDF5 group ``resolutions``, as shown above.
 
+Genomic coordinates
+-------------------
+Cooler uses **zero-based, half-open** genomic intervals throughout, the same convention as BED files and libraries such as bioframe and pysam. An interval ``(chrom, start, end)`` covers positions ``start`` through ``end - 1``, counting from 0, and has length ``end - start``. This applies both to the ``start`` and ``end`` columns of the bin table and to any genomic range used in a query.
+
+Genomic range strings of the form ``{chrom}:{start}-{end}`` follow the same convention: ``"chr1:10,000,000-11,000,000"`` means exactly the same interval as the tuple ``("chr1", 10_000_000, 11_000_000)``. Note that this differs from the position box of the UCSC Genome Browser, which displays one-based, fully closed coordinates: the UCSC position ``chr1:1-1,000`` corresponds to the cooler range ``chr1:0-1,000``.
+
+For example, with 10 kb bins:
+
+- ``"chr1:0-10k"`` selects only the first bin of ``chr1``, [0, 10000).
+- ``"chr1:10k-20k"`` selects only the second bin, [10000, 20000).
+- ``"chr1:9,999-10,001"`` selects the first two bins, since the interval overlaps both.
+
 Data selection
 --------------
-Several :class:`cooler.Cooler` methods return data selectors. Those include selecting tables and matrices (see below). Data selectors don't retrieve any data from disk until queried. There are several ways to query using selectors. Genomic range strings may be provided as 3-tuples ``(chrom: str, start: int, end: int)`` or in UCSC-style strings of the style ``{chrom}:{start}-{end}``. Unit prefixes ``k, M, G`` are supported in range strings.  For regions with start and end that are not multiples of the resolution, selectors return the range of shortest range bins that fully contains the open interval [start, end).
+Several :class:`cooler.Cooler` methods return data selectors. Those include selecting tables and matrices (see below). Data selectors don't retrieve any data from disk until queried. There are several ways to query using selectors. Genomic ranges may be provided as 3-tuples ``(chrom: str, start: int, end: int)`` or as range strings of the form ``{chrom}:{start}-{end}``, both interpreted as zero-based, half-open intervals (see `Genomic coordinates`_). Unit prefixes ``k, M, G`` and thousands separators are supported in range strings. For regions with start and end that are not multiples of the resolution, selectors return the shortest range of bins that fully contains the half-open interval [start, end).
 
 
 Table selectors (chroms, bins, pixels)

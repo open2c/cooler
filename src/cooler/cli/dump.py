@@ -95,7 +95,8 @@ def make_annotator(bins, balanced, join, annotate, one_based_ids, one_based_star
     "--range",
     "-r",
     help="The coordinates of a genomic region shown along the row dimension, "
-    "in UCSC-style notation. (Example: chr1:10,000,000-11,000,000). "
+    "as a range string with zero-based, half-open coordinates. "
+    "(Example: chr1:10,000,000-11,000,000). "
     "If omitted, the entire contact matrix is printed.",
     type=str,
 )
