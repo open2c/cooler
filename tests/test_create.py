@@ -450,3 +450,31 @@ def test_create_scool(fp):
         content_expected = ["/cells/cell1", "/cells/cell2", "/cells/cell3"]
         for content in content_expected:
             assert content in content_of_scool
+
+
+@pytest.mark.parametrize(
+    "fp", [op.join(datadir, "hg19.GM12878-MboI.matrix.2000kb.cool")]
+)
+def test_create_scool_append(fp):
+    c = cooler.Cooler(fp)
+    bins = c.bins()[["chrom", "start", "end"]][:]
+    pixels = c.pixels()[:]
+
+    with isolated_filesystem():
+        cooler.create_scool("test.scool", bins, {"cell1": pixels, "cell2": pixels})
+        cooler.create_scool("test.scool", bins, {"cell3": pixels}, mode="a")
+        cooler.create_scool("test.scool", bins, {}, mode="a")
+
+        with h5py.File("test.scool", "r") as f:
+            assert f.attrs["ncells"] == 3
+            # All cells still link to the one shared bin table
+            root_addr = h5py.h5o.get_info(f["bins/start"].id).addr
+            for cell in f["cells"]:
+                cell_bins = f[f"cells/{cell}/bins/start"]
+                assert h5py.h5o.get_info(cell_bins.id).addr == root_addr
+
+        # Appending with a different bin table is an error
+        other_bins = bins.copy()
+        other_bins["end"] = other_bins["end"] - 1
+        with pytest.raises(ValueError):
+            cooler.create_scool("test.scool", other_bins, {"cell4": pixels}, mode="a")

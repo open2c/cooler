@@ -1115,6 +1115,24 @@ def create_cooler(
         )
 
 
+def _same_chroms_and_bins(
+    grp: h5py.Group, chroms: pd.DataFrame, bins: pd.DataFrame
+) -> bool:
+    if "chroms" not in grp or "bins" not in grp:
+        return False
+    old_chroms = get(grp["chroms"], 0, None, ["name", "length"], convert_enum=False)
+    old_bins = get(grp["bins"], 0, None, ["chrom", "start", "end"], convert_enum=True)
+    new_bins = bins[["chrom", "start", "end"]]
+    return (
+        old_chroms["name"].astype(str).tolist() == chroms["name"].astype(str).tolist()
+        and np.array_equal(old_chroms["length"], chroms["length"])
+        and len(old_bins) == len(new_bins)
+        and np.array_equal(old_bins["chrom"].astype(str), new_bins["chrom"].astype(str))
+        and np.array_equal(old_bins["start"], new_bins["start"])
+        and np.array_equal(old_bins["end"], new_bins["end"])
+    )
+
+
 @_format_docstring(other_parameters=_DOC_OTHER_PARAMS, notes=_DOC_NOTES)
 def create_scool(
     cool_uri: str,
@@ -1240,12 +1258,23 @@ def create_scool(
     n_bins = len(bins)
 
     # Create root group
+    write_tables = True
     with h5py.File(file_path, mode) as f:
         logger.info(f'Creating cooler at "{file_path}::{group_path}"')
         if group_path == "/":
-            for name in ["chroms", "bins"]:
-                if name in f:
-                    del f[name]
+            # Cells hard-link the root chroms and bins tables, so when
+            # appending, keep the existing tables rather than rewriting them.
+            if _same_chroms_and_bins(f, chroms, bins):
+                write_tables = False
+            elif "cells" in f and len(f["cells"]):
+                raise ValueError(
+                    "Cannot append cells with a different bin table to an "
+                    f"existing scool file: '{file_path}'."
+                )
+            else:
+                for name in ["chroms", "bins"]:
+                    if name in f:
+                        del f[name]
         else:
             try:
                 f.create_group(group_path)
@@ -1253,16 +1282,17 @@ def create_scool(
                 del f[group_path]
                 f.create_group(group_path)
 
-    with h5py.File(file_path, "r+") as f:
-        h5 = f[group_path]
+    if write_tables:
+        with h5py.File(file_path, "r+") as f:
+            h5 = f[group_path]
 
-        logger.info("Writing chroms")
-        grp = h5.create_group("chroms")
-        write_chroms(grp, chroms, h5opts)
+            logger.info("Writing chroms")
+            grp = h5.create_group("chroms")
+            write_chroms(grp, chroms, h5opts)
 
-        logger.info("Writing bins")
-        grp = h5.create_group("bins")
-        write_bins(grp, bins, chroms["name"], h5opts)
+            logger.info("Writing bins")
+            grp = h5.create_group("bins")
+            write_bins(grp, bins, chroms["name"], h5opts)
 
     with h5py.File(file_path, "r+") as f:
         h5 = f[group_path]
@@ -1311,3 +1341,8 @@ def create_scool(
             append_scool=True,
             scool_root_uri=cool_uri,
         )
+
+    # Count all cells, including those from earlier appends
+    with h5py.File(file_path, "r+") as f:
+        h5 = f[group_path]
+        h5.attrs["ncells"] = len(h5["cells"]) if "cells" in h5 else 0
