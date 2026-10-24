@@ -202,8 +202,8 @@ def show(
 
     COOL_PATH : Path to a COOL file or Cooler URI.
 
-    RANGE : The coordinates of the genomic region to display, in UCSC notation.
-    Example: chr1:10,000,000-11,000,000
+    RANGE : The coordinates of the genomic region to display, as a range string
+    with zero-based, half-open coordinates. Example: chr1:10,000,000-11,000,000
 
     """
     try:

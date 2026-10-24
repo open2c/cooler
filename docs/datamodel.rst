@@ -69,7 +69,7 @@ bins
 + Required columns: ``chrom, start, end [, weight]``
 + Order: ``chrom`` (*enum*), ``start``
 
-An enumeration of the concatenated genomic bins that make up a single dimension or axis of the global genomic matrix. Genomic bins can be of fixed size or variable sizes (e.g. restriction fragments). A genomic bin is defined by the triple (chrom, start, end), where start is zero-based and end is 1-based. The order is significant: the bins are sorted by chromosome (based on the chromosome enumeration) then by start, and each genomic bin is implicitly endowed with a 0-based bin ID from this ordering (i.e., its row number in the table). A reserved but optional column called ``weight`` can store weights for normalization or matrix balancing. Additional columns can be added to describe other bin-associated properties such as additional normalization vectors or bin-level masks.
+An enumeration of the concatenated genomic bins that make up a single dimension or axis of the global genomic matrix. Genomic bins can be of fixed size or variable sizes (e.g. restriction fragments). A genomic bin is defined by the triple (chrom, start, end), representing the zero-based, half-open interval [start, end). The order is significant: the bins are sorted by chromosome (based on the chromosome enumeration) then by start, and each genomic bin is implicitly endowed with a 0-based bin ID from this ordering (i.e., its row number in the table). A reserved but optional column called ``weight`` can store weights for normalization or matrix balancing. Additional columns can be added to describe other bin-associated properties such as additional normalization vectors or bin-level masks.
 
 pixels
 ^^^^^^
