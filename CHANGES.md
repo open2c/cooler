@@ -6,6 +6,7 @@
 * fix: Count main diagonal pixels once when computing balancing marginals. This only affects balancing with `ignore_diags=0` (`--ignore-diags 0`), whose weights will change. By @jpaggi in https://github.com/open2c/cooler/pull/471
 * fix: `cooler balance --blacklist` no longer fails on single-line or empty BED files, and skips header, track and browser lines. By @ShigrafS in https://github.com/open2c/cooler/pull/462
 * fix: `read_chromsizes` raises a clear error for malformed rows (e.g. spaces instead of tabs) instead of failing later with a cryptic error. By @ShigrafS in https://github.com/open2c/cooler/pull/458
+* fix: Appending cells to an scool file with `create_scool(..., mode="a")` reuses the existing bin table instead of writing a new copy each time, raises an error if the bin table differs, and keeps the `ncells` count correct. By @Snowman-cpu and @nvictus in https://github.com/open2c/cooler/pull/457
 
 ## [v0.10.4](https://github.com/open2c/cooler/compare/v0.10.3...v0.10.4)
 
