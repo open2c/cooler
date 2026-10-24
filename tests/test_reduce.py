@@ -2,6 +2,7 @@ import os.path as op
 
 import h5py
 import hypothesis.strategies as st
+import multiprocess as mp
 import numpy as np
 import pytest
 from _common import cooler_cmp, isolated_filesystem
@@ -130,6 +131,8 @@ def test_coarsen(input_uri, factor, ref_uri):
             "chunksize": 10, "nproc": 2, "columns": None, "dtypes": None, "agg": None
         }
         coarsen_cooler(input_uri, "test.cool", factor, **kwargs)
+        # worker processes have exited
+        assert not mp.active_children()
 
         # raise on missing value column
         kwargs = {

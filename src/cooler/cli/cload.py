@@ -261,6 +261,7 @@ def tabix(
     finally:
         if nproc > 1:
             pool.close()
+            pool.join()
 
 
 @register_subcommand
@@ -356,6 +357,7 @@ def pairix(
     finally:
         if nproc > 1:
             pool.close()
+            pool.join()
 
 
 @register_subcommand
