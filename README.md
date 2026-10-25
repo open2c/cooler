@@ -80,8 +80,8 @@
     <tr>
         <td>Community</td>
         <td>
-            <a href="https://bit.ly/open2c-slack">
-                <img src="https://img.shields.io/badge/chat-slack-%233F0F3F?logo=slack" alt="slack">
+            <a href="https://discord.com/invite/qVfSbDYHNG">
+                <img src="https://img.shields.io/badge/chat-discord-%235865F2?logo=discord" alt="discord">
             </a>
             <a href="https://www.numfocus.org/">
                 <img src="https://img.shields.io/badge/powered%20by-NumFOCUS-orange.svg?style=flat&colorA=E1523D&colorB=007D8A" alt="numfocus">
