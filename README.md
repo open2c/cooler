@@ -100,7 +100,7 @@ To get started:
 
 - [Install](#Installation) cooler
 - Read the [documentation](http://cooler.readthedocs.org/en/stable/) and see the Jupyter Notebook [walkthrough](https://github.com/open2c/cooler-binder).
-- _cool_ files from published Hi-C data sets are available [here](https://usgs2.osn.mghpcc.org/cooler01/index.html) or via s3 (bucket `s3://cooler01 --endpoint-url https://usgs2.osn.mghpcc.org --no-sign-request`).
+- _cool_ files from published Hi-C data sets are available [here](https://cooler.abdenlab.org/index.html).
 - Many more multires (_mcool_) files are available on the [4DN data portal](https://data.4dnucleome.org/visualization/index).
 
 ### Installation
