@@ -96,12 +96,12 @@ def set_verbosity_level(level: int) -> None:
     Set the level of the "cooler" logger from a verbosity level: -2
     (critical) to 2 (debug), where 0 is warnings.
 
-    .. deprecated:: 0.11.1
+    .. deprecated:: 0.12
         Use :func:`log_to_stderr` or ``logging.getLogger("cooler").setLevel``.
-        Will be removed in cooler 0.12.
+        Will be removed in cooler 0.13.
     """
     warnings.warn(
-        "set_verbosity_level is deprecated and will be removed in cooler 0.12. "
+        "set_verbosity_level is deprecated and will be removed in cooler 0.13. "
         "Use cooler.log_to_stderr(level) or "
         "logging.getLogger('cooler').setLevel(level) instead.",
         DeprecationWarning,
@@ -121,12 +121,12 @@ def get_verbosity_level() -> int:
     """
     Get the level of the "cooler" logger as a verbosity level.
 
-    .. deprecated:: 0.11.1
+    .. deprecated:: 0.12
         Use ``logging.getLogger("cooler").level``. Will be removed in cooler
-        0.12.
+        0.13.
     """
     warnings.warn(
-        "get_verbosity_level is deprecated and will be removed in cooler 0.12. "
+        "get_verbosity_level is deprecated and will be removed in cooler 0.13. "
         "Use logging.getLogger('cooler').level instead.",
         DeprecationWarning,
         stacklevel=2,

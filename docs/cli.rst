@@ -234,7 +234,7 @@ cooler cload pairs
 
 .. option:: --input-copy-status <input_copy_status>
 
-    Deprecated, and will be removed in cooler 0.12: pairs should list each contact once. | `unique`: Each contact is listed once, regardless of how the coordinates of a pair are ordered. `duplex`: Each contact is listed twice, once in each orientation. All input records that map to the lower triangle will be discarded! | If you wish to treat lower- and upper-triangle input data as distinct, use the ``--no-symmetric-upper`` option.   [default: unique]
+    Deprecated, and will be removed in cooler 0.13: pairs should list each contact once. | `unique`: Each contact is listed once, regardless of how the coordinates of a pair are ordered. `duplex`: Each contact is listed twice, once in each orientation. All input records that map to the lower triangle will be discarded! | If you wish to treat lower- and upper-triangle input data as distinct, use the ``--no-symmetric-upper`` option.   [default: unique]
 
 .. option:: --field <field>
 
