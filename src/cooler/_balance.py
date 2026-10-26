@@ -469,12 +469,16 @@ def balance_cooler(
     }
 
     if store:
-        with clr.open("r+") as grp:
-            if store_name in grp["bins"]:
-                del grp["bins"][store_name]
-            h5opts = {"compression": "gzip", "compression_opts": 6}
-            grp["bins"].create_dataset(store_name, data=bias, **h5opts)
-            grp["bins"][store_name].attrs.update(stats)
+        from .create._writer import _add_columns
+
+        _add_columns(
+            clr.uri,
+            "bins",
+            {store_name: bias},
+            attrs={store_name: stats},
+            replace=True,
+            h5opts={"compression": "gzip", "compression_opts": 6},
+        )
 
     return bias, stats
 

@@ -13,6 +13,7 @@ from cooler.cli.dump import dump
 ### EXPORT ###
 from cooler.cli.info import info
 from cooler.cli.show import show
+from cooler.create._writer import _add_columns
 
 # import pytest
 
@@ -117,8 +118,8 @@ def test_dump_weight_name():
     with runner.isolated_filesystem():
         shutil.copy(op.join(datadir, "toy.symm.upper.2.cool"), "test.cool")
         n_bins = cooler.Cooler("test.cool").info["nbins"]
-        cooler.create.append(
-            "test.cool", "bins", {"custom": np.full(n_bins, 2.0)}, force=True
+        _add_columns(
+            "test.cool", "bins", {"custom": np.full(n_bins, 2.0)}, replace=True
         )
 
         # --weight-name implies --balanced
@@ -140,8 +141,8 @@ def test_show():
 
         shutil.copy(f_in, "test.cool")
         n_bins = cooler.Cooler("test.cool").info["nbins"]
-        cooler.create.append(
-            "test.cool", "bins", {"custom": np.full(n_bins, 2.0)}, force=True
+        _add_columns(
+            "test.cool", "bins", {"custom": np.full(n_bins, 2.0)}, replace=True
         )
         result = runner.invoke(
             show, ["test.cool", "chr1", "-o", "bla", "--weight-name", "custom"]

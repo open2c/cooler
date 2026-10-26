@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import bisect
 import inspect
 import json
 import os
@@ -1205,3 +1206,250 @@ class _ScoolWriter:
             self.finish()
         else:
             self.abort()
+
+
+# Columns that define a table and can't be added or replaced as data columns
+_CORE_COLUMNS = {
+    "chroms": {"name", "length"},
+    "bins": {"chrom", "start", "end"},
+    "pixels": {"bin1_id", "bin2_id", "count"},
+}
+
+
+class _ColumnWriter:
+    """
+    Add columns to a table of an existing cooler, in batches of rows.
+
+    Each call to :meth:`write` takes a batch with every new column, for a
+    range of rows. Batches are written in order by default, or at an explicit
+    row offset. :meth:`finish` checks that every row was written and only then
+    adds the columns to the table, replacing existing ones if ``replace`` is
+    True, so the table never has partially written columns and replaced
+    columns survive a failure.
+
+    Parameters
+    ----------
+    cool_uri : str
+        URI of an existing cooler.
+    table : {"chroms", "bins", "pixels"}
+        Table to add columns to.
+    columns : dict
+        Mapping of new column names to dtypes. The dtype can be None, for
+        float64.
+    attrs : dict, optional
+        Mapping of column names to HDF5 attributes to store on the column.
+    replace : bool, optional
+        Replace existing columns with the same names. Otherwise, adding an
+        existing column is an error.
+    h5opts : dict, optional
+        HDF5 dataset storage options.
+    lock : multiprocessing.Lock, optional
+        If given, the file is only opened while holding the lock, for each
+        write. Otherwise, it is kept open until the writer is finished.
+
+    """
+
+    def __init__(
+        self,
+        cool_uri: str,
+        table: str,
+        columns: dict[str, Any],
+        *,
+        attrs: dict[str, dict] | None = None,
+        replace: bool = False,
+        h5opts: dict | None = None,
+        lock: Any | None = None,
+    ):
+        if table not in _CORE_COLUMNS:
+            raise ValueError(
+                f"Unknown table '{table}'. Use one of {sorted(_CORE_COLUMNS)}."
+            )
+        if not columns:
+            raise ValueError("No columns given.")
+        core = sorted(set(columns) & _CORE_COLUMNS[table])
+        if core:
+            raise ValueError(f"Can't add or replace core columns of '{table}': {core}")
+
+        file_path, group_path = parse_cooler_uri(cool_uri)
+        self.file_path = op.realpath(file_path)
+        self.table_path = posixpath.join(group_path, table)
+        self._tmp_path = posixpath.join(group_path, ".__writing__columns", table)
+        self.columns = {
+            col: np.dtype(np.float64 if dtype is None else dtype)
+            for col, dtype in columns.items()
+        }
+        self.attrs = attrs or {}
+        self.replace = replace
+        self.h5opts = _set_h5opts(h5opts)
+        self.lock = lock
+        self._file = None
+        self._done = False
+        self._cursor = 0
+        self._written = []  # sorted, non-overlapping (lo, hi) row ranges
+
+        with self._open() as f:
+            if self.table_path not in f:
+                raise KeyError(f"No table '{self.table_path}' in '{self.file_path}'.")
+            grp = f[self.table_path]
+            existing = sorted(set(columns) & set(grp))
+            if existing and not replace:
+                raise ValueError(
+                    f"Columns already exist in '{table}': {existing}. Use replace "
+                    "to replace them."
+                )
+            first_core = min(_CORE_COLUMNS[table] & set(grp))
+            self.nrows = len(grp[first_core])
+
+            if self._tmp_path in f:  # left over from a failed run
+                del f[self._tmp_path]
+            tmp = f.require_group(self._tmp_path)
+            h5opts = self.h5opts if self.nrows > 0 else {}
+            for col, dtype in self.columns.items():
+                dset = tmp.create_dataset(
+                    col, shape=(self.nrows,), dtype=dtype, **h5opts
+                )
+                dset.attrs.update(self.attrs.get(col, {}))
+
+        if lock is None:
+            self._file = h5py.File(self.file_path, "r+")
+
+    def _open(self) -> _CoolerWriter._Handle:
+        return _CoolerWriter._Handle(self, "r+")
+
+    def write(self, batch: Any, lo: int | None = None) -> None:
+        """
+        Write a batch of rows of the new columns.
+
+        Parameters
+        ----------
+        batch : dict, pandas.DataFrame or polars.DataFrame
+            Values of every new column, for consecutive rows.
+        lo : int, optional
+            Row offset of the batch. Default is right after the previous
+            batch.
+
+        """
+        if self._done:
+            raise ValueError("Writer has already finished.")
+        missing = [col for col in self.columns if col not in batch]
+        if missing:
+            raise ValueError(f"Columns missing from batch: {missing}")
+        values = {col: np.asarray(batch[col]) for col in self.columns}
+        lengths = {len(v) for v in values.values()}
+        if len(lengths) != 1:
+            raise ValueError("Columns in a batch must have the same length.")
+        n = lengths.pop()
+        if n == 0:
+            return
+
+        lo = self._cursor if lo is None else int(lo)
+        hi = lo + n
+        if lo < 0 or hi > self.nrows:
+            raise ValueError(
+                f"Rows [{lo}, {hi}) are out of range for a table of {self.nrows} rows."
+            )
+        i = bisect.bisect_left(self._written, (lo, hi))
+        if (i > 0 and self._written[i - 1][1] > lo) or (
+            i < len(self._written) and self._written[i][0] < hi
+        ):
+            raise ValueError(f"Rows [{lo}, {hi}) overlap rows already written.")
+        for col, dtype in self.columns.items():
+            _check_fits_dtype(col, values[col], dtype)
+
+        with self._open() as f:
+            tmp = f[self._tmp_path]
+            for col in self.columns:
+                tmp[col][lo:hi] = values[col]
+        self._written.insert(i, (lo, hi))
+        self._cursor = hi
+
+    def _missing_rows(self) -> list[tuple[int, int]]:
+        missing, pos = [], 0
+        for lo, hi in self._written:
+            if lo > pos:
+                missing.append((pos, lo))
+            pos = hi
+        if pos < self.nrows:
+            missing.append((pos, self.nrows))
+        return missing
+
+    def finish(self) -> None:
+        """Check that all rows were written, and add the columns to the table."""
+        if self._done:
+            return
+        missing = self._missing_rows()
+        if missing:
+            self.abort()
+            shown = ", ".join(f"[{lo}, {hi})" for lo, hi in missing[:3])
+            more = f" and {len(missing) - 3} more" if len(missing) > 3 else ""
+            raise ValueError(f"Rows were not written: {shown}{more}.")
+        try:
+            with self._open() as f:
+                grp = f[self.table_path]
+                for col in self.columns:
+                    if col in grp:
+                        del grp[col]
+                    f.move(
+                        posixpath.join(self._tmp_path, col), f"{self.table_path}/{col}"
+                    )
+                self._remove_tmp(f)
+        finally:
+            self._close_file()
+            self._done = True
+
+    def abort(self) -> None:
+        """Discard the new columns."""
+        if self._done:
+            return
+        try:
+            with self._open() as f:
+                self._remove_tmp(f)
+        finally:
+            self._close_file()
+            self._done = True
+
+    def _remove_tmp(self, f: h5py.File) -> None:
+        if self._tmp_path in f:
+            del f[self._tmp_path]
+        parent = posixpath.dirname(self._tmp_path)
+        if parent in f and len(f[parent]) == 0:
+            del f[parent]
+
+    def _close_file(self) -> None:
+        if self._file is not None:
+            self._file.close()
+            self._file = None
+
+    def __enter__(self) -> _ColumnWriter:  # noqa: PYI034
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> None:
+        if exc_type is None:
+            self.finish()
+        else:
+            self.abort()
+
+
+def _add_columns(
+    cool_uri: str,
+    table: str,
+    data: Any,
+    *,
+    dtypes: dict[str, Any] | None = None,
+    attrs: dict[str, dict] | None = None,
+    replace: bool = False,
+    h5opts: dict | None = None,
+) -> None:
+    """
+    Add columns held in memory to a table of an existing cooler.
+
+    ``data`` is a dict of arrays, or a pandas or polars DataFrame, with one
+    value per row of the table. Dtypes default to those of the data.
+    """
+    names = list(data.columns) if hasattr(data, "columns") else list(data.keys())
+    dtypes = dtypes or {}
+    columns = {col: dtypes.get(col, np.asarray(data[col]).dtype) for col in names}
+    with _ColumnWriter(
+        cool_uri, table, columns, attrs=attrs, replace=replace, h5opts=h5opts
+    ) as writer:
+        writer.write(data)

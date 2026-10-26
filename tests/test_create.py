@@ -44,26 +44,18 @@ def test_create_append(fp):
     ddf = dd.from_pandas(pixels, npartitions=3)
     cooler.create.create(op.join(tmp, "test.ddf.2000kb.cool"), bins, ddf)
 
-    # Append
-    cooler.create.append(
-        op.join(tmp, "test.df.2000kb.cool"),
-        "bins",
-        {"start_1based": bins.apply(lambda x: x.start + 1, axis=1)},
-    )
-    cooler.create.append(op.join(tmp, "test.df.2000kb.cool"), "bins", {"ones": 1})
-    series = ddf["count"] / ddf["count"].sum()
-    series.name = "normed"
-    cooler.create.append(op.join(tmp, "test.df.2000kb.cool"), "pixels", series)
-    cooler.create.append(
-        op.join(tmp, "test.df.2000kb.cool"), "pixels", series, force=True
-    )
-    cooler.create.append(
-        op.join(tmp, "test.df.2000kb.cool"),
-        "bins",
-        {"twos": [np.ones(1000, dtype=int) * 2, np.ones(561, dtype=int) * 2]},
-        chunked=True,
-        force=True,
-    )
+    # Add columns
+    from cooler.create._writer import _add_columns, _ColumnWriter
+
+    path = op.join(tmp, "test.df.2000kb.cool")
+    _add_columns(path, "bins", {"start_1based": bins["start"] + 1})
+    _add_columns(path, "bins", {"ones": np.ones(len(bins))})
+    normed = (pixels["count"] / pixels["count"].sum()).rename("normed")
+    _add_columns(path, "pixels", normed.to_frame())
+    _add_columns(path, "pixels", normed.to_frame(), replace=True)
+    with _ColumnWriter(path, "bins", {"twos": int}, replace=True) as writer:
+        writer.write({"twos": np.full(1000, 2)})
+        writer.write({"twos": np.full(561, 2)})
     c2 = cooler.Cooler(op.join(tmp, "test.df.2000kb.cool"))
     assert len(c2.bins().columns) == 6
     assert len(c2.pixels().columns) == 4
