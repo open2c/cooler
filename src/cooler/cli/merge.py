@@ -20,7 +20,7 @@ from ._util import parse_field_param
     "--field",
     help="Specify the names of value columns to merge as '<name>'. "
     "Repeat the `--field` option for each one. "
-    "Use '<name>,dtype=<dtype>' to specify the dtype. Include "
+    "Use '<name>:dtype=<dtype>' to specify the dtype. Include "
     "',agg=<agg>' to specify an aggregation function different from 'sum'.",
     type=str,
     multiple=True,

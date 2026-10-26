@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-import math
 import warnings
 from bisect import bisect_right
-from collections import OrderedDict, defaultdict
+from collections import defaultdict
 from collections.abc import Iterator
 from typing import Any, Literal
 
@@ -97,12 +96,12 @@ def merge_breakpoints(
     cum_nrecords = [0]
     lo = 0
     while True:
-        # Find the next bin1 ID from the combined index
-        hi = bisect_right(
-            combined_index,
-            min(combined_start + bufsize, combined_nnz),
-            lo=lo
-        )
+        # Find the last bin1 ID whose records still fit in the buffer
+        target = min(combined_start + bufsize, combined_nnz)
+        hi = bisect_right(combined_index, target, lo=lo) - 1
+        if combined_index[hi] <= combined_start:
+            # A single bin1 has more than bufsize records: take it anyway
+            hi = bisect_right(combined_index, combined_start, lo=lo)
 
         hi = min(hi, len(combined_index) - 1)
         bin1_partition.append(hi)
@@ -166,8 +165,11 @@ class CoolerMerger(ContactBinner):
                     raise ValueError("Coolers must have same bin structure")
 
     def __iter__(self) -> Iterator[dict[str, np.ndarray]]:
-        # Load bin1_offset indexes lazily.
-        indexes = [c.open("r")["indexes/bin1_offset"] for c in self.coolers]
+        # Load the bin1_offset indexes, without keeping the files open.
+        indexes = []
+        for c in self.coolers:
+            with c.open("r") as grp:
+                indexes.append(grp["indexes/bin1_offset"][:])
 
         # Calculate the common partition of bin1 offsets that define the epochs
         # of merging data.
@@ -320,33 +322,6 @@ def _greedy_prune_partition(edges: np.ndarray, maxlen: int) -> np.ndarray:
     return edges[idx]
 
 
-def get_quadtree_depth(
-    chromsizes: pd.Series,
-    base_binsize: int,
-    bins_per_tile: int
-) -> int:
-    """
-    Number of zoom levels for a quad-tree tiling of a genomic heatmap.
-
-    At the base resolution, we need N tiles, where N is the smallest power of
-    2 such that the tiles fully cover the 1D data extent. From that starting
-    point, determine the number of zoom levels required to "coarsen" the map
-    up to 1 tile.
-
-    """
-    # length of a base-level tile in bp
-    tile_length_bp = bins_per_tile * base_binsize
-
-    # number of tiles required along 1 dimension at this base resolution
-    total_bp = sum(chromsizes)
-    n_tiles = math.ceil(total_bp / tile_length_bp)
-
-    # number of aggregation levels required to reach a single tile
-    n_zoom_levels = math.ceil(np.log2(n_tiles))
-
-    return n_zoom_levels
-
-
 def geomprog(start: int, mul: int) -> Iterator[int]:
     """
     Generate a geometric progression of integers.
@@ -479,6 +454,8 @@ def get_multiplier_sequence(
     mult = -np.ones(len(resn), dtype=int)
 
     for i, target in list(enumerate(resn))[::-1]:
+        if target in bases:
+            continue  # data for base resolutions already exists
         p = i - 1
         while p >= 0:
             if target % resn[p] == 0:
@@ -699,12 +676,13 @@ def coarsen_cooler(
     clr = Cooler(base_uri)
 
     factor = int(factor)
+    if factor < 2:
+        raise ValueError(f"The coarsening factor must be at least 2, not {factor}.")
 
     if columns is None:
         columns = ["count"]
 
-    if dtypes is None:
-        dtypes = {}
+    dtypes = {} if dtypes is None else dict(dtypes)
 
     input_dtypes = clr.pixels().dtypes
     for col in columns:
@@ -734,11 +712,14 @@ def coarsen_cooler(
         new_bins = iterator.new_bins
 
         kwargs.setdefault("append", True)
+        kwargs.setdefault("assembly", clr.info.get("genome-assembly"))
+        kwargs.setdefault("metadata", clr.info.get("metadata"))
 
         create(
             output_uri,
             new_bins,
             iterator,
+            columns=columns,
             dtypes=dtypes,
             symmetric_upper=clr.storage_mode == "symmetric-upper",
             **kwargs,
@@ -807,19 +788,17 @@ def zoomify_cooler(
         base_uris = [base_uris]
 
     parsed_uris = {}
-    n_bins_longest_chrom = {}
     base_resolutions = set()
     for input_uri in base_uris:
         infile, ingroup = parse_cooler_uri(input_uri)
         clr = Cooler(infile, ingroup)
         base_binsize = 1 if clr.binsize is None else clr.binsize
+        if base_binsize in parsed_uris:
+            raise ValueError(
+                "Base coolers must have different resolutions, and at most one "
+                f"can have variable-size bins: '{input_uri}'."
+            )
         parsed_uris[base_binsize] = (infile, ingroup)
-        n_bins_longest_chrom[base_binsize] = (
-            clr.bins()[:]
-            .groupby("chrom", observed=True)
-            .size()
-            .max()
-        )
         base_resolutions.add(base_binsize)
 
     # Determine the sequence of reductions.
@@ -832,12 +811,14 @@ def zoomify_cooler(
     if columns is None:
         columns = ["count"]
 
-    # Copy base matrix
-    for base_binsize in base_resolutions:
+    # Copy base matrices into a new output file
+    with h5py.File(outfile, "w"):
+        pass
+    for base_binsize in sorted(base_resolutions):
         logger.info("Bin size: " + str(base_binsize))
         infile, ingroup = parsed_uris[base_binsize]
         with h5py.File(infile, "r") as src, \
-             h5py.File(outfile, "w") as dest:  # fmt: skip
+             h5py.File(outfile, "r+") as dest:  # fmt: skip
             prefix = f"/resolutions/{base_binsize}"
 
             src.copy(ingroup + "/chroms", dest, prefix + "/chroms")
@@ -876,70 +857,3 @@ def zoomify_cooler(
         fw.attrs.update(
             {"format": "HDF5::MCOOL", "format-version": __format_version_mcool__}
         )
-
-
-def legacy_zoomify(
-    input_uri: str, outfile: str, nproc: int, chunksize: int, lock=None
-) -> tuple[int, dict[str, int]]:
-    """
-    Quad-tree tiling using legacy MCOOL layout (::0, ::1, ::2, etc.).
-
-    """
-    infile, ingroup = parse_cooler_uri(input_uri)
-
-    clr = Cooler(infile, ingroup)
-    n_zooms = get_quadtree_depth(clr.chromsizes, clr.binsize, HIGLASS_TILE_DIM)
-    factor = 2
-
-    logger.info(f"total_length (bp): {np.sum(clr.chromsizes)}")
-    logger.info(f"binsize: {clr.binsize}")
-    logger.info(f"n_zooms: {n_zooms}")
-    logger.info(f"quad tile cover: {2 ** n_zooms}")
-    logger.info(
-        "Copying base matrix to level "
-        + f"{n_zooms} and producing {n_zooms} new zoom levels "
-        + "counting down to 0..."
-    )
-
-    zoom_levels = OrderedDict()
-    zoomLevel = str(n_zooms)
-    binsize = clr.binsize
-    logger.info("Zoom level: " + str(zoomLevel) + " bin size: " + str(binsize))
-
-    # Copy base matrix
-    with h5py.File(infile, "r") as src, \
-         h5py.File(outfile, "w") as dest:  # fmt: skip
-        src.copy(ingroup, dest, str(zoomLevel))
-        zoom_levels[zoomLevel] = binsize
-
-    # Aggregate
-    # Use lock to sync read/write ops on same file
-    for i in range(n_zooms - 1, -1, -1):
-        # prev_binsize = binsize
-        binsize *= factor
-        prevLevel = str(i + 1)
-        zoomLevel = str(i)
-        logger.info(
-            "Aggregating at zoom level: "
-            + str(zoomLevel)
-            + " bin size: "
-            + str(binsize)
-        )
-
-        coarsen_cooler(
-            outfile + "::" + str(prevLevel),
-            outfile + "::" + str(zoomLevel),
-            factor,
-            chunksize=chunksize,
-            nproc=nproc,
-            lock=lock,
-        )
-        zoom_levels[zoomLevel] = binsize
-
-    with h5py.File(outfile, "r+") as fw:
-        fw.attrs.update({"max-zoom": n_zooms})
-        # grp = fw.require_group('.zooms')
-        fw.attrs["max-zooms"] = n_zooms
-        fw.attrs.update(zoom_levels)
-
-    return n_zooms, zoom_levels
