@@ -6,6 +6,14 @@
 * Range queries filter pixels in a single vectorized pass instead of looping over matrix rows in Python. The pixel filtering step is about 7-16x faster, and matrix queries on HDF5 files about 1.5x faster end to end, with peak memory about the same as before. Queries spanning many rows benefit most.
 
 ### Bug fixes
+* fix: `cooler cp`/`mv`/`ln` (and `cooler.fileops.cp/mv/ln`) no longer modify or truncate the destination file when the operation fails, e.g. on a mistyped source path or a hard link between different files. Previously, `-w/--overwrite` could empty the destination file.
+* fix: `-w/--overwrite` replaces only the destination group or dataset; the whole file is replaced only when the destination is the root of another file. It now also works within a single file.
+* fix: `mv` between two different files raises an error instead of silently copying. Copying or linking a group into itself, or moving a group onto one of its ancestors, is rejected.
+* fix: Same-file operations are detected by the file's real path, so `cp ./a.cool a.cool::/x` works.
+* fix: External links (`ln -s` across files) store the target path relative to the file containing the link, so they resolve from any working directory.
+* fix: `list_coolers`, `cooler ls`, `cooler tree` and `cooler attrs` report objects under the link paths used to reach them, skip dangling links, and no longer recurse forever on link cycles.
+* fix: `cooler attrs` no longer crashes on array-valued attributes.
+* fix: `is_cooler` returns False for a missing group, and `is_scool_file` for a missing or non-HDF5 file, as documented. `list_scool_cells` lists only the cells under `/cells`.
 * fix: `to_dask_frame()` on range queries works with current dask versions; it relied on dask's legacy `DataFrame` constructor, which newer dask releases removed. By @nvictus in https://github.com/open2c/cooler/pull/501
 
 ### Maintenance

@@ -33,7 +33,8 @@ def ls(cool_path, long):
 @click.option(
     "--overwrite",
     "-w",
-    help="Truncate and replace destination file if it already exists.",
+    help="Replace the destination if it already exists. If the destination "
+    "is the root of another file, the whole file is replaced.",
     is_flag=True,
     default=False,
 )
@@ -62,7 +63,8 @@ def cp(src_uri, dst_uri, overwrite):
 @click.option(
     "--overwrite",
     "-w",
-    help="Truncate and replace destination file if it already exists.",
+    help="Replace the destination if it already exists. If the destination "
+    "is the root of another file, the whole file is replaced.",
     is_flag=True,
     default=False,
 )
@@ -91,7 +93,8 @@ def ln(src_uri, dst_uri, overwrite, soft):
 @click.option(
     "--overwrite",
     "-w",
-    help="Truncate and replace destination file if it already exists.",
+    help="Replace the destination if it already exists. If the destination "
+    "is the root of another file, the whole file is replaced.",
     is_flag=True,
     default=False,
 )
