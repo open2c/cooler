@@ -212,7 +212,7 @@ def test_write():
     b = BytesIO()
     f = h5py.File(b, "r+")
     grp = f.create_group("chroms")
-    cooler.create._create.write_chroms(grp, chroms, h5opts)
+    cooler.create._writer.write_chroms(grp, chroms, h5opts)
     f.flush()
     assert "name" in f["chroms"]
     assert "length" in f["chroms"]
@@ -221,7 +221,7 @@ def test_write():
     b = BytesIO()
     f = h5py.File(b, "r+")
     grp = f.create_group("chroms")
-    cooler.create._create.write_chroms(grp, chroms.assign(foo=42), h5opts)
+    cooler.create._writer.write_chroms(grp, chroms.assign(foo=42), h5opts)
     f.flush()
     assert "foo" in f["chroms"]
 
@@ -229,7 +229,7 @@ def test_write():
     b = BytesIO()
     f = h5py.File(b, "r+")
     grp = f.create_group("bins")
-    cooler.create._create.write_bins(
+    cooler.create._writer.write_bins(
         grp, bins.assign(foo=42), ["chr1", "chr2", "chr3"], h5opts
     )
     f.flush()
@@ -242,31 +242,27 @@ def test_write():
     b = BytesIO()
     f = h5py.File(b, "r+")
     grp = f.create_group("pixels")
-    cooler.create._create.prepare_pixels(
+    cooler.create._writer.prepare_pixels(
         grp, len(bins), 1000000, ["count", "foo"], {"foo": float}, h5opts
     )
     f.close()
 
     # pixels
-    from multiprocessing import Lock
-
-    nnz, total = cooler.create._create.write_pixels(
-        b,
-        "pixels",
-        ["count", "foo"],
-        (pixels.assign(foo=42.0),),
-        h5opts,
-        Lock(),
-    )
-    b.seek(0)
-    f = h5py.File(b, "r")
-    assert "bin1_id" in f["pixels"]
-    assert "bin2_id" in f["pixels"]
-    assert "count" in f["pixels"]
-    assert "foo" in f["pixels"]
-    assert f["pixels/foo"].dtype.kind == "f"
-    assert total == 1
-    assert nnz == 1
+    with tempfile.TemporaryDirectory() as tmp:
+        path = op.join(tmp, "test.cool")
+        with cooler.create._writer._CoolerWriter(
+            path, bins, columns=["count", "foo"], dtypes={"foo": float},
+            h5opts=h5opts,
+        ) as writer:
+            writer.write(pixels.assign(foo=42.0))
+        with h5py.File(path, "r") as f:
+            assert "bin1_id" in f["pixels"]
+            assert "bin2_id" in f["pixels"]
+            assert "count" in f["pixels"]
+            assert "foo" in f["pixels"]
+            assert f["pixels/foo"].dtype.kind == "f"
+            assert f.attrs["sum"] == 1
+            assert f.attrs["nnz"] == 1
 
 
 def test_many_contigs():
@@ -283,8 +279,8 @@ def test_many_contigs():
     # chroms
     b = BytesIO()
     f = h5py.File(b, "w")
-    cooler.create._create.write_chroms(f.create_group("chroms"), chroms, h5opts)
-    cooler.create._create.write_bins(
+    cooler.create._writer.write_chroms(f.create_group("chroms"), chroms, h5opts)
+    cooler.create._writer.write_bins(
         f.create_group("bins"), bins, chroms["name"].values, h5opts
     )
     f.flush()

@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import inspect
+import json
 import os
 import os.path as op
 import posixpath
 import tempfile
 import warnings
+from datetime import datetime
 from typing import Any
 
 import h5py
@@ -13,19 +15,22 @@ import numpy as np
 import pandas as pd
 
 from .._logging import get_logger
-from ..core import put
-from ..util import get_binsize, get_chromsizes, get_meta, parse_cooler_uri
-from ._constants import PIXEL_DTYPES
-from ._create import (
-    _check_fits_dtype,
-    _set_h5opts,
-    index_bins,
-    index_pixels,
-    prepare_pixels,
-    write_bins,
-    write_chroms,
-    write_indexes,
-    write_info,
+from .._version import __format_version__, __format_version_scool__, __version__
+from ..core import get, put
+from ..util import get_binsize, get_chromsizes, get_meta, parse_cooler_uri, rlencode
+from ._constants import (
+    BIN1OFFSET_DTYPE,
+    BIN_DTYPE,
+    CHROM_DTYPE,
+    CHROMID_DTYPE,
+    CHROMOFFSET_DTYPE,
+    CHROMSIZE_DTYPE,
+    COORD_DTYPE,
+    COUNT_DTYPE,
+    MAGIC,
+    MAGIC_SCOOL,
+    PIXEL_DTYPES,
+    URL,
 )
 from ._ingest import BadInputError
 
@@ -37,6 +42,313 @@ _WRITING_SUFFIX = ".__writing__"
 
 # Standard tables of a cooler group.
 _TABLES = ("chroms", "bins", "pixels", "indexes")
+
+
+# Aggregations that can be applied to per-chunk results to combine them, and
+# the aggregation to combine them with.
+_MERGEABLE_AGGS = {"sum": "sum", "min": "min", "max": "max", "count": "sum"}
+
+def _set_h5opts(h5opts: dict[str, Any]) -> dict[str, Any]:
+    result = {}
+    if h5opts is not None:
+        result.update(h5opts)
+    available_opts = {
+        "chunks",
+        "maxshape",
+        "compression",
+        "compression_opts",
+        "scaleoffset",
+        "shuffle",
+        "fletcher32",
+        "fillvalue",
+        "track_times",
+    }
+    for key in result:
+        if key not in available_opts:
+            raise ValueError(f"Unknown storage option '{key}'.")
+    result.setdefault("compression", "gzip")
+    if result["compression"] == "gzip" and "compression_opts" not in result:
+        result["compression_opts"] = 6
+    result.setdefault("shuffle", True)
+    return result
+
+def write_chroms(grp: h5py.Group, chroms: pd.DataFrame, h5opts: dict) -> None:
+    """
+    Write the chromosome table.
+
+    Parameters
+    ----------
+    grp : h5py.Group
+        Group handle of an open HDF5 file with write permissions.
+    chroms : DataFrame
+        Chromosome table containing at least 'chrom' and 'length' columns
+    h5opts : dict
+        HDF5 dataset filter options.
+
+    """
+    n_chroms = len(chroms)
+    names = np.array(chroms["name"], dtype=CHROM_DTYPE)  # auto-adjusts char length
+    grp.create_dataset(
+        "name", shape=(n_chroms,), dtype=names.dtype, data=names, **h5opts
+    )
+    grp.create_dataset(
+        "length",
+        shape=(n_chroms,),
+        dtype=CHROMSIZE_DTYPE,
+        data=chroms["length"],
+        **h5opts,
+    )
+
+    # Extra columns
+    columns = list(chroms.keys())
+    for col in ["name", "length"]:
+        columns.remove(col)
+    if columns:
+        put(grp, chroms[columns])
+
+def write_bins(
+    grp: h5py.Group,
+    bins: pd.DataFrame,
+    chromnames: list[str],
+    h5opts: dict,
+    chrom_as_enum: bool = True,
+) -> None:
+    """
+    Write the genomic bin table.
+
+    Parameters
+    ----------
+    grp : h5py.Group
+        Group handle of an open HDF5 file with write permissions.
+    bins : pandas.DataFrame
+        BED-like data frame with at least three columns: ``chrom``, ``start``,
+        ``end``, sorted by ``chrom`` then ``start``, and forming a complete
+        genome segmentation. The ``chrom`` column must be sorted according to
+        the ordering in ``chroms``.
+    chromnames : sequence of str
+        Contig names.
+    h5opts : dict
+        HDF5 dataset filter options.
+
+    """
+    n_chroms = len(chromnames)
+    n_bins = len(bins)
+    idmap = dict(zip(chromnames, range(n_chroms)))
+
+    # Convert chrom names to enum
+    chrom_ids = [idmap[chrom] for chrom in bins["chrom"]]
+    if chrom_as_enum:
+        chrom_dtype = h5py.special_dtype(enum=(CHROMID_DTYPE, idmap))
+    else:
+        chrom_dtype = CHROMID_DTYPE
+
+    # Store bins
+    try:
+        chrom_dset = grp.create_dataset(
+            "chrom", shape=(n_bins,), dtype=chrom_dtype, data=chrom_ids, **h5opts
+        )
+    except ValueError:
+        # If too many scaffolds for HDF5 enum header,
+        # try storing chrom IDs as raw int instead
+        if chrom_as_enum:
+            chrom_as_enum = False
+            chrom_dtype = CHROMID_DTYPE
+            chrom_dset = grp.create_dataset(
+                "chrom", shape=(n_bins,), dtype=chrom_dtype, data=chrom_ids, **h5opts
+            )
+        else:
+            raise
+    if not chrom_as_enum:
+        chrom_dset.attrs["enum_path"] = "/chroms/name"
+
+    grp.create_dataset(
+        "start", shape=(n_bins,), dtype=COORD_DTYPE, data=bins["start"], **h5opts
+    )
+    grp.create_dataset(
+        "end", shape=(n_bins,), dtype=COORD_DTYPE, data=bins["end"], **h5opts
+    )
+
+    # Extra columns
+    columns = list(bins.keys())
+    for col in ["chrom", "start", "end"]:
+        columns.remove(col)
+    if columns:
+        put(grp, bins[columns])
+
+def prepare_pixels(
+    grp: h5py.Group,
+    n_bins: int,
+    max_size: int,
+    columns: pd.Index | list[str],
+    dtypes: pd.Series | dict[str, Any],
+    h5opts: dict,
+) -> None:
+    columns = list(columns)
+    init_size = min(5 * n_bins, max_size)
+    grp.create_dataset(
+        "bin1_id",
+        dtype=dtypes.get("bin1_id", BIN_DTYPE),
+        shape=(init_size,),
+        maxshape=(max_size,),
+        **h5opts,
+    )
+    grp.create_dataset(
+        "bin2_id",
+        dtype=dtypes.get("bin2_id", BIN_DTYPE),
+        shape=(init_size,),
+        maxshape=(max_size,),
+        **h5opts,
+    )
+
+    if "count" in columns:
+        grp.create_dataset(
+            "count",
+            dtype=dtypes.get("count", COUNT_DTYPE),
+            shape=(init_size,),
+            maxshape=(max_size,),
+            **h5opts,
+        )
+
+    for col in ["bin1_id", "bin2_id", "count"]:
+        try:
+            columns.remove(col)
+        except ValueError:
+            pass
+
+    if columns:
+        for col in columns:
+            grp.create_dataset(
+                col,
+                dtype=dtypes.get(col, float),
+                shape=(init_size,),
+                maxshape=(max_size,),
+                **h5opts,
+            )
+
+def _check_fits_dtype(col: str, values: np.ndarray, dtype: np.dtype) -> None:
+    """Raise if integer values would be clipped when stored as ``dtype``."""
+    dtype = np.dtype(dtype)
+    values = np.asarray(values)
+    if dtype.kind not in "iu" or values.dtype.kind not in "iuf" or not len(values):
+        return
+    info = np.iinfo(dtype)
+    vmin, vmax = values.min(), values.max()
+    if vmin < info.min or vmax > info.max:
+        raise ValueError(
+            f"Values in pixel column '{col}' range from {vmin} to {vmax}, which "
+            f"doesn't fit in the column's data type ({dtype}). Retry storing the "
+            f"column as int64, e.g. with dtypes={{'{col}': 'int64'}} in Python "
+            f"or --field {col}:dtype=int64 on the command line."
+        )
+
+def index_pixels(grp: h5py.Group, n_bins: int, nnz: int) -> np.ndarray:
+    bin1 = grp["bin1_id"]
+    bin1_offset = np.zeros(n_bins + 1, dtype=BIN1OFFSET_DTYPE)
+    curr_val = 0
+    for start, _length, value in zip(*rlencode(bin1, 1000000)):
+        bin1_offset[curr_val : value + 1] = start
+        curr_val = value + 1
+    bin1_offset[curr_val:] = nnz
+    return bin1_offset
+
+def index_bins(grp: h5py.Group, n_chroms: int, n_bins: int) -> np.ndarray:
+    chrom_ids = grp["chrom"]
+    chrom_offset = np.zeros(n_chroms + 1, dtype=CHROMOFFSET_DTYPE)
+    curr_val = 0
+    for start, _length, value in zip(*rlencode(chrom_ids)):
+        chrom_offset[curr_val : value + 1] = start
+        curr_val = value + 1
+    chrom_offset[curr_val:] = n_bins
+    return chrom_offset
+
+def write_indexes(
+    grp: h5py.Group,
+    chrom_offset: np.ndarray,
+    bin1_offset: np.ndarray,
+    h5opts: dict
+) -> None:
+    """
+    Write the indexes.
+
+    Parameters
+    ----------
+    grp : h5py.Group
+        Group handle of an open HDF5 file with write permissions.
+    chrom_offset : sequence
+        Lookup table: chromosome ID -> first row in bin table (bin ID)
+        corresponding to that chromosome.
+    bin1_offset : sequence
+        Lookup table: genomic bin ID -> first row in pixel table (pixel ID)
+        having that bin on the first axis.
+
+    """
+    grp.create_dataset(
+        "chrom_offset",
+        shape=(len(chrom_offset),),
+        dtype=CHROMOFFSET_DTYPE,
+        data=chrom_offset,
+        **h5opts,
+    )
+    grp.create_dataset(
+        "bin1_offset",
+        shape=(len(bin1_offset),),
+        dtype=BIN1OFFSET_DTYPE,
+        data=bin1_offset,
+        **h5opts,
+    )
+
+def write_info(grp: h5py.Group, info: dict, scool: bool = False) -> None:
+    """
+    Write the file description and metadata attributes.
+
+    Parameters
+    ----------
+    grp : h5py.Group
+        Group handle of an open HDF5 file with write permissions.
+    info : dict
+        Dictionary, unnested with the possible exception of the ``metadata``
+        key. ``metadata``, if present, must be JSON-serializable.
+
+    Required keys
+    -------------
+    nbins : int
+        number of genomic bins
+    nnz : int
+        number of non-zero pixels
+
+    """
+    assert "nbins" in info
+    if not scool:
+        assert "nnz" in info
+    info.setdefault("genome-assembly", "unknown")
+    info["metadata"] = json.dumps(info.get("metadata", {}))
+    info["creation-date"] = datetime.now().isoformat()
+    info["generated-by"] = "cooler-" + __version__
+    if scool:
+        info["format"] = MAGIC_SCOOL
+        info["format-version"] = __format_version_scool__
+    else:
+        info["format"] = MAGIC
+        info["format-version"] = __format_version__
+    info["format-url"] = URL
+    grp.attrs.update(info)
+
+def _same_chroms_and_bins(
+    grp: h5py.Group, chroms: pd.DataFrame, bins: pd.DataFrame
+) -> bool:
+    if "chroms" not in grp or "bins" not in grp:
+        return False
+    old_chroms = get(grp["chroms"], 0, None, ["name", "length"], convert_enum=False)
+    old_bins = get(grp["bins"], 0, None, ["chrom", "start", "end"], convert_enum=True)
+    new_bins = bins[["chrom", "start", "end"]]
+    return (
+        old_chroms["name"].astype(str).tolist() == chroms["name"].astype(str).tolist()
+        and np.array_equal(old_chroms["length"], chroms["length"])
+        and len(old_bins) == len(new_bins)
+        and np.array_equal(old_bins["chrom"].astype(str), new_bins["chrom"].astype(str))
+        and np.array_equal(old_bins["start"], new_bins["start"])
+        and np.array_equal(old_bins["end"], new_bins["end"])
+    )
 
 
 def _prepare_tables(bins: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, Any]:
@@ -461,7 +773,6 @@ class _UnorderedCoolerWriter:
         delete_temp: bool = True,
         **kwargs,
     ):
-        from ._create import _MERGEABLE_AGGS
         from ._ingest import mean_parts
 
         allowed = set(inspect.signature(_CoolerWriter).parameters) - {
@@ -665,6 +976,228 @@ class _UnorderedCoolerWriter:
         self._temp_files = []
 
     def __enter__(self) -> _UnorderedCoolerWriter:  # noqa: PYI034
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> None:
+        if exc_type is None:
+            self.finish()
+        else:
+            self.abort()
+
+
+class _ScoolWriter:
+    """
+    Write a single-cell (scool) file, one cell at a time.
+
+    The shared chrom and bin tables are written when the writer is created.
+    Each call to :meth:`add_cell` writes one cell as a cooler under
+    ``cells/<name>`` that hard-links the shared tables, and :meth:`finish`
+    writes the file's metadata. Each cell is written atomically, so a failure
+    while adding a cell leaves the cells already added intact.
+
+    In mode "a", cells can be added to an existing scool file with the same
+    bin table, and adding a cell with an existing name replaces it.
+
+    Parameters
+    ----------
+    scool_uri : str
+        Destination file path, optionally followed by ``::`` and a group path.
+    bins : pandas.DataFrame
+        The shared bin table: ``chrom``, ``start`` and ``end`` columns. Any
+        other columns are ignored here; per-cell bin columns can be passed to
+        :meth:`add_cell`.
+    columns, dtypes, symmetric_upper, h5opts, boundscheck, triucheck, dupcheck,
+    ensure_sorted, lock
+        As for :class:`_CoolerWriter`, applied to every cell.
+    metadata : dict, optional
+        JSON-serializable metadata, stored on the file and on every cell.
+    assembly : str, optional
+        Name of the genome assembly.
+    mode : {"w", "a"}, optional
+        "w" truncates the file; "a" adds cells to an existing scool.
+
+    """
+
+    def __init__(
+        self,
+        scool_uri: str,
+        bins: pd.DataFrame,
+        *,
+        columns: list[str] | None = None,
+        dtypes: dict | None = None,
+        metadata: dict | None = None,
+        assembly: str | None = None,
+        symmetric_upper: bool = True,
+        mode: str = "w",
+        h5opts: dict | None = None,
+        boundscheck: bool = True,
+        triucheck: bool = True,
+        dupcheck: bool = True,
+        ensure_sorted: bool = False,
+        lock: Any | None = None,
+    ):
+        file_path, group_path = parse_cooler_uri(scool_uri)
+        self.file_path = op.realpath(file_path)
+        self.group_path = group_path
+        self.scool_uri = f"{self.file_path}::{group_path}"
+        if not isinstance(bins, pd.DataFrame):
+            raise ValueError(  # noqa: TRY004
+                "The bin table must be a pandas DataFrame."
+            )
+        self.bins, self.chroms, self.binsize = _prepare_tables(
+            bins[["chrom", "start", "end"]]
+        )
+        self.metadata = metadata
+        self.assembly = assembly
+        self.h5opts = _set_h5opts(h5opts)
+        self.cell_kwargs = {
+            "columns": columns,
+            "dtypes": dtypes,
+            "metadata": metadata,
+            "assembly": assembly,
+            "symmetric_upper": symmetric_upper,
+            "h5opts": h5opts,
+            "boundscheck": boundscheck,
+            "triucheck": triucheck,
+            "dupcheck": dupcheck,
+            "ensure_sorted": ensure_sorted,
+            "lock": lock,
+        }
+        self._added = set()
+        self._done = False
+
+        with h5py.File(self.file_path, mode) as f:
+            logger.info(f'Creating scool at "{self.file_path}::{group_path}"')
+            root = f.require_group(group_path)
+            # Cells hard-link the root chroms and bins tables, so when
+            # appending, keep the existing tables rather than rewriting them.
+            if _same_chroms_and_bins(root, self.chroms, self.bins):
+                return
+            if "cells" in root and len(root["cells"]):
+                raise ValueError(
+                    "Cannot append cells with a different bin table to an "
+                    f"existing scool file: '{self.file_path}'."
+                )
+            for name in ["chroms", "bins"]:
+                if name in root:
+                    del root[name]
+            write_chroms(root.create_group("chroms"), self.chroms, self.h5opts)
+            write_bins(
+                root.create_group("bins"), self.bins, self.chroms["name"],
+                self.h5opts,
+            )
+
+    def add_cell(
+        self,
+        name: str,
+        pixels: Any,
+        *,
+        bins: pd.DataFrame | None = None,
+        ordered: bool = True,
+        agg: dict[str, str] | None = None,
+        mergebuf: int = 20_000_000,
+        max_merge: int = 200,
+        temp_dir: str | None = None,
+        delete_temp: bool = True,
+    ) -> None:
+        """
+        Write a cell.
+
+        Parameters
+        ----------
+        name : str
+            Name of the cell. It can't contain "/".
+        pixels : DataFrame, dict or iterable of chunks
+            The cell's pixels. A DataFrame or dict of columns is sorted in
+            memory. An iterable of chunks must be sorted, unless ``ordered``
+            is False.
+        bins : pandas.DataFrame, optional
+            Bin table with additional per-cell columns (e.g. ``weight``). Its
+            ``chrom``, ``start`` and ``end`` columns must match the shared
+            bin table.
+        ordered : bool, optional
+            Whether the chunks of ``pixels`` are sorted. If False, they are
+            sorted with an external sort, using ``agg``, ``mergebuf``,
+            ``max_merge``, ``temp_dir`` and ``delete_temp`` as for
+            :func:`cooler.create_cooler`.
+
+        """
+        if self._done:
+            raise ValueError("Writer has already finished.")
+        if not name or "/" in name:
+            raise ValueError(f"Invalid cell name: '{name}'.")
+        if name in self._added:
+            raise ValueError(f"Cell '{name}' has already been added.")
+
+        cell_bins = self.bins
+        if bins is not None:
+            shared = bins[["chrom", "start", "end"]].reset_index(drop=True)
+            if not (
+                len(shared) == len(self.bins)
+                and np.array_equal(
+                    shared["chrom"].astype(str), self.bins["chrom"].astype(str)
+                )
+                and np.array_equal(shared["start"], self.bins["start"])
+                and np.array_equal(shared["end"], self.bins["end"])
+            ):
+                raise ValueError(
+                    f"The bin table of cell '{name}' doesn't match the shared "
+                    "bin table."
+                )
+            cell_bins = bins.reset_index(drop=True)
+
+        if isinstance(pixels, (pd.DataFrame, dict)):
+            pixels = [pd.DataFrame(pixels).sort_values(["bin1_id", "bin2_id"])]
+            ordered = True
+
+        cell_uri = f"{self.file_path}::" + posixpath.join(
+            self.group_path, "cells", name
+        )
+        kwargs = dict(self.cell_kwargs, mode="a", link_tables_from=self.scool_uri)
+        if ordered:
+            writer = _CoolerWriter(cell_uri, cell_bins, **kwargs)
+        else:
+            writer = _UnorderedCoolerWriter(
+                cell_uri,
+                cell_bins,
+                agg=agg,
+                mergebuf=mergebuf,
+                max_merge=max_merge,
+                temp_dir=temp_dir,
+                delete_temp=delete_temp,
+                **kwargs,
+            )
+        with writer:
+            for chunk in pixels:
+                writer.write(chunk)
+        self._added.add(name)
+
+    def finish(self) -> None:
+        """Write the scool file's metadata."""
+        if self._done:
+            return
+        self._done = True
+        info = {
+            "bin-type": "fixed" if self.binsize is not None else "variable",
+            "bin-size": self.binsize if self.binsize is not None else "null",
+            "nchroms": len(self.chroms),
+            "nbins": len(self.bins),
+        }
+        if self.assembly is not None:
+            info["genome-assembly"] = self.assembly
+        if self.metadata is not None:
+            info["metadata"] = self.metadata
+        with h5py.File(self.file_path, "r+") as f:
+            root = f[self.group_path]
+            # Count all cells, including those from earlier appends
+            info["ncells"] = len(root["cells"]) if "cells" in root else 0
+            write_info(root, info, scool=True)
+
+    def abort(self) -> None:
+        """Stop without writing the metadata. Cells already added are kept."""
+        self._done = True
+
+    def __enter__(self) -> _ScoolWriter:  # noqa: PYI034
         return self
 
     def __exit__(self, exc_type, exc, tb) -> None:
