@@ -42,7 +42,8 @@ def test_column_names_containing_chrom(tmp_path):
 
 
 def test_parse_humanized_decimals():
-    wrong = [x for x in range(1, 100_000) if parse_humanized(f"{x / 100:.2f}kb") != x * 10]
+    values = range(1, 100_000)  # 0.01 kb to 999.99 kb
+    wrong = [x for x in values if parse_humanized(f"{x / 100:.2f}kb") != x * 10]
     assert wrong == []
     assert parse_humanized("4.1Mb") == 4_100_000
     with pytest.raises(ValueError, match="whole number"):
@@ -124,7 +125,8 @@ def test_put_appends(tmp_path):
         put(grp, pd.DataFrame({
             "cat": pd.Categorical(["a", "b", "a"]), "s": ["x", "yy", "z"]
         }))
-        put(grp, pd.DataFrame({"cat": pd.Categorical(["b", "b"]), "s": ["p", "q"]}), lo=3)
+        more = pd.DataFrame({"cat": pd.Categorical(["b", "b"]), "s": ["p", "q"]})
+        put(grp, more, lo=3)
         out = get(grp)
         assert out["cat"].tolist() == ["a", "b", "a", "b", "b"]
         assert out["s"].tolist() == ["x", "yy", "z", "p", "q"]
