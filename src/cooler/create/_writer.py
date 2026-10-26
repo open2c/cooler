@@ -33,7 +33,7 @@ from ._constants import (
     PIXEL_DTYPES,
     URL,
 )
-from ._ingest import BadInputError
+from ._ingest import BadInputError, _check_pixel_ids
 
 logger = get_logger("cooler.create")
 
@@ -55,7 +55,6 @@ def _set_h5opts(h5opts: dict[str, Any]) -> dict[str, Any]:
         result.update(h5opts)
     available_opts = {
         "chunks",
-        "maxshape",
         "compression",
         "compression_opts",
         "scaleoffset",
@@ -72,6 +71,17 @@ def _set_h5opts(h5opts: dict[str, Any]) -> dict[str, Any]:
         result["compression_opts"] = 6
     result.setdefault("shuffle", True)
     return result
+
+# Storage options that only apply to numeric datasets
+_NUMERIC_H5OPTS = {"scaleoffset", "fillvalue"}
+
+
+def _h5opts_for_dtype(h5opts: dict, dtype: Any) -> dict:
+    """Drop storage options that don't apply to datasets of this dtype."""
+    if np.dtype(dtype).kind in "biuf":
+        return h5opts
+    return {k: v for k, v in h5opts.items() if k not in _NUMERIC_H5OPTS}
+
 
 def write_chroms(grp: h5py.Group, chroms: pd.DataFrame, h5opts: dict) -> None:
     """
@@ -90,7 +100,11 @@ def write_chroms(grp: h5py.Group, chroms: pd.DataFrame, h5opts: dict) -> None:
     n_chroms = len(chroms)
     names = np.array(chroms["name"], dtype=CHROM_DTYPE)  # auto-adjusts char length
     grp.create_dataset(
-        "name", shape=(n_chroms,), dtype=names.dtype, data=names, **h5opts
+        "name",
+        shape=(n_chroms,),
+        dtype=names.dtype,
+        data=names,
+        **_h5opts_for_dtype(h5opts, names.dtype),
     )
     grp.create_dataset(
         "length",
@@ -427,7 +441,7 @@ class _CoolerWriter:
         Check that bin IDs are within the bin table.
     triucheck : bool, optional
         Check that pixels are in the upper triangle (``bin1_id <= bin2_id``).
-        Ignored if ``symmetric_upper`` is False.
+        Default: only for ``symmetric_upper`` storage.
     dupcheck : bool, optional
         Check that no pixel occurs more than once. Pixels must always be in
         sorted order, across all chunks; if ``dupcheck`` is False, repeated
@@ -456,7 +470,7 @@ class _CoolerWriter:
         mode: str = "w",
         h5opts: dict | None = None,
         boundscheck: bool = True,
-        triucheck: bool = True,
+        triucheck: bool | None = None,
         dupcheck: bool = True,
         ensure_sorted: bool = False,
         lock: Any | None = None,
@@ -465,6 +479,13 @@ class _CoolerWriter:
         file_path, group_path = parse_cooler_uri(cool_uri)
         self.file_path = op.realpath(file_path)
         self.group_path = group_path
+        # In mode "w", write a new file next to the destination and replace the
+        # destination with it when finished, so a failure leaves any existing
+        # file untouched.
+        self._replace_path = None
+        if mode == "w":
+            self._replace_path = self.file_path
+            self.file_path = self.file_path + _WRITING_SUFFIX
         if group_path == "/":
             self._tmp_path = "/" + _WRITING_SUFFIX
         else:
@@ -482,7 +503,9 @@ class _CoolerWriter:
         self.assembly = assembly
         self.symmetric_upper = symmetric_upper
 
-        if not symmetric_upper and triucheck:
+        if triucheck is None:
+            triucheck = symmetric_upper
+        elif triucheck and not symmetric_upper:
             warnings.warn(
                 "Creating a non-symmetric matrix, but `triucheck` was set to "
                 "True. Changing to False.",
@@ -585,16 +608,7 @@ class _CoolerWriter:
     def _validate(self, chunk: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
         bin1 = chunk["bin1_id"]
         bin2 = chunk["bin2_id"]
-        if self.boundscheck:
-            if np.any(bin1 < 0) or np.any(bin2 < 0):
-                raise BadInputError("Found bin ID < 0")
-            if np.any(bin1 >= self.n_bins) or np.any(bin2 >= self.n_bins):
-                raise BadInputError(
-                    "Found a bin ID that exceeds the declared number of bins. "
-                    "Check whether your bin table is correct."
-                )
-        if self.triucheck and np.any(bin1 > bin2):
-            raise BadInputError("Found bin1_id greater than bin2_id")
+        _check_pixel_ids(bin1, bin2, self.n_bins, self.boundscheck, self.triucheck)
 
         keys = bin1.astype(np.int64) * self.n_bins + bin2.astype(np.int64)
         if self.ensure_sorted:
@@ -657,21 +671,30 @@ class _CoolerWriter:
                 )
                 write_info(grp, self._info())
                 self._move_into_place(f)
-        finally:
-            self._close_file()
-            self._done = True
+        except BaseException:
+            self._done = False
+            self.abort()
+            raise
+        self._close_file()
+        self._done = True
+        if self._replace_path is not None:
+            os.replace(self.file_path, self._replace_path)
+            self.file_path = self._replace_path
 
     def abort(self) -> None:
         """Remove the partially written cooler."""
         if self._done:
             return
         try:
-            with self._open() as f:
-                if self._tmp_path in f:
-                    del f[self._tmp_path]
+            if self._replace_path is None:
+                with self._open() as f:
+                    if self._tmp_path in f:
+                        del f[self._tmp_path]
         finally:
             self._close_file()
             self._done = True
+            if self._replace_path is not None and op.exists(self.file_path):
+                os.remove(self.file_path)
 
     def _close_file(self) -> None:
         if self._file is not None:
@@ -721,6 +744,10 @@ class _CoolerWriter:
             self.abort()
 
 
+# Hidden column counting the occurrences of each pixel in unordered input
+_OCCURRENCES = "__occurrences"
+
+
 class _UnorderedCoolerWriter:
     """
     Write a cooler from pixel chunks in any order, using an external sort.
@@ -744,6 +771,11 @@ class _UnorderedCoolerWriter:
         As for :class:`_CoolerWriter`.
     agg : dict, optional
         Mapping of value column names to aggregations.
+    duplicates : {"combine", "error"}, optional
+        What a pixel that occurs more than once in the input, within a chunk
+        or across chunks, means. "combine" (default): its values are combined
+        with ``agg``, as for contributions from different chunks of records.
+        "error": the input must list each pixel at most once.
     mergebuf : int, optional
         Maximum number of pixels to hold in memory while merging.
     max_merge : int, optional
@@ -768,6 +800,7 @@ class _UnorderedCoolerWriter:
         columns: list[str] | None = None,
         dtypes: dict | None = None,
         agg: dict[str, str] | None = None,
+        duplicates: str = "combine",
         mergebuf: int = 20_000_000,
         max_merge: int = 200,
         temp_dir: str | None = None,
@@ -775,6 +808,12 @@ class _UnorderedCoolerWriter:
         **kwargs,
     ):
         from ._ingest import mean_parts
+
+        if duplicates not in ("combine", "error"):
+            raise ValueError(
+                f"duplicates must be 'combine' or 'error', not '{duplicates}'."
+            )
+        self.duplicates = duplicates
 
         allowed = set(inspect.signature(_CoolerWriter).parameters) - {
             "cool_uri", "bins", "columns", "dtypes"
@@ -818,12 +857,17 @@ class _UnorderedCoolerWriter:
                 self.run_dtypes[col] = self.dtypes[col]
                 if col in self.agg:
                     self.merge_agg[col] = _MERGEABLE_AGGS.get(self.agg[col], "sum")
+        if duplicates == "error":
+            # Count occurrences of each pixel, to detect duplicates across runs
+            self.run_columns.append(_OCCURRENCES)
+            self.run_dtypes[_OCCURRENCES] = np.int64
+            self.merge_agg[_OCCURRENCES] = "sum"
         self.run_kwargs = {
             key: kwargs[key]
-            for key in ("symmetric_upper", "h5opts", "boundscheck", "triucheck",
-                        "dupcheck")
+            for key in ("symmetric_upper", "h5opts", "boundscheck", "triucheck")
             if key in kwargs
         }
+        self.run_kwargs["dupcheck"] = duplicates == "error"
 
         if temp_dir is None:
             temp_dir = op.dirname(parse_cooler_uri(cool_uri)[0])
@@ -862,6 +906,8 @@ class _UnorderedCoolerWriter:
             missing = np.isnan(values)
             chunk[sum_col] = np.where(missing, 0.0, values)
             chunk[n_col] = (~missing).astype(np.int64)
+        if self.duplicates == "error":
+            chunk[_OCCURRENCES] = np.ones(len(chunk["bin1_id"]), dtype=np.int64)
         return chunk
 
     def write(self, chunk: Any) -> None:
@@ -896,10 +942,19 @@ class _UnorderedCoolerWriter:
             agg=self.merge_agg,
         )
 
-    def _finish_means(self, chunk: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
+    def _finish_chunk(self, chunk: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
         from ._ingest import mean_parts
 
         chunk = dict(chunk)
+        if self.duplicates == "error":
+            occurrences = chunk.pop(_OCCURRENCES)
+            if np.any(occurrences > 1):
+                i = int(np.argmax(occurrences > 1))
+                pixel = (int(chunk["bin1_id"][i]), int(chunk["bin2_id"][i]))
+                raise BadInputError(
+                    f"Found a duplicate pixel {pixel}, which occurs "
+                    f"{int(occurrences[i])} times in the input."
+                )
         for col in self.mean_cols:
             sum_col, n_col = mean_parts(col)
             total, n = chunk.pop(sum_col), chunk.pop(n_col)
@@ -958,7 +1013,7 @@ class _UnorderedCoolerWriter:
             ) as w:
                 if runs:
                     for chunk in self._merged(runs):
-                        w.write(self._finish_means(chunk))
+                        w.write(self._finish_chunk(chunk))
         finally:
             self._cleanup()
 
@@ -1032,7 +1087,7 @@ class _ScoolWriter:
         mode: str = "w",
         h5opts: dict | None = None,
         boundscheck: bool = True,
-        triucheck: bool = True,
+        triucheck: bool | None = None,
         dupcheck: bool = True,
         ensure_sorted: bool = False,
         lock: Any | None = None,

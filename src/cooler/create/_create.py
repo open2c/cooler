@@ -124,7 +124,7 @@ def create(
     mode=None,
     h5opts=None,
     boundscheck=True,
-    triucheck=True,
+    triucheck=None,
     dupcheck=True,
     ensure_sorted=False,
     lock=None,
@@ -222,6 +222,7 @@ def create_from_unordered(
     temp_dir=None,
     max_merge=200,
     agg=None,
+    duplicates="combine",
     **kwargs,
 ):
     """
@@ -236,7 +237,9 @@ def create_from_unordered(
     there is more than one chunk, only "sum", "min", "max", "count" and "mean"
     are supported. For "mean", each occurrence of a pixel counts as one value,
     unless chunks provide the sum and number of values of the column (see
-    ``aggregate_records(..., split_means=True)``).
+    ``aggregate_records(..., split_means=True)``). If ``duplicates`` is
+    "error", a pixel occurring more than once anywhere in the input raises
+    instead.
 
     """
     dtypes = _get_dtypes_arg(dtypes, kwargs)
@@ -249,6 +252,7 @@ def create_from_unordered(
         columns=columns,
         dtypes=dtypes,
         agg=agg,
+        duplicates=duplicates,
         mergebuf=mergebuf,
         max_merge=max_merge,
         temp_dir=temp_dir,
@@ -307,6 +311,11 @@ _DOC_OTHER_PARAMS = """
         When ``ordered=False``, how to combine the values of a pixel that
         occurs in more than one input chunk: a mapping of value column names
         to "sum" (default), "min", "max", "count" or "mean".
+    duplicates : {"combine", "error"}, optional
+        When ``ordered=False``, what a pixel occurring more than once in the
+        input (within or across chunks) means: "combine" (default) combines
+        its values using ``agg``; "error" raises. With ``ordered=True``,
+        duplicates always raise unless ``dupcheck`` is False.
     max_merge : int, optional
         If merging more than ``max_merge`` chunks, do the merge recursively in
         two passes.
@@ -373,9 +382,10 @@ def create_cooler(
     temp_dir: str | None = None,
     max_merge: int = 200,
     agg: dict[str, str] | None = None,
+    duplicates: str = "combine",
     boundscheck: bool = True,
     dupcheck: bool = True,
-    triucheck: bool = True,
+    triucheck: bool | None = None,
     ensure_sorted: bool = False,
     h5opts: dict | None = None,
     lock: Any | None = None,
@@ -463,6 +473,7 @@ def create_cooler(
             temp_dir=temp_dir,
             max_merge=max_merge,
             agg=agg,
+            duplicates=duplicates,
         )
 
 
@@ -484,7 +495,7 @@ def create_scool(
     max_merge: int = 200,
     boundscheck: bool = True,
     dupcheck: bool = True,
-    triucheck: bool = True,
+    triucheck: bool | None = None,
     ensure_sorted: bool = False,
     h5opts: dict | None = None,
     lock: Any | None = None,

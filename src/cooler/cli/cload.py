@@ -20,9 +20,7 @@ from ..create import (
 from . import cli, get_logger
 from ._util import parse_bins, parse_field_param, parse_kv_list_param
 
-_pandas_version = pd.__version__.split(".")
-if int(_pandas_version[0]) > 0:
-    from pandas.io.common import get_handle
+from pandas.io.common import get_handle
 
 
 # Copied from pairtools._headerops
@@ -409,10 +407,11 @@ def pairix(
     "--input-copy-status",
     type=click.Choice(["unique", "duplex"]),
     default="unique",
-    help="Copy status of input data when using symmetric-upper storage. | "
-    "`unique`: Incoming data comes from a unique half of a symmetric "
-    "map, regardless of how the coordinates of a pair are ordered. "
-    "`duplex`: Incoming data contains upper- and lower-triangle duplicates. "
+    help="Deprecated, and will be removed in cooler 0.12: pairs should list "
+    "each contact once. | "
+    "`unique`: Each contact is listed once, regardless of how the "
+    "coordinates of a pair are ordered. "
+    "`duplex`: Each contact is listed twice, once in each orientation. "
     "All input records that map to the lower triangle will be discarded! | "
     "If you wish to treat lower- and upper-triangle input data as "
     "distinct, use the ``--no-symmetric-upper`` option. ",
@@ -526,6 +525,18 @@ def pairs(
     if mergebuf is None:
         mergebuf = chunksize
 
+    ctx = click.get_current_context(silent=True)
+    if ctx is not None:
+        source = ctx.get_parameter_source("input_copy_status")
+        explicit = source is not click.core.ParameterSource.DEFAULT
+    else:
+        explicit = input_copy_status != "unique"
+    if explicit:
+        get_logger(__name__).warning(
+            "--input-copy-status is deprecated for `cooler cload pairs`, and will "
+            "be removed in cooler 0.12. Pairs should list each contact once."
+        )
+
     symmetric_upper = not no_symmetric_upper
     tril_action = None
     if symmetric_upper:
@@ -623,11 +634,7 @@ def pairs(
     kwargs = {}
     if pairs_path == "-":
         f_in = sys.stdin
-    elif int(_pandas_version[0]) == 1 and int(_pandas_version[1]) < 2:
-        # get_handle returns a pair of objects in pandas 1.0 and 1.1
-        f_in = get_handle(pairs_path, mode="r", compression="infer")[0]
     else:
-        # get_handle returns a single wrapper object in pandas 1.2+ and 2.*
         f_in = get_handle(pairs_path, mode="r", compression="infer").handle
 
     _, f_in = get_header(f_in, comment_char)
