@@ -6,6 +6,10 @@
 * Range queries filter pixels in a single vectorized pass instead of looping over matrix rows in Python. The pixel filtering step is about 7-16x faster, and matrix queries on HDF5 files about 1.5x faster end to end, with peak memory about the same as before. Queries spanning many rows benefit most.
 
 ### Bug fixes
+* fix: Creating a cooler from sorted input (`create_cooler(..., ordered=True)` and the functions built on it) checks that pixels are sorted and unique across all chunks, not just within each one. Previously, out-of-order chunks silently produced a cooler with a corrupt index.
+* fix: A failure while creating a cooler no longer leaves a partial cooler at the destination, or removes an existing cooler being replaced: coolers are written into a temporary group and moved into place when complete.
+* fix: Coolers with no pixels no longer contain placeholder rows in their pixel datasets.
+* fix: `cooler.create.create` raises `TypeError` for unknown keyword arguments instead of silently ignoring them. This exposed options that `create_scool` passed but that had no effect (`ordered`, `mergebuf`, `delete_temp`, `temp_dir`, `max_merge`).
 * fix: `cooler cload` rejects positions at or beyond the end of a chromosome. Previously, a position equal to the chromosome length (one past the end, after conversion to zero-based) was assigned to the first bin of the next chromosome, turning a cis contact into a trans contact, or silently dropped on the last chromosome. `cload pairs` now also keeps pixel bounds checking on, and `cload tabix`/`pairix` check the second position.
 * fix: `cooler cload pairs --field` and `cooler load --field` no longer swap the values of fields given out of column order (e.g. `--field b=9 --field a=8`).
 * fix: `cooler cload pairs --field <name>=<col>:agg=<agg>` combined the per-chunk results by summing them, so `max`, `min` and other aggregations were wrong for inputs larger than `--chunksize`. Pixels are now combined with the requested aggregation; aggregations that can't be combined across chunks (e.g. `mean`) raise an error when the input spans more than one chunk. `create_cooler` gains an `agg` parameter for this.
@@ -28,6 +32,7 @@
 * fix: `to_dask_frame()` on range queries works with current dask versions; it relied on dask's legacy `DataFrame` constructor, which newer dask releases removed. By @nvictus in https://github.com/open2c/cooler/pull/501
 
 ### Maintenance
+* Cooler creation is built on an internal chunked writer (`cooler.create._writer._CoolerWriter`) that validates, writes and finalizes a cooler one chunk at a time, keeping the output file open between chunks unless a lock is shared with readers.
 * The `to_sparse_array()` method of range query engines returns a SciPy `coo_array` instead of a pydata/sparse `COO`, so it no longer needs the optional `sparse` package. `to_sparse_matrix()` now converts the same `coo_array` to a `coo_matrix`. The minimum SciPy version is raised to 1.11, the oldest compatible with NumPy 1.26.
 * Property-based tests of 2D range queries against dense NumPy references. By @nvictus in https://github.com/open2c/cooler/pull/501
 
