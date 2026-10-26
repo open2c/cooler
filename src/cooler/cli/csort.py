@@ -99,7 +99,7 @@ def make_flip_command(chromosomes_path, sep, comment_char, fields):
         for i, line in enumerate(f, 1):
             chrom = line.split("\t")[0].strip()
             if chrom:
-                logger.info(chrom + "\t" + str(i))
+                logger.debug(f"{chrom}\t{i}")
 
     # zero-based column indices
     c1 = fields["C1"] - 1
@@ -394,7 +394,7 @@ def csort(
                 logger.info("Sort order: block (chrom1, chrom2, pos1, pos2)")
             else:
                 logger.info("Sort order: positional (chrom1, pos1, chrom2, pos2)")
-            logger.info(" ".join(sort_cmd))
+            logger.debug(" ".join(sort_cmd))
             pipeline.append(
                 subprocess.Popen(
                     sort_cmd, stdin=pipeline[-1].stdout, stdout=subprocess.PIPE
@@ -416,7 +416,7 @@ def csort(
         # Create index file
         logger.info("Indexing...")
         logger.info(f"Indexer: {index}")
-        logger.info(" ".join(index_cmd))
+        logger.debug(" ".join(index_cmd))
         p = subprocess.Popen(index_cmd)
         p.communicate()
         if p.returncode != 0:

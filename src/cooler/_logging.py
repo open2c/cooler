@@ -32,10 +32,12 @@ from __future__ import annotations
 
 import logging
 import sys
+import warnings
 from typing import Callable
 
 _LOGGER_NAME = "cooler"
-_FORMAT = "{levelname}:{name}:{message}"
+_FORMAT = "{asctime} {levelname:<8} {name}: {message}"
+_DATEFMT = "%Y-%m-%d %H:%M:%S"
 
 verbosity_to_loglevel = {
     -3: logging.NOTSET,
@@ -79,7 +81,7 @@ class _StderrHandler(logging.StreamHandler):
 
 def _make_stderr_handler() -> logging.Handler:
     handler = _StderrHandler()
-    handler.setFormatter(logging.Formatter(_FORMAT, style="{"))
+    handler.setFormatter(logging.Formatter(_FORMAT, _DATEFMT, style="{"))
     return handler
 
 
@@ -145,6 +147,12 @@ def log_to_stderr(level: int | str | None = logging.INFO) -> logging.Handler:
     return handler
 
 
+def _log_warning(message, category, filename, lineno, file=None, line=None):
+    # One line per warning, unlike logging.captureWarnings, which logs the
+    # source file, line number and line of code as well
+    logging.getLogger(_LOGGER_NAME).warning(f"{category.__name__}: {message}")
+
+
 def setup_cli_logging(level: int) -> Callable[[], None]:
     """
     Send log records and warnings to stderr for the duration of a CLI command.
@@ -152,29 +160,20 @@ def setup_cli_logging(level: int) -> Callable[[], None]:
     Returns a function that undoes the setup.
     """
     logger = logging.getLogger(_LOGGER_NAME)
-    warnings_logger = logging.getLogger("py.warnings")
     handler = _make_stderr_handler()
-
-    saved = (logger.level, logger.propagate, warnings_logger.propagate)
-    # Is captureWarnings already on? Only logging knows, via a private name.
-    was_capturing = getattr(logging, "_warnings_showwarning", None) is not None
+    saved = (logger.level, logger.propagate, warnings.showwarning)
 
     logger.addHandler(handler)
     logger.setLevel(level)
     # Don't also pass records to Python's root logger, which may have handlers
     logger.propagate = False
-    logging.captureWarnings(True)
-    warnings_logger.addHandler(handler)
-    warnings_logger.propagate = False
+    warnings.showwarning = _log_warning
 
     def restore() -> None:
         logger.removeHandler(handler)
-        warnings_logger.removeHandler(handler)
         handler.close()
         logger.setLevel(saved[0])
         logger.propagate = saved[1]
-        warnings_logger.propagate = saved[2]
-        if not was_capturing:
-            logging.captureWarnings(False)
+        warnings.showwarning = saved[2]
 
     return restore

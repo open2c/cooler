@@ -22,7 +22,7 @@ from .util import GenomeSegmentation, parse_cooler_uri
 __all__ = ["coarsen_cooler", "merge_coolers", "zoomify_cooler"]
 
 
-logger = get_logger(__name__)
+logger = get_logger("cooler.reduce")
 
 HIGLASS_TILE_DIM = 256
 
@@ -175,12 +175,14 @@ class CoolerMerger(ContactBinner):
         # of merging data.
         bin1_partition, cum_nrecords = merge_breakpoints(indexes, self.mergebuf)
         nrecords_per_epoch = np.diff(cum_nrecords)
-        logger.info(f"n_merge_epochs: {len(nrecords_per_epoch)}")
-        logger.debug(f"bin1_partition: {bin1_partition}")
-        logger.debug(f"nrecords_per_merge_epoch: {nrecords_per_epoch}")
-
         nnzs = [len(c.pixels()) for c in self.coolers]
-        logger.info(f"nnzs: {nnzs}")
+        logger.info(
+            f"Merging {sum(nnzs):,} pixels from {len(self.coolers)} coolers in "
+            f"{len(nrecords_per_epoch)} epochs"
+        )
+        logger.debug(f"Pixels per cooler: {nnzs}")
+        logger.debug(f"Epoch boundaries (bin1 IDs): {bin1_partition}")
+        logger.debug(f"Pixels per epoch: {nrecords_per_epoch}")
 
         starts = [0] * len(self.coolers)
         for bin1_id in bin1_partition[1:]:
@@ -206,7 +208,7 @@ class CoolerMerger(ContactBinner):
 
             yield {k: v.values for k, v in df.items()}
 
-            logger.info(f"records consumed: {stops}")
+            logger.debug(f"Pixels merged up to: {stops}")
             starts = stops
 
 
@@ -259,7 +261,9 @@ def merge_coolers(
 
     """
     # TODO: combine metadata from inputs
-    logger.info("Merging:\n{}".format("\n".join(input_uris)))
+    logger.info(f"Merging {len(input_uris)} coolers into {output_uri}")
+    for uri in input_uris:
+        logger.debug(f"Input: {uri}")
 
     clrs = [Cooler(path) for path in input_uris]
 
@@ -564,7 +568,7 @@ class CoolerCoarsener(ContactBinner):
         # convert_enum=False returns chroms as raw ints
         table = clr.pixels(join=True, convert_enum=False)[self.columns]
         chunk = table[lo:hi]
-        logger.info(f"{lo} {hi}")
+        logger.debug(f"Coarsening pixels {lo:,}-{hi:,}")
 
         # use the "start" point as anchor for re-binning
         binsize = self.gs.binsize
@@ -807,8 +811,9 @@ def zoomify_cooler(
     resn, pred, mult = get_multiplier_sequence(resolutions, base_resolutions)
 
     n_zooms = len(resn)
-
-    logger.info(f"Copying base matrices and producing {n_zooms} new zoom levels.")
+    n_new = int(np.sum(pred != -1))
+    bases = ", ".join(str(b) for b in sorted(base_resolutions))
+    logger.info(f"Copying base resolutions ({bases}) and producing {n_new} new ones")
 
     if columns is None:
         columns = ["count"]
@@ -817,7 +822,7 @@ def zoomify_cooler(
     with h5py.File(outfile, "w"):
         pass
     for base_binsize in sorted(base_resolutions):
-        logger.info("Bin size: " + str(base_binsize))
+        logger.info(f"Copying base resolution {base_binsize}")
         infile, ingroup = parsed_uris[base_binsize]
         with h5py.File(infile, "r") as src, \
              h5py.File(outfile, "r+") as dest:  # fmt: skip
@@ -841,7 +846,7 @@ def zoomify_cooler(
             continue
         prev_binsize = resn[pred[i]]
         binsize = prev_binsize * mult[i]
-        logger.info(f"Aggregating from {prev_binsize} to {binsize}.")
+        logger.info(f"Aggregating from {prev_binsize} to {binsize}")
         coarsen_cooler(
             outfile + f"::resolutions/{prev_binsize}",
             outfile + f"::resolutions/{binsize}",

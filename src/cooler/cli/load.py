@@ -345,9 +345,9 @@ def load(
         chunksize=chunksize,
     )
 
-    logger.info(f"fields: {input_field_numbers}")
-    logger.info(f"dtypes: {input_field_dtypes}")
-    logger.info(f"symmetric-upper: {symmetric_upper}")
+    logger.debug(f"Input fields: {input_field_numbers}")
+    logger.debug(f"Input dtypes: {input_field_dtypes}")
+    logger.debug(f"Symmetric-upper: {symmetric_upper}")
 
     create_from_unordered(
         cool_path,

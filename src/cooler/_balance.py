@@ -15,7 +15,7 @@ from .util import mad
 
 __all__ = ["balance_cooler"]
 
-logger = get_logger(__name__)
+logger = get_logger("cooler.balance")
 
 
 class ConvergenceWarning(UserWarning):
@@ -118,7 +118,7 @@ def _iterate(bias, sel, get_marginals, tol, max_iters, rescale_marginals, where=
     """
     scale = var = np.nan
     marg = None
-    for _ in range(max_iters):
+    for i in range(max_iters):
         marg = get_marginals(bias)[sel]
         nzmarg = marg[marg != 0]
         if not len(nzmarg):
@@ -130,7 +130,7 @@ def _iterate(bias, sel, get_marginals, tol, max_iters, rescale_marginals, where=
         factor[factor == 0] = 1
         bias[sel] /= factor
 
-        logger.info(f"variance is {var}")
+        logger.info(f"Iteration {i + 1}: variance of marginals {var:.6g}")
         if var < tol:
             break
     else:
@@ -191,7 +191,7 @@ def _balance_cisonly(
     variances = np.full_like(scales, np.nan)
 
     for cid, lo, hi in zip(chrom_ids, chrom_offsets[:-1], chrom_offsets[1:]):
-        logger.info(chroms[cid])
+        logger.info(f"Balancing {chroms[cid]}")
 
         plo, phi = bin1_offsets[lo], bin1_offsets[hi]
         spans = list(partition(plo, phi, chunksize))

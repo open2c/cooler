@@ -648,7 +648,7 @@ class HDF5Aggregator(ContactBinner):
             if lo == hi:
                 hi = chrom_hi
 
-            logger.info(f"{lo} {hi}")
+            logger.debug(f"Reading records {lo:,}-{hi:,}")
 
             # load chunk and assign bin IDs to each read side
             table = self._load_chunk(lo, hi)

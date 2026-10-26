@@ -3,6 +3,7 @@ Tests for logging in the library and the CLI.
 """
 import logging
 import os.path as op
+import warnings
 
 from click.testing import CliRunner
 
@@ -20,8 +21,7 @@ def _logging_state():
         list(logger.handlers),
         logger.level,
         logger.propagate,
-        logging.getLogger("py.warnings").propagate,
-        getattr(logging, "_warnings_showwarning", None) is not None,
+        warnings.showwarning,
     )
 
 
@@ -68,9 +68,10 @@ def test_cli_logs_to_stderr_and_cleans_up():
     for _ in range(2):
         result = runner.invoke(cli, args)
         assert result.exit_code == 0, result.output
-        assert "INFO:cooler.cli.balance:Balancing" in result.stderr
+        assert "INFO     cooler.cli.balance: Balancing" in result.stderr
         # Library warnings are logged too, through the same handler
-        assert "Iteration limit reached" in result.stderr
-        assert "INFO:" not in result.stdout
+        warning = "WARNING  cooler: ConvergenceWarning: Iteration limit reached"
+        assert warning in result.stderr
+        assert "INFO" not in result.stdout
         assert "Iteration limit" not in result.stdout
         assert _logging_state() == before

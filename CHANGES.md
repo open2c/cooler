@@ -20,7 +20,7 @@
 
 ### Bug fixes
 * fix: Importing cooler no longer configures logging. Previously, it attached a handler to the `cooler` logger that printed warnings to stdout and stopped records from propagating, so they bypassed the user's logging configuration and mixed into piped output (including from worker processes started with `spawn` or `forkserver`). The `cooler` logger now only has a `NullHandler`, as recommended for libraries: records propagate to the root logger, and are silent unless logging is configured. The warning about records on chromosomes missing from the bin table is now issued with `warnings.warn`, so it is shown either way.
-* fix: The CLI sets up logging for the duration of each command and restores the previous state afterwards. Running commands repeatedly in the same process (e.g. with click's `CliRunner`) no longer logs to a stale stream, and `logging.captureWarnings` is no longer left on. Warnings from library code are now printed through the CLI's log format. The process information printed with `-vv` is now logged when the command finishes.
+* fix: The CLI sets up logging for the duration of each command and restores the previous state afterwards. Running commands repeatedly in the same process (e.g. with click's `CliRunner`) no longer logs to a stale stream, and `logging.captureWarnings` is no longer left on. Warnings are logged as one line each (`WARNING  cooler: ConvergenceWarning: ...`), instead of Python's multi-line warning output. The process information printed with `-vv` is now logged when the command finishes.
 * fix: `cooler dump` writes every column of the pixel table by default, and `-c/--columns` selects pixel columns. Previously, only `count` could be dumped, and `-c` was ignored for pixels. Unknown column names raise an error.
 * fix: `cooler dump --one-based-ids` works on its own. It only took effect with `--join`, `--balanced` or `--annotate`.
 * fix: `cooler dump` closes its output file and the cooler file when finished.
@@ -87,6 +87,9 @@
 * fix: `to_dask_frame()` on range queries works with current dask versions; it relied on dask's legacy `DataFrame` constructor, which newer dask releases removed. By @nvictus in https://github.com/open2c/cooler/pull/501
 
 ### Maintenance
+* CLI log messages have timestamps and a more readable format: `2026-10-26 14:03:12 INFO     cooler.cli.balance: Balancing ...` (previously `INFO:cooler.cli.balance:Balancing ...`).
+* The balancing and reduction loggers are named `cooler.balance` and `cooler.reduce` (previously `cooler._balance` and `cooler._reduce`).
+* Log messages are clearer: balancing logs the iteration number with the variance, merging and zoomifying summarize what they do, and internal details (chunk ranges, merge epochs, input fields, shell commands in `csort`) moved to DEBUG. `cooler balance` logs non-convergence once, as a warning unless `--convergence-policy error` is used. Messages show the destination of a cooler being written, not its temporary file.
 * Removed the internal `set_logging_context`, `get_logging_context` and `configure` logging helpers.
 * Fixed deprecation warnings from NumPy (generic timedelta unit), Click (`CliRunner.isolated_filesystem`) and pandas in the code and tests.
 * `cooler cload` logs a warning naming chromosomes whose records are skipped because they are not in the bin table (once per chromosome).
