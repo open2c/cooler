@@ -741,10 +741,6 @@ cooler zoomify
 
     Specify the names of value columns to merge as '<name>'. Repeat the ``--field`` option for each one. Use '<name>:dtype=<dtype>' to specify the dtype. Include ',agg=<agg>' to specify an aggregation function different from 'sum'.
 
-.. option:: --legacy
-
-    Use the legacy layout of integer-labeled zoom levels.
-
 
 ----
 

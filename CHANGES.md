@@ -10,6 +10,8 @@
 
 ### Deprecations
 * `cooler cload pairs --input-copy-status` is deprecated and will be removed in cooler 0.12; pairs should list each contact once. Passing it logs a warning. `cooler load --input-copy-status` (matrix input) is unchanged, with a clearer description of `duplex`.
+### Removed
+* `cooler zoomify --legacy` and `legacy_zoomify`, which wrote multi-resolution files in the layout used before cooler 0.8, with integer-labeled zoom levels (`::0`, `::1`, ...). Use the default `resolutions/<binsize>` layout; files in the old layout can still be read.
 
 ### Bug fixes
 * fix: `cooler load` rejects duplicate pixels wherever they occur in the input. Previously, duplicates in the same chunk raised an error but duplicates in different chunks were silently summed, so the result depended on `--chunksize`. `create_cooler(..., ordered=False)` gains a `duplicates` option: `"combine"` (default) combines repeated pixels with `agg`, now also within a chunk; `"error"` raises.
@@ -23,7 +25,7 @@
 * fix: `cooler zoomify --balance` balances every level in the output, including base resolutions, and recognizes a column name set with `--balance-args "--name ..."`.
 * fix: Coarsening and zoomifying keep the input's `genome-assembly` and `metadata`.
 * fix: Merges no longer buffer one bin more than `mergebuf` per epoch (which also triggered spurious buffering warnings), and the merger no longer leaves input files open.
-* fix: `cooler coarsen -k` requires a factor of at least 2 (a factor of 1 failed with an `AssertionError`); `coarsen_cooler` no longer modifies the caller's `dtypes`; `legacy_zoomify` raises a clear error for variable-size bins.
+* fix: `cooler coarsen -k` requires a factor of at least 2 (a factor of 1 failed with an `AssertionError`); `coarsen_cooler` no longer modifies the caller's `dtypes`.
 * fix: The `--field` help of `cooler coarsen` and `cooler merge` showed the wrong syntax (`<name>:dtype=...`, not `<name>,dtype=...`).
 * fix: `cooler balance --force` and `balance_cooler(..., store=True)` replace an existing weight column only once the new weights are written. Previously the old weights were deleted before balancing, so a discarded result (`--convergence-policy discard`/`error`) or an error lost them.
 * fix: `create_scool` honors `ordered=False` (and `mergebuf`, `max_merge`, `temp_dir`, `delete_temp`) for cells given as iterables of unsorted chunks, checks that the cell names of a per-cell bins dict match the pixels dict, and checks that per-cell bin tables match the shared one. A failure while writing a cell leaves the cells already written intact.

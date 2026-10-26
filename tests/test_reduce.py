@@ -12,7 +12,6 @@ from hypothesis.extra.numpy import arrays
 import cooler
 from cooler._reduce import (
     coarsen_cooler,
-    legacy_zoomify,
     merge_breakpoints,
     merge_coolers,
     zoomify_cooler,
@@ -195,15 +194,6 @@ def test_zoomify():
                 resolutions=[4, 5, 32],
                 **kwargs,
             )
-
-
-def test_legacy_zoomify():
-    infile = op.join(datadir, "hg19.GM12878-MboI.matrix.2000kb.cool")
-    chunksize = int(10e6)
-    # n_zooms = 2
-    n_cpus = 1
-    with isolated_filesystem():
-        legacy_zoomify(infile, "test.multires.cool", n_cpus, chunksize)
 
 
 def test_append_mode():

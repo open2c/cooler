@@ -72,12 +72,6 @@ def test_zoomify():
     with runner.isolated_filesystem():
         f_in = op.join(datadir, "toy.symm.upper.2.cool")
         result = runner.invoke(
-            zoomify, [f_in, "--balance", "--legacy", "-o", "toy.2.mcool"]
-        )
-        assert result.exit_code == 0
-
-        f_in = op.join(datadir, "toy.symm.upper.2.cool")
-        result = runner.invoke(
             zoomify, [f_in, "--balance", "--nproc", "2", "-o", "toy.2.mcool"]
         )
         assert result.exit_code == 0
