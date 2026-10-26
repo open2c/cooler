@@ -14,6 +14,7 @@ import pandas as pd
 import pytest
 from hypothesis import given, settings
 from hypothesis.extra.numpy import arrays
+from scipy import sparse
 
 import cooler
 from cooler import core
@@ -66,9 +67,15 @@ def check_result(query, pixels, expected):
     assert np.all((bin1 >= i0) & (bin1 < i1) & (bin2 >= j0) & (bin2 < j1))
     assert len(set(zip(bin1.tolist(), bin2.tolist()))) == len(bin1)
 
-    # Values match the dense reference
+    # Values match the dense reference, for dense and sparse outputs
     np.testing.assert_array_equal(query.to_array(), expected)
     assert query.to_array().shape == (i1 - i0, j1 - j0)
+    arr = query.to_sparse_array()
+    assert isinstance(arr, sparse.coo_array)
+    np.testing.assert_array_equal(arr.toarray(), expected)
+    mat = query.to_sparse_matrix()
+    assert isinstance(mat, sparse.coo_matrix)
+    np.testing.assert_array_equal(mat.toarray(), expected)
 
     # The index points back at the stored pixel each value came from
     if query.return_index:

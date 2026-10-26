@@ -1010,7 +1010,7 @@ requires-dist = [
     { name = "pyfaidx" },
     { name = "pysam", marker = "sys_platform != 'win32' and extra == 'all'" },
     { name = "pyyaml" },
-    { name = "scipy", specifier = ">=0.16" },
+    { name = "scipy", specifier = ">=1.11" },
 ]
 provides-extras = ["all"]
 
