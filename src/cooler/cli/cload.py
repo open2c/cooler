@@ -1,4 +1,5 @@
 import json
+import io
 import sys
 
 import click
@@ -47,6 +48,13 @@ def get_header(instream, comment_char="#"):
     if not comment_char:
         raise ValueError("Please, provide a comment char!")
     comment_byte = comment_char.encode()
+    # Some decompressed streams (e.g. zip) have a buffer without peek()
+    if hasattr(instream, "buffer") and not hasattr(instream.buffer, "peek"):
+        encoding = instream.encoding
+        # detach so the old wrapper doesn't close the buffer when collected
+        instream = io.TextIOWrapper(
+            io.BufferedReader(instream.detach()), encoding=encoding
+        )
     # get peekable buffer for the instream
     read_f, peek_f = None, None
     if hasattr(instream, "buffer"):
@@ -622,7 +630,11 @@ def pairs(
         # get_handle returns a single wrapper object in pandas 1.2+ and 2.*
         f_in = get_handle(pairs_path, mode="r", compression="infer").handle
 
-    _, f_in = get_header(f_in)
+    _, f_in = get_header(f_in, comment_char)
+
+    # read_csv assigns names to the selected columns in file order, so list
+    # the names in order of column number
+    input_field_names = sorted(input_field_names, key=input_field_numbers.get)
 
     reader = pd.read_csv(
         f_in,
@@ -659,7 +671,8 @@ def pairs(
         max_merge=max_merge,
         temp_dir=temp_dir,
         delete_temp=not no_delete_temp,
-        boundscheck=False,
+        agg=aggregations,
+        boundscheck=True,
         triucheck=False,
         dupcheck=False,
         ensure_sorted=False,

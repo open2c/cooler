@@ -202,6 +202,23 @@ def prepare_pixels(
             )
 
 
+def _check_fits_dtype(col: str, values: np.ndarray, dtype: np.dtype) -> None:
+    """Raise if integer values would be clipped when stored as ``dtype``."""
+    dtype = np.dtype(dtype)
+    values = np.asarray(values)
+    if dtype.kind not in "iu" or values.dtype.kind not in "iuf" or not len(values):
+        return
+    info = np.iinfo(dtype)
+    vmin, vmax = values.min(), values.max()
+    if vmin < info.min or vmax > info.max:
+        raise ValueError(
+            f"Values in pixel column '{col}' range from {vmin} to {vmax}, which "
+            f"doesn't fit in the column's data type ({dtype}). Retry storing the "
+            f"column as int64, e.g. with dtypes={{'{col}': 'int64'}} in Python "
+            f"or --field {col}:dtype=int64 on the command line."
+        )
+
+
 def write_pixels(
     filepath: str,
     grouppath: str,
@@ -248,6 +265,8 @@ def write_pixels(
                 dsets = [grp[col] for col in columns]
 
                 n = len(chunk[columns[0]])
+                for col, dset in zip(columns, dsets):
+                    _check_fits_dtype(col, chunk[col], dset.dtype)
                 for col, dset in zip(columns, dsets):
                     dset.resize((nnz + n,))
                     dset[nnz : nnz + n] = chunk[col]
@@ -442,6 +461,11 @@ def _get_dtypes_arg(
     return dtypes
 
 
+# Aggregations that can be applied to per-chunk results to combine them, and
+# the aggregation to combine them with.
+_MERGEABLE_AGGS = {"sum": "sum", "min": "min", "max": "max", "count": "sum"}
+
+
 def _set_h5opts(h5opts: dict[str, Any]) -> dict[str, Any]:
     result = {}
     if h5opts is not None:
@@ -624,16 +648,17 @@ def create(
 
     # Write chroms, bins and pixels
     if append_scool:
-        src_path, _src_group = parse_cooler_uri(scool_root_uri)
+        src_path, src_group = parse_cooler_uri(scool_root_uri)
         dst_path, dst_group = parse_cooler_uri(cool_uri)
 
         with h5py.File(src_path, "r+") as src, h5py.File(dst_path, "r+") as dst:
-            dst[dst_group]["chroms"] = src["chroms"]
+            src_root = src[src_group]
+            dst[dst_group]["chroms"] = src_root["chroms"]
 
             # hard link to root bins table, but only the three main datasets
-            dst[dst_group]["bins/chrom"] = src["bins/chrom"]
-            dst[dst_group]["bins/start"] = src["bins/start"]
-            dst[dst_group]["bins/end"] = src["bins/end"]
+            dst[dst_group]["bins/chrom"] = src_root["bins/chrom"]
+            dst[dst_group]["bins/start"] = src_root["bins/start"]
+            dst[dst_group]["bins/end"] = src_root["bins/end"]
 
             # create per cell the additional columns e.g. 'weight'
             # these columns are individual for each cell
@@ -724,6 +749,7 @@ def create_from_unordered(
     delete_temp=True,
     temp_dir=None,
     max_merge=200,
+    agg=None,
     **kwargs,
 ):
     """
@@ -732,6 +758,11 @@ def create_from_unordered(
     to temporary Coolers. In the second pass, the temporary Coolers are merged
     into the output. This way the individual chunks do not need to be provided
     in any particular order.
+
+    Pixels that occur in more than one chunk are combined using ``agg``, a
+    mapping of value column names to aggregation names (default: "sum"). Only
+    aggregations that can be combined across chunks are supported when there
+    is more than one chunk: "sum", "min", "max" and "count".
 
     """
     from .._reduce import CoolerMerger
@@ -758,24 +789,50 @@ def create_from_unordered(
         delete = delete_temp
     temp_files = []
 
-    # Sort pass
+    # Sort pass: each chunk is sorted and saved to a temporary Cooler
     tf = tempfile.NamedTemporaryFile(
         suffix=".multi.cool", delete=delete, dir=temp_dir
     )
     temp_files.append(tf)
+    sort_kwargs = {**kwargs, "ensure_sorted": True}
     uris = []
     for i, chunk in enumerate(chunks):
         uri = tf.name + "::" + str(i)
-        uris.append(uri)
         logger.info(f"Writing chunk {i}: {uri}")
-        create(uri, bins, chunk, columns=columns, dtypes=dtypes, mode="a", **kwargs)
+        create(
+            uri, bins, chunk, columns=columns, dtypes=dtypes, mode="a", **sort_kwargs
+        )
+        if Cooler(uri).info["nnz"] > 0:
+            uris.append(uri)
+
+    # How to combine the same pixel from different chunks
+    merge_agg = None
+    if agg is not None:
+        merge_agg = {}
+        for col, func in agg.items():
+            if len(uris) > 1 and func not in _MERGEABLE_AGGS:
+                raise ValueError(
+                    f"Aggregation '{func}' for column '{col}' can't be combined "
+                    "across chunks of input. Use one of "
+                    f"{sorted(_MERGEABLE_AGGS)}, or a chunk size large enough "
+                    "for the whole input to fit in one chunk."
+                )
+            merge_agg[col] = _MERGEABLE_AGGS.get(func, "sum")
 
     # Merge passes
     n = len(uris)
+    if n == 0:
+        logger.info(f"No pixels in input. Writing empty cooler to {cool_uri}")
+        create(cool_uri, bins, [], columns=columns, dtypes=dtypes, mode=mode, **kwargs)
+        return
+
     if n > max_merge > 0:
-        # Recursive merge: do the first of two merge passes.
-        # Divide into ~sqrt(n) merges
-        edges = np.linspace(0, n, int(np.sqrt(n)), dtype=int)
+        # Recursive merge: do the first of two merge passes. Merge groups of
+        # ~sqrt(n) chunks, keeping both the group size and the number of groups
+        # within max_merge where possible.
+        group_size = max(int(np.ceil(np.sqrt(n))), int(np.ceil(n / max_merge)))
+        group_size = max(2, min(group_size, max_merge))
+        edges = np.r_[np.arange(0, n, group_size), n]
 
         tf2 = tempfile.NamedTemporaryFile(
             suffix=".multi.cool", delete=delete, dir=temp_dir
@@ -784,7 +841,10 @@ def create_from_unordered(
         uris2 = []
         for lo, hi in zip(edges[:-1], edges[1:]):
             chunk_subset = CoolerMerger(
-                [Cooler(uri) for uri in uris[lo:hi]], mergebuf, columns=columns
+                [Cooler(uri) for uri in uris[lo:hi]],
+                mergebuf,
+                columns=columns,
+                agg=merge_agg,
             )
             uri = tf2.name + "::" + f"{lo}-{hi}"
             uris2.append(uri)
@@ -806,7 +866,7 @@ def create_from_unordered(
 
     # Do the final merge pass
     chunks = CoolerMerger(
-        [Cooler(uri) for uri in final_uris], mergebuf, columns=columns
+        [Cooler(uri) for uri in final_uris], mergebuf, columns=columns, agg=merge_agg
     )
     logger.info(f"Merging into {cool_uri}")
     create(cool_uri, bins, chunks, columns=columns, dtypes=dtypes, mode=mode, **kwargs)
@@ -954,10 +1014,14 @@ _DOC_OTHER_PARAMS = """
         the merge step.
     delete_temp : bool, optional
         Whether to delete temporary files when finished.
-        Useful for debugging. Default is False.
+        Useful for debugging. Default is True.
     temp_dir : str, optional
         Create temporary files in a specified directory instead of the same
         directory as the output file. Pass ``-`` to use the system default.
+    agg : dict, optional
+        When ``ordered=False``, how to combine the values of a pixel that
+        occurs in more than one input chunk: a mapping of value column names
+        to "sum" (default), "min", "max" or "count".
     max_merge : int, optional
         If merging more than ``max_merge`` chunks, do the merge recursively in
         two passes.
@@ -1022,7 +1086,8 @@ def create_cooler(
     mergebuf: int = 20_000_000,
     delete_temp: bool = True,
     temp_dir: str | None = None,
-    max_merge: str = 200,
+    max_merge: int = 200,
+    agg: dict[str, str] | None = None,
     boundscheck: bool = True,
     dupcheck: bool = True,
     triucheck: bool = True,
@@ -1112,6 +1177,7 @@ def create_cooler(
             delete_temp=delete_temp,
             temp_dir=temp_dir,
             max_merge=max_merge,
+            agg=agg,
         )
 
 
@@ -1227,6 +1293,12 @@ def create_scool(
         if col not in bins.columns:
             raise ValueError(f"Missing column from bin table: '{col}'.")
 
+    # Cells are stored under the last component of their name
+    stored_names = pd.Series([key.split("/")[-1] for key in cell_names])
+    if stored_names.duplicated().any():
+        dups = sorted(set(stored_names[stored_names.duplicated()]))
+        raise ValueError(f"Cell names would be stored under the same name: {dups}")
+
     # Populate dtypes for expected pixel columns, and apply user overrides.
     if dtypes is None:
         dtypes = dict(PIXEL_DTYPES)
@@ -1312,15 +1384,15 @@ def create_scool(
 
     # Append single cells
     for key in cell_names:
-        if "/" in key:
-            cell_name = key.split("/")[-1]
-        else:
-            cell_name = key
+        cell_name = key.split("/")[-1]
+        pixels = cell_name_pixels_dict[key]
+        if isinstance(pixels, (pd.DataFrame, dict)):
+            pixels = pd.DataFrame(pixels).sort_values(["bin1_id", "bin2_id"])
 
         create(
-            cool_uri + "::/cells/" + cell_name,
+            file_path + "::" + posixpath.join(group_path, "cells", cell_name),
             bins_dict[key],
-            cell_name_pixels_dict[key],
+            pixels,
             columns=columns,
             dtypes=dtypes,
             metadata=metadata,
