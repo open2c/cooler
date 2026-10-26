@@ -305,6 +305,7 @@ def merge_coolers(
         dtypes=dtypes,
         assembly=assembly,
         symmetric_upper=symmetric_upper,
+        binsize=clrs[0].binsize,
         **kwargs,
     )
 
@@ -722,6 +723,7 @@ def coarsen_cooler(
             columns=columns,
             dtypes=dtypes,
             symmetric_upper=clr.storage_mode == "symmetric-upper",
+            binsize=iterator.new_binsize,
             **kwargs,
         )
 

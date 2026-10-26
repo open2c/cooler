@@ -25,8 +25,10 @@ def _region_to_extent(
         chrom_lo = h5["indexes"]["chrom_offset"][cid]
         chrom_hi = h5["indexes"]["chrom_offset"][cid + 1]
         chrom_bins = h5["bins"]["start"][chrom_lo:chrom_hi]
+        # Clip at the chromosome's first bin, so that a region starting before
+        # it, or on a chromosome without bins, can't reach the previous one
         yield chrom_lo + chrom_lo.dtype.type(
-            np.searchsorted(chrom_bins, start, "right") - 1
+            max(np.searchsorted(chrom_bins, start, "right") - 1, 0)
         )
         yield chrom_lo + chrom_lo.dtype.type(np.searchsorted(chrom_bins, end, "left"))
 

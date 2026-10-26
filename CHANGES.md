@@ -17,6 +17,18 @@
 * `cooler zoomify --legacy` and `legacy_zoomify`, which wrote multi-resolution files in the layout used before cooler 0.8, with integer-labeled zoom levels (`::0`, `::1`, ...). Use the default `resolutions/<binsize>` layout; files in the old layout can still be read.
 
 ### Bug fixes
+* fix: Selecting a bin table column whose name contains "chrom" (e.g. `bins()["chrom_arm"]`) no longer decodes it as chromosome names.
+* fix: Region strings with decimal units are parsed exactly: `"4.1Mb"` gave 4,099,999 because of float rounding. Values that aren't a whole number of base pairs (`"1.0001kb"`) raise an error, and so do region strings with trailing text (`"chr1:100-200-300"`) or more than one `:`. For chromosome names containing `:`, use a `(chrom, start, end)` tuple.
+* fix: Bin tables must tile each chromosome: the bins of a chromosome are consecutive rows, start at 0, and have no gaps or overlaps (#254). Previously, such tables were accepted, and queries with variable-size bins could return bins from the previous chromosome. Queries on existing files with such tables no longer do.
+* fix: Out-of-range indices on table and matrix selectors raise `IndexError` instead of returning the wrong rows (e.g. `bins()[-n - 5]`). Slices are clamped like Python sequences, so a slice past the end is truncated and `m[10:5]` is empty. Float indices and lists of integers raise `TypeError`; a list selects columns by name.
+* fix: Single-column table selectors (e.g. `bins()["start"]`) support `columns`, `dtypes`, `keys()` and `in`.
+* fix: Bin and chromosome tables with extra string columns can be written; this crashed. Appending to a table with `cooler.core.put` maps categorical values to the existing column's categories instead of writing each chunk's own codes, and raises instead of silently truncating strings longer than the existing column allows.
+* fix: Files whose string attributes or datasets are stored as bytes or variable-length strings (written by other tools) are read correctly. A bytes `storage-mode` made symmetric files be queried as square, without the lower triangle.
+* fix: `Cooler`, `open_hdf5` and URI parsing accept `pathlib.Path` and other path-like objects.
+* fix: `annotate` accepts unsigned 64-bit bin IDs.
+* fix: Pixel pipelines (`cooler.parallel.split`) can be pickled and copied.
+* fix: Coarse zoom levels whose chromosomes are each a single bin are stored with a fixed bin size; they were stored as variable-size bins. `cooler.create.create` gains a `binsize` parameter for when the bin size can't be inferred from the bin table, which coarsening and merging now pass.
+* fix: The `Cooler.matrix` docs give the right `join` default and divisive weight names (`VC_SQRT`, not `SQRT_VC`), and describe NaN values with balancing: dense output is NaN in every row and column of a bin with a NaN weight, while sparse output only has NaN values at stored pixels.
 * fix: `cooler load` rejects duplicate pixels wherever they occur in the input. Previously, duplicates in the same chunk raised an error but duplicates in different chunks were silently summed, so the result depended on `--chunksize`. `create_cooler(..., ordered=False)` gains a `duplicates` option: `"combine"` (default) combines repeated pixels with `agg`, now also within a chunk; `"error"` raises.
 * fix: Creating a cooler into a new or truncated file (mode "w") writes to a temporary file that replaces the destination only when complete, so a failure leaves an existing file intact and no partial file behind.
 * fix: The `fillvalue` and `scaleoffset` storage options work (they were applied to string datasets and failed), and `maxshape`, which could never work, is no longer accepted.
@@ -67,6 +79,7 @@
 * fix: `to_dask_frame()` on range queries works with current dask versions; it relied on dask's legacy `DataFrame` constructor, which newer dask releases removed. By @nvictus in https://github.com/open2c/cooler/pull/501
 
 ### Maintenance
+* Fixed deprecation warnings from NumPy (generic timedelta unit), Click (`CliRunner.isolated_filesystem`) and pandas in the code and tests.
 * `cooler cload` logs a warning naming chromosomes whose records are skipped because they are not in the bin table (once per chromosome).
 * Removed the unused, untested `SparseBlockLoader` and `ArrayBlockLoader` classes, and compatibility code for pandas < 1.2.
 * The minimum h5py version is raised to 3.0 (from 2.5). h5py 3.0 is the oldest release with wheels for every supported Python version.

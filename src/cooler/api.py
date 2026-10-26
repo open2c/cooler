@@ -65,7 +65,11 @@ class Cooler:
 
     """
 
-    def __init__(self, store: str | h5py.Group, root: str | None = None, **kwargs):
+    def __init__(
+        self, store: str | os.PathLike | h5py.Group, root: str | None = None, **kwargs
+    ):
+        if isinstance(store, os.PathLike):
+            store = os.fspath(store)
         if isinstance(store, str):
             if root is None:
                 self.filename, self.root = parse_cooler_uri(store)
@@ -341,14 +345,14 @@ class Cooler:
         join : bool, optional
             If requesting pixels, specifies whether to expand the bin ID
             columns into (chrom, start, end). Has no effect when requesting a
-            rectangular matrix. Default is True.
+            rectangular matrix. Default is False.
         ignore_index : bool, optional
             If requesting pixels, don't populate the index column with the
             pixel IDs to improve performance. Default is True.
         divisive_weights : bool, optional
             Force balancing weights to be interpreted as divisive (True) or
             multiplicative (False). Weights are always assumed to be
-            multiplicative by default unless named KR, VC or SQRT_VC, in which
+            multiplicative by default unless named KR, VC or VC_SQRT, in which
             case they are assumed to be divisive by default.
 
         Returns
@@ -362,6 +366,13 @@ class Cooler:
         lower triangular elements will not be generated. If
         ``as_pixels=False``, those missing non-zero elements will
         automatically be filled in.
+
+        With balancing, bins with a NaN weight (e.g. bins filtered out during
+        balancing) give NaN values. A dense matrix is NaN in every row and
+        column of such a bin. Sparse output (``sparse=True`` or
+        ``as_pixels=True``) only contains stored pixels, so it has NaN values
+        at the stored pixels of those bins, and the rest of their rows and
+        columns are implicit zeros rather than NaN.
 
         """
         if balance in _4DN_DIVISIVE_WEIGHTS and divisive_weights is None:
@@ -425,6 +436,8 @@ def info(h5: h5py.Group) -> dict:
     """
     d = {}
     for k, v in h5.attrs.items():
+        if isinstance(v, bytes):  # e.g. fixed-length strings from other writers
+            v = v.decode()
         if isinstance(v, str):
             try:
                 v = json.loads(v)
@@ -506,7 +519,11 @@ def bins(
 
     # Handle the case where the ENUM header doesn't exist but we want to
     # convert integer chrom IDs to categorical chromosome names.
-    if "chrom" in fields:
+    if isinstance(fields, str):
+        has_chrom = fields == "chrom"
+    else:
+        has_chrom = "chrom" in fields
+    if has_chrom:
         convert_enum = kwargs.get("convert_enum", True)
         if isinstance(fields, str):
             chrom_col = out
@@ -621,7 +638,9 @@ def annotate(
 
     # Select bin annotations that correspond to the bin1 IDs in the pixels df
     if "bin1_id" in columns:
-        bin1 = pixels["bin1_id"].to_numpy().astype(np.int64, copy=False, casting="safe")
+        bin1 = pixels["bin1_id"].to_numpy().astype(
+            np.int64, copy=False, casting="same_kind"
+        )
         if len(bin1) == 0:
             bmin = bmax = 0
         elif len(bins) > len(pixels):
@@ -637,7 +656,9 @@ def annotate(
 
     # Select bin annotations that correspond to the bin2 IDs in the pixels df
     if "bin2_id" in columns:
-        bin2 = pixels["bin2_id"].to_numpy().astype(np.int64, copy=False, casting="safe")
+        bin2 = pixels["bin2_id"].to_numpy().astype(
+            np.int64, copy=False, casting="same_kind"
+        )
         if len(bin2) == 0:
             bmin = bmax = 0
         elif len(bins) > len(pixels):

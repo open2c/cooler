@@ -204,8 +204,10 @@ def test_indexing_mixin():
     with pytest.raises(TypeError):
         obj[{}]
 
-    # with pytest.raises(TypeError):
-    #     obj[4.5]
+    with pytest.raises(TypeError):
+        obj[4.5]
+    with pytest.raises(IndexError):
+        obj[-11]
 
 
 def test_selector1d():
@@ -229,12 +231,21 @@ def test_selector1d():
     # assert_raises(TypeError, lambda : s['blah'])
     assert s.shape == (nmax,)
 
-    # FIXME - questionable behavior
-    assert s[30:20] == (30, 20)  # lo > hi
-    assert s[nmax + 10 : nmax + 30] == (nmax + 10, nmax + 30)  # lo > nmax
-    assert s[10.0] == (10, 11)  # accepting floats
-    # assert s[10.1] == (10.1, 11.1)  # not casting
-    # assert s[nmax+10] == (nmax+10, nmax+11)
+    # Slices are clamped like Python sequences; scalars must be in range
+    assert s[30:20] == (30, 30)  # lo > hi
+    assert s[nmax + 10 : nmax + 30] == (nmax, nmax)  # lo > nmax
+    assert s[-nmax - 10 : 5] == (0, 5)
+    assert s[-1] == (nmax - 1, nmax)
+    with pytest.raises(TypeError):
+        s[10.0]
+    with pytest.raises(TypeError):
+        s[1.0:5]
+    with pytest.raises(IndexError):
+        s[nmax]
+    with pytest.raises(IndexError):
+        s[-nmax - 1]
+    with pytest.raises(TypeError):
+        s[[0, 1]]  # a list selects columns
 
     slicer = lambda fields, lo, hi: pd.DataFrame(  # noqa
         np.zeros((hi - lo, len(fields))), columns=fields

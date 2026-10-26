@@ -4,7 +4,7 @@ from io import StringIO
 
 import numpy as np
 import pandas as pd
-from _common import cooler_cmp
+from _common import cooler_cmp, isolated_filesystem
 from click.testing import CliRunner
 
 import cooler
@@ -24,7 +24,7 @@ datadir = op.join(testdir, "data")
 
 def test_info():
     runner = CliRunner()
-    with runner.isolated_filesystem():
+    with isolated_filesystem():
         f_in = op.join(datadir, "toy.symm.upper.2.cool")
         result = runner.invoke(info, [f_in])
         assert result.exit_code == 0
@@ -41,7 +41,7 @@ def test_info():
 
 def test_dump():
     runner = CliRunner()
-    with runner.isolated_filesystem():
+    with isolated_filesystem():
         f_in = op.join(datadir, "toy.symm.upper.2.cool")
         result = runner.invoke(dump, [f_in])
         assert result.exit_code == 0
@@ -115,7 +115,7 @@ def test_dump():
 
 def test_dump_weight_name():
     runner = CliRunner()
-    with runner.isolated_filesystem():
+    with isolated_filesystem():
         shutil.copy(op.join(datadir, "toy.symm.upper.2.cool"), "test.cool")
         n_bins = cooler.Cooler("test.cool").info["nbins"]
         _add_columns(
@@ -134,7 +134,7 @@ def test_dump_weight_name():
 
 def test_show():
     runner = CliRunner()
-    with runner.isolated_filesystem():
+    with isolated_filesystem():
         f_in = op.join(datadir, "toy.symm.upper.2.cool")
         result = runner.invoke(show, [f_in, "chr1", "-o", "bla"])
         assert result.exit_code == 0

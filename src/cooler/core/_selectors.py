@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import operator
 from typing import Any, Callable, Optional, Union, overload
 
 import pandas as pd
@@ -22,35 +23,27 @@ class _IndexingMixin:
             row, col = key, slice(None)
         return row, col
 
-    def _isintlike(self, num):
-        try:
-            int(num)
-        except (TypeError, ValueError):
-            return False
-        return True
-
     def _process_slice(self, s, nmax):
         if isinstance(s, slice):
             if s.step not in (1, None):
                 raise ValueError("slicing with step != 1 not supported")
-            i0, i1 = s.start, s.stop
-            if i0 is None:
-                i0 = 0
-            elif i0 < 0:
-                i0 = nmax + i0
-            if i1 is None:
-                i1 = nmax
-            elif i1 < 0:
-                i1 = nmax + i1
-            return i0, i1
-        elif self._isintlike(s):
-            if s < 0:
-                s += nmax
-            if s >= nmax:
-                raise IndexError("index is out of bounds")
-            return int(s), int(s + 1)
-        else:
-            raise TypeError("expected slice or scalar")
+            for bound in (s.start, s.stop):
+                if bound is not None:
+                    operator.index(bound)  # raises TypeError if not an integer
+            # Clamp to the bounds, as for Python sequences
+            i0, i1, _ = s.indices(nmax)
+            return i0, max(i0, i1)
+        try:
+            i = operator.index(s)
+        except TypeError:
+            raise TypeError(
+                f"expected an integer or slice, not {type(s).__name__}"
+            ) from None
+        if not -nmax <= i < nmax:
+            raise IndexError(f"index {i} is out of bounds for length {nmax}")
+        if i < 0:
+            i += nmax
+        return i, i + 1
 
 
 class RangeSelector1D(_IndexingMixin):
@@ -98,11 +91,17 @@ class RangeSelector1D(_IndexingMixin):
 
     @property
     def columns(self) -> pd.Index:
-        return self._slice(self.fields, 0, 0).columns
+        result = self._slice(self.fields, 0, 0)
+        if isinstance(result, pd.Series):
+            return pd.Index([result.name])
+        return result.columns
 
     @property
     def dtypes(self) -> pd.Series:
-        return self._slice(self.fields, 0, 0).dtypes
+        result = self._slice(self.fields, 0, 0)
+        if isinstance(result, pd.Series):
+            return pd.Series({result.name: result.dtype})
+        return result.dtypes
 
     def keys(self) -> list[str]:
         return list(self.columns)
@@ -126,7 +125,14 @@ class RangeSelector1D(_IndexingMixin):
         key: str | list[str] | int | slice
     ) -> RangeSelector1D | pd.DataFrame | pd.Series:
         # requesting a subset of columns
-        if isinstance(key, (list, str)):
+        if isinstance(key, str):
+            return self.__class__(key, self._slice, self._fetch, self._shape[0])
+        if isinstance(key, list):
+            if not all(isinstance(k, str) for k in key):
+                raise TypeError(
+                    "A list selects columns and must contain column names. "
+                    "Use a slice to select rows."
+                )
             return self.__class__(key, self._slice, self._fetch, self._shape[0])
 
         # requesting an interval of rows
