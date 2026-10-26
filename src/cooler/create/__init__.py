@@ -15,7 +15,6 @@ from ._constants import (
     URL,
 )
 from ._create import (
-    append,
     create,
     create_cooler,
     create_from_unordered,

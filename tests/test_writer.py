@@ -276,3 +276,122 @@ def test_create_scool_unordered_chunks_and_keys(tmp_path):
             {"a": BINS, "b": BINS},
             {"a": pixels([(0, 0)])},
         )
+
+
+@pytest.fixture
+def small_cool(tmp_path):
+    path = str(tmp_path / "c.cool")
+    cooler.create_cooler(path, BINS, pixels([(0, 0), (0, 5), (1, 1), (3, 9)]))
+    return path
+
+
+def test_column_writer_batches(small_cool):
+    from cooler.create._writer import _ColumnWriter
+
+    cols = {"a": np.float64, "b": np.int32}
+    with _ColumnWriter(small_cool, "bins", cols, attrs={"a": {"note": "hi"}}) as w:
+        w.write({"a": np.arange(4.0), "b": np.arange(4)})
+        w.write(pd.DataFrame({"a": np.arange(4.0, 10.0), "b": np.arange(4, 10)}))
+    bins = cooler.Cooler(small_cool).bins()[:]
+    assert bins["a"].tolist() == list(np.arange(10.0))
+    assert bins["b"].tolist() == list(range(10))
+    with h5py.File(small_cool, "r") as f:
+        assert f["bins/a"].attrs["note"] == "hi"
+        assert f["bins/b"].dtype == np.int32
+        assert ".__writing__columns" not in f
+
+
+def test_column_writer_offsets(small_cool):
+    from cooler.create._writer import _ColumnWriter
+
+    with _ColumnWriter(small_cool, "pixels", {"x": None}) as w:
+        w.write({"x": [2.0, 3.0]}, lo=2)
+        w.write({"x": [0.0, 1.0]}, lo=0)
+        with pytest.raises(ValueError, match="overlap"):
+            w.write({"x": [9.0]}, lo=1)
+        with pytest.raises(ValueError, match="out of range"):
+            w.write({"x": [9.0]}, lo=4)
+    assert cooler.Cooler(small_cool).pixels()[:]["x"].tolist() == [0.0, 1.0, 2.0, 3.0]
+
+
+def test_column_writer_requires_every_row(small_cool):
+    from cooler.create._writer import _ColumnWriter
+
+    writer = _ColumnWriter(small_cool, "pixels", {"x": None})
+    with pytest.raises(ValueError, match=r"\[2, 4\)"), writer as w:
+        w.write({"x": [0.0, 1.0]})
+    with h5py.File(small_cool, "r") as f:
+        assert "x" not in f["pixels"]
+        assert ".__writing__columns" not in f
+
+
+def test_column_writer_replace(small_cool):
+    from cooler.create._writer import _add_columns, _ColumnWriter
+
+    _add_columns(small_cool, "bins", {"w": np.ones(10)})
+    with pytest.raises(ValueError, match="already exist"):
+        _add_columns(small_cool, "bins", {"w": np.zeros(10)})
+
+    # A failed replacement keeps the existing column
+    writer = _ColumnWriter(small_cool, "bins", {"w": None}, replace=True)
+    with pytest.raises(RuntimeError), writer as w:
+        w.write({"w": np.zeros(5)})
+        raise RuntimeError("interrupted")
+    assert cooler.Cooler(small_cool).bins()[:]["w"].tolist() == [1.0] * 10
+
+    _add_columns(small_cool, "bins", {"w": np.zeros(10)}, replace=True)
+    assert cooler.Cooler(small_cool).bins()[:]["w"].tolist() == [0.0] * 10
+
+
+def test_column_writer_rejects_core_columns_and_tables(small_cool):
+    from cooler.create._writer import _ColumnWriter
+
+    for table, col in [("bins", "start"), ("pixels", "count"), ("chroms", "name")]:
+        with pytest.raises(ValueError, match="core columns"):
+            _ColumnWriter(small_cool, table, {col: None}, replace=True)
+    with pytest.raises(ValueError, match="Unknown table"):
+        _ColumnWriter(small_cool, "nope", {"x": None})
+
+
+def test_column_writer_lock_and_empty_table(tmp_path):
+    from cooler.create._writer import _ColumnWriter
+
+    path = str(tmp_path / "e.cool")
+    cooler.create_cooler(path, BINS, pixels([]))
+    lock = threading.Lock()
+    with _ColumnWriter(path, "pixels", {"x": None}, lock=lock) as w:
+        assert w._file is None
+        w.write({"x": []})
+    assert "x" in cooler.Cooler(path).pixels().columns
+
+
+def test_column_writer_polars_batches(small_cool):
+    pl = pytest.importorskip("polars")
+    from cooler.create._writer import _ColumnWriter
+
+    lf = pl.LazyFrame({"count": [1, 1, 1, 1]})
+    with _ColumnWriter(small_cool, "pixels", {"double": np.int64}) as w:
+        lf.select(double=pl.col("count") * 2).sink_batches(w.write, chunk_size=3)
+    assert cooler.Cooler(small_cool).pixels()[:]["double"].tolist() == [2, 2, 2, 2]
+
+
+def test_balance_force_keeps_weights_on_failure(small_cool):
+    from click.testing import CliRunner
+
+    from cooler.cli.balance import balance
+
+    runner = CliRunner()
+    args = ["--ignore-diags", "0", "--mad-max", "0", "--min-nnz", "0", "-p", "1"]
+    result = runner.invoke(balance, [small_cool, *args])
+    assert result.exit_code == 0, result.output
+    before = cooler.Cooler(small_cool).bins()[:]["weight"].to_numpy()
+
+    # A forced rebalance that is discarded leaves the previous weights
+    result = runner.invoke(
+        balance,
+        [small_cool, *args, "--force", "--max-iters", "1",
+         "--convergence-policy", "discard"],
+    )
+    assert result.exit_code == 0, result.output
+    after = cooler.Cooler(small_cool).bins()[:]["weight"].to_numpy()
+    np.testing.assert_array_equal(before, after)

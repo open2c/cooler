@@ -10,10 +10,9 @@ import pandas as pd
 
 from .._logging import get_logger
 from .._typing import Tabular
-from ..core import get, put
+from ..core import get
 from ..util import (
     infer_meta,
-    parse_cooler_uri,
 )
 from . import (
     CHROM_DTYPE,
@@ -260,103 +259,6 @@ def create_from_unordered(
     with writer:
         for chunk in chunks:
             writer.write(chunk)
-
-
-def append(
-    cool_uri, table, data, chunked=False, force=False, h5opts=None, lock=None
-):  # pragma: no cover
-    """
-    Append one or more data columns to an existing table.
-
-    Parameters
-    ----------
-    cool_uri : str
-        Path to Cooler file or URI to Cooler group.
-    table : str
-        Name of table (HDF5 group).
-    data : dict-like
-        DataFrame, Series or mapping of column names to data. If the input is a
-        dask DataFrame or Series, the data is written in chunks.
-    chunked : bool, optional
-        If True, the values of the data dict are treated as separate chunk
-        iterators of column data.
-    force : bool, optional
-        If True, replace existing columns with the same name as the input.
-    h5opts : dict, optional
-        HDF5 dataset filter options to use (compression, shuffling,
-        checksumming, etc.). Default is to use autochunking and GZIP
-        compression, level 6.
-    lock : multiprocessing.Lock, optional
-        Optional lock to synchronize concurrent HDF5 file access.
-
-    """
-    h5opts = _set_h5opts(h5opts)
-
-    file_path, group_path = parse_cooler_uri(cool_uri)
-
-    try:
-        from dask.dataframe import DataFrame as dask_df
-        from dask.dataframe import Series as dask_series
-    except (ImportError, AttributeError):
-        dask_df = ()
-        dask_series = ()
-
-    if isinstance(data, dask_series):
-        data = data.to_frame()
-
-    try:
-        names = data.keys()
-    except AttributeError:
-        names = data.columns
-
-    with h5py.File(file_path, "r+") as f:
-        h5 = f[group_path]
-        for name in names:
-            if name in h5[table]:
-                if not force:
-                    raise ValueError(
-                        f"'{name}' column already exists. "
-                        + "Use --force option to overwrite."
-                    )
-                else:
-                    del h5[table][name]
-
-        if isinstance(data, dask_df):
-            # iterate over dataframe chunks
-            for chunk in data.to_delayed():
-                i = 0
-                for chunk in data.to_delayed():
-                    chunk = chunk.compute()
-                    try:
-                        if lock is not None:
-                            lock.acquire()
-                        put(h5[table], chunk, lo=i, h5opts=h5opts)
-                    finally:
-                        if lock is not None:
-                            lock.release()
-                    i += len(chunk)
-        elif chunked:
-            # iterate over chunks from each column
-            for key in data:
-                i = 0
-                for chunk in data[key]:
-                    try:
-                        if lock is not None:
-                            lock.acquire()
-                        put(h5[table], {key: chunk}, lo=i, h5opts=h5opts)
-                    finally:
-                        if lock is not None:
-                            lock.release()
-                    i += len(chunk)
-        else:
-            # write all the data
-            try:
-                if lock is not None:
-                    lock.acquire()
-                put(h5[table], data, lo=0, h5opts=h5opts)
-            finally:
-                if lock is not None:
-                    lock.release()
 
 
 _DOC_OTHER_PARAMS = """

@@ -8,6 +8,7 @@ from multiprocess import Pool
 
 from .._balance import balance_cooler
 from ..api import Cooler
+from ..create._writer import _add_columns
 from ..util import bedslice, parse_cooler_uri
 from . import cli, get_logger
 
@@ -192,18 +193,15 @@ def balance(
             "Provide at most one of --cis-only and --trans-only flags"
         )
 
-    with h5py.File(cool_path, "r+") as h5:
+    with h5py.File(cool_path, "r") as h5:
         grp = h5[group_path]
-        if name in grp["bins"] and not stdout:
-            if not force:
-                print(
-                    f"'{name}' column already exists. "
-                    + "Use --force option to overwrite.",
-                    file=sys.stderr,
-                )
-                sys.exit(1)
-            else:
-                del grp["bins"][name]
+        if name in grp["bins"] and not stdout and not force:
+            print(
+                f"'{name}' column already exists. "
+                + "Use --force option to overwrite.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
 
     logger.info(f'Balancing "{cool_uri}"')
     clr = Cooler(cool_uri)
@@ -291,9 +289,12 @@ def balance(
             sys.stdout, header=False, index=False, na_rep="", float_format="%g"
         )
     else:
-        with h5py.File(cool_path, "r+") as h5:
-            grp = h5[group_path]
-            # add the bias column to the file
-            h5opts = {"compression": "gzip", "compression_opts": 6}
-            grp["bins"].create_dataset(name, data=bias, **h5opts)
-            grp["bins"][name].attrs.update(stats)
+        # Replaces an existing column only once the new one is written
+        _add_columns(
+            cool_uri,
+            "bins",
+            {name: bias},
+            attrs={name: stats},
+            replace=force,
+            h5opts={"compression": "gzip", "compression_opts": 6},
+        )
