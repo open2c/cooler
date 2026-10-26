@@ -171,18 +171,21 @@ def test_balancing_transonly(fp, tol):
 
 @pytest.mark.parametrize(
     "fp,tol",
-    [(os.path.join(testdir, "data", "toy.symm.upper.2.cool"), 1e-2)],
+    [(os.path.join(testdir, "data", "hg19.GM12878-MboI.matrix.2000kb.cool"), 1e-5)],
 )
 def test_balancing_other_options(fp, tol):
     clr = cooler.Cooler(fp)
+    x0 = np.random.default_rng(0).random(len(clr.bins())) + 0.5
+    x0_copy = x0.copy()
     _weights, stats = _balance.iterative_correction(
-        clr, ignore_diags=1, min_nnz=10, tol=tol, x0=np.random.rand(len(clr.bins()))
+        clr, ignore_diags=1, min_nnz=10, tol=tol, x0=x0
     )
     assert stats['converged']
+    np.testing.assert_array_equal(x0, x0_copy)  # not modified
 
     _weights, stats = _balance.iterative_correction(
         clr,
-        chunksize=3,
+        chunksize=3000,
         ignore_diags=1,
         min_nnz=10,
         tol=tol,

@@ -1360,8 +1360,11 @@ class _ColumnWriter:
             tmp = f.require_group(self._tmp_path)
             h5opts = self.h5opts if self.nrows > 0 else {}
             for col, dtype in self.columns.items():
+                # Tracking attribute order gives the dataset a newer object
+                # header that can hold attributes larger than 64 KiB (#226)
                 dset = tmp.create_dataset(
-                    col, shape=(self.nrows,), dtype=dtype, **h5opts
+                    col, shape=(self.nrows,), dtype=dtype, track_order=True,
+                    **h5opts
                 )
                 dset.attrs.update(self.attrs.get(col, {}))
 
