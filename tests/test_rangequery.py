@@ -194,3 +194,30 @@ def test_chunked_and_dask_outputs(data, chunksize):
     (delayed_chunks,) = dask.compute(query.to_delayed())
     assert len(delayed_chunks) == query.n_chunks
     same_pixels(query.to_dask_frame().compute())
+
+
+def test_csr_reader_direct_calls():
+    mat = np.array([[1, 2, 0], [2, 0, 3], [0, 3, 4]], dtype=np.int32)
+    pixels, offsets = csr_pixels(mat, upper=True)
+    reader = core.CSRReader(pixels, offsets)
+    bbox = (0, 3, 0, 3)
+
+    # Without a row span, the reader covers all rows of the bounding box
+    full = reader("count", bbox)
+    explicit = reader("count", bbox, row_span=(0, 3))
+    for key in explicit:
+        np.testing.assert_array_equal(full[key], explicit[key])
+
+    # An empty row span returns empty columns with the pixel table's dtypes
+    empty = reader("count", bbox, row_span=(1, 1), return_index=True)
+    assert set(empty) == {"bin1_id", "bin2_id", "count", "__index"}
+    assert all(len(col) == 0 for col in empty.values())
+    assert empty["count"].dtype == pixels["count"].dtype
+
+    # Chunks are indexed from 0 to n_chunks - 1
+    query = core.DirectRangeQuery2D(reader, "count", bbox, chunksize=1)
+    query.get_chunk(query.n_chunks - 1)
+    with pytest.raises(IndexError):
+        query.get_chunk(query.n_chunks)
+    with pytest.raises(IndexError):
+        query.get_chunk(-1)
