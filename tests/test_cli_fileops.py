@@ -24,12 +24,27 @@ def test_cp():
         result = runner.invoke(
             cli,
             [
-                "mv",
+                "cp",
                 "test.cool",
+                "test2.cool::some/old_path",
+            ],
+        )
+        assert result.exit_code == 0
+
+        result = runner.invoke(
+            cli,
+            [
+                "mv",
+                "test2.cool::some/old_path",
                 "test2.cool::some/path",
             ],
         )
         assert result.exit_code == 0
+
+        # mv only renames within a file
+        result = runner.invoke(cli, ["mv", "test.cool", "test4.cool::x"])
+        assert result.exit_code != 0
+        assert not op.exists("test4.cool")
 
         result = runner.invoke(
             cli,

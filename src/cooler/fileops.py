@@ -39,7 +39,9 @@ def decode_attr_value(
     Decode a HDF5 attribute value (numpy object or string) into something
     JSON serializable.
     """
-    if hasattr(obj, "item"):
+    if isinstance(obj, np.ndarray):
+        o = obj.tolist()
+    elif hasattr(obj, "item"):
         o = obj.item()
     elif hasattr(obj, "tolist"):
         o = obj.tolist()
@@ -56,28 +58,65 @@ def decode_attr_value(
     return o
 
 
+def _object_key(obj: h5py.HLObject) -> tuple[str, int]:
+    """Identify an HDF5 object across links (and files)."""
+    return obj.file.filename, h5py.h5o.get_info(obj.id).addr
+
+
 class TreeNode:
-    def __init__(self, obj: Any, depth: int = 0, level: int | None = None):
+    """
+    A node in the tree of groups and datasets under an HDF5 group.
+
+    Paths are built from the link names followed to reach each object, so
+    objects reached through soft or external links are reported where the
+    link is, not where the target lives. Dangling links are skipped, and
+    links back to an ancestor group are not followed, to avoid cycles.
+    """
+
+    def __init__(
+        self,
+        obj: Any,
+        depth: int = 0,
+        level: int | None = None,
+        path: str | None = None,
+        ancestors: frozenset = frozenset(),
+    ):
         self.obj = obj
         self.depth = depth
         self.level = level
+        self.path = obj.name if path is None else path
+        self.ancestors = ancestors
 
     def get_type(self) -> str:
         return type(self.obj).__name__
 
     def get_children(self) -> list[TreeNode]:
-        if hasattr(self.obj, "values") and (
-            self.level is None or self.depth < self.level
+        if not isinstance(self.obj, h5py.Group) or (
+            self.level is not None and self.depth >= self.level
         ):
-            depth = self.depth + 1
-            children = self.obj.values()
-            return [
-                self.__class__(o, depth=depth, level=self.level) for o in children
-            ]
-        return []
+            return []
+        ancestors = self.ancestors | {_object_key(self.obj)}
+        children = []
+        for name in self.obj:
+            child = self.obj.get(name)
+            if child is None:  # dangling soft or external link
+                continue
+            if isinstance(child, h5py.Group) and _object_key(child) in ancestors:
+                continue  # link cycle
+            path = self.path.rstrip("/") + "/" + name
+            children.append(
+                self.__class__(
+                    child,
+                    depth=self.depth + 1,
+                    level=self.level,
+                    path=path,
+                    ancestors=ancestors,
+                )
+            )
+        return children
 
     def get_text(self) -> str:
-        name = self.obj.name.split("/")[-1] or "/"
+        name = self.path.split("/")[-1] or "/"
         if hasattr(self.obj, "shape"):
             name += f" {self.obj.shape} {self.obj.dtype}"
         return name
@@ -85,7 +124,7 @@ class TreeNode:
 
 class AttrNode(TreeNode):
     def get_text(self) -> str:
-        return self.obj.name.split("/")[-1] or "/"
+        return self.path.split("/")[-1] or "/"
 
 
 def visititems(
@@ -99,7 +138,7 @@ def visititems(
         children = node.get_children()
         if children:
             for child in children:
-                result[child.obj.name] = func(child.obj.name, child.obj)
+                result[child.path] = func(child.path, child.obj)
                 _visititems(child, func, result)
         return result
 
@@ -129,7 +168,9 @@ def is_cooler(uri: str) -> bool:
     filepath, grouppath = parse_cooler_uri(uri)
     if not h5py.is_hdf5(filepath):
         return False
-    with h5py.File(filepath) as f:
+    with h5py.File(filepath, "r") as f:
+        if grouppath not in f:
+            return False
         return _is_cooler(f[grouppath])
 
 
@@ -161,10 +202,9 @@ def is_scool_file(filepath: str) -> bool:
 
     """
     if not h5py.is_hdf5(filepath):
-        raise OSError(f"'{filepath}' is not an HDF5 file.")
         return False
 
-    with h5py.File(filepath) as f:
+    with h5py.File(filepath, "r") as f:
         fmt = f.attrs.get("format", None)
         if fmt == MAGIC_SCOOL:
             keys = ("chroms", "bins", "cells")
@@ -234,10 +274,7 @@ def list_scool_cells(filepath: str) -> list[str]:
     if is_scool_file(filepath):
         listing = []
         with h5py.File(filepath, "r") as f:
-            _check_cooler("/", f)
-            visititems(f, _check_cooler)
-        if "/" in listing:
-            listing.remove("/")
+            visititems(f["cells"], _check_cooler)
         return natsorted(listing)
     else:
         raise OSError(f"'{filepath}' is not a scool file.")
@@ -287,56 +324,124 @@ def _copy(
     if sum([link, rename, soft_link]) > 1:
         raise ValueError('Must provide at most one of: "link", "rename", "soft_link"')
 
-    if not os.path.isfile(dst_path) or overwrite:
-        dst_write_mode = "w"
-    else:
-        dst_write_mode = "r+"
+    # Validate everything before opening the destination for writing, so that
+    # a failed operation never modifies or truncates it.
+    if not h5py.is_hdf5(src_path):
+        raise OSError(f"'{src_path}' is not an HDF5 file.")
+    with h5py.File(src_path, "r") as src:
+        if src_group not in src:
+            raise KeyError(f"No group or dataset '{src_group}' in '{src_path}'.")
 
-    if src_path == dst_path:
-        src_write_mode = "r+"
-    else:
-        src_write_mode = "r"
+    dst_exists = os.path.exists(dst_path)
+    same_file = dst_exists and os.path.samefile(src_path, dst_path)
+    if dst_exists and not h5py.is_hdf5(dst_path):
+        raise OSError(f"'{dst_path}' is not an HDF5 file.")
 
-    with h5py.File(src_path, src_write_mode) as src, \
-         h5py.File(dst_path, dst_write_mode) as dst:  # fmt: skip
-        if src_path == dst_path:
+    if not same_file:
+        if link:
+            raise OSError("Can't hard link between two different files.")
+        if rename:
+            raise OSError(
+                "Can't move between two different files. Copy instead, then "
+                "delete the source."
+            )
+    else:
+        if dst_group == "/":
+            raise ValueError("Can't replace the root group of the source file.")
+        src_prefix = src_group.rstrip("/") + "/"
+        if dst_group == src_group or dst_group.startswith(src_prefix):
+            raise ValueError(
+                f"Destination '{dst_group}' is inside the source '{src_group}'."
+            )
+        if src_group.startswith(dst_group.rstrip("/") + "/"):
+            raise ValueError(
+                f"Source '{src_group}' is inside the destination '{dst_group}'."
+            )
+
+    if dst_exists and not same_file and dst_group == "/":
+        with h5py.File(dst_path, "r") as dst:
+            occupied = len(dst) > 0
+        if occupied and not overwrite:
+            raise FileExistsError(
+                f"'{dst_path}' already exists. Use overwrite to replace it."
+            )
+        # Replacing the root of another file replaces that whole file.
+        dst_write_mode = "w" if overwrite else "r+"
+    else:
+        dst_write_mode = "r+" if dst_exists else "w"
+
+    if dst_write_mode == "r+" and dst_group != "/":
+        with h5py.File(dst_path, "r") as dst:
+            occupied = dst.get(dst_group, getlink=True) is not None
+        if occupied and not overwrite:
+            raise FileExistsError(
+                f"'{dst_group}' already exists in '{dst_path}'. Use overwrite to "
+                "replace it."
+            )
+
+    if same_file:
+        with h5py.File(src_path, "r+") as f:
+            if f.get(dst_group, getlink=True) is not None:
+                del f[dst_group]
             if link or rename:
-                src[dst_group] = src[src_group]
+                f[dst_group] = f[src_group]
                 if rename:
-                    del src[src_group]
+                    del f[src_group]
             elif soft_link:
-                src[dst_group] = h5py.SoftLink(src_group)
+                f[dst_group] = h5py.SoftLink(src_group)
             else:
-                src.copy(src_group, dst_group)
+                f.copy(src_group, dst_group)
+        return
+
+    with h5py.File(src_path, "r") as src, h5py.File(dst_path, dst_write_mode) as dst:
+        if dst_group != "/" and dst.get(dst_group, getlink=True) is not None:
+            del dst[dst_group]
+        if soft_link:
+            # HDF5 resolves relative external link targets against the
+            # directory of the file containing the link.
+            target = os.path.relpath(
+                os.path.abspath(src_path), os.path.dirname(os.path.abspath(dst_path))
+            )
+            dst[dst_group] = h5py.ExternalLink(target, src_group)
+        elif dst_group == "/":
+            for subgrp in src[src_group]:
+                src.copy(src_group + "/" + subgrp, dst, subgrp)
+            dst[dst_group].attrs.update(src[src_group].attrs)
         else:
-            if link:
-                raise OSError("Can't hard link between two different files.")
-            elif soft_link:
-                dst[dst_group] = h5py.ExternalLink(src_path, src_group)
-            else:
-                if dst_group == "/":
-                    for subgrp in src[src_group]:
-                        src.copy(src_group + "/" + subgrp, dst, subgrp)
-                    dst[dst_group].attrs.update(src[src_group].attrs)
-                else:
-                    src.copy(src_group, dst, dst_group if dst_group != "/" else None)
+            src.copy(src_group, dst, dst_group)
 
 
 def cp(src_uri: str, dst_uri: str, overwrite: bool = False) -> None:
-    """Copy a group or dataset from one file to another or within the same file."""
+    """
+    Copy a group or dataset from one file to another or within the same file.
+
+    If ``overwrite`` is True, an existing destination group or dataset is
+    replaced. If the destination is the root of another file, that whole file
+    is replaced. Nothing is modified if the operation can't be performed.
+    """
     _copy(src_uri, dst_uri, overwrite, link=False, rename=False, soft_link=False)
 
 
 def mv(src_uri: str, dst_uri: str, overwrite: bool = False) -> None:
-    """Rename a group or dataset within the same file."""
+    """
+    Rename a group or dataset within the same file.
+
+    If ``overwrite`` is True, an existing destination group or dataset is
+    replaced.
+    """
     _copy(src_uri, dst_uri, overwrite, link=False, rename=True, soft_link=False)
 
 
 def ln(
     src_uri: str, dst_uri: str, soft: bool = False, overwrite: bool = False
 ) -> None:
-    """Create a hard link to a group or dataset in the same file. Also
-    supports soft links (in the same file) or external links (different files).
+    """
+    Create a hard link to a group or dataset in the same file. Also supports
+    soft links (in the same file) or external links (different files).
+
+    External links store the target path relative to the directory of the
+    destination file. If ``overwrite`` is True, an existing destination group,
+    dataset or link is replaced.
     """
     _copy(src_uri, dst_uri, overwrite, link=not soft, rename=False, soft_link=soft)
 
