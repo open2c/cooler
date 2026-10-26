@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### New features
+* `cooler.log_to_stderr()` prints cooler's log messages to stderr, for scripts and notebooks that don't configure logging.
 * The 2D range query engines (`cooler.core.DirectRangeQuery2D`, `FillLowerRangeQuery2D` and `CSRReader`) accept a list of value columns, and return them all in frame output. Matrix output still needs a single column.
 * `cooler cload pairs --field <name>=<col>:agg=mean`, and `create_cooler(..., ordered=False, agg={...: "mean"})`, now work for inputs larger than one chunk. Means are computed over all records of a pixel (ignoring missing values) by carrying sums and counts through the external sort. Other aggregations that can't be combined across chunks (e.g. `median`) still raise an error.
 * `cooler balance --rescale-marginals/--no-rescale-marginals` (#448). With `--no-rescale-marginals`, the balanced matrix's rows sum to the mean marginal sum of the unbalanced matrix, stored as the `scale` attribute.
@@ -18,6 +19,8 @@
 * `cooler zoomify --legacy` and `legacy_zoomify`, which wrote multi-resolution files in the layout used before cooler 0.8, with integer-labeled zoom levels (`::0`, `::1`, ...). Use the default `resolutions/<binsize>` layout; files in the old layout can still be read.
 
 ### Bug fixes
+* fix: Importing cooler no longer configures logging. Previously, it attached a handler to the `cooler` logger that printed warnings to stdout and stopped records from propagating, so they bypassed the user's logging configuration and mixed into piped output (including from worker processes started with `spawn` or `forkserver`). The `cooler` logger now only has a `NullHandler`, as recommended for libraries: records propagate to the root logger, and are silent unless logging is configured. The warning about records on chromosomes missing from the bin table is now issued with `warnings.warn`, so it is shown either way.
+* fix: The CLI sets up logging for the duration of each command and restores the previous state afterwards. Running commands repeatedly in the same process (e.g. with click's `CliRunner`) no longer logs to a stale stream, and `logging.captureWarnings` is no longer left on. Warnings from library code are now printed through the CLI's log format. The process information printed with `-vv` is now logged when the command finishes.
 * fix: `cooler dump` writes every column of the pixel table by default, and `-c/--columns` selects pixel columns. Previously, only `count` could be dumped, and `-c` was ignored for pixels. Unknown column names raise an error.
 * fix: `cooler dump --one-based-ids` works on its own. It only took effect with `--join`, `--balanced` or `--annotate`.
 * fix: `cooler dump` closes its output file and the cooler file when finished.
@@ -84,6 +87,7 @@
 * fix: `to_dask_frame()` on range queries works with current dask versions; it relied on dask's legacy `DataFrame` constructor, which newer dask releases removed. By @nvictus in https://github.com/open2c/cooler/pull/501
 
 ### Maintenance
+* Removed the internal `set_logging_context`, `get_logging_context` and `configure` logging helpers.
 * Fixed deprecation warnings from NumPy (generic timedelta unit), Click (`CliRunner.isolated_filesystem`) and pandas in the code and tests.
 * `cooler cload` logs a warning naming chromosomes whose records are skipped because they are not in the bin table (once per chromosome).
 * Removed the unused, untested `SparseBlockLoader` and `ArrayBlockLoader` classes, and compatibility code for pandas < 1.2.

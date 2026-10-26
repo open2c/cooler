@@ -433,25 +433,17 @@ def test_square_storage_does_not_warn(tmp_path):
 
 
 def test_skipped_chromosomes_are_reported_once(tmp_path, chromsizes_file):
-    import logging
-
-    records = []
-    handler = logging.Handler()
-    handler.emit = records.append
-    logger = logging.getLogger("cooler.create")
-    logger.addHandler(handler)
-    try:
-        pairs = tmp_path / "s.pairs"
-        pairs.write_text(
-            "r1\tchr1\t5\tchrZ\t10\nr2\tchrZ\t5\tchr1\t9\nr3\tchr1\t5\tchr1\t9\n"
-        )
+    pairs = tmp_path / "s.pairs"
+    pairs.write_text(
+        "r1\tchr1\t5\tchrZ\t10\nr2\tchrZ\t5\tchr1\t9\nr3\tchr1\t5\tchr1\t9\n"
+    )
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
         result = run_cload_pairs(
             chromsizes_file, str(pairs), str(tmp_path / "s.cool"), "--chunksize", "1"
         )
-        assert result.exit_code == 0, result.output
-    finally:
-        logger.removeHandler(handler)
-    skipped = [r.getMessage() for r in records if "Skipping" in r.getMessage()]
+    assert result.exit_code == 0, result.output
+    skipped = [str(w.message) for w in caught if "Skipping" in str(w.message)]
     assert len(skipped) == 1 and "chrZ" in skipped[0]
 
 

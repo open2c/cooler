@@ -1,12 +1,41 @@
+"""
+Logging for cooler
+==================
+
+Library usage
+-------------
+As a library, cooler doesn't configure where its log records go: the "cooler"
+logger only has a ``NullHandler``, and records propagate to Python's root
+logger (``logging.getLogger()``) as usual.
+
+The records are shown by any registered handler along the way: on a "cooler"
+logger or on the root logger (e.g. added by ``logging.basicConfig``). If there
+aren't any other handlers, the log records are dropped: the ``NullHandler``
+stops Python's last-resort handler from printing them. This silencing is
+considered good practice for libraries.
+
+If log records are handled by anything else, which ones get logged depends on
+the "cooler" logger's level. It isn't set by default, so it inherits the root
+logger's value, which is WARNING unless configured. Problems the user can act
+on are issued with ``warnings.warn`` rather than a logger, so they are shown
+without any logging configuration.
+
+In a script or notebook, you can use :func:`log_to_stderr` to add a stderr
+handler to the "cooler" logger to print log messages to stderr. It also sets
+the "cooler" logger's level to INFO by default.
+
+CLI usage
+---------
+The CLI sets up a stderr handler for the duration of each command.
+"""
 from __future__ import annotations
 
 import logging
 import sys
-from typing import IO, Literal, Optional
+from typing import Callable
 
-LoggingContext = Optional[Literal["cli", "lib"]]
-_logging_context: LoggingContext = None
-_loggers = {}
+_LOGGER_NAME = "cooler"
+_FORMAT = "{levelname}:{name}:{message}"
 
 verbosity_to_loglevel = {
     -3: logging.NOTSET,
@@ -26,133 +55,48 @@ loglevel_to_verbosity = {
     logging.DEBUG: 2,
 }
 
+logging.getLogger(_LOGGER_NAME).addHandler(logging.NullHandler())
 
-def configure(
-    logger: logging.Logger,
-    stream: IO[str] | None = None,
-    filename: str | None = None,
-    open_kws: dict | None = None,
-    handlers: list[logging.Handler] | None = None,
-    level: int = logging.WARNING,
-    format: str = "{levelname}:{name}:{message}",
-    datefmt: str = "%Y-%m-%d %I:%M:%S %p",
-    style: str = "{",
-    propagate: bool = False,
-) -> None:
+
+class _StderrHandler(logging.StreamHandler):
     """
-    Configure a logger for a stream or file or a custom set of handlers.
-
-    Based on `logging.basicConfig` but works on any logger, not just the root one.
-
-    Parameters
-    ----------
-    logger : :class:`logging.Logger`
-        A logger.
-    stream : file-like, optional
-        A stream, like ``sys.stdout``.
-    filename : str, optional
-        Path to a file, instead of a stream.
-    open_kws : dict, optionsl
-        Keyword args to ``open`` if using a filename instead of a stream.
-        Defaults to using mode='a' and for text streams: encoding='utf-8' and
-        errors='backslashreplace'.
-    handlers : sequence of logging Handlers
-        Arbitrary logging handlers to register. Cannot be used with ``filename``
-        or ``stream``.
-    level : int, optional
-        The log level.
-    format : str, optional
-        A format string for log records.
-    datefmt : str, optional
-        A format string for the ``asctime`` variable when used in log records.
-    style : {"{", "$", "%"}, optional
-        The templating style of the log record format string.
-    propagate : bool, optional
-        Whether the logger should propagate log records up to its parent.
-
-    Notes
-    -----
-    Any of the logger's existing handlers will be closed and destroyed.
-
-    For logging level values, see
-    https://docs.python.org/3/howto/logging.html#logging-levels
-
-    For a list of variables that can go into log records, see
-    https://docs.python.org/3/library/logging.html#logrecord-attributes
-
+    A handler that writes to whatever ``sys.stderr`` is when a record is
+    emitted, rather than the stream at the time it was created. This keeps it
+    working when stderr is replaced, e.g. by click's test runner.
     """
-    if handlers is None:
-        if stream is not None and filename is not None:
-            raise ValueError("'stream' and 'filename' should not be specified together")
-    else:
-        if stream is not None or filename is not None:
-            raise ValueError(
-                "'stream' or 'filename' should not be specified together with "
-                "'handlers'"
-            )
 
-    # Set up the new handlers
-    if filename is not None:
-        open_kws = {} if open_kws is None else open_kws
-        open_kws.setdefault("mode", "a")
-        if "b" in open_kws["mode"]:
-            open_kws["encoding"] = None
-            open_kws["errors"] = None
-        else:
-            open_kws.setdefault("encoding", "utf-8")
-            open_kws.setdefault("errors", "backslashreplace")
-        handlers = [logging.FileHandler(filename, **open_kws)]
-    elif stream is not None:
-        handlers = [logging.StreamHandler(stream)]
+    def __init__(self, level: int = logging.NOTSET):
+        logging.Handler.__init__(self, level)
 
-    # Wipe out the old handlers
-    for handler in logger.handlers[:]:
-        logger.removeHandler(handler)
-        handler.close()
+    @property
+    def stream(self):
+        return sys.stderr
 
-    # Set up the formatter and register it on all new handlers
-    formatter = logging.Formatter(format, datefmt, style)
-    for handler in handlers:
-        if handler.formatter is None:
-            handler.setFormatter(formatter)
-        logger.addHandler(handler)
-
-    if level is not None:
-        logger.setLevel(level)
-
-    logger.propagate = propagate
+    @stream.setter
+    def stream(self, value):
+        pass
 
 
-def set_logging_context(ctx: LoggingContext) -> None:
-    global _logging_context
-
-    logger = logging.getLogger("cooler")
-
-    if _logging_context != ctx:
-        if ctx == "lib":
-            configure(
-                logger, stream=sys.stdout, level=logging.WARNING, format="{message}"
-            )
-            logging.captureWarnings(False)
-        elif ctx == "cli":
-            configure(logger, stream=sys.stderr, level=logging.INFO)
-            logging.captureWarnings(True)
-        elif ctx is None:
-            for handler in logger.handlers[:]:
-                logger.removeHandler(handler)
-                handler.close()
-            logging.captureWarnings(False)
-        else:
-            raise ValueError(f"Unknown logging context: '{ctx}'")
-        _logging_context = ctx
+def _make_stderr_handler() -> logging.Handler:
+    handler = _StderrHandler()
+    handler.setFormatter(logging.Formatter(_FORMAT, style="{"))
+    return handler
 
 
-def get_logging_context() -> LoggingContext:
-    return _logging_context
+def get_logger(name: str = _LOGGER_NAME) -> logging.Logger:
+    """Return a logger in the cooler hierarchy. Same as ``logging.getLogger``."""
+    return logging.getLogger(name)
 
 
 def set_verbosity_level(level: int) -> None:
-    logger = logging.getLogger("cooler")
+    """
+    Set the level of the "cooler" logger from a verbosity level: -2
+    (critical) to 2 (debug), where 0 is warnings.
+
+    This sets which records are logged, not where they go. To see them, use
+    :func:`log_to_stderr` or configure logging.
+    """
+    logger = logging.getLogger(_LOGGER_NAME)
     try:
         loglevel = verbosity_to_loglevel[level]
     except KeyError:
@@ -163,20 +107,74 @@ def set_verbosity_level(level: int) -> None:
 
 
 def get_verbosity_level() -> int:
-    logger = logging.getLogger("cooler")
+    logger = logging.getLogger(_LOGGER_NAME)
     return loglevel_to_verbosity[logger.level]
 
 
-def get_logger(name="cooler") -> logging.Logger:
-    # Based on ipython traitlets
+def log_to_stderr(level: int | str | None = logging.INFO) -> logging.Handler:
+    """
+    Print cooler's log messages to stderr.
 
-    if _logging_context is None:
-        set_logging_context("lib")
+    Adds a stderr handler to the "cooler" logger, replacing one added by an
+    earlier call, and sets the logger's level. Useful in scripts and notebooks
+    that don't otherwise configure logging. If Python's root logger also has a
+    handler, messages will appear twice.
 
-    if name not in _loggers:
-        _loggers[name] = logging.getLogger(name)
-        # Add a NullHandler to silence warnings about not being
-        # initialized, per best practice for libraries.
-        _loggers[name].addHandler(logging.NullHandler())
+    Parameters
+    ----------
+    level : int or str, optional
+        Log level, e.g. ``logging.DEBUG`` or "DEBUG". Default is INFO. None
+        leaves the level unchanged.
 
-    return _loggers[name]
+    Returns
+    -------
+    logging.Handler
+        The handler, which can be removed with
+        ``logging.getLogger("cooler").removeHandler(handler)``.
+
+    """
+    logger = logging.getLogger(_LOGGER_NAME)
+    for handler in logger.handlers[:]:
+        if getattr(handler, "_cooler_log_to_stderr", False):
+            logger.removeHandler(handler)
+    handler = _make_stderr_handler()
+    handler._cooler_log_to_stderr = True
+    logger.addHandler(handler)
+    if level is not None:
+        logger.setLevel(level)
+    return handler
+
+
+def setup_cli_logging(level: int) -> Callable[[], None]:
+    """
+    Send log records and warnings to stderr for the duration of a CLI command.
+
+    Returns a function that undoes the setup.
+    """
+    logger = logging.getLogger(_LOGGER_NAME)
+    warnings_logger = logging.getLogger("py.warnings")
+    handler = _make_stderr_handler()
+
+    saved = (logger.level, logger.propagate, warnings_logger.propagate)
+    # Is captureWarnings already on? Only logging knows, via a private name.
+    was_capturing = getattr(logging, "_warnings_showwarning", None) is not None
+
+    logger.addHandler(handler)
+    logger.setLevel(level)
+    # Don't also pass records to Python's root logger, which may have handlers
+    logger.propagate = False
+    logging.captureWarnings(True)
+    warnings_logger.addHandler(handler)
+    warnings_logger.propagate = False
+
+    def restore() -> None:
+        logger.removeHandler(handler)
+        warnings_logger.removeHandler(handler)
+        handler.close()
+        logger.setLevel(saved[0])
+        logger.propagate = saved[1]
+        warnings_logger.propagate = saved[2]
+        if not was_capturing:
+            logging.captureWarnings(False)
+
+    return restore
