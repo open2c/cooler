@@ -105,6 +105,30 @@ def test_cload_pairs_aggregation_across_chunks(tmp_path, chromsizes_file, func):
     pd.testing.assert_frame_equal(results[50], results[100_000])
 
 
+def test_cload_pairs_mean_across_chunks(tmp_path, chromsizes_file):
+    pairs = str(tmp_path / "v.pairs")
+    records = write_value_pairs(pairs)
+    records.loc[::7, "v"] = np.nan  # missing values are left out of the mean
+    records.to_csv(pairs, sep="\t", header=False, index=False)
+
+    results = {}
+    for chunksize in [50, 100_000]:
+        out = str(tmp_path / f"m{chunksize}.cool")
+        result = run_cload_pairs(
+            chromsizes_file, pairs, out,
+            "--field", "v=8:agg=mean", "--chunksize", str(chunksize),
+        )
+        assert result.exit_code == 0, result.output
+        results[chunksize] = cooler.Cooler(out).pixels()[:]
+    pd.testing.assert_frame_equal(results[50], results[100_000])
+
+    # Matches the mean over records of each pixel
+    bins1 = (records["p1"] - 1) // 10
+    bins2 = (records["p2"] - 1) // 10
+    expected = records.groupby([bins1, bins2])["v"].mean().to_numpy()
+    np.testing.assert_allclose(results[50]["v"].to_numpy(), expected)
+
+
 def test_cload_pairs_non_combinable_aggregation(tmp_path, chromsizes_file):
     pairs = str(tmp_path / "v.pairs")
     write_value_pairs(pairs)
@@ -112,14 +136,14 @@ def test_cload_pairs_non_combinable_aggregation(tmp_path, chromsizes_file):
     # Fine within a single chunk
     result = run_cload_pairs(
         chromsizes_file, pairs, str(tmp_path / "one.cool"),
-        "--field", "v=8:agg=mean", "--chunksize", "100000",
+        "--field", "v=8:agg=median", "--chunksize", "100000",
     )
     assert result.exit_code == 0, result.output
 
     # Rejected across chunks
     result = run_cload_pairs(
         chromsizes_file, pairs, str(tmp_path / "many.cool"),
-        "--field", "v=8:agg=mean", "--chunksize", "50",
+        "--field", "v=8:agg=median", "--chunksize", "50",
     )
     assert result.exit_code != 0
     assert "can't be combined across chunks" in str(result.exception)
@@ -320,3 +344,22 @@ def test_cload_tabix_rejects_out_of_range_positions(tmp_path, chromsizes_file):
     result = run(["r1\tchr1\t10\tchr1\t101\n"])  # one past the end
     assert result.exit_code != 0
     assert "outside of chr1" in str(result.exception)
+
+
+def test_create_unordered_mean_of_pixel_occurrences(tmp_path):
+    # Generic pixel chunks: each occurrence of a pixel counts as one value
+    bins = cooler.util.binnify(pd.Series({"chr1": 100}), 10)
+    chunks = [
+        pd.DataFrame({"bin1_id": [0, 1], "bin2_id": [1, 2], "count": [1, 1],
+                      "v": [2.0, 5.0]}),
+        pd.DataFrame({"bin1_id": [0], "bin2_id": [1], "count": [1], "v": [4.0]}),
+        pd.DataFrame({"bin1_id": [0], "bin2_id": [1], "count": [1], "v": [np.nan]}),
+    ]
+    out = str(tmp_path / "m.cool")
+    cooler.create_cooler(
+        out, bins, iter(chunks), columns=["count", "v"], ordered=False,
+        agg={"v": "mean"},
+    )
+    px = cooler.Cooler(out).pixels()[:]
+    assert px["v"].tolist() == [3.0, 5.0]
+    assert px["count"].tolist() == [3, 1]

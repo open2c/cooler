@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### New features
+* `cooler cload pairs --field <name>=<col>:agg=mean`, and `create_cooler(..., ordered=False, agg={...: "mean"})`, now work for inputs larger than one chunk. Means are computed over all records of a pixel (ignoring missing values) by carrying sums and counts through the external sort. Other aggregations that can't be combined across chunks (e.g. `median`) still raise an error.
+
 ### Performance
 * Range queries filter pixels in a single vectorized pass instead of looping over matrix rows in Python. The pixel filtering step is about 7-16x faster, and matrix queries on HDF5 files about 1.5x faster end to end, with peak memory about the same as before. Queries spanning many rows benefit most.
 
@@ -32,6 +35,7 @@
 * fix: `to_dask_frame()` on range queries works with current dask versions; it relied on dask's legacy `DataFrame` constructor, which newer dask releases removed. By @nvictus in https://github.com/open2c/cooler/pull/501
 
 ### Maintenance
+* `create_from_unordered` is built on an internal external-sort writer (`cooler.create._writer._UnorderedCoolerWriter`), which validates its options up front and removes its temporary files on error.
 * Cooler creation is built on an internal chunked writer (`cooler.create._writer._CoolerWriter`) that validates, writes and finalizes a cooler one chunk at a time, keeping the output file open between chunks unless a lock is shared with readers.
 * The `to_sparse_array()` method of range query engines returns a SciPy `coo_array` instead of a pydata/sparse `COO`, so it no longer needs the optional `sparse` package. `to_sparse_matrix()` now converts the same `coo_array` to a `coo_matrix`. The minimum SciPy version is raised to 1.11, the oldest compatible with NumPy 1.26.
 * Property-based tests of 2D range queries against dense NumPy references. By @nvictus in https://github.com/open2c/cooler/pull/501

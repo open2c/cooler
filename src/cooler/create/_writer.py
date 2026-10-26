@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import inspect
+import os
 import os.path as op
 import posixpath
+import tempfile
 import warnings
 from typing import Any
 
@@ -396,6 +399,272 @@ class _CoolerWriter:
             f.move(self._tmp_path, self.group_path)
 
     def __enter__(self) -> _CoolerWriter:  # noqa: PYI034
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> None:
+        if exc_type is None:
+            self.finish()
+        else:
+            self.abort()
+
+
+class _UnorderedCoolerWriter:
+    """
+    Write a cooler from pixel chunks in any order, using an external sort.
+
+    Each chunk passed to :meth:`write` is sorted and saved as a "run" in a
+    temporary file. :meth:`finish` merges the runs, combining the values of
+    pixels that occur in more than one run according to ``agg``, and writes
+    the result with a :class:`_CoolerWriter`.
+
+    Aggregations ``"sum"`` (the default), ``"min"``, ``"max"`` and
+    ``"count"`` combine directly across runs. ``"mean"`` is supported by
+    carrying the sum and the number of values of the column through the runs,
+    in the hidden columns named by :func:`~cooler.create._ingest.mean_parts`.
+    Chunks can provide these columns (see ``aggregate_records(...,
+    split_means=True)``); otherwise each occurrence of a pixel counts as one
+    value. Other aggregations raise an error if there is more than one run.
+
+    Parameters
+    ----------
+    cool_uri, bins, columns, dtypes
+        As for :class:`_CoolerWriter`.
+    agg : dict, optional
+        Mapping of value column names to aggregations.
+    mergebuf : int, optional
+        Maximum number of pixels to hold in memory while merging.
+    max_merge : int, optional
+        Maximum number of runs to merge at once. More runs are merged in two
+        passes.
+    temp_dir : str, optional
+        Directory for temporary files. Defaults to the output's directory;
+        ``"-"`` uses the system default.
+    delete_temp : bool, optional
+        Delete temporary files when done.
+    **kwargs
+        Other options for the output :class:`_CoolerWriter`. The validation
+        options also apply to each chunk.
+
+    """
+
+    def __init__(
+        self,
+        cool_uri: str,
+        bins: pd.DataFrame,
+        *,
+        columns: list[str] | None = None,
+        dtypes: dict | None = None,
+        agg: dict[str, str] | None = None,
+        mergebuf: int = 20_000_000,
+        max_merge: int = 200,
+        temp_dir: str | None = None,
+        delete_temp: bool = True,
+        **kwargs,
+    ):
+        from ._create import _MERGEABLE_AGGS
+        from ._ingest import mean_parts
+
+        allowed = set(inspect.signature(_CoolerWriter).parameters) - {
+            "cool_uri", "bins", "columns", "dtypes"
+        }
+        unknown = sorted(set(kwargs) - allowed)
+        if unknown:
+            raise TypeError(f"Unexpected keyword arguments: {', '.join(unknown)}")
+
+        self.cool_uri = cool_uri
+        self.bins = bins
+        self.columns, self.dtypes = _pixel_schema(columns, dtypes)
+        self.writer_kwargs = kwargs
+        self.mergebuf = mergebuf
+        self.max_merge = max_merge
+
+        value_cols = [c for c in self.columns if c not in ("bin1_id", "bin2_id")]
+        self.agg = {col: "sum" for col in value_cols}
+        if agg is not None:
+            unknown = sorted(set(agg) - set(value_cols))
+            if unknown:
+                raise ValueError(f"Aggregations given for unknown columns: {unknown}")
+            self.agg.update(agg)
+        self.mean_cols = [col for col, func in self.agg.items() if func == "mean"]
+        self.uncombinable = [
+            col
+            for col, func in self.agg.items()
+            if func != "mean" and func not in _MERGEABLE_AGGS
+        ]
+
+        # Schema of the runs: mean columns are replaced by their parts
+        self.run_columns, self.run_dtypes = [], {}
+        self.merge_agg = {}
+        for col in self.columns:
+            if col in self.mean_cols:
+                sum_col, n_col = mean_parts(col)
+                self.run_columns += [sum_col, n_col]
+                self.run_dtypes.update({sum_col: np.float64, n_col: np.int64})
+                self.merge_agg.update({sum_col: "sum", n_col: "sum"})
+            else:
+                self.run_columns.append(col)
+                self.run_dtypes[col] = self.dtypes[col]
+                if col in self.agg:
+                    self.merge_agg[col] = _MERGEABLE_AGGS.get(self.agg[col], "sum")
+        self.run_kwargs = {
+            key: kwargs[key]
+            for key in ("symmetric_upper", "h5opts", "boundscheck", "triucheck",
+                        "dupcheck")
+            if key in kwargs
+        }
+
+        if temp_dir is None:
+            temp_dir = op.dirname(parse_cooler_uri(cool_uri)[0])
+        elif temp_dir == "-":
+            temp_dir = None  # makes tempfile module use the system dir
+        self.temp_dir = temp_dir
+        self.delete_temp = delete_temp
+        # Temporary files can't be deleted while open on Windows
+        self._delete_on_close = delete_temp and os.name != "nt"
+        self._temp_files = []
+        self._runs = []
+        self._n_chunks = 0
+        self._done = False
+        self._run_file = self._new_temp_file()
+
+    def _new_temp_file(self) -> Any:
+        tf = tempfile.NamedTemporaryFile(
+            suffix=".multi.cool", delete=self._delete_on_close, dir=self.temp_dir
+        )
+        self._temp_files.append(tf)
+        return tf
+
+    def _as_run(self, chunk: Any) -> dict[str, np.ndarray]:
+        from ._ingest import mean_parts
+
+        if isinstance(chunk, pd.DataFrame):
+            chunk = {k: v.to_numpy() for k, v in chunk.items()}
+        chunk = dict(chunk)
+        for col in self.mean_cols:
+            sum_col, n_col = mean_parts(col)
+            if sum_col in chunk and n_col in chunk:
+                continue
+            if col not in chunk:
+                raise ValueError(f"Pixel columns not found in input: ['{col}']")
+            values = np.asarray(chunk.pop(col), dtype=float)
+            missing = np.isnan(values)
+            chunk[sum_col] = np.where(missing, 0.0, values)
+            chunk[n_col] = (~missing).astype(np.int64)
+        return chunk
+
+    def write(self, chunk: Any) -> None:
+        """Sort a chunk of pixels and save it as a run."""
+        if self._done:
+            raise ValueError("Writer has already finished.")
+        chunk = self._as_run(chunk)
+        uri = f"{self._run_file.name}::{self._n_chunks}"
+        logger.info(f"Writing chunk {self._n_chunks}: {uri}")
+        self._n_chunks += 1
+        with _CoolerWriter(
+            uri,
+            self.bins,
+            columns=self.run_columns,
+            dtypes=self.run_dtypes,
+            mode="a",
+            ensure_sorted=True,
+            **self.run_kwargs,
+        ) as w:
+            w.write(chunk)
+        if w.nnz > 0:
+            self._runs.append(uri)
+
+    def _merged(self, uris: list[str]) -> Any:
+        from .._reduce import CoolerMerger
+        from ..api import Cooler
+
+        return CoolerMerger(
+            [Cooler(uri) for uri in uris],
+            self.mergebuf,
+            columns=[c for c in self.run_columns if c not in ("bin1_id", "bin2_id")],
+            agg=self.merge_agg,
+        )
+
+    def _finish_means(self, chunk: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
+        from ._ingest import mean_parts
+
+        chunk = dict(chunk)
+        for col in self.mean_cols:
+            sum_col, n_col = mean_parts(col)
+            total, n = chunk.pop(sum_col), chunk.pop(n_col)
+            with np.errstate(invalid="ignore", divide="ignore"):
+                chunk[col] = np.where(n > 0, total / n, np.nan)
+        return chunk
+
+    def finish(self) -> None:
+        """Merge the runs and write the output cooler."""
+        if self._done:
+            return
+        try:
+            if len(self._runs) > 1 and self.uncombinable:
+                details = ", ".join(
+                    f"'{self.agg[c]}' for '{c}'" for c in self.uncombinable
+                )
+                raise ValueError(
+                    f"Aggregation {details} can't be combined across chunks of "
+                    "input. Use 'sum', 'min', 'max', 'count' or 'mean', or a "
+                    "chunk size large enough for the whole input to fit in one "
+                    "chunk."
+                )
+
+            runs = self._runs
+            if len(runs) > self.max_merge > 0:
+                # Merge in two passes: groups of ~sqrt(n) runs, keeping both
+                # the group size and the number of groups within max_merge
+                # where possible.
+                n = len(runs)
+                group_size = max(
+                    int(np.ceil(np.sqrt(n))), int(np.ceil(n / self.max_merge))
+                )
+                group_size = max(2, min(group_size, self.max_merge))
+                tf2 = self._new_temp_file()
+                merged_runs = []
+                for lo in range(0, n, group_size):
+                    hi = min(lo + group_size, n)
+                    uri = f"{tf2.name}::{lo}-{hi}"
+                    logger.info(f"Merging chunks {lo}-{hi}: {uri}")
+                    with _CoolerWriter(
+                        uri, self.bins, columns=self.run_columns,
+                        dtypes=self.run_dtypes, mode="a", **self.run_kwargs,
+                    ) as w:
+                        for chunk in self._merged(runs[lo:hi]):
+                            w.write(chunk)
+                    merged_runs.append(uri)
+                runs = merged_runs
+
+            logger.info(f"Merging into {self.cool_uri}")
+            with _CoolerWriter(
+                self.cool_uri,
+                self.bins,
+                columns=self.columns,
+                dtypes=self.dtypes,
+                **self.writer_kwargs,
+            ) as w:
+                if runs:
+                    for chunk in self._merged(runs):
+                        w.write(self._finish_means(chunk))
+        finally:
+            self._cleanup()
+
+    def abort(self) -> None:
+        """Remove the temporary files without writing the output."""
+        if not self._done:
+            self._cleanup()
+
+    def _cleanup(self) -> None:
+        self._done = True
+        for tf in self._temp_files:
+            if not tf.closed:
+                tf.close()
+            if self.delete_temp and not self._delete_on_close and op.exists(tf.name):
+                os.remove(tf.name)
+        self._temp_files = []
+
+    def __enter__(self) -> _UnorderedCoolerWriter:  # noqa: PYI034
         return self
 
     def __exit__(self, exc_type, exc, tb) -> None:

@@ -656,7 +656,9 @@ def pairs(
         sort=True,
         validate=True,
     )
-    aggregate = aggregate_records(agg=aggregations, count=True, sort=False)
+    aggregate = aggregate_records(
+        agg=aggregations, count=True, sort=False, split_means=True
+    )
     pipeline = compose(aggregate, sanitize)
 
     create_cooler(
