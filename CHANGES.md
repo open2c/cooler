@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### New features
+* The 2D range query engines (`cooler.core.DirectRangeQuery2D`, `FillLowerRangeQuery2D` and `CSRReader`) accept a list of value columns, and return them all in frame output. Matrix output still needs a single column.
 * `cooler cload pairs --field <name>=<col>:agg=mean`, and `create_cooler(..., ordered=False, agg={...: "mean"})`, now work for inputs larger than one chunk. Means are computed over all records of a pixel (ignoring missing values) by carrying sums and counts through the external sort. Other aggregations that can't be combined across chunks (e.g. `median`) still raise an error.
 * `cooler balance --rescale-marginals/--no-rescale-marginals` (#448). With `--no-rescale-marginals`, the balanced matrix's rows sum to the mean marginal sum of the unbalanced matrix, stored as the `scale` attribute.
 * `balance_cooler(..., ignore_dist=...)` ignores intra-chromosomal pixels whose bin midpoints are less than a given distance apart, which also works with variable-size bins.
@@ -17,6 +18,10 @@
 * `cooler zoomify --legacy` and `legacy_zoomify`, which wrote multi-resolution files in the layout used before cooler 0.8, with integer-labeled zoom levels (`::0`, `::1`, ...). Use the default `resolutions/<binsize>` layout; files in the old layout can still be read.
 
 ### Bug fixes
+* fix: `cooler dump` writes every column of the pixel table by default, and `-c/--columns` selects pixel columns. Previously, only `count` could be dumped, and `-c` was ignored for pixels. Unknown column names raise an error.
+* fix: `cooler dump --one-based-ids` works on its own. It only took effect with `--join`, `--balanced` or `--annotate`.
+* fix: `cooler dump` closes its output file and the cooler file when finished.
+* fix: `cooler ls` accepts a URI and lists only the coolers under that group (e.g. `cooler ls data.mcool::resolutions`).
 * fix: Selecting a bin table column whose name contains "chrom" (e.g. `bins()["chrom_arm"]`) no longer decodes it as chromosome names.
 * fix: Region strings with decimal units are parsed exactly: `"4.1Mb"` gave 4,099,999 because of float rounding. Values that aren't a whole number of base pairs (`"1.0001kb"`) raise an error, and so do region strings with trailing text (`"chr1:100-200-300"`) or more than one `:`. For chromosome names containing `:`, use a `(chrom, start, end)` tuple.
 * fix: Bin tables must tile each chromosome: the bins of a chromosome are consecutive rows, start at 0, and have no gaps or overlaps (#254). Previously, such tables were accepted, and queries with variable-size bins could return bins from the previous chromosome. Queries on existing files with such tables no longer do.

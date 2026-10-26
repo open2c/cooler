@@ -11,11 +11,19 @@ def ls(cool_path, long):
     """
     List all coolers inside a file.
 
+    COOL_PATH : Path to a file, or a URI to list only the coolers under a
+    group, e.g. data.mcool::resolutions.
+
     """
     from ..api import Cooler
+    from ..util import parse_cooler_uri
 
-    for group_path in fileops.list_coolers(cool_path):
-        uri = cool_path + "::" + group_path
+    file_path, root = parse_cooler_uri(cool_path)
+    prefix = root.rstrip("/") + "/"
+    for group_path in fileops.list_coolers(file_path):
+        if root != "/" and group_path != root and not group_path.startswith(prefix):
+            continue
+        uri = file_path + "::" + group_path
         if long:
             binsize = Cooler(uri).binsize
             if binsize is None:

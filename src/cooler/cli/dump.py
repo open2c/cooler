@@ -1,3 +1,4 @@
+import contextlib
 import gzip
 import sys
 
@@ -71,7 +72,8 @@ def make_annotator(bins, balanced, join, annotate, one_based_ids, one_based_star
     "--columns",
     "-c",
     help="Restrict output to a subset of columns, provided as a "
-    "comma-separated list.",
+    "comma-separated list. For pixels, the default is every column of the "
+    "pixel table.",
     type=DelimitedTuple(sep=","),
 )
 @click.option(
@@ -156,7 +158,8 @@ def make_annotator(bins, balanced, join, annotate, one_based_ids, one_based_star
 )
 @click.option(
     "--one-based-starts",
-    help="Print start coordinates as one-based rather than zero-based.",
+    help="Print start coordinates as one-based rather than zero-based. Only "
+    "applies with --join, which adds the start columns.",
     is_flag=True,
     default=False,
 )
@@ -201,112 +204,168 @@ def dump(
 
     """
     clr = api.Cooler(cool_uri)
+    with contextlib.ExitStack() as stack:
+        # Choose the output stream
+        if out is None or out == "-":
+            f = sys.stdout
+        elif out.endswith(".gz"):
+            f = stack.enter_context(gzip.open(out, "wt"))
+        else:
+            f = stack.enter_context(open(out, "w"))
 
-    # Choose the output stream
-    if out is None or out == "-":
-        f = sys.stdout
-    elif out.endswith(".gz"):
-        f = gzip.open(out, "wt")
-    else:
-        f = open(out, "w")
+        # Choose the source table
+        if table == "chroms":
+            selector = clr.chroms()
+            if columns is not None:
+                selector = selector[list(columns)]
+            chunks = (selector[:],)
 
-    # Choose the source table
-    if table == "chroms":
-        selector = clr.chroms()
-        if columns is not None:
-            selector = selector[list(columns)]
-        chunks = (selector[:],)
+        elif table == "bins":
+            selector = clr.bins()
+            if columns is not None:
+                selector = selector[list(columns)]
+            chunks = (selector[:],)
 
-    elif table == "bins":
-        selector = clr.bins()
-        if columns is not None:
-            selector = selector[list(columns)]
-        chunks = (selector[:],)
+        else:  # Pixel table
+            chunks = _pixel_chunks(
+                clr,
+                stack,
+                columns,
+                range,
+                range2,
+                fill_lower,
+                balanced,
+                weight_name,
+                join,
+                annotate,
+                one_based_ids,
+                one_based_starts,
+                chunksize,
+            )
 
-    else:  # Pixel table
-        # Load all the bins
-        bins = clr.bins()[:]
-        n_bins = len(bins)
-        if chunksize is None:
-            chunksize = len(bins)
+        if float_format is not None:
+            float_format = "%" + float_format
 
-        if weight_name is not None or balanced:
-            balanced = weight_name or "weight"
-            if balanced not in bins.columns:
-                print(f"Balancing weights '{balanced}' not found", file=sys.stderr)
-                sys.exit(1)
+        is_first_chunk = True
+        for chunk in chunks:
+            if is_first_chunk:
+                if header:
+                    chunk[0:0].to_csv(
+                        f,
+                        sep="\t",
+                        lineterminator='\n',
+                        index=False,
+                        header=True,
+                        float_format=float_format,
+                        na_rep=na_rep,
+                    )
+                is_first_chunk = False
 
-        h5 = clr.open("r")
-        reader = CSRReader(h5["pixels"], h5["indexes/bin1_offset"][:])
-        field = "count"
+            chunk.to_csv(
+                f,
+                sep="\t",
+                lineterminator='\n',
+                index=False,
+                header=False,
+                float_format=float_format,
+                na_rep=na_rep,
+            )
 
-        if range:
-            # User-specified bbox provided
-            i0, i1 = region_to_extent(
+        f.flush()
+
+
+def _pixel_chunks(
+    clr,
+    stack,
+    columns,
+    range,
+    range2,
+    fill_lower,
+    balanced,
+    weight_name,
+    join,
+    annotate,
+    one_based_ids,
+    one_based_starts,
+    chunksize,
+):
+    # Load all the bins
+    bins = clr.bins()[:]
+    n_bins = len(bins)
+    if chunksize is None:
+        chunksize = len(bins)
+
+    if weight_name is not None or balanced:
+        balanced = weight_name or "weight"
+        if balanced not in bins.columns:
+            print(f"Balancing weights '{balanced}' not found", file=sys.stderr)
+            sys.exit(1)
+
+    # Value columns to write: every one by default, or those requested
+    pixel_columns = list(clr.pixels().columns)
+    if columns is None:
+        columns = pixel_columns
+    unknown = [col for col in columns if col not in pixel_columns]
+    if unknown:
+        raise click.BadParameter(
+            f"Not in the pixel table: {', '.join(unknown)}",
+            param_hint="'--columns'",
+        )
+    fields = [col for col in columns if col not in ("bin1_id", "bin2_id")]
+    # Balancing needs the counts, even if they aren't written
+    read_fields = list(fields)
+    if balanced and "count" not in read_fields:
+        if "count" not in pixel_columns:
+            print("Balancing needs a 'count' column", file=sys.stderr)
+            sys.exit(1)
+        read_fields.append("count")
+    if not read_fields:
+        read_fields = ["count"] if "count" in pixel_columns else pixel_columns[2:3]
+    drop = [col for col in read_fields if col not in fields]
+    drop += [col for col in ("bin1_id", "bin2_id") if col not in columns]
+
+    h5 = stack.enter_context(clr.open("r"))
+    reader = CSRReader(h5["pixels"], h5["indexes/bin1_offset"][:])
+
+    if range:
+        # User-specified bbox provided
+        i0, i1 = region_to_extent(
+            h5,
+            clr._chromids,
+            parse_region(range, clr.chromsizes),
+            binsize=clr.binsize,
+        )
+        if range2 is not None:
+            j0, j1 = region_to_extent(
                 h5,
                 clr._chromids,
-                parse_region(range, clr.chromsizes),
+                parse_region(range2, clr.chromsizes),
                 binsize=clr.binsize,
             )
-            if range2 is not None:
-                j0, j1 = region_to_extent(
-                    h5,
-                    clr._chromids,
-                    parse_region(range2, clr.chromsizes),
-                    binsize=clr.binsize,
-                )
-            else:
-                j0, j1 = i0, i1
-            bbox = (i0, i1, j0, j1)
         else:
-            # Dump everything
-            bbox = (0, n_bins, 0, n_bins)
+            j0, j1 = i0, i1
+        bbox = (i0, i1, j0, j1)
+    else:
+        # Dump everything
+        bbox = (0, n_bins, 0, n_bins)
 
-        if fill_lower and clr.storage_mode == "symmetric-upper":
-            engine = FillLowerRangeQuery2D(reader, field, bbox, chunksize)
-        else:
-            engine = DirectRangeQuery2D(reader, field, bbox, chunksize)
+    if fill_lower and clr.storage_mode == "symmetric-upper":
+        engine = FillLowerRangeQuery2D(reader, read_fields, bbox, chunksize)
+    else:
+        engine = DirectRangeQuery2D(reader, read_fields, bbox, chunksize)
 
-        chunks = (
-            pd.DataFrame(
-                dct,
-                columns=["bin1_id", "bin2_id", field],
-            )
-            for dct in engine
+    chunks = (
+        pd.DataFrame(dct, columns=["bin1_id", "bin2_id", *read_fields])
+        for dct in engine
+    )
+
+    if balanced or join or annotate or one_based_ids:
+        annotator = make_annotator(
+            bins, balanced, join, annotate, one_based_ids, one_based_starts
         )
+        chunks = map(annotator, chunks)
 
-        if balanced or join or annotate:
-            annotator = make_annotator(
-                bins, balanced, join, annotate, one_based_ids, one_based_starts
-            )
-            chunks = map(annotator, chunks)
+    if drop:
+        chunks = (chunk.drop(columns=drop, errors="ignore") for chunk in chunks)
 
-    if float_format is not None:
-        float_format = "%" + float_format
-
-    is_first_chunk = True
-    for chunk in chunks:
-        if is_first_chunk:
-            if header:
-                chunk[0:0].to_csv(
-                    f,
-                    sep="\t",
-                    lineterminator='\n',
-                    index=False,
-                    header=True,
-                    float_format=float_format,
-                    na_rep=na_rep,
-                )
-            is_first_chunk = False
-
-        chunk.to_csv(
-            f,
-            sep="\t",
-            lineterminator='\n',
-            index=False,
-            header=False,
-            float_format=float_format,
-            na_rep=na_rep,
-        )
-
-    f.flush()
+    return chunks

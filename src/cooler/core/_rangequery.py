@@ -81,9 +81,26 @@ def transpose(dct: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
     return dct
 
 
-def frame_slice_from_dict(dct: dict[str, np.ndarray], field: str) -> pd.DataFrame:
+def _as_fields(field: str | list[str]) -> list[str]:
+    return [field] if isinstance(field, str) else list(field)
+
+
+def _single_field(field: str | list[str]) -> str:
+    fields = _as_fields(field)
+    if len(fields) != 1:
+        raise ValueError(
+            f"Matrix output needs a single value column, but got {fields}."
+        )
+    return fields[0]
+
+
+def frame_slice_from_dict(
+    dct: dict[str, np.ndarray], field: str | list[str]
+) -> pd.DataFrame:
     index = dct.get("__index")
-    return pd.DataFrame(dct, columns=["bin1_id", "bin2_id", field], index=index)
+    return pd.DataFrame(
+        dct, columns=["bin1_id", "bin2_id", *_as_fields(field)], index=index
+    )
 
 
 def sparray_slice_from_dict(
@@ -97,6 +114,7 @@ def sparray_slice_from_dict(
     from scipy.sparse import coo_array
 
     shape = (row_stop - row_start, col_stop - col_start)
+    field = _single_field(field)
     return coo_array(
         (dct[field], (dct["bin1_id"] - row_start, dct["bin2_id"] - col_start)),
         shape=shape,
@@ -181,22 +199,25 @@ class CSRReader:
             edges = i0 + arg_prune_partition(self.bin1_offsets[i0 : i1 + 1], chunksize)
         return list(zip(edges[:-1], edges[1:]))
 
-    def get_dict_meta(self, field: str, return_index: bool = False) -> dict:
+    def get_dict_meta(
+        self, field: str | list[str], return_index: bool = False
+    ) -> dict:
         dct = {
             "bin1_id": np.empty((0,), dtype=self.dtypes["bin1_id"]),
             "bin2_id": np.empty((0,), dtype=self.dtypes["bin2_id"]),
-            field: np.empty((0,), dtype=self.dtypes[field]),
         }
+        for name in _as_fields(field):
+            dct[name] = np.empty((0,), dtype=self.dtypes[name])
         if return_index:
             dct["__index"] = np.empty((0,), dtype=np.int64)
         return dct
 
-    def get_frame_meta(self, field: str) -> pd.DataFrame:
+    def get_frame_meta(self, field: str | list[str]) -> pd.DataFrame:
         return pd.DataFrame(self.get_dict_meta(field))
 
     def __call__(
         self,
-        field: str,
+        field: str | list[str],
         bbox: tuple[int, int, int, int],
         row_span: tuple[int, int] | None = None,
         reflect: bool = False,
@@ -207,8 +228,8 @@ class CSRReader:
 
         Parameters
         ----------
-        field : str
-            Name of value column to fetch from.
+        field : str or list of str
+            Name of the value column to fetch, or a list of names.
 
         bbox : 4-tuple
             Bounding box of the range query
@@ -231,7 +252,7 @@ class CSRReader:
 
         Returns
         -------
-        dict of columns with keys {'bin_id', 'bin2_id', field}
+        dict of columns with keys {'bin1_id', 'bin2_id', *fields}
 
         """
         i0, i1, j0, j1 = bbox
@@ -248,12 +269,11 @@ class CSRReader:
         slc = slice(offset_lo, offset_hi)
 
         # TODO: open file in context manager in here
+        fields = _as_fields(field)
         bin1_selector = self.pixel_grp["bin1_id"]
         bin2_selector = self.pixel_grp["bin2_id"]
-        data_selector = self.pixel_grp[field]
-        # Extract the j coordinates and values of the pixels
+        # Extract the j coordinates of the pixels
         bin2 = bin2_selector[slc]
-        data = data_selector[slc]
 
         # Keep only the pixels within the column range of the query.
         mask = (bin2 >= j0) & (bin2 < j1)
@@ -267,8 +287,9 @@ class CSRReader:
         result = {
             "bin1_id": bin1.astype(bin1_selector.dtype, copy=False),
             "bin2_id": bin2[mask],
-            field: data[mask],
         }
+        for name in fields:
+            result[name] = self.pixel_grp[name][slc][mask]
 
         # Optionally, include the true index values from the pixel table.
         if return_index:
@@ -282,7 +303,8 @@ class CSRReader:
             y = np.r_[result["bin2_id"], result["bin1_id"][to_duplex]]
             result["bin1_id"] = x
             result["bin2_id"] = y
-            result[field] = np.r_[result[field], result[field][to_duplex]]
+            for name in fields:
+                result[name] = np.r_[result[name], result[name][to_duplex]]
 
             if return_index:
                 result["__index"] = np.r_[
@@ -300,7 +322,7 @@ class BaseRangeQuery2D:
     """
     reader: CSRReader
     bbox: tuple[int, int, int, int]
-    field: int
+    field: str | list[str]
     return_index: bool
     tasks: list[tuple[Callable, ...]]
 
@@ -380,8 +402,9 @@ class DirectRangeQuery2D(BaseRangeQuery2D):
     reader : CSRReader
         Reads pixel records from a CSR matrix.
 
-    field : str
-        Name of value column to select from.
+    field : str or list of str
+        Name of the value column to select, or a list of names. Matrix
+        outputs need a single column; frame outputs can have several.
 
     bbox : 4-tuple
         Query bounding box (row_start, row_stop, col_start, col_stop).
@@ -410,7 +433,7 @@ class DirectRangeQuery2D(BaseRangeQuery2D):
     def __init__(
         self,
         reader: CSRReader,
-        field: str,
+        field: str | list[str],
         bbox: tuple[int, int, int, int],
         chunksize: int,
         return_index: bool = False
@@ -437,8 +460,9 @@ class FillLowerRangeQuery2D(BaseRangeQuery2D):
     reader : CSRReader
         Reads pixel records from a symm-upper matrix.
 
-    field : str
-        Name of value column to select from.
+    field : str or list of str
+        Name of the value column to select, or a list of names. Matrix
+        outputs need a single column; frame outputs can have several.
 
     bbox : 4-tuple
         Query bounding box (row_start, row_stop, col_start, col_stop).
@@ -473,7 +497,7 @@ class FillLowerRangeQuery2D(BaseRangeQuery2D):
     def __init__(
         self,
         reader: CSRReader,
-        field: str,
+        field: str | list[str],
         bbox: tuple[int, int, int, int],
         chunksize: int,
         return_index: bool = False
