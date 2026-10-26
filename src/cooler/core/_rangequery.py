@@ -238,10 +238,8 @@ class CSRReader:
         else:
             s0, s1 = row_span
 
-        # Initialize output dictionary
-        result = {"bin1_id": [], "bin2_id": [], field: []}
-        if return_index:
-            result["__index"] = []
+        if s1 <= s0:
+            return self.get_dict_meta(field, return_index)
 
         # Find the offsets of our row limits in the pixel table.
         offset_lo, offset_hi = self.bin1_offsets[s0], self.bin1_offsets[s1]
@@ -252,59 +250,42 @@ class CSRReader:
         bin2_selector = self.pixel_grp["bin2_id"]
         data_selector = self.pixel_grp[field]
         # Extract the j coordinates and values of the pixels
-        bin2_extracted = bin2_selector[slc]
-        data_extracted = data_selector[slc]
+        bin2 = bin2_selector[slc]
+        data = data_selector[slc]
+
+        # Keep only the pixels within the column range of the query.
+        mask = (bin2 >= j0) & (bin2 < j1)
+        index = np.flatnonzero(mask) + offset_lo
+
+        # Look up the i coordinate of each kept pixel from the row offsets,
+        # rather than reading bin1_id from storage. Doing this after filtering
+        # keeps the extra memory proportional to the number of kept pixels.
+        row_offsets = self.bin1_offsets[s0 : s1 + 1]
+        bin1 = np.searchsorted(row_offsets, index, side="right") - 1 + s0
+        result = {
+            "bin1_id": bin1.astype(bin1_selector.dtype, copy=False),
+            "bin2_id": bin2[mask],
+            field: data[mask],
+        }
 
         # Optionally, include the true index values from the pixel table.
         if return_index:
-            ind_extracted = np.arange(slc.start, slc.stop)
+            result["__index"] = index
 
-        # Now, go row by row, filter out unwanted columns, and accumulate
-        # the results.
-        for i in range(s0, s1):
-            # Shift the global offsets to relative ones.
-            lo = self.bin1_offsets[i] - offset_lo
-            hi = self.bin1_offsets[i + 1] - offset_lo
+        if reflect:
+            to_duplex = (result["bin1_id"] != result["bin2_id"]) & (
+                result["bin2_id"] < i1
+            )
+            x = np.r_[result["bin1_id"], result["bin2_id"][to_duplex]]
+            y = np.r_[result["bin2_id"], result["bin1_id"][to_duplex]]
+            result["bin1_id"] = x
+            result["bin2_id"] = y
+            result[field] = np.r_[result[field], result[field][to_duplex]]
 
-            # Get the j coordinates for this row and filter for the range
-            # of j values we want.
-            bin2 = bin2_extracted[lo:hi]
-            mask = (bin2 >= j0) & (bin2 < j1)
-            cols = bin2[mask]
-
-            # Apply same mask to the pixel values.
-            data = data_extracted[lo:hi][mask]
-
-            # Shortcut to get i coordinates.
-            rows = np.full(len(cols), i, dtype=bin1_selector.dtype)
-
-            result["bin1_id"].append(rows)
-            result["bin2_id"].append(cols)
-            result[field].append(data)
             if return_index:
-                result["__index"].append(ind_extracted[lo:hi][mask])
-
-        # Concatenate outputs
-        if len(result["bin1_id"]):
-            for key, arrays in result.items():
-                result[key] = np.concatenate(arrays, axis=0)
-
-            if reflect:
-                to_duplex = (result["bin1_id"] != result["bin2_id"]) & (
-                    result["bin2_id"] < i1
-                )
-                x = np.r_[result["bin1_id"], result["bin2_id"][to_duplex]]
-                y = np.r_[result["bin2_id"], result["bin1_id"][to_duplex]]
-                result["bin1_id"] = x
-                result["bin2_id"] = y
-                result[field] = np.r_[result[field], result[field][to_duplex]]
-
-                if return_index:
-                    result["__index"] = np.r_[
-                        result["__index"], result["__index"][to_duplex]
-                    ]
-        else:
-            result = self.get_dict_meta(field, return_index)
+                result["__index"] = np.r_[
+                    result["__index"], result["__index"][to_duplex]
+                ]
 
         return result
 
