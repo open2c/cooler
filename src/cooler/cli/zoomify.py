@@ -4,7 +4,7 @@ from math import ceil
 
 import click
 
-from .. import api
+from .. import api, fileops
 from .._reduce import (
     HIGLASS_TILE_DIM,
     legacy_zoomify,
@@ -29,7 +29,11 @@ def invoke_balance(args, resolutions, outfile):
 
     for res in resolutions:
         uri = outfile + "::resolutions/" + str(res)
-        if "weight" in api.Cooler(uri).bins():
+        ctx = balance_cmd.make_context(
+            "balance", [uri, *args], resilient_parsing=True
+        )
+        name = ctx.params.get("name") or "weight"
+        if name in api.Cooler(uri).bins() and not ctx.params.get("force"):
             continue
         logger.info(f"Balancing zoom level with bin size {res}")
 
@@ -208,7 +212,7 @@ def zoomify(
             elif res.endswith("n"):
                 res = int(res.split("n")[0])
                 r = preferred_sequence(res, maxres, "nice")
-            elif res.endswith("n"):
+            elif res.endswith("b"):
                 res = int(res.split("b")[0])
                 r = preferred_sequence(res, maxres, "binary")
             else:
@@ -243,4 +247,8 @@ def zoomify(
         )
 
         if balance:
-            invoke_balance(balance_args, resolutions, outfile)
+            # Balance every level in the output, including the base(s)
+            output_resolutions = sorted(
+                int(path.split("/")[-1]) for path in fileops.list_coolers(outfile)
+            )
+            invoke_balance(balance_args, output_resolutions, outfile)

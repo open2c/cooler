@@ -17,6 +17,14 @@
 * fix: The `fillvalue` and `scaleoffset` storage options work (they were applied to string datasets and failed), and `maxshape`, which could never work, is no longer accepted.
 * fix: `create_cooler(..., symmetric_upper=False)` no longer warns about `triucheck` unless it was explicitly set to True.
 * fix: `cooler makebins` and `cooler digest` close their output files.
+* fix: `coarsen_cooler` (and `cooler coarsen`/`cooler zoomify --field`) kept only the `count` column, silently dropping other value columns, and failed if `count` wasn't selected. All requested columns are now coarsened.
+* fix: `zoomify_cooler` with several base coolers (`cooler zoomify --base-uri`) kept only one of them, and could coarsen a base resolution from a finer one, overwriting its data. Base resolutions are now all kept as given; base coolers with the same resolution are rejected.
+* fix: `cooler zoomify -r <N>b` (binary progression from N) crashed.
+* fix: `cooler zoomify --balance` balances every level in the output, including base resolutions, and recognizes a column name set with `--balance-args "--name ..."`.
+* fix: Coarsening and zoomifying keep the input's `genome-assembly` and `metadata`.
+* fix: Merges no longer buffer one bin more than `mergebuf` per epoch (which also triggered spurious buffering warnings), and the merger no longer leaves input files open.
+* fix: `cooler coarsen -k` requires a factor of at least 2 (a factor of 1 failed with an `AssertionError`); `coarsen_cooler` no longer modifies the caller's `dtypes`; `legacy_zoomify` raises a clear error for variable-size bins.
+* fix: The `--field` help of `cooler coarsen` and `cooler merge` showed the wrong syntax (`<name>:dtype=...`, not `<name>,dtype=...`).
 * fix: `cooler balance --force` and `balance_cooler(..., store=True)` replace an existing weight column only once the new weights are written. Previously the old weights were deleted before balancing, so a discarded result (`--convergence-policy discard`/`error`) or an error lost them.
 * fix: `create_scool` honors `ordered=False` (and `mergebuf`, `max_merge`, `temp_dir`, `delete_temp`) for cells given as iterables of unsorted chunks, checks that the cell names of a per-cell bins dict match the pixels dict, and checks that per-cell bin tables match the shared one. A failure while writing a cell leaves the cells already written intact.
 * fix: Creating a cooler from sorted input (`create_cooler(..., ordered=True)` and the functions built on it) checks that pixels are sorted and unique across all chunks, not just within each one. Previously, out-of-order chunks silently produced a cooler with a corrupt index.

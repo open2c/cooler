@@ -16,7 +16,7 @@ from ._util import parse_field_param
     "-k",
     help="Gridding factor. The contact matrix is coarsegrained by grouping "
     "each chromosomal contact block into k-by-k element tiles",
-    type=int,
+    type=click.IntRange(min=2),
     default=2,
     show_default=True,
 )
@@ -41,7 +41,7 @@ from ._util import parse_field_param
     "--field",
     help="Specify the names of value columns to merge as '<name>'. "
     "Repeat the `--field` option for each one. "
-    "Use '<name>,dtype=<dtype>' to specify the dtype. Include "
+    "Use '<name>:dtype=<dtype>' to specify the dtype. Include "
     "',agg=<agg>' to specify an aggregation function different from 'sum'.",
     type=str,
     multiple=True,

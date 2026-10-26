@@ -97,12 +97,12 @@ def merge_breakpoints(
     cum_nrecords = [0]
     lo = 0
     while True:
-        # Find the next bin1 ID from the combined index
-        hi = bisect_right(
-            combined_index,
-            min(combined_start + bufsize, combined_nnz),
-            lo=lo
-        )
+        # Find the last bin1 ID whose records still fit in the buffer
+        target = min(combined_start + bufsize, combined_nnz)
+        hi = bisect_right(combined_index, target, lo=lo) - 1
+        if combined_index[hi] <= combined_start:
+            # A single bin1 has more than bufsize records: take it anyway
+            hi = bisect_right(combined_index, combined_start, lo=lo)
 
         hi = min(hi, len(combined_index) - 1)
         bin1_partition.append(hi)
@@ -166,8 +166,11 @@ class CoolerMerger(ContactBinner):
                     raise ValueError("Coolers must have same bin structure")
 
     def __iter__(self) -> Iterator[dict[str, np.ndarray]]:
-        # Load bin1_offset indexes lazily.
-        indexes = [c.open("r")["indexes/bin1_offset"] for c in self.coolers]
+        # Load the bin1_offset indexes, without keeping the files open.
+        indexes = []
+        for c in self.coolers:
+            with c.open("r") as grp:
+                indexes.append(grp["indexes/bin1_offset"][:])
 
         # Calculate the common partition of bin1 offsets that define the epochs
         # of merging data.
@@ -479,6 +482,8 @@ def get_multiplier_sequence(
     mult = -np.ones(len(resn), dtype=int)
 
     for i, target in list(enumerate(resn))[::-1]:
+        if target in bases:
+            continue  # data for base resolutions already exists
         p = i - 1
         while p >= 0:
             if target % resn[p] == 0:
@@ -699,12 +704,13 @@ def coarsen_cooler(
     clr = Cooler(base_uri)
 
     factor = int(factor)
+    if factor < 2:
+        raise ValueError(f"The coarsening factor must be at least 2, not {factor}.")
 
     if columns is None:
         columns = ["count"]
 
-    if dtypes is None:
-        dtypes = {}
+    dtypes = {} if dtypes is None else dict(dtypes)
 
     input_dtypes = clr.pixels().dtypes
     for col in columns:
@@ -734,11 +740,14 @@ def coarsen_cooler(
         new_bins = iterator.new_bins
 
         kwargs.setdefault("append", True)
+        kwargs.setdefault("assembly", clr.info.get("genome-assembly"))
+        kwargs.setdefault("metadata", clr.info.get("metadata"))
 
         create(
             output_uri,
             new_bins,
             iterator,
+            columns=columns,
             dtypes=dtypes,
             symmetric_upper=clr.storage_mode == "symmetric-upper",
             **kwargs,
@@ -807,19 +816,17 @@ def zoomify_cooler(
         base_uris = [base_uris]
 
     parsed_uris = {}
-    n_bins_longest_chrom = {}
     base_resolutions = set()
     for input_uri in base_uris:
         infile, ingroup = parse_cooler_uri(input_uri)
         clr = Cooler(infile, ingroup)
         base_binsize = 1 if clr.binsize is None else clr.binsize
+        if base_binsize in parsed_uris:
+            raise ValueError(
+                "Base coolers must have different resolutions, and at most one "
+                f"can have variable-size bins: '{input_uri}'."
+            )
         parsed_uris[base_binsize] = (infile, ingroup)
-        n_bins_longest_chrom[base_binsize] = (
-            clr.bins()[:]
-            .groupby("chrom", observed=True)
-            .size()
-            .max()
-        )
         base_resolutions.add(base_binsize)
 
     # Determine the sequence of reductions.
@@ -832,12 +839,14 @@ def zoomify_cooler(
     if columns is None:
         columns = ["count"]
 
-    # Copy base matrix
-    for base_binsize in base_resolutions:
+    # Copy base matrices into a new output file
+    with h5py.File(outfile, "w"):
+        pass
+    for base_binsize in sorted(base_resolutions):
         logger.info("Bin size: " + str(base_binsize))
         infile, ingroup = parsed_uris[base_binsize]
         with h5py.File(infile, "r") as src, \
-             h5py.File(outfile, "w") as dest:  # fmt: skip
+             h5py.File(outfile, "r+") as dest:  # fmt: skip
             prefix = f"/resolutions/{base_binsize}"
 
             src.copy(ingroup + "/chroms", dest, prefix + "/chroms")
@@ -888,6 +897,8 @@ def legacy_zoomify(
     infile, ingroup = parse_cooler_uri(input_uri)
 
     clr = Cooler(infile, ingroup)
+    if clr.binsize is None:
+        raise ValueError("legacy_zoomify requires a cooler with fixed-size bins.")
     n_zooms = get_quadtree_depth(clr.chromsizes, clr.binsize, HIGLASS_TILE_DIM)
     factor = 2
 
