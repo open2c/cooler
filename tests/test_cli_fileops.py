@@ -1,5 +1,6 @@
 import os.path as op
 
+from _common import isolated_filesystem
 from click.testing import CliRunner
 
 from cooler.cli import cli
@@ -10,7 +11,7 @@ datadir = op.join(testdir, "data")
 
 def test_cp():
     runner = CliRunner()
-    with runner.isolated_filesystem():
+    with isolated_filesystem():
         result = runner.invoke(
             cli,
             [

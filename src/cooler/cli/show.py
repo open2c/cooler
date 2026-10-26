@@ -20,10 +20,12 @@ def get_matrix_size(c, row_region, col_region):
 def load_matrix(c, row_region, col_region, field, balanced, scale):
     mat = c.matrix(balance=balanced, field=field).fetch(row_region, col_region)
 
-    if scale == "log2":
-        mat = np.log2(mat)
-    elif scale == "log10":
-        mat = np.log10(mat)
+    # Zeros become -inf, which plot as empty pixels
+    with np.errstate(divide="ignore"):
+        if scale == "log2":
+            mat = np.log2(mat)
+        elif scale == "log10":
+            mat = np.log10(mat)
 
     return mat
 

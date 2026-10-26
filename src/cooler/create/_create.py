@@ -129,10 +129,15 @@ def create(
     ensure_sorted=False,
     lock=None,
     append=False,
+    binsize=None,
     **kwargs,
 ):
     """
     Create a new Cooler.
+
+    ``binsize`` is the bin size of the bin table, if known. By default, it is
+    inferred from the bin table, which isn't possible when every chromosome is
+    a single bin.
 
     Deprecated parameters
     ---------------------
@@ -203,6 +208,7 @@ def create(
         dupcheck=dupcheck,
         ensure_sorted=ensure_sorted,
         lock=lock,
+        binsize=binsize,
     )
     with writer:
         logger.info("Writing pixels")

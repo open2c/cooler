@@ -104,6 +104,9 @@ def get(
             )
         elif dset.dtype.type == np.bytes_:
             data[field] = dset[lo:hi].astype("U")
+        elif h5py.check_string_dtype(dset.dtype) is not None:
+            # Variable-length strings, e.g. from other writers
+            data[field] = dset.asstr()[lo:hi]
         else:
             data[field] = dset[lo:hi]
 
@@ -162,28 +165,49 @@ def put(
     if isinstance(df, pd.Series):
         df = df.to_frame()
 
-    # fields = df.keys()
     for field, data in df.items():
+        existing = grp.get(field)
         if np.isscalar(data):
             data = np.array([data])
             dtype = data.dtype
             fillvalue = None
         elif isinstance(data.dtype, pd.CategoricalDtype):
-            if store_categories:
-                cats = data.cat.categories
-                enum = (data.cat.codes.dtype, dict(zip(cats, range(len(cats)))))
-                data = data.cat.codes
-                dtype = h5py.special_dtype(enum=enum)
-                fillvalue = -1
+            cats = data.cat.categories
+            codes = data.cat.codes.to_numpy()
+            enum = None if existing is None else h5py.check_enum_dtype(existing.dtype)
+            if enum is not None:
+                # Appending: use the codes of the existing enum
+                missing = [c for c in cats if c not in enum]
+                if missing:
+                    raise ValueError(
+                        f"Categories not in the existing column '{field}': {missing}"
+                    )
+                lut = np.array([enum[c] for c in cats], dtype=np.int64)
+                data = np.where(codes < 0, -1, lut[codes]) if len(lut) else codes
             else:
-                data = data.cat.codes
-                dtype = data.dtype
-                fillvalue = -1
+                data = codes
+            if store_categories:
+                mapping = dict(zip(cats, range(len(cats))))
+                dtype = h5py.enum_dtype(mapping, basetype=codes.dtype)
+            else:
+                dtype = codes.dtype
+            fillvalue = -1
         else:
             data = np.asarray(data)
-            if data.dtype in (object, str, bytes):
-                dtype = np.dtype("S")
-                data = np.array(data, dtype=dtype)
+            if data.dtype.kind in "OSU":
+                data = np.array(data, dtype="S")
+                if data.dtype.itemsize == 0:  # all empty strings
+                    data = data.astype("S1")
+                dtype = data.dtype
+                if (
+                    existing is not None
+                    and existing.dtype.kind == "S"
+                    and dtype.itemsize > existing.dtype.itemsize
+                ):
+                    raise ValueError(
+                        f"Strings in '{field}' are longer than the existing "
+                        f"column allows ({existing.dtype.itemsize} bytes)."
+                    )
                 fillvalue = None
             else:
                 dtype = data.dtype

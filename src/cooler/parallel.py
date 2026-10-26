@@ -5,6 +5,7 @@ coolers.
 """
 from __future__ import annotations
 
+import builtins
 from collections.abc import Iterable, Iterator, Sequence
 from functools import partial, reduce
 from typing import Any, Callable
@@ -181,10 +182,15 @@ class MultiplexDataPipe:
         other._prepare = self._prepare
         return other
 
-    def __reduce__(self) -> dict:
+    def __getstate__(self) -> dict:
+        # The map function (e.g. a pool's) isn't picklable
         d = self.__dict__.copy()
         d.pop("map", None)
         return d
+
+    def __setstate__(self, state: dict) -> None:
+        self.__dict__.update(state)
+        self.map = builtins.map
 
     def __iter__(self) -> Iterator[Any]:
         return iter(self.run())

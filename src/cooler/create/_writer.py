@@ -366,11 +366,61 @@ def _same_chroms_and_bins(
     )
 
 
-def _prepare_tables(bins: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, Any]:
-    """Return the bin table to write, the chrom table, and the bin size."""
+def _check_bins(bins: pd.DataFrame) -> None:
+    """
+    Check that the bins of each chromosome are consecutive rows that tile the
+    chromosome from 0 (#254). Chromosome lengths are taken from the last bins,
+    so they can't be checked.
+    """
+    codes, names = pd.factorize(bins["chrom"])
+    starts = bins["start"].to_numpy()
+    ends = bins["end"].to_numpy()
+    first = np.r_[True, codes[1:] != codes[:-1]] if len(codes) else codes == 0
+
+    run_codes = codes[first]
+    if len(np.unique(run_codes)) < len(run_codes):
+        _, counts = np.unique(run_codes, return_counts=True)
+        chrom = names[np.unique(run_codes)[counts > 1][0]]
+        raise ValueError(
+            f"The bins of '{chrom}' are not consecutive rows of the bin table."
+        )
+    problems = [
+        (ends <= starts, "has a bin whose end is not after its start"),
+        (first & (starts != 0), "does not start at 0"),
+        (~first & (starts != np.r_[0, ends[:-1]]), "has gaps or overlapping bins"),
+    ]
+    for mask, message in problems:
+        if mask.any():
+            chrom = names[codes[np.argmax(mask)]]
+            raise ValueError(f"The bin table for '{chrom}' {message}.")
+
+
+def _check_binsize(bins: pd.DataFrame, binsize: int) -> None:
+    sizes = (bins["end"] - bins["start"]).to_numpy()
+    codes = pd.factorize(bins["chrom"])[0]
+    last = np.r_[codes[1:] != codes[:-1], True]
+    if (sizes[~last] != binsize).any() or (sizes[last] > binsize).any():
+        raise ValueError(f"The bins don't have a uniform size of {binsize}.")
+
+
+def _prepare_tables(
+    bins: pd.DataFrame, binsize: int | None = None
+) -> tuple[pd.DataFrame, pd.DataFrame, Any]:
+    """
+    Return the bin table to write, the chrom table, and the bin size.
+
+    A known bin size can be given, since it can't always be inferred from the
+    table, e.g. when every chromosome is a single bin.
+    """
     for col in ["chrom", "start", "end"]:
         if col not in bins.columns:
             raise ValueError(f"Missing column from bin table: '{col}'.")
+    _check_bins(bins)
+    if binsize is None:
+        binsize = get_binsize(bins)
+    else:
+        binsize = int(binsize)
+        _check_binsize(bins, binsize)
     bins = bins.copy()
     bins["chrom"] = bins["chrom"].astype(object)
     chromsizes = get_chromsizes(bins)
@@ -382,7 +432,7 @@ def _prepare_tables(bins: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, Any
     chroms = pd.DataFrame(
         {"name": names, "length": lengths}, columns=["name", "length"]
     )
-    return bins, chroms, get_binsize(bins)
+    return bins, chroms, binsize
 
 
 def _pixel_schema(
@@ -454,6 +504,10 @@ class _CoolerWriter:
         write. Use this when other processes read from the same file while it
         is being written. Otherwise, the file is kept open until the writer is
         finished.
+    binsize : int, optional
+        Bin size of the bin table, if known. By default, it is inferred from
+        the bin table, which isn't possible when every chromosome is a single
+        bin.
 
     """
 
@@ -475,6 +529,7 @@ class _CoolerWriter:
         ensure_sorted: bool = False,
         lock: Any | None = None,
         link_tables_from: str | None = None,
+        binsize: int | None = None,
     ):
         file_path, group_path = parse_cooler_uri(cool_uri)
         self.file_path = op.realpath(file_path)
@@ -495,7 +550,7 @@ class _CoolerWriter:
             raise ValueError(  # noqa: TRY004
                 "The bin table must be a pandas DataFrame."
             )
-        self.bins, self.chroms, self.binsize = _prepare_tables(bins)
+        self.bins, self.chroms, self.binsize = _prepare_tables(bins, binsize)
         self.n_bins = len(self.bins)
         self.columns, self.dtypes = _pixel_schema(columns, dtypes)
         self.h5opts = _set_h5opts(h5opts)

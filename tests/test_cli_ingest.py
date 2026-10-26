@@ -7,6 +7,7 @@ from glob import glob
 import numpy as np
 import pandas as pd
 import pytest
+from _common import isolated_filesystem
 
 # from _common import cooler_cmp
 from click.testing import CliRunner
@@ -69,7 +70,7 @@ def _cmp_pixels_2_bg(f_out, f_ref, one_based_ref=True):
 )
 def test_cload_symm_asymm(ref, extra_args):
     runner = CliRunner()
-    with runner.isolated_filesystem():
+    with isolated_filesystem():
         result = _run_cload_pairs(runner, 2, extra_args)
         assert result.exit_code == 0
         _cmp_pixels_2_bg("toy.2.cool", op.join(datadir, f"toy.{ref}.2.bg2"))
@@ -83,7 +84,7 @@ def test_cload_symm_asymm(ref, extra_args):
 )
 def test_cload_mergepass(ref, extra_args):
     runner = CliRunner()
-    with runner.isolated_filesystem():
+    with isolated_filesystem():
         result = _run_cload_pairs(runner, 2, extra_args)
         assert result.exit_code == 0
         _cmp_pixels_2_bg("toy.2.cool", op.join(datadir, f"toy.{ref}.2.bg2"))
@@ -94,7 +95,7 @@ def test_cload_mergepass(ref, extra_args):
 # '--no-count', '',
 def test_cload_field():
     runner = CliRunner()
-    with runner.isolated_filesystem():
+    with isolated_filesystem():
         extra_args = ["--field", "score=8"]
         result = _run_cload_pairs(runner, 2, extra_args)
         assert result.exit_code == 0
@@ -149,7 +150,7 @@ def test_cload_field():
 # '--storage-options', '',
 def test_cload_other_options():
     runner = CliRunner()
-    with runner.isolated_filesystem():
+    with isolated_filesystem():
         meta = {"foo": "bar", "number": 42}
         with open("meta.json", "w") as f:
             json.dump(meta, f)
@@ -199,7 +200,7 @@ def _run_load(runner, matrix_file, format, binsize, extra_args):
 )
 def test_load_symm_asymm(ref, extra_args):
     runner = CliRunner()
-    with runner.isolated_filesystem():
+    with isolated_filesystem():
         ref = op.join(datadir, f"toy.{ref}.2.bg2")
         result = _run_load(runner, ref, "bg2", 2, extra_args)
         assert result.exit_code == 0
@@ -209,7 +210,7 @@ def test_load_symm_asymm(ref, extra_args):
 # '--field', '',
 def test_load_field():
     runner = CliRunner()
-    with runner.isolated_filesystem():
+    with isolated_filesystem():
         extra_args = ["--field", "count=7:dtype=float"]
         result = _run_load(runner, "toy.symm.upper.2.bg2", "bg2", 2, extra_args)
         assert result.exit_code == 0
@@ -223,7 +224,7 @@ def test_load_field():
 
 def test_load_field2():
     runner = CliRunner()
-    with runner.isolated_filesystem():
+    with isolated_filesystem():
         extra_args = ["--count-as-float"]
         result = _run_load(runner, "toy.symm.upper.2.bg2", "bg2", 2, extra_args)
         assert result.exit_code == 0

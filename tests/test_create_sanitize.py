@@ -277,7 +277,7 @@ def test_validate_pixels():
 
     # out-of-bounds bin ID
     chunk_ = chunk.copy()
-    chunk_.at[-1, "bin1_id"] = len(bins) + 1
+    chunk_.loc[chunk_.index[-1], "bin1_id"] = len(bins) + 1
     with pytest.raises(BadInputError):
         validator(chunk_)
 

@@ -3,6 +3,7 @@ import os.path as op
 import multiprocess as mp
 import numpy as np
 import pandas as pd
+from _common import isolated_filesystem
 from click.testing import CliRunner
 
 import cooler
@@ -24,7 +25,7 @@ datadir = op.join(testdir, "data")
 
 def test_merge():
     runner = CliRunner()
-    with runner.isolated_filesystem():
+    with isolated_filesystem():
         f_in = op.join(datadir, "toy.symm.upper.2.cool")
         result = runner.invoke(
             merge, ["toy.2.double.cool", f_in, f_in, "--field", "count:dtype=int"]
@@ -37,7 +38,7 @@ def test_merge():
 
 def test_coarsen():
     runner = CliRunner()
-    with runner.isolated_filesystem():
+    with isolated_filesystem():
         f_in = op.join(datadir, "toy.symm.upper.2.cool")
         f_ref = op.join(datadir, "toy.symm.upper.4.cool")
         result = runner.invoke(
@@ -69,7 +70,7 @@ def test_coarsen():
 def test_zoomify():
     runner = CliRunner()
 
-    with runner.isolated_filesystem():
+    with isolated_filesystem():
         f_in = op.join(datadir, "toy.symm.upper.2.cool")
         result = runner.invoke(
             zoomify, [f_in, "--balance", "--nproc", "2", "-o", "toy.2.mcool"]
@@ -104,7 +105,7 @@ def test_zoomify():
 
 def test_balance():
     runner = CliRunner()
-    with runner.isolated_filesystem():
+    with isolated_filesystem():
         f_in = op.join(datadir, "toy.symm.upper.2.cool")
         result = runner.invoke(
             balance,

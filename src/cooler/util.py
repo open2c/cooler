@@ -5,6 +5,7 @@ import re
 from collections import OrderedDict, defaultdict
 from collections.abc import Generator, Iterable, Iterator
 from contextlib import contextmanager
+from decimal import Decimal
 from typing import IO, Any
 
 import h5py
@@ -33,13 +34,14 @@ def partition(start: int, stop: int, step: int) -> Iterator[tuple[int, int]]:
     return ((i, min(i + step, stop)) for i in range(start, stop, step))
 
 
-def parse_cooler_uri(s: str) -> tuple[str, str]:
+def parse_cooler_uri(s: str | os.PathLike) -> tuple[str, str]:
     """
     Parse a Cooler URI string
 
     e.g. /path/to/mycoolers.cool::/path/to/cooler
 
     """
+    s = os.fspath(s)
     parts = s.split("::")
     if len(parts) == 1:
         file_path, group_path = parts[0], "/"
@@ -62,7 +64,8 @@ def parse_humanized(s: str) -> int:
     if not len(unit):
         return int(value)
 
-    value = float(value)
+    # Decimal, not float, so that e.g. 4.1Mb is exactly 4,100,000
+    value = Decimal(value)
     unit = unit.upper().strip()
     if unit in ("K", "KB"):
         value *= 1000
@@ -72,6 +75,8 @@ def parse_humanized(s: str) -> int:
         value *= 1000000000
     else:
         raise ValueError(f"Unknown unit '{unit}'")
+    if value != value.to_integral_value():
+        raise ValueError(f"Not a whole number of base pairs: '{s}'")
     return int(value)
 
 
@@ -130,6 +135,10 @@ def parse_region_string(s: str) -> tuple[str, int | None, int | None]:
         if end < start:
             raise ValueError("End coordinate less than start")
 
+        typ, token = next(tokens, (None, None))
+        if typ is not None:
+            raise ValueError(f'Unexpected token "{token}"')
+
         return start, end
 
     parts = s.split(":")
@@ -138,6 +147,11 @@ def parse_region_string(s: str) -> tuple[str, int | None, int | None]:
         raise ValueError("Chromosome name cannot be empty")
     if len(parts) < 2:
         return (chrom, None, None)
+    if len(parts) > 2:
+        raise ValueError(
+            f"Invalid region string '{s}'. For names containing ':', pass a "
+            "(chrom, start, end) tuple instead."
+        )
     start, end = _expect(_tokenize(parts[1]))
     return (chrom, start, end)
 
@@ -554,6 +568,8 @@ def open_hdf5(
         * w- or x  Fail if exists, create otherwise
 
     """
+    if isinstance(fp, os.PathLike):
+        fp = os.fspath(fp)
     if isinstance(fp, str):
         own_fh = True
         fh = h5py.File(fp, mode, *args, **kwargs)
@@ -638,7 +654,7 @@ def infer_meta(x, index=None):  # pragma: no cover
         "b": np.bool_(True),
         "V": np.void(b" "),
         "M": np.datetime64("1970-01-01"),
-        "m": np.timedelta64(1),
+        "m": np.timedelta64(1, "ns"),
         "S": np.str_("foo"),
         "a": np.str_("foo"),
         "U": np.str_("foo"),

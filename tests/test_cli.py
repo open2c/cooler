@@ -11,6 +11,7 @@ import os.path as op
 
 import click
 import pytest
+from _common import isolated_filesystem
 from click.testing import CliRunner
 
 from cooler.cli import _util as util
@@ -117,7 +118,7 @@ def test_digest():
 )
 def test_csort():
     runner = CliRunner()
-    with runner.isolated_filesystem():
+    with isolated_filesystem():
         result = runner.invoke(
             cli,
             [

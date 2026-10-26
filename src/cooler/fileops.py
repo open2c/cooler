@@ -146,8 +146,15 @@ def visititems(
     return _visititems(root, func, {})
 
 
+def _get_format(obj: h5py.Group) -> str | None:
+    fmt = obj.attrs.get("format", None)
+    if isinstance(fmt, bytes):  # e.g. fixed-length strings from other writers
+        fmt = fmt.decode()
+    return fmt
+
+
 def _is_cooler(grp: h5py.Group) -> bool:
-    fmt = grp.attrs.get("format", None)
+    fmt = _get_format(grp)
     if fmt == MAGIC:
         keys = ("chroms", "bins", "pixels", "indexes")
         if not all(name in grp for name in keys):
@@ -184,7 +191,7 @@ def is_multires_file(filepath: str, min_version: int = 1) -> bool:
         return False
 
     with h5py.File(filepath) as f:
-        fmt = f.attrs.get("format", None)
+        fmt = _get_format(f)
         if "resolutions" in f and len(f["resolutions"].keys()) > 0:
             name = next(iter(f["resolutions"].keys()))
             if fmt == "HDF5::MCOOL" and _is_cooler(f["resolutions"][name]):
@@ -205,7 +212,7 @@ def is_scool_file(filepath: str) -> bool:
         return False
 
     with h5py.File(filepath, "r") as f:
-        fmt = f.attrs.get("format", None)
+        fmt = _get_format(f)
         if fmt == MAGIC_SCOOL:
             keys = ("chroms", "bins", "cells")
             if not all(name in f for name in keys):
