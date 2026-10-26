@@ -20,9 +20,7 @@ from ..create import (
 from . import cli, get_logger
 from ._util import parse_bins, parse_field_param, parse_kv_list_param
 
-_pandas_version = pd.__version__.split(".")
-if int(_pandas_version[0]) > 0:
-    from pandas.io.common import get_handle
+from pandas.io.common import get_handle
 
 
 # Copied from pairtools._headerops
@@ -623,11 +621,7 @@ def pairs(
     kwargs = {}
     if pairs_path == "-":
         f_in = sys.stdin
-    elif int(_pandas_version[0]) == 1 and int(_pandas_version[1]) < 2:
-        # get_handle returns a pair of objects in pandas 1.0 and 1.1
-        f_in = get_handle(pairs_path, mode="r", compression="infer")[0]
     else:
-        # get_handle returns a single wrapper object in pandas 1.2+ and 2.*
         f_in = get_handle(pairs_path, mode="r", compression="infer").handle
 
     _, f_in = get_header(f_in, comment_char)

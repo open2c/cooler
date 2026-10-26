@@ -1,3 +1,4 @@
+import contextlib
 import sys
 
 import click
@@ -48,14 +49,11 @@ def makebins(chromsizes, binsize, out, header, rel_ids):
             bins["id"] += 1
 
     # Write output
-    if out is None:
-        f = sys.stdout
-    else:
-        f = open(out, "w")
-
-    if header:
-        bins[0:0].to_csv(
-            f, sep="\t", lineterminator='\n', index=False, header=True
-        )
-    bins.to_csv(f, sep="\t", lineterminator='\n', index=False, header=False)
-    f.flush()
+    output = open(out, "w") if out else contextlib.nullcontext(sys.stdout)
+    with output as f:
+        if header:
+            bins[0:0].to_csv(
+                f, sep="\t", lineterminator='\n', index=False, header=True
+            )
+        bins.to_csv(f, sep="\t", lineterminator='\n', index=False, header=False)
+        f.flush()

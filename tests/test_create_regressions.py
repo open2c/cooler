@@ -363,3 +363,102 @@ def test_create_unordered_mean_of_pixel_occurrences(tmp_path):
     px = cooler.Cooler(out).pixels()[:]
     assert px["v"].tolist() == [3.0, 5.0]
     assert px["count"].tolist() == [3, 1]
+
+
+def test_storage_options(tmp_path):
+    bins = cooler.util.binnify(pd.Series({"chr1": 100}), 10)
+    px = pd.DataFrame({"bin1_id": [0, 1], "bin2_id": [3, 4], "count": [1, 2]})
+    for opts in [{"fillvalue": 0}, {"scaleoffset": 0}]:
+        path = str(tmp_path / "o.cool")
+        cooler.create_cooler(path, bins, px, h5opts=opts)
+        assert cooler.Cooler(path).pixels()[:]["count"].tolist() == [1, 2]
+    with pytest.raises(ValueError, match="maxshape"):
+        cooler.create_cooler(str(tmp_path / "m.cool"), bins, px, h5opts={"maxshape": 9})
+
+
+@pytest.mark.parametrize("chunksize", ["1", "10"])
+def test_load_rejects_duplicates_across_chunks(tmp_path, chromsizes_file, chunksize):
+    coo = tmp_path / "d.coo"
+    coo.write_text("0\t1\t5\n0\t1\t7\n2\t3\t1\n")
+    out = tmp_path / "d.cool"
+    result = CliRunner().invoke(
+        load,
+        ["-f", "coo", "--chunksize", chunksize, chromsizes_file + ":10", str(coo),
+         str(out)],
+    )
+    assert result.exit_code != 0
+    assert "duplicate pixel (0, 1)" in str(result.exception)
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["cs.txt", "d.coo"]
+
+
+def test_unordered_duplicates_option(tmp_path):
+    bins = cooler.util.binnify(pd.Series({"chr1": 100}), 10)
+    a = pd.DataFrame({"bin1_id": [0, 0], "bin2_id": [1, 1], "count": [2, 3]})
+    b = pd.DataFrame({"bin1_id": [0], "bin2_id": [1], "count": [4]})
+
+    # Combined by default, within and across chunks
+    out = str(tmp_path / "c.cool")
+    cooler.create_cooler(out, bins, iter([a, b]), ordered=False)
+    assert cooler.Cooler(out).pixels()[:]["count"].tolist() == [9]
+
+    for chunks in [[a], [a.iloc[:1], b]]:
+        with pytest.raises(cooler.create.BadInputError, match="duplicate"):
+            cooler.create_cooler(
+                str(tmp_path / "e.cool"), bins, iter(chunks), ordered=False,
+                duplicates="error",
+            )
+
+
+def test_failed_create_leaves_existing_file_intact(tmp_path):
+    bins = cooler.util.binnify(pd.Series({"chr1": 100}), 10)
+    path = str(tmp_path / "x.cool")
+    good = pd.DataFrame({"bin1_id": [0], "bin2_id": [1], "count": [5]})
+    cooler.create_cooler(path, bins, good)
+
+    bad = pd.DataFrame({"bin1_id": [0], "bin2_id": [99], "count": [1]})
+    with pytest.raises(cooler.create.BadInputError):
+        cooler.create_cooler(path, bins, bad)
+    assert cooler.Cooler(path).pixels()[:]["count"].tolist() == [5]
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["x.cool"]
+
+
+def test_square_storage_does_not_warn(tmp_path):
+    bins = cooler.util.binnify(pd.Series({"chr1": 100}), 10)
+    px = pd.DataFrame({"bin1_id": [3], "bin2_id": [1], "count": [1]})
+    with warnings.catch_warnings():
+        warnings.filterwarnings("error", message=".*triucheck.*")
+        cooler.create_cooler(
+            str(tmp_path / "s.cool"), bins, px, symmetric_upper=False
+        )
+
+
+def test_skipped_chromosomes_are_reported_once(tmp_path, chromsizes_file):
+    import logging
+
+    records = []
+    handler = logging.Handler()
+    handler.emit = records.append
+    logger = logging.getLogger("cooler.create")
+    logger.addHandler(handler)
+    try:
+        pairs = tmp_path / "s.pairs"
+        pairs.write_text(
+            "r1\tchr1\t5\tchrZ\t10\nr2\tchrZ\t5\tchr1\t9\nr3\tchr1\t5\tchr1\t9\n"
+        )
+        result = run_cload_pairs(
+            chromsizes_file, str(pairs), str(tmp_path / "s.cool"), "--chunksize", "1"
+        )
+        assert result.exit_code == 0, result.output
+    finally:
+        logger.removeHandler(handler)
+    skipped = [r.getMessage() for r in records if "Skipping" in r.getMessage()]
+    assert len(skipped) == 1 and "chrZ" in skipped[0]
+
+
+def test_validate_pixels_duplicates():
+    from cooler.create import BadInputError, validate_pixels
+
+    check = validate_pixels(10, True, True, True, False)
+    check({"bin1_id": np.array([0, 1]), "bin2_id": np.array([1, 1])})
+    with pytest.raises(BadInputError, match="duplicate"):
+        check(pd.DataFrame({"bin1_id": [1, 0, 1], "bin2_id": [1, 1, 1]}))

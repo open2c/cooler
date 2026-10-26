@@ -367,4 +367,6 @@ def load(
         symmetric_upper=symmetric_upper,
         h5opts=h5opts,
         mode="a" if append else "w",
+        # Input pixels are a matrix: each pixel must occur at most once
+        duplicates="error",
     )

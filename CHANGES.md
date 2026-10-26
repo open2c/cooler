@@ -9,6 +9,11 @@
 * Range queries filter pixels in a single vectorized pass instead of looping over matrix rows in Python. The pixel filtering step is about 7-16x faster, and matrix queries on HDF5 files about 1.5x faster end to end, with peak memory about the same as before. Queries spanning many rows benefit most.
 
 ### Bug fixes
+* fix: `cooler load` rejects duplicate pixels wherever they occur in the input. Previously, duplicates in the same chunk raised an error but duplicates in different chunks were silently summed, so the result depended on `--chunksize`. `create_cooler(..., ordered=False)` gains a `duplicates` option: `"combine"` (default) combines repeated pixels with `agg`, now also within a chunk; `"error"` raises.
+* fix: Creating a cooler into a new or truncated file (mode "w") writes to a temporary file that replaces the destination only when complete, so a failure leaves an existing file intact and no partial file behind.
+* fix: The `fillvalue` and `scaleoffset` storage options work (they were applied to string datasets and failed), and `maxshape`, which could never work, is no longer accepted.
+* fix: `create_cooler(..., symmetric_upper=False)` no longer warns about `triucheck` unless it was explicitly set to True.
+* fix: `cooler makebins` and `cooler digest` close their output files.
 * fix: `cooler balance --force` and `balance_cooler(..., store=True)` replace an existing weight column only once the new weights are written. Previously the old weights were deleted before balancing, so a discarded result (`--convergence-policy discard`/`error`) or an error lost them.
 * fix: `create_scool` honors `ordered=False` (and `mergebuf`, `max_merge`, `temp_dir`, `delete_temp`) for cells given as iterables of unsorted chunks, checks that the cell names of a per-cell bins dict match the pixels dict, and checks that per-cell bin tables match the shared one. A failure while writing a cell leaves the cells already written intact.
 * fix: Creating a cooler from sorted input (`create_cooler(..., ordered=True)` and the functions built on it) checks that pixels are sorted and unique across all chunks, not just within each one. Previously, out-of-order chunks silently produced a cooler with a corrupt index.
@@ -37,6 +42,8 @@
 * fix: `to_dask_frame()` on range queries works with current dask versions; it relied on dask's legacy `DataFrame` constructor, which newer dask releases removed. By @nvictus in https://github.com/open2c/cooler/pull/501
 
 ### Maintenance
+* `cooler cload` logs a warning naming chromosomes whose records are skipped because they are not in the bin table (once per chromosome).
+* Removed the unused, untested `SparseBlockLoader` and `ArrayBlockLoader` classes, and compatibility code for pandas < 1.2.
 * The minimum h5py version is raised to 3.0 (from 2.5). h5py 3.0 is the oldest release with wheels for every supported Python version.
 * Removed the undocumented `cooler.create.append` function. Columns are now added to existing tables through an internal column writer (`cooler.create._writer._ColumnWriter`), which writes several columns at once in batches of rows (e.g. from polars `LazyFrame.sink_batches`), and adds or replaces them only once every row is written. A public interface will follow with the new API.
 * `create_scool` is built on an internal scool writer (`cooler.create._writer._ScoolWriter`) that writes the shared tables once and adds cells one at a time (`add_cell`), replacing the scool-specific options of `cooler.create.create` (`append_scool`, `scool_root_uri`).

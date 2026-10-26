@@ -26,7 +26,6 @@ from .._typing import MapFunctor
 from ..util import (
     GenomeSegmentation,
     balanced_partition,
-    check_bins,
     get_chromsizes,
     partition,
     rlencode,
@@ -65,6 +64,23 @@ SANITIZE_PRESETS = {
 }
 
 
+# Chromosome names already reported as missing from the bin table
+_skipped_chroms: set[str] = set()
+
+
+def _warn_skipped_chroms(*names: Any) -> None:
+    seen = set().union(*(map(str, pd.unique(n)) for n in names))
+    new = sorted(seen - _skipped_chroms)
+    if new:
+        _skipped_chroms.update(new)
+        shown = ", ".join(new[:5])
+        if len(new) > 5:
+            shown += f" and {len(new) - 5} more"
+        logger.warning(
+            f"Skipping records on chromosomes that are not in the bin table: {shown}"
+        )
+
+
 def _sanitize_records(
     chunk,
     gs,
@@ -98,6 +114,10 @@ def _sanitize_records(
     # Drop records from non-requested chromosomes
     to_drop = (chrom1_ids < 0) | (chrom2_ids < 0)
     if np.any(to_drop):
+        if decode_chroms:
+            _warn_skipped_chroms(
+                chunk["chrom1"][chrom1_ids < 0], chunk["chrom2"][chrom2_ids < 0]
+            )
         mask = ~to_drop
         chrom1_ids = chrom1_ids[mask]
         chrom2_ids = chrom2_ids[mask]
@@ -395,30 +415,40 @@ def sanitize_pixels(
     return partial(_sanitize_pixels, **kwargs)
 
 
-def _validate_pixels(chunk, n_bins, boundscheck, triucheck, dupcheck, ensure_sorted):
+def _check_pixel_ids(
+    bin1: np.ndarray,
+    bin2: np.ndarray,
+    n_bins: int,
+    boundscheck: bool,
+    triucheck: bool,
+) -> None:
+    """Check that bin IDs are in bounds and in the upper triangle."""
     if boundscheck:
-        is_neg = (chunk["bin1_id"] < 0) | (chunk["bin2_id"] < 0)
-        if np.any(is_neg):
+        if np.any(bin1 < 0) or np.any(bin2 < 0):
             raise BadInputError("Found bin ID < 0")
-        is_excess = (chunk["bin1_id"] >= n_bins) | (chunk["bin2_id"] >= n_bins)
-        if np.any(is_excess):
+        if np.any(bin1 >= n_bins) or np.any(bin2 >= n_bins):
             raise BadInputError(
                 "Found a bin ID that exceeds the declared number of bins. "
                 "Check whether your bin table is correct."
             )
+    if triucheck and np.any(bin1 > bin2):
+        raise BadInputError("Found bin1_id greater than bin2_id")
 
-    if triucheck:
-        is_tril = chunk["bin1_id"] > chunk["bin2_id"]
-        if np.any(is_tril):
-            raise BadInputError("Found bin1_id greater than bin2_id")
+
+def _validate_pixels(chunk, n_bins, boundscheck, triucheck, dupcheck, ensure_sorted):
+    bin1 = np.asarray(chunk["bin1_id"])
+    bin2 = np.asarray(chunk["bin2_id"])
+    _check_pixel_ids(bin1, bin2, n_bins, boundscheck, triucheck)
 
     if not isinstance(chunk, pd.DataFrame):
         chunk = pd.DataFrame(chunk)
 
-    if dupcheck:
-        is_dup = chunk.duplicated(["bin1_id", "bin2_id"])
-        if is_dup.any():
-            err = chunk[is_dup]
+    if dupcheck and len(bin1) > 1:
+        keys = bin1.astype(np.int64) * n_bins + bin2.astype(np.int64)
+        sorted_keys = np.sort(keys)
+        repeated = sorted_keys[1:][sorted_keys[1:] == sorted_keys[:-1]]
+        if len(repeated):
+            err = chunk[np.isin(keys, repeated)]
             raise BadInputError(
                 "Found duplicate pixels:\n{}".format(err.head().to_csv(sep="\t"))
             )
@@ -1000,72 +1030,6 @@ class PairixAggregator(ContactBinner):
                 yield {k: v.values for k, v in df.items()}
 
 
-class SparseBlockLoader(ContactBinner):  # pragma: no cover
-    def __init__(self, chromsizes, bins, mapping, chunksize):
-        bins = check_bins(bins, chromsizes)
-        self.bins = bins
-        self.chromosomes = list(chromsizes.index)
-        self.chunksize = chunksize
-        n_chroms = len(chromsizes)
-        n_bins = len(bins)
-
-        chrom_ids = bins["chrom"].cat.codes
-        self.offsets = np.zeros(n_chroms + 1, dtype=int)
-        curr_val = 0
-        for start, _length, value in zip(*rlencode(chrom_ids)):
-            self.offsets[curr_val : value + 1] = start
-            curr_val = value + 1
-        self.offsets[curr_val:] = n_bins
-
-        self.mapping = mapping
-
-    def select_block(self, chrom1, chrom2):
-        try:
-            block = self.mapping[chrom1, chrom2]
-        except KeyError:
-            try:
-                block = self.mapping[chrom2, chrom1].T
-            except KeyError:
-                warnings.warn(
-                    f"Block for {{{chrom1}, {chrom2}}} not found",
-                    stacklevel=2,
-                )
-                raise
-        return block
-
-    def __iter__(self) -> Iterator[dict[str, np.ndarray]]:
-        # n_bins = len(self.bins)
-
-        import scipy.sparse
-
-        chromosomes = self.chromosomes
-
-        for cid1, chrom1 in enumerate(chromosomes):
-            offset = self.offsets[cid1]
-            chrom1_nbins = self.offsets[cid1 + 1] - offset
-            spans = partition(0, chrom1_nbins, self.chunksize)
-
-            for lo, hi in spans:
-                chunks = []
-                for chrom2 in chromosomes[cid1:]:
-                    try:
-                        block = self.select_block(chrom1, chrom2)
-                    except KeyError:
-                        continue
-                    chunks.append(block.tocsr()[lo:hi, :])
-                X = scipy.sparse.hstack(chunks).tocsr().tocoo()
-
-                i, j, v = X.row, X.col, X.data
-                mask = (offset + i) <= (offset + j)
-                triu_i, triu_j, triu_v = i[mask], j[mask], v[mask]
-
-                yield {
-                    "bin1_id": offset + triu_i,
-                    "bin2_id": offset + triu_j,
-                    "count": triu_v,
-                }
-
-
 class ArrayLoader(ContactBinner):
     """
     Load a dense genome-wide numpy array contact matrix.
@@ -1105,66 +1069,3 @@ class ArrayLoader(ContactBinner):
                 "bin2_id": triu_j,
                 "count": X[triu_i, triu_j],
             }
-
-
-class ArrayBlockLoader(ContactBinner):  # pragma: no cover
-    def __init__(self, chromsizes, bins, mapping, chunksize):
-        bins = check_bins(bins, chromsizes)
-        self.bins = bins
-        self.chromosomes = list(chromsizes.index)
-        self.chunksize = chunksize
-        n_chroms = len(chromsizes)
-        n_bins = len(bins)
-
-        chrom_ids = bins["chrom"].cat.codes
-        self.offsets = np.zeros(n_chroms + 1, dtype=int)
-        curr_val = 0
-        for start, _length, value in zip(*rlencode(chrom_ids)):
-            self.offsets[curr_val : value + 1] = start
-            curr_val = value + 1
-        self.offsets[curr_val:] = n_bins
-
-        self.mapping = mapping
-
-    def select_block(self, chrom1, chrom2):
-        try:
-            block = self.mapping[chrom1, chrom2]
-        except KeyError:
-            try:
-                block = self.mapping[chrom2, chrom1].T
-            except KeyError:
-                warnings.warn(
-                    f"Block for {{{chrom1}, {chrom2}}} not found",
-                    stacklevel=2,
-                )
-                raise
-        return block
-
-    def __iter__(self):
-        # n_bins = len(self.bins)
-        chromosomes = self.chromosomes
-
-        for cid1, chrom1 in enumerate(chromosomes):
-            offset = self.offsets[cid1]
-            chrom1_nbins = self.offsets[cid1 + 1] - offset
-            spans = partition(0, chrom1_nbins, self.chunksize)
-
-            for lo, hi in spans:
-                chunks = []
-                for chrom2 in chromosomes[cid1:]:
-                    try:
-                        block = self.select_block(chrom1, chrom2)
-                    except KeyError:
-                        continue
-                    chunks.append(block[lo:hi, :])
-                X = np.concatenate(chunks, axis=1)
-
-                i, j = np.nonzero(X)
-                mask = (offset + i) <= (offset + j)
-                triu_i, triu_j = i[mask], j[mask]
-
-                yield {
-                    "bin1_id": offset + triu_i,
-                    "bin2_id": offset + triu_j,
-                    "count": X[triu_i, triu_j],
-                }
