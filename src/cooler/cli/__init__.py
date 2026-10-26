@@ -1,8 +1,9 @@
+import logging
 import sys
 
 import click
 
-from .._logging import get_logger, setup_cli_logging, verbosity_to_loglevel
+from .._logging import get_logger, setup_cli_logging
 from .._version import __version__
 
 CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"]}
@@ -76,7 +77,9 @@ def cli(verbose, debug):
 
     """
     ctx = click.get_current_context()
-    restore_logging = setup_cli_logging(verbosity_to_loglevel[min(verbose + 1, 2)])
+    # INFO by default, DEBUG with -v
+    level = logging.DEBUG if verbose else logging.INFO
+    restore_logging = setup_cli_logging(level)
     ctx.call_on_close(restore_logging)
     logger = get_logger()
 

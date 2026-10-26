@@ -39,7 +39,8 @@ _LOGGER_NAME = "cooler"
 _FORMAT = "{asctime} {levelname:<8} {name}: {message}"
 _DATEFMT = "%Y-%m-%d %H:%M:%S"
 
-verbosity_to_loglevel = {
+# Only for the deprecated verbosity functions
+_verbosity_to_loglevel = {
     -3: logging.NOTSET,
     -2: logging.CRITICAL,
     -1: logging.ERROR,
@@ -48,7 +49,7 @@ verbosity_to_loglevel = {
     2: logging.DEBUG,
 }
 
-loglevel_to_verbosity = {
+_loglevel_to_verbosity = {
     logging.NOTSET: -3,
     logging.CRITICAL: -2,
     logging.ERROR: -1,
@@ -95,12 +96,20 @@ def set_verbosity_level(level: int) -> None:
     Set the level of the "cooler" logger from a verbosity level: -2
     (critical) to 2 (debug), where 0 is warnings.
 
-    This sets which records are logged, not where they go. To see them, use
-    :func:`log_to_stderr` or configure logging.
+    .. deprecated:: 0.11.1
+        Use :func:`log_to_stderr` or ``logging.getLogger("cooler").setLevel``.
+        Will be removed in cooler 0.12.
     """
+    warnings.warn(
+        "set_verbosity_level is deprecated and will be removed in cooler 0.12. "
+        "Use cooler.log_to_stderr(level) or "
+        "logging.getLogger('cooler').setLevel(level) instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     logger = logging.getLogger(_LOGGER_NAME)
     try:
-        loglevel = verbosity_to_loglevel[level]
+        loglevel = _verbosity_to_loglevel[level]
     except KeyError:
         raise ValueError(
             f"Verbosity level must be one of: -2, -1, 0, 1, 2; got '{level}'."
@@ -109,8 +118,21 @@ def set_verbosity_level(level: int) -> None:
 
 
 def get_verbosity_level() -> int:
+    """
+    Get the level of the "cooler" logger as a verbosity level.
+
+    .. deprecated:: 0.11.1
+        Use ``logging.getLogger("cooler").level``. Will be removed in cooler
+        0.12.
+    """
+    warnings.warn(
+        "get_verbosity_level is deprecated and will be removed in cooler 0.12. "
+        "Use logging.getLogger('cooler').level instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     logger = logging.getLogger(_LOGGER_NAME)
-    return loglevel_to_verbosity[logger.level]
+    return _loglevel_to_verbosity[logger.level]
 
 
 def log_to_stderr(level: int | str | None = logging.INFO) -> logging.Handler:

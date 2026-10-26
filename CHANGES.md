@@ -13,6 +13,7 @@
 * Range queries filter pixels in a single vectorized pass instead of looping over matrix rows in Python. The pixel filtering step is about 7-16x faster, and matrix queries on HDF5 files about 1.5x faster end to end, with peak memory about the same as before. Queries spanning many rows benefit most.
 
 ### Deprecations
+* `cooler.set_verbosity_level` and `cooler.get_verbosity_level` are deprecated and will be removed in cooler 0.12. Use `cooler.log_to_stderr(level)` or `logging.getLogger("cooler").setLevel(level)`. Verbosity levels remain a CLI concept (`-v`).
 * `cooler cload pairs --input-copy-status` is deprecated and will be removed in cooler 0.12; pairs should list each contact once. Passing it logs a warning. `cooler load --input-copy-status` (matrix input) is unchanged, with a clearer description of `duplex`.
 
 ### Removed

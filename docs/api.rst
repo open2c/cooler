@@ -61,8 +61,6 @@ messages without configuring logging, call :func:`cooler.log_to_stderr`.
 
 .. autosummary::
     cooler.log_to_stderr
-    cooler.set_verbosity_level
-    cooler.get_verbosity_level
 
 .. Sandbox
 .. ~~~~~~~
@@ -86,8 +84,6 @@ cooler
 .. autofunction:: cooler.rename_chroms
 .. autofunction:: cooler.create_scool
 .. autofunction:: cooler.log_to_stderr
-.. autofunction:: cooler.set_verbosity_level
-.. autofunction:: cooler.get_verbosity_level
 
 
 ----

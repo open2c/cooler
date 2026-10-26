@@ -5,6 +5,7 @@ import logging
 import os.path as op
 import warnings
 
+import pytest
 from click.testing import CliRunner
 
 import cooler
@@ -50,11 +51,13 @@ def test_log_to_stderr(capsys):
         logger.setLevel(level)
 
 
-def test_verbosity_level():
+def test_verbosity_level_is_deprecated():
     level = logging.getLogger("cooler").level
     try:
-        cooler.set_verbosity_level(2)
-        assert cooler.get_verbosity_level() == 2
+        with pytest.warns(DeprecationWarning, match="log_to_stderr"):
+            cooler.set_verbosity_level(2)
+        with pytest.warns(DeprecationWarning):
+            assert cooler.get_verbosity_level() == 2
         assert logging.getLogger("cooler").level == logging.DEBUG
     finally:
         logging.getLogger("cooler").setLevel(level)
