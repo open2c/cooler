@@ -378,8 +378,8 @@ class BaseRangeQuery2D:
 
     def to_dask_frame(self) -> Any:
         try:
-            from dask.base import tokenize
-            from dask.dataframe import DataFrame
+            import dask.dataframe as dd
+            from dask import delayed
         except ImportError:
             raise ImportError(
                 "The 'dask' package is required for dask DataFrame output. "
@@ -387,21 +387,14 @@ class BaseRangeQuery2D:
             ) from None
 
         meta = self.reader.get_frame_meta(self.field)
-        tasks = self.tasks
-        # spans = [task[3] for task in tasks]
+        if not self.tasks:
+            return dd.from_pandas(meta, npartitions=1)
 
-        name = (
-            "cooler-"
-            + self.__class__.__name__
-            + tokenize(self.bbox, self.field, self.return_index)
-        )
-        df_tasks = [(frame_slice_from_dict, task, self.field) for task in tasks]
-        divisions = [None] * (len(tasks) + 1)
-
-        keys = [(name, i) for i in range(len(df_tasks))]
-        dsk = dict(zip(keys, df_tasks))
-
-        return DataFrame(dsk, name, meta, divisions)
+        parts = [
+            delayed(frame_slice_from_dict)(delayed(task[0])(*task[1:]), self.field)
+            for task in self.tasks
+        ]
+        return dd.from_delayed(parts, meta=meta)
 
 
 class DirectRangeQuery2D(BaseRangeQuery2D):

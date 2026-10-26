@@ -1,5 +1,13 @@
 # Release notes #
 
+## Unreleased
+
+### Bug fixes
+* fix: `to_dask_frame()` on range queries works with current dask versions; it relied on dask's legacy `DataFrame` constructor, which newer dask releases removed. By @nvictus in https://github.com/open2c/cooler/pull/501
+
+### Maintenance
+* Property-based tests of 2D range queries against dense NumPy references. By @nvictus in https://github.com/open2c/cooler/pull/501
+
 ## [v0.11.0](https://github.com/open2c/cooler/compare/v0.10.4...v0.11.0)
 
 ### New features
