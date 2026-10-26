@@ -4,12 +4,15 @@
 
 ### New features
 * `cooler cload pairs --field <name>=<col>:agg=mean`, and `create_cooler(..., ordered=False, agg={...: "mean"})`, now work for inputs larger than one chunk. Means are computed over all records of a pixel (ignoring missing values) by carrying sums and counts through the external sort. Other aggregations that can't be combined across chunks (e.g. `median`) still raise an error.
+* `cooler balance --rescale-marginals/--no-rescale-marginals` (#448). With `--no-rescale-marginals`, the balanced matrix's rows sum to the mean marginal sum of the unbalanced matrix, stored as the `scale` attribute.
+* `balance_cooler(..., ignore_dist=...)` ignores intra-chromosomal pixels whose bin midpoints are less than a given distance apart, which also works with variable-size bins.
 
 ### Performance
 * Range queries filter pixels in a single vectorized pass instead of looping over matrix rows in Python. The pixel filtering step is about 7-16x faster, and matrix queries on HDF5 files about 1.5x faster end to end, with peak memory about the same as before. Queries spanning many rows benefit most.
 
 ### Deprecations
 * `cooler cload pairs --input-copy-status` is deprecated and will be removed in cooler 0.12; pairs should list each contact once. Passing it logs a warning. `cooler load --input-copy-status` (matrix input) is unchanged, with a clearer description of `duplex`.
+
 ### Removed
 * `cooler zoomify --legacy` and `legacy_zoomify`, which wrote multi-resolution files in the layout used before cooler 0.8, with integer-labeled zoom levels (`::0`, `::1`, ...). Use the default `resolutions/<binsize>` layout; files in the old layout can still be read.
 
@@ -27,6 +30,15 @@
 * fix: Merges no longer buffer one bin more than `mergebuf` per epoch (which also triggered spurious buffering warnings), and the merger no longer leaves input files open.
 * fix: `cooler coarsen -k` requires a factor of at least 2 (a factor of 1 failed with an `AssertionError`); `coarsen_cooler` no longer modifies the caller's `dtypes`.
 * fix: The `--field` help of `cooler coarsen` and `cooler merge` showed the wrong syntax (`<name>:dtype=...`, not `<name>,dtype=...`).
+* fix: Balancing raises an error for coolers stored as a square matrix (`symmetric_upper=False`), which may hold asymmetric matrices that balancing with a single weight vector doesn't apply to. Previously, it gave wrong weights (off by a factor of √2 even for symmetric data) and halved the `min_nnz`/`min_count` thresholds.
+* fix: `--ignore-diags` in balancing only ignores intra-chromosomal pixels. Previously, it also dropped trans pixels between the last bins of one chromosome and the first bins of the next (#211), so weights of bins at chromosome ends change slightly.
+* fix: `cooler balance --ignore-dist` works with variable-size bins (#464).
+* fix: Bins with no data left after filtering get NaN weights. Previously they could get finite weights with `--min-nnz 0`, or when a whole chromosome was empty, since the MAD filter skipped chromosomes without data.
+* fix: Balancing reports non-convergence (and a NaN `scale`) when every bin is filtered out. Previously it reported convergence. In cis-only balancing, an empty chromosome still counts as converged, unless all of them are empty.
+* fix: `balance_cooler(..., max_iters=0)` no longer raises an `UnboundLocalError`. `x0` is no longer modified and returned as the weights, integer `x0` works, and an `x0` of the wrong length raises an error.
+* fix: `cooler balance --blacklist` ignores regions on chromosomes that aren't in the cooler (e.g. chrY or chrM), with a warning, instead of crashing.
+* fix: Storing balancing weights no longer fails when the stats attributes exceed HDF5's 64 KiB limit for attributes, as with cis-only balancing of assemblies with many thousands of contigs (#226). New columns are created with an object header that stores large attributes separately.
+* fix: Balancing stats record whether `trans_only` was used. The `--mad-max` help describes the filter correctly: marginals are normalized by their chromosome's median, then compared with a genome-wide cutoff.
 * fix: `cooler balance --force` and `balance_cooler(..., store=True)` replace an existing weight column only once the new weights are written. Previously the old weights were deleted before balancing, so a discarded result (`--convergence-policy discard`/`error`) or an error lost them.
 * fix: `create_scool` honors `ordered=False` (and `mergebuf`, `max_merge`, `temp_dir`, `delete_temp`) for cells given as iterables of unsorted chunks, checks that the cell names of a per-cell bins dict match the pixels dict, and checks that per-cell bin tables match the shared one. A failure while writing a cell leaves the cells already written intact.
 * fix: Creating a cooler from sorted input (`create_cooler(..., ordered=True)` and the functions built on it) checks that pixels are sorted and unique across all chunks, not just within each one. Previously, out-of-order chunks silently produced a cooler with a corrupt index.

@@ -40,16 +40,19 @@ from . import cli, get_logger
 )
 @click.option(
     "--ignore-dist",
-    help="Distance from the diagonal in bp to ignore. The maximum of the "
-    "corresponding number of diagonals and `--ignore-diags` will be used.",
+    help="Distance from the diagonal in bp to ignore: pixels whose bin "
+    "midpoints are less than this distance apart. Combined with "
+    "`--ignore-diags`, whichever ignores more is used. Works with "
+    "variable-size bins.",
     type=int,
 )
 @click.option(
     "--mad-max",
-    help="Ignore bins from the contact matrix using the 'MAD-max' filter: "
-    "bins whose log marginal sum is less than ``mad-max`` median absolute "
-    "deviations below the median log marginal sum of all the bins in the "
-    "same chromosome.",
+    help="Ignore bins from the contact matrix using the 'MAD-max' filter. "
+    "Each bin's marginal sum is divided by the median marginal sum of its "
+    "chromosome, then bins whose log normalized marginal sum is less than "
+    "``mad-max`` median absolute deviations below the genome-wide median are "
+    "ignored.",
     type=int,
     default=5,
     show_default=True,
@@ -99,6 +102,14 @@ from . import cli, get_logger
     "converge.",
     type=float,
     default=1e-5,
+    show_default=True,
+)
+@click.option(
+    "--rescale-marginals/--no-rescale-marginals",
+    help="Rescale the weights so that the rows and columns of the balanced "
+    "matrix sum to 1. Otherwise, they sum to the mean marginal sum of the "
+    "unbalanced matrix, whose value is stored as the 'scale' attribute.",
+    default=True,
     show_default=True,
 )
 @click.option(
@@ -165,6 +176,7 @@ def balance(
     stdout,
     convergence_policy,
     ignore_dist,
+    rescale_marginals,
 ):
     """
     Out-of-core matrix balancing.
@@ -229,6 +241,14 @@ def balance(
             end=coords["end"][is_record].astype(int),
         )
 
+        unknown = sorted(set(bad_regions["chrom"]) - set(clr.chromnames))
+        if unknown:
+            logger.warning(
+                "Ignoring blacklist regions on chromosomes not in the cooler: "
+                + ", ".join(unknown)
+            )
+            bad_regions = bad_regions[bad_regions["chrom"].isin(clr.chromnames)]
+
         bins_grouped = clr.bins()[:].groupby("chrom", observed=True)
         chromsizes = clr.chromsizes
 
@@ -237,9 +257,6 @@ def balance(
             result = bedslice(bins_grouped, chromsizes, (reg.chrom, reg.start, reg.end))
             bad_bins.append(result.index.values)
         bad_bins = np.concatenate(bad_bins) if bad_bins else None
-
-    if ignore_dist is not None:
-        ignore_diags = max(ignore_diags, int(np.ceil(ignore_dist / clr.binsize)))
 
     try:
         if nproc > 1:
@@ -260,7 +277,8 @@ def balance(
             mad_max=mad_max,
             max_iters=max_iters,
             ignore_diags=ignore_diags,
-            rescale_marginals=True,
+            ignore_dist=ignore_dist,
+            rescale_marginals=rescale_marginals,
             use_lock=False,
             map=map_,
         )
