@@ -17,9 +17,13 @@
 * `cooler cload pairs --input-copy-status` is deprecated and will be removed in cooler 0.13; pairs should list each contact once. Passing it logs a warning. `cooler load --input-copy-status` (matrix input) is unchanged, with a clearer description of `duplex`.
 
 ### Removed
+* `cooler.sandbox`, including the experimental `cooler.sandbox.dask.read_table`, which no longer worked with current cooler or dask. For dask dataframes of pixels, the range query engines have `to_dask_frame()`.
 * `cooler zoomify --legacy` and `legacy_zoomify`, which wrote multi-resolution files in the layout used before cooler 0.8, with integer-labeled zoom levels (`::0`, `::1`, ...). Use the default `resolutions/<binsize>` layout; files in the old layout can still be read.
 
 ### Bug fixes
+* fix: `Cooler.info` and `cooler attrs` no longer parse text attributes as JSON. For example, an assembly named `"123"` was returned as the integer 123. Attributes that cooler defines as text (`genome-assembly`, `generated-by`, `creation-date`, `format`, `format-url`, `bin-type`, `storage-mode`) are returned as stored. Other string attributes are still parsed as JSON, including `metadata` and numbers stored as strings by older versions.
+* fix: `list_coolers`, `is_cooler` and `cooler ls` recognize coolers in format version 2 or earlier that have no `format` attribute.
+* fix: A missing space in the error message for missing balancing weights.
 * fix: Importing cooler no longer configures logging. Previously, it attached a handler to the `cooler` logger that printed warnings to stdout and stopped records from propagating, so they bypassed the user's logging configuration and mixed into piped output (including from worker processes started with `spawn` or `forkserver`). The `cooler` logger now only has a `NullHandler`, as recommended for libraries: records propagate to the root logger, and are silent unless logging is configured. The warning about records on chromosomes missing from the bin table is now issued with `warnings.warn`, so it is shown either way.
 * fix: The CLI sets up logging for the duration of each command and restores the previous state afterwards. Running commands repeatedly in the same process (e.g. with click's `CliRunner`) no longer logs to a stale stream, and `logging.captureWarnings` is no longer left on. Warnings are logged as one line each (`WARNING  cooler: ConvergenceWarning: ...`), instead of Python's multi-line warning output. The process information printed with `-vv` is now logged when the command finishes.
 * fix: `cooler dump` writes every column of the pixel table by default, and `-c/--columns` selects pixel columns. Previously, only `count` could be dumped, and `-c` was ignored for pixels. Unknown column names raise an error.

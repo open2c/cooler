@@ -62,12 +62,6 @@ messages without configuring logging, call :func:`cooler.log_to_stderr`.
 .. autosummary::
     cooler.log_to_stderr
 
-.. Sandbox
-.. ~~~~~~~
-
-.. .. autosummary::
-..     cooler.sandbox.dask.read_table
-
 ----
 
 cooler
@@ -112,8 +106,3 @@ cooler.util
 .. autofunction:: cooler.util.read_chromsizes
 .. autofunction:: cooler.util.binnify
 .. autofunction:: cooler.util.digest
-
-.. cooler.sandbox
-.. --------------
-
-.. .. autofunction:: cooler.sandbox.dask.read_table

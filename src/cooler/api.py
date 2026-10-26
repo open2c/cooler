@@ -19,7 +19,7 @@ from .core import (
     region_to_extent,
     region_to_offset,
 )
-from .fileops import list_coolers
+from .fileops import TEXT_ATTRS, list_coolers
 from .util import closing_hdf5, open_hdf5, parse_cooler_uri, parse_region
 
 __all__ = ["Cooler", "annotate"]
@@ -438,7 +438,7 @@ def info(h5: h5py.Group) -> dict:
     for k, v in h5.attrs.items():
         if isinstance(v, bytes):  # e.g. fixed-length strings from other writers
             v = v.decode()
-        if isinstance(v, str):
+        if isinstance(v, str) and k not in TEXT_ATTRS:
             try:
                 v = json.loads(v)
             except ValueError:
@@ -755,7 +755,7 @@ def matrix(
 
     if balance and name not in h5["bins"]:
         raise ValueError(
-            f"No column 'bins/{name}'"
+            f"No column 'bins/{name}' "
             + "found. Use ``cooler.balance_cooler`` to "
             + "calculate balancing weights or set balance=False."
         )

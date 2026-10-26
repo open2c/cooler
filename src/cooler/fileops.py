@@ -27,17 +27,33 @@ def json_dumps(o: object) -> str:
     )
 
 
+# Cooler attributes that are always text, so they aren't parsed as JSON even if
+# they look like it (e.g. an assembly named "123"). Other string attributes
+# are parsed as JSON when possible: "metadata", and attributes such as
+# "format-version" that older versions of cooler stored as strings.
+TEXT_ATTRS = frozenset({
+    "bin-type",
+    "creation-date",
+    "format",
+    "format-url",
+    "generated-by",
+    "genome-assembly",
+    "storage-mode",
+})
+
+
 def json_loads(s: str) -> object:
     """Read JSON in a consistent way."""
     return json.loads(s)
 
 
 def decode_attr_value(
-    obj: str | np.generic | np.ndarray | h5py.Dataset
+    obj: str | np.generic | np.ndarray | h5py.Dataset, key: str | None = None
 ) -> str | Number | datetime | list | dict:
     """
     Decode a HDF5 attribute value (numpy object or string) into something
-    JSON serializable.
+    JSON serializable. Strings are parsed as JSON, except for the attributes
+    in ``TEXT_ATTRS``.
     """
     if isinstance(obj, np.ndarray):
         o = obj.tolist()
@@ -49,10 +65,12 @@ def decode_attr_value(
         try:
             o = datetime.strptime(obj, "%Y-%m-%dT%H:%M:%S.%f")
         except ValueError:
-            try:
-                o = json.loads(obj)
-            except ValueError:
-                o = obj
+            o = obj
+            if key not in TEXT_ATTRS:
+                try:
+                    o = json.loads(obj)
+                except ValueError:
+                    pass
     else:
         o = obj
     return o
@@ -155,6 +173,10 @@ def _get_format(obj: h5py.Group) -> str | None:
 
 def _is_cooler(grp: h5py.Group) -> bool:
     fmt = _get_format(grp)
+    if fmt is None and "format-version" in grp.attrs:
+        # Format version 2 and earlier have no "format" attribute
+        keys = ("chroms", "bins", "pixels", "indexes")
+        return all(name in grp for name in keys)
     if fmt == MAGIC:
         keys = ("chroms", "bins", "pixels", "indexes")
         if not all(name in grp for name in keys):
@@ -591,7 +613,7 @@ class TreeViewer:
 def read_attr_tree(group: h5py.Group, level: int | None) -> dict[str, Any]:
     def _getdict(node, root=False):
         attrs = node.obj.attrs
-        result = {"@attrs": {k: decode_attr_value(v) for k, v in attrs.items()}}
+        result = {"@attrs": {k: decode_attr_value(v, k) for k, v in attrs.items()}}
         children = node.get_children()
         if children:
             for child in children:

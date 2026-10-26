@@ -197,3 +197,52 @@ def test_coarsest_zoom_level_has_a_binsize(tmp_path):
 def test_path_object_uri(tmp_path):
     # PathLike URIs work wherever a URI is parsed
     assert cooler.util.parse_cooler_uri(pathlib.Path("a.mcool")) == ("a.mcool", "/")
+
+
+def test_text_attributes_are_not_decoded(tmp_path):
+    import yaml
+    from click.testing import CliRunner
+
+    from cooler.cli.fileops import attrs as attrs_cli
+
+    path = make_cooler(
+        str(tmp_path / "c.cool"), assembly="123", metadata={"a": [1, 2]}
+    )
+    with h5py.File(path, "r+") as f:
+        f.attrs["format-version"] = "3"  # as stored by older versions
+    info = cooler.Cooler(path).info
+    assert info["genome-assembly"] == "123"
+    assert info["metadata"] == {"a": [1, 2]}
+    assert info["format-version"] == 3
+    assert info["bin-size"] == 10
+
+    result = CliRunner().invoke(attrs_cli, [path])
+    assert result.exit_code == 0, result.output
+    out = yaml.safe_load(result.output)["@attrs"]
+    assert out["genome-assembly"] == "123"
+    assert out["metadata"] == {"a": [1, 2]}
+
+    # Variable-size bins store bin-size as "null"
+    bins = pd.DataFrame({
+        "chrom": ["chr1", "chr1", "chr1", "chr2"],
+        "start": [0, 30, 50, 0],
+        "end": [30, 50, 100, 60],
+    })
+    path = make_cooler(str(tmp_path / "v.cool"), bins)
+    assert cooler.Cooler(path).info["bin-size"] is None
+
+
+def test_format_version_2_without_format_attribute(tmp_path):
+    path = make_cooler(str(tmp_path / "c.cool"))
+    with h5py.File(path, "r+") as f:
+        del f.attrs["format"]
+        f.attrs["format-version"] = 2
+        f.create_group("other").attrs["format-version"] = 2  # not a cooler
+    assert cooler.fileops.is_cooler(path)
+    assert cooler.fileops.list_coolers(path) == ["/"]
+
+
+def test_missing_weights_message(tmp_path):
+    clr = cooler.Cooler(make_cooler(str(tmp_path / "c.cool")))
+    with pytest.raises(ValueError, match="'bins/weight' found"):
+        clr.matrix()[:]
