@@ -62,7 +62,10 @@ def test_verbosity_level():
 
 def test_cli_logs_to_stderr_and_cleans_up():
     before = _logging_state()
-    runner = CliRunner()
+    try:
+        runner = CliRunner(mix_stderr=False)  # click < 8.2 mixes them by default
+    except TypeError:
+        runner = CliRunner()  # click >= 8.2 always captures stderr separately
     args = ["balance", COOL, "--stdout", "-p", "1", "--max-iters", "1"]
     # Twice in one process: the second run must not log to a stale stream
     for _ in range(2):
