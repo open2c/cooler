@@ -41,7 +41,7 @@ dependencies = [
     "numpy>=1.26,<3",
     "scipy>=1.11",
     "pandas>1.5",
-    "h5py>=2.5",
+    "h5py>=3.0",
     "click>=7",
     "cytoolz",
     "multiprocess",
