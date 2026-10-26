@@ -21,7 +21,6 @@ from ..core import get, put
 from ..util import (
     get_binsize,
     get_chromsizes,
-    get_meta,
     infer_meta,
     parse_cooler_uri,
     rlencode,
@@ -41,7 +40,6 @@ from . import (
     PIXEL_FIELDS,
     URL,
 )
-from ._ingest import validate_pixels
 
 logger = get_logger("cooler.create")
 
@@ -528,13 +526,10 @@ def create(
         Use the ``dtypes`` argument instead.
 
     """
-    file_path, group_path = parse_cooler_uri(cool_uri)
-    file_path = op.realpath(file_path)
+    from ._writer import _CoolerWriter, _pixel_schema
 
     if mode is None:
         mode = "a" if append else "w"
-
-    h5opts = _set_h5opts(h5opts)
 
     if not isinstance(bins, pd.DataFrame):
         raise ValueError(  # noqa: TRY004
@@ -548,32 +543,10 @@ def create(
             "`scool_root_uri` must be defined."
         )
     dtypes = _get_dtypes_arg(dtypes, kwargs)
-
-    for col in ["chrom", "start", "end"]:
-        if col not in bins.columns:
-            raise ValueError(f"Missing column from bin table: '{col}'.")
-
-    # Populate expected pixel column names. Include user-provided value
-    # columns.
-    if columns is None:
-        columns = ["bin1_id", "bin2_id", "count"]
-    else:
-        columns = list(columns)
-        for col in ["bin1_id", "bin2_id"]:  # don't include count!
-            if col not in columns:
-                columns.insert(0, col)
-
-    # Populate dtypes for expected pixel columns, and apply user overrides.
-    if dtypes is None:
-        dtypes = dict(PIXEL_DTYPES)
-    else:
-        dtypes_ = dict(dtypes)
-        dtypes = dict(PIXEL_DTYPES)
-        dtypes.update(dtypes_)
-
-    # Get empty "meta" header frame (assigns the undeclared dtypes).
-    # Any columns from the input not in meta will be ignored.
-    meta = get_meta(columns, dtypes, default_dtype=float)
+    if kwargs:
+        raise TypeError(
+            f"create() got unexpected keyword arguments: {', '.join(sorted(kwargs))}"
+        )
 
     # Determine the appropriate iterable
     try:
@@ -594,148 +567,34 @@ def create(
         iterable = pixels
         input_columns = None
 
-    # If possible, ensure all expected columns are available
+    # If possible, ensure all expected columns are available before writing
     if input_columns is not None:
-        for col in columns:
+        for col in _pixel_schema(columns, dtypes)[0]:
             if col not in input_columns:
                 col_type = "Standard" if col in PIXEL_FIELDS else "User"
                 raise ValueError(f"{col_type} column not found in input: '{col}'")
 
-    # Prepare chroms and bins
-    bins = bins.copy()
-    bins["chrom"] = bins["chrom"].astype(object)
-    chromsizes = get_chromsizes(bins)
-    try:
-        chromsizes = chromsizes.items()
-    except AttributeError:
-        pass
-    chromnames, lengths = zip(*chromsizes)
-    chroms = pd.DataFrame(
-        {"name": chromnames, "length": lengths}, columns=["name", "length"]
+    writer = _CoolerWriter(
+        cool_uri,
+        bins,
+        columns=columns,
+        dtypes=dtypes,
+        metadata=metadata,
+        assembly=assembly,
+        symmetric_upper=symmetric_upper,
+        mode=mode,
+        h5opts=h5opts,
+        boundscheck=boundscheck,
+        triucheck=triucheck,
+        dupcheck=dupcheck,
+        ensure_sorted=ensure_sorted,
+        lock=lock,
+        link_tables_from=scool_root_uri if append_scool else None,
     )
-    binsize = get_binsize(bins)
-    n_chroms = len(chroms)
-    n_bins = len(bins)
-
-    if not symmetric_upper and triucheck:
-        warnings.warn(
-            "Creating a non-symmetric matrix, but `triucheck` was set to "
-            "True. Changing to False.",
-            stacklevel=2,
-        )
-        triucheck = False
-
-    # Chain input validation to the end of the pipeline
-    if boundscheck or triucheck or dupcheck or ensure_sorted:
-        validator = validate_pixels(
-            n_bins, boundscheck, triucheck, dupcheck, ensure_sorted
-        )
-        iterable = map(validator, iterable)
-
-    # Create root group
-    with h5py.File(file_path, mode) as f:
-        logger.info(f'Creating cooler at "{file_path}::{group_path}"')
-        if group_path == "/":
-            for name in ["chroms", "bins", "pixels", "indexes"]:
-                if name in f:
-                    del f[name]
-        else:
-            try:
-                f.create_group(group_path)
-            except ValueError:
-                del f[group_path]
-                f.create_group(group_path)
-
-    # Write chroms, bins and pixels
-    if append_scool:
-        src_path, src_group = parse_cooler_uri(scool_root_uri)
-        dst_path, dst_group = parse_cooler_uri(cool_uri)
-
-        with h5py.File(src_path, "r+") as src, h5py.File(dst_path, "r+") as dst:
-            src_root = src[src_group]
-            dst[dst_group]["chroms"] = src_root["chroms"]
-
-            # hard link to root bins table, but only the three main datasets
-            dst[dst_group]["bins/chrom"] = src_root["bins/chrom"]
-            dst[dst_group]["bins/start"] = src_root["bins/start"]
-            dst[dst_group]["bins/end"] = src_root["bins/end"]
-
-            # create per cell the additional columns e.g. 'weight'
-            # these columns are individual for each cell
-            columns = list(bins.keys())
-            for col in ["chrom", "start", "end"]:
-                columns.remove(col)
-            if columns:
-                put(dst[dst_group]["bins"], bins[columns])
-        with h5py.File(file_path, "r+") as f:
-            h5 = f[group_path]
-            grp = h5.create_group("pixels")
-            if symmetric_upper:
-                max_size = n_bins * (n_bins - 1) // 2 + n_bins
-            else:
-                max_size = n_bins * n_bins
-            prepare_pixels(
-                grp, n_bins, max_size, meta.columns, dict(meta.dtypes), h5opts
-            )
-    else:
-        with h5py.File(file_path, "r+") as f:
-            h5 = f[group_path]
-
-            logger.info("Writing chroms")
-            grp = h5.create_group("chroms")
-            write_chroms(grp, chroms, h5opts)
-
-            logger.info("Writing bins")
-            grp = h5.create_group("bins")
-            write_bins(grp, bins, chroms["name"], h5opts)
-
-            grp = h5.create_group("pixels")
-            if symmetric_upper:
-                max_size = n_bins * (n_bins - 1) // 2 + n_bins
-            else:
-                max_size = n_bins * n_bins
-            prepare_pixels(
-                grp, n_bins, max_size, meta.columns, dict(meta.dtypes), h5opts
-            )
-
-    # Multiprocess HDF5 reading is supported only if the same HDF5 file is not
-    # open in write mode anywhere. To read and write to the same file, pass a
-    # lock shared with the HDF5 reading processes. `write_pixels` will acquire
-    # it and open the file for writing for the duration of each write step
-    # only. After it closes the file and releases the lock, the reading
-    # processes will have to re-acquire the lock and re-open the file to obtain
-    # the updated file state for reading.
-    logger.info("Writing pixels")
-    target = posixpath.join(group_path, "pixels")
-    nnz, ncontacts = write_pixels(
-        file_path, target, meta.columns, iterable, h5opts, lock
-    )
-
-    # Write indexes
-    with h5py.File(file_path, "r+") as f:
-        h5 = f[group_path]
-
-        logger.info("Writing indexes")
-        grp = h5.create_group("indexes")
-
-        chrom_offset = index_bins(h5["bins"], n_chroms, n_bins)
-        bin1_offset = index_pixels(h5["pixels"], n_bins, nnz)
-        write_indexes(grp, chrom_offset, bin1_offset, h5opts)
-
-        logger.info("Writing info")
-        info = {}
-        info["bin-type"] = "fixed" if binsize is not None else "variable"
-        info["bin-size"] = binsize if binsize is not None else "null"
-        info["storage-mode"] = "symmetric-upper" if symmetric_upper else "square"
-        info["nchroms"] = n_chroms
-        info["nbins"] = n_bins
-        info["sum"] = ncontacts
-        info["nnz"] = nnz
-        if assembly is not None:
-            info["genome-assembly"] = assembly
-        if metadata is not None:
-            info["metadata"] = metadata
-        write_info(h5, info)
+    with writer:
+        logger.info("Writing pixels")
+        for chunk in iterable:
+            writer.write(chunk)
 
 
 def create_from_unordered(
@@ -1397,7 +1256,6 @@ def create_scool(
             dtypes=dtypes,
             metadata=metadata,
             assembly=assembly,
-            ordered=ordered,
             symmetric_upper=symmetric_upper,
             mode="a",
             boundscheck=boundscheck,
@@ -1406,10 +1264,6 @@ def create_scool(
             ensure_sorted=ensure_sorted,
             h5opts=h5opts,
             lock=lock,
-            mergebuf=mergebuf,
-            delete_temp=delete_temp,
-            temp_dir=temp_dir,
-            max_merge=max_merge,
             append_scool=True,
             scool_root_uri=cool_uri,
         )
