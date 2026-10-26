@@ -37,6 +37,7 @@
 * fix: `to_dask_frame()` on range queries works with current dask versions; it relied on dask's legacy `DataFrame` constructor, which newer dask releases removed. By @nvictus in https://github.com/open2c/cooler/pull/501
 
 ### Maintenance
+* The minimum h5py version is raised to 3.0 (from 2.5). h5py 3.0 is the oldest release with wheels for every supported Python version.
 * Removed the undocumented `cooler.create.append` function. Columns are now added to existing tables through an internal column writer (`cooler.create._writer._ColumnWriter`), which writes several columns at once in batches of rows (e.g. from polars `LazyFrame.sink_batches`), and adds or replaces them only once every row is written. A public interface will follow with the new API.
 * `create_scool` is built on an internal scool writer (`cooler.create._writer._ScoolWriter`) that writes the shared tables once and adds cells one at a time (`add_cell`), replacing the scool-specific options of `cooler.create.create` (`append_scool`, `scool_root_uri`).
 * `create_from_unordered` is built on an internal external-sort writer (`cooler.create._writer._UnorderedCoolerWriter`), which validates its options up front and removes its temporary files on error.
