@@ -158,3 +158,31 @@ def test_create_rejects_unknown_arguments(tmp_path):
     with pytest.warns(FutureWarning):
         cooler.create.create(path, BINS, pixels([(0, 0)]), dtype={"count": float})
     assert cooler.Cooler(path).pixels()[:]["count"].dtype.kind == "f"
+
+
+def test_unordered_rejects_unknown_arguments_up_front(tmp_path):
+    from cooler.create._writer import _UnorderedCoolerWriter
+
+    with pytest.raises(TypeError, match="ordred"):
+        _UnorderedCoolerWriter(str(tmp_path / "x.cool"), BINS, ordred=True)
+
+
+def test_unordered_cleans_up_temporary_files(tmp_path):
+    from cooler.create._writer import _UnorderedCoolerWriter
+
+    out = tmp_path / "out"
+    out.mkdir()
+    path = str(out / "u.cool")
+    with _UnorderedCoolerWriter(path, BINS) as w:
+        w.write(pixels([(3, 9), (0, 0)]))
+        w.write(pixels([(0, 0), (1, 1)]))
+    assert sorted(p.name for p in out.iterdir()) == ["u.cool"]
+    px = cooler.Cooler(path).pixels()[:]
+    assert px.values.tolist() == [[0, 0, 2], [1, 1, 1], [3, 9, 1]]
+
+    # On error, nothing is written and temporary files are removed
+    path = str(out / "bad.cool")
+    with pytest.raises(BadInputError), _UnorderedCoolerWriter(path, BINS) as w:
+        w.write(pixels([(0, 0)]))
+        w.write(pixels([(0, 99)]))  # out of bounds
+    assert sorted(p.name for p in out.iterdir()) == ["u.cool"]

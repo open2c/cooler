@@ -1,10 +1,7 @@
 from __future__ import annotations
 
 import json
-import os
-import os.path as op
 import posixpath
-import tempfile
 import warnings
 from collections.abc import Iterable
 from datetime import datetime
@@ -619,123 +616,35 @@ def create_from_unordered(
     in any particular order.
 
     Pixels that occur in more than one chunk are combined using ``agg``, a
-    mapping of value column names to aggregation names (default: "sum"). Only
-    aggregations that can be combined across chunks are supported when there
-    is more than one chunk: "sum", "min", "max" and "count".
+    mapping of value column names to aggregation names (default: "sum"). When
+    there is more than one chunk, only "sum", "min", "max", "count" and "mean"
+    are supported. For "mean", each occurrence of a pixel counts as one value,
+    unless chunks provide the sum and number of values of the column (see
+    ``aggregate_records(..., split_means=True)``).
 
     """
-    from .._reduce import CoolerMerger
-    from ..api import Cooler
+    from ._writer import _UnorderedCoolerWriter
 
-    # chromsizes = get_chromsizes(bins)
-    bins = bins.copy()
-    bins["chrom"] = bins["chrom"].astype(object)
-
+    dtypes = _get_dtypes_arg(dtypes, kwargs)
     if columns is not None:
         columns = [col for col in columns if col not in {"bin1_id", "bin2_id"}]
 
-    if temp_dir is None:
-        temp_dir = op.dirname(parse_cooler_uri(cool_uri)[0])
-    elif temp_dir == "-":
-        temp_dir = None  # makes tempfile module use the system dir
-
-    dtypes = _get_dtypes_arg(dtypes, kwargs)
-
-    is_windows = os.name == "nt"
-    if is_windows and delete_temp:
-        delete = False
-    else:
-        delete = delete_temp
-    temp_files = []
-
-    # Sort pass: each chunk is sorted and saved to a temporary Cooler
-    tf = tempfile.NamedTemporaryFile(
-        suffix=".multi.cool", delete=delete, dir=temp_dir
+    writer = _UnorderedCoolerWriter(
+        cool_uri,
+        bins,
+        columns=columns,
+        dtypes=dtypes,
+        agg=agg,
+        mergebuf=mergebuf,
+        max_merge=max_merge,
+        temp_dir=temp_dir,
+        delete_temp=delete_temp,
+        mode="w" if mode is None else mode,
+        **kwargs,
     )
-    temp_files.append(tf)
-    sort_kwargs = {**kwargs, "ensure_sorted": True}
-    uris = []
-    for i, chunk in enumerate(chunks):
-        uri = tf.name + "::" + str(i)
-        logger.info(f"Writing chunk {i}: {uri}")
-        create(
-            uri, bins, chunk, columns=columns, dtypes=dtypes, mode="a", **sort_kwargs
-        )
-        if Cooler(uri).info["nnz"] > 0:
-            uris.append(uri)
-
-    # How to combine the same pixel from different chunks
-    merge_agg = None
-    if agg is not None:
-        merge_agg = {}
-        for col, func in agg.items():
-            if len(uris) > 1 and func not in _MERGEABLE_AGGS:
-                raise ValueError(
-                    f"Aggregation '{func}' for column '{col}' can't be combined "
-                    "across chunks of input. Use one of "
-                    f"{sorted(_MERGEABLE_AGGS)}, or a chunk size large enough "
-                    "for the whole input to fit in one chunk."
-                )
-            merge_agg[col] = _MERGEABLE_AGGS.get(func, "sum")
-
-    # Merge passes
-    n = len(uris)
-    if n == 0:
-        logger.info(f"No pixels in input. Writing empty cooler to {cool_uri}")
-        create(cool_uri, bins, [], columns=columns, dtypes=dtypes, mode=mode, **kwargs)
-        return
-
-    if n > max_merge > 0:
-        # Recursive merge: do the first of two merge passes. Merge groups of
-        # ~sqrt(n) chunks, keeping both the group size and the number of groups
-        # within max_merge where possible.
-        group_size = max(int(np.ceil(np.sqrt(n))), int(np.ceil(n / max_merge)))
-        group_size = max(2, min(group_size, max_merge))
-        edges = np.r_[np.arange(0, n, group_size), n]
-
-        tf2 = tempfile.NamedTemporaryFile(
-            suffix=".multi.cool", delete=delete, dir=temp_dir
-        )
-        temp_files.append(tf2)
-        uris2 = []
-        for lo, hi in zip(edges[:-1], edges[1:]):
-            chunk_subset = CoolerMerger(
-                [Cooler(uri) for uri in uris[lo:hi]],
-                mergebuf,
-                columns=columns,
-                agg=merge_agg,
-            )
-            uri = tf2.name + "::" + f"{lo}-{hi}"
-            uris2.append(uri)
-            logger.info(f"Merging chunks {lo}-{hi}: {uri}")
-            create(
-                uri,
-                bins,
-                chunk_subset,
-                columns=columns,
-                dtypes=dtypes,
-                mode="a",
-                **kwargs,
-            )
-
-        final_uris = uris2
-    else:
-        # Do a single merge pass
-        final_uris = uris
-
-    # Do the final merge pass
-    chunks = CoolerMerger(
-        [Cooler(uri) for uri in final_uris], mergebuf, columns=columns, agg=merge_agg
-    )
-    logger.info(f"Merging into {cool_uri}")
-    create(cool_uri, bins, chunks, columns=columns, dtypes=dtypes, mode=mode, **kwargs)
-
-    if is_windows and delete_temp:
-        for tf in temp_files:
-            if not tf.closed:
-                tf.close()
-            os.remove(tf.name)
-    del temp_files
+    with writer:
+        for chunk in chunks:
+            writer.write(chunk)
 
 
 def append(
@@ -880,7 +789,7 @@ _DOC_OTHER_PARAMS = """
     agg : dict, optional
         When ``ordered=False``, how to combine the values of a pixel that
         occurs in more than one input chunk: a mapping of value column names
-        to "sum" (default), "min", "max" or "count".
+        to "sum" (default), "min", "max", "count" or "mean".
     max_merge : int, optional
         If merging more than ``max_merge`` chunks, do the merge recursively in
         two passes.
