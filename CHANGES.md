@@ -8,6 +8,9 @@
 ### Performance
 * Range queries filter pixels in a single vectorized pass instead of looping over matrix rows in Python. The pixel filtering step is about 7-16x faster, and matrix queries on HDF5 files about 1.5x faster end to end, with peak memory about the same as before. Queries spanning many rows benefit most.
 
+### Deprecations
+* `cooler cload pairs --input-copy-status` is deprecated and will be removed in cooler 0.12; pairs should list each contact once. Passing it logs a warning. `cooler load --input-copy-status` (matrix input) is unchanged, with a clearer description of `duplex`.
+
 ### Bug fixes
 * fix: `cooler load` rejects duplicate pixels wherever they occur in the input. Previously, duplicates in the same chunk raised an error but duplicates in different chunks were silently summed, so the result depended on `--chunksize`. `create_cooler(..., ordered=False)` gains a `duplicates` option: `"combine"` (default) combines repeated pixels with `agg`, now also within a chunk; `"error"` raises.
 * fix: Creating a cooler into a new or truncated file (mode "w") writes to a temporary file that replaces the destination only when complete, so a failure leaves an existing file intact and no partial file behind.

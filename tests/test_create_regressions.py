@@ -462,3 +462,27 @@ def test_validate_pixels_duplicates():
     check({"bin1_id": np.array([0, 1]), "bin2_id": np.array([1, 1])})
     with pytest.raises(BadInputError, match="duplicate"):
         check(pd.DataFrame({"bin1_id": [1, 0, 1], "bin2_id": [1, 1, 1]}))
+
+
+def test_cload_pairs_input_copy_status_is_deprecated(tmp_path, chromsizes_file):
+    import logging
+
+    records = []
+    handler = logging.Handler()
+    handler.emit = records.append
+    logger = logging.getLogger("cooler.cli.cload")
+    logger.addHandler(handler)
+    pairs = tmp_path / "p.pairs"
+    pairs.write_text("r1\tchr1\t15\tchr1\t55\nr1\tchr1\t55\tchr1\t15\n")
+    try:
+        for args, warned in [([], False), (["--input-copy-status", "duplex"], True)]:
+            records.clear()
+            out = str(tmp_path / "p.cool")
+            result = run_cload_pairs(chromsizes_file, str(pairs), out, *args)
+            assert result.exit_code == 0, result.output
+            messages = [r.getMessage() for r in records]
+            assert any("deprecated" in m for m in messages) == warned
+    finally:
+        logger.removeHandler(handler)
+    # duplex still drops the lower-triangle copy
+    assert cooler.Cooler(out).info["sum"] == 1

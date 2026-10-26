@@ -83,7 +83,8 @@ from ._util import parse_bins, parse_field_param, parse_kv_list_param
     "`unique`: Incoming data comes from a unique half of a symmetric "
     "matrix, regardless of how element coordinates are ordered. "
     "Execution will be aborted if duplicates are detected. "
-    "`duplex`: Incoming data contains upper- and lower-triangle duplicates. "
+    "`duplex`: Incoming data lists both triangles of a symmetric matrix: "
+    "each off-diagonal pixel appears twice and each diagonal pixel once. "
     "All lower-triangle input elements will be discarded! | "
     "If you wish to treat lower- and upper-triangle input data as "
     "distinct, use the ``--no-symmetric-upper`` option instead. ",

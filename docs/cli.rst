@@ -234,7 +234,7 @@ cooler cload pairs
 
 .. option:: --input-copy-status <input_copy_status>
 
-    Copy status of input data when using symmetric-upper storage. | `unique`: Incoming data comes from a unique half of a symmetric map, regardless of how the coordinates of a pair are ordered. `duplex`: Incoming data contains upper- and lower-triangle duplicates. All input records that map to the lower triangle will be discarded! | If you wish to treat lower- and upper-triangle input data as distinct, use the ``--no-symmetric-upper`` option.   [default: unique]
+    Deprecated, and will be removed in cooler 0.12: pairs should list each contact once. | `unique`: Each contact is listed once, regardless of how the coordinates of a pair are ordered. `duplex`: Each contact is listed twice, once in each orientation. All input records that map to the lower triangle will be discarded! | If you wish to treat lower- and upper-triangle input data as distinct, use the ``--no-symmetric-upper`` option.   [default: unique]
 
 .. option:: --field <field>
 
@@ -555,7 +555,7 @@ cooler load
 
 .. option:: --input-copy-status <input_copy_status>
 
-    Copy status of input data when using symmetric-upper storage. | `unique`: Incoming data comes from a unique half of a symmetric matrix, regardless of how element coordinates are ordered. Execution will be aborted if duplicates are detected. `duplex`: Incoming data contains upper- and lower-triangle duplicates. All lower-triangle input elements will be discarded! | If you wish to treat lower- and upper-triangle input data as distinct, use the ``--no-symmetric-upper`` option instead.   [default: unique]
+    Copy status of input data when using symmetric-upper storage. | `unique`: Incoming data comes from a unique half of a symmetric matrix, regardless of how element coordinates are ordered. Execution will be aborted if duplicates are detected. `duplex`: Incoming data lists both triangles of a symmetric matrix: each off-diagonal pixel appears twice and each diagonal pixel once. All lower-triangle input elements will be discarded! | If you wish to treat lower- and upper-triangle input data as distinct, use the ``--no-symmetric-upper`` option instead.   [default: unique]
 
 .. option:: --temp-dir <temp_dir>
 

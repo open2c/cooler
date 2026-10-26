@@ -407,10 +407,11 @@ def pairix(
     "--input-copy-status",
     type=click.Choice(["unique", "duplex"]),
     default="unique",
-    help="Copy status of input data when using symmetric-upper storage. | "
-    "`unique`: Incoming data comes from a unique half of a symmetric "
-    "map, regardless of how the coordinates of a pair are ordered. "
-    "`duplex`: Incoming data contains upper- and lower-triangle duplicates. "
+    help="Deprecated, and will be removed in cooler 0.12: pairs should list "
+    "each contact once. | "
+    "`unique`: Each contact is listed once, regardless of how the "
+    "coordinates of a pair are ordered. "
+    "`duplex`: Each contact is listed twice, once in each orientation. "
     "All input records that map to the lower triangle will be discarded! | "
     "If you wish to treat lower- and upper-triangle input data as "
     "distinct, use the ``--no-symmetric-upper`` option. ",
@@ -523,6 +524,18 @@ def pairs(
     chromsizes, bins = parse_bins(bins)
     if mergebuf is None:
         mergebuf = chunksize
+
+    ctx = click.get_current_context(silent=True)
+    if ctx is not None:
+        source = ctx.get_parameter_source("input_copy_status")
+        explicit = source is not click.core.ParameterSource.DEFAULT
+    else:
+        explicit = input_copy_status != "unique"
+    if explicit:
+        get_logger(__name__).warning(
+            "--input-copy-status is deprecated for `cooler cload pairs`, and will "
+            "be removed in cooler 0.12. Pairs should list each contact once."
+        )
 
     symmetric_upper = not no_symmetric_upper
     tril_action = None
