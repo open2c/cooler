@@ -80,13 +80,10 @@ def _sanitize_records(
 ):
     # Get integer contig IDs
     if decode_chroms:
-        # Unspecified chroms get assigned category = NaN and integer code = -1
-        chrom1_ids = np.array(
-            pd.Categorical(chunk["chrom1"], gs.contigs, ordered=True).codes
-        )
-        chrom2_ids = np.array(
-            pd.Categorical(chunk["chrom2"], gs.contigs, ordered=True).codes
-        )
+        # Unspecified chroms get integer ID -1
+        contigs = pd.Index(gs.contigs)
+        chrom1_ids = contigs.get_indexer(chunk["chrom1"])
+        chrom2_ids = contigs.get_indexer(chunk["chrom2"])
     else:
         chrom1_ids = chunk["chrom1"].values
         chrom2_ids = chunk["chrom2"].values
@@ -136,7 +133,7 @@ def _sanitize_records(
 
         chromsizes1 = gs.chromsizes.values[chrom1_ids]
         chromsizes2 = gs.chromsizes.values[chrom2_ids]
-        is_excess = (anchor1 > chromsizes1) | (anchor2 > chromsizes2)
+        is_excess = (anchor1 >= chromsizes1) | (anchor2 >= chromsizes2)
         if np.any(is_excess):
             err = chunk[is_excess]
             raise BadInputError(
@@ -481,8 +478,7 @@ def aggregate_records(
     The GroupBy 'count' method ignores NaNs within groups, as opposed to 'size'.
 
     """
-    if agg is None:
-        agg = {}
+    agg = {} if agg is None else dict(agg)
 
     if rename is None:
         rename = {}
@@ -712,7 +708,7 @@ class TabixAggregator(ContactBinner):
         filepath = self.filepath
         binsize = self.gs.binsize
         idmap = self.gs.idmap
-        # chromsizes = self.gs.chromsizes
+        chromsizes = self.gs.chromsizes
         chrom_binoffset = self.gs.chrom_binoffset
         chrom_abspos = self.gs.chrom_abspos
         start_abspos = self.gs.start_abspos
@@ -738,6 +734,12 @@ class TabixAggregator(ContactBinner):
                     except KeyError:
                         # this chrom2 is not requested
                         continue
+
+                    if not 0 <= pos2 < chromsizes.iloc[cid2]:
+                        raise BadInputError(
+                            f"Found an anchor position outside of {chrom2} "
+                            f"(length {chromsizes.iloc[cid2]}): {line[P2]}"
+                        )
 
                     if binsize is None:
                         lo = chrom_binoffset[cid2]
@@ -922,6 +924,11 @@ class PairixAggregator(ContactBinner):
 
                 for line in iterator:
                     pos2 = int(line[pos2_col]) - decr
+                    if not 0 <= pos2 < chrom2_size:
+                        raise BadInputError(
+                            f"Found an anchor position outside of {chrom2} "
+                            f"(length {chrom2_size}): {line[pos2_col]}"
+                        )
 
                     if binsize is None:
                         lo = chrom_binoffset[cid2]

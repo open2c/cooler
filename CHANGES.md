@@ -6,6 +6,17 @@
 * Range queries filter pixels in a single vectorized pass instead of looping over matrix rows in Python. The pixel filtering step is about 7-16x faster, and matrix queries on HDF5 files about 1.5x faster end to end, with peak memory about the same as before. Queries spanning many rows benefit most.
 
 ### Bug fixes
+* fix: `cooler cload` rejects positions at or beyond the end of a chromosome. Previously, a position equal to the chromosome length (one past the end, after conversion to zero-based) was assigned to the first bin of the next chromosome, turning a cis contact into a trans contact, or silently dropped on the last chromosome. `cload pairs` now also keeps pixel bounds checking on, and `cload tabix`/`pairix` check the second position.
+* fix: `cooler cload pairs --field` and `cooler load --field` no longer swap the values of fields given out of column order (e.g. `--field b=9 --field a=8`).
+* fix: `cooler cload pairs --field <name>=<col>:agg=<agg>` combined the per-chunk results by summing them, so `max`, `min` and other aggregations were wrong for inputs larger than `--chunksize`. Pixels are now combined with the requested aggregation; aggregations that can't be combined across chunks (e.g. `mean`) raise an error when the input spans more than one chunk. `create_cooler` gains an `agg` parameter for this.
+* fix: `create_cooler(..., ordered=False)` sorts each input chunk, so unsorted chunks no longer produce unsorted coolers with duplicate pixels.
+* fix: `create_cooler(..., ordered=False)` and `cload pairs` handle empty input (e.g. no records on the requested chromosomes) by writing an empty cooler instead of crashing. `--max-merge` values of 1 or 2 no longer crash.
+* fix: Pixel values that don't fit in the column's integer type (e.g. counts above 2^31 - 1 with the default int32) raise an error suggesting int64, instead of being silently clipped.
+* fix: `create_scool` sorts DataFrame pixels, rejects cell names that would be stored under the same name, and works with a non-root group URI.
+* fix: `cooler cload pairs --comment-char` is now used, and `.zip` input works.
+* fix: `cooler load --field` no longer drops the `count` column.
+* fix: Malformed bin (BED) files raise a parse error instead of an `AttributeError`.
+* fix: Records on chromosomes not in the bin table no longer rely on a deprecated pandas behavior that will raise in pandas 4.
 * fix: `cooler cp`/`mv`/`ln` (and `cooler.fileops.cp/mv/ln`) no longer modify or truncate the destination file when the operation fails, e.g. on a mistyped source path or a hard link between different files. Previously, `-w/--overwrite` could empty the destination file.
 * fix: `-w/--overwrite` replaces only the destination group or dataset; the whole file is replaced only when the destination is the root of another file. It now also works within a single file.
 * fix: `mv` between two different files raises an error instead of silently copying. Copying or linking a group into itself, or moving a group onto one of its ancestors, is rejected.

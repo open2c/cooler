@@ -302,10 +302,12 @@ def load(
             if dtype is not None:
                 input_field_dtypes[name] = dtype
                 output_field_dtypes[name] = dtype
-    else:
-        # If no other fields are given, 'count' is implicitly included.
-        # Default dtype and field number are assumed.
+
+    # 'count' is always included. Unless overridden with --field, the default
+    # dtype and field number are assumed.
+    if "count" not in input_field_names:
         input_field_names.append("count")
+    if "count" not in output_field_names:
         output_field_names.append("count")
 
     if "count" in input_field_names and count_as_float:
@@ -326,6 +328,10 @@ def load(
         f_in = sys.stdin
     else:
         f_in = pixels_path
+
+    # read_csv assigns names to the selected columns in file order, so list
+    # the names in order of column number
+    input_field_names = sorted(input_field_names, key=input_field_numbers.get)
 
     reader = pd.read_csv(
         f_in,

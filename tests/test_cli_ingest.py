@@ -156,7 +156,6 @@ def test_cload_other_options():
         extra_args = [
             "--metadata",
             "meta.json",
-            "--zero-based",
             "--storage-options",
             "shuffle=True,fletcher32=True,compression=lzf",
         ]
