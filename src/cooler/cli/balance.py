@@ -289,17 +289,19 @@ def balance(
             pool.join()
 
     if not np.all(stats["converged"]):
-        logger.error("Iteration limit reached without convergence")
         if convergence_policy == "store_final":
-            logger.error("Storing final result. Check log to assess convergence.")
+            logger.warning(
+                "Balancing did not converge. Storing the final weights; check the "
+                "variance in the log."
+            )
         elif convergence_policy == "store_nan":
-            logger.error("Saving weights as NaN.")
+            logger.warning("Balancing did not converge. Storing NaN weights.")
             bias[:] = np.nan
         elif convergence_policy == "discard":
-            logger.error("Discarding result and aborting.")
+            logger.warning("Balancing did not converge. Discarding the weights.")
             sys.exit(0)
         elif convergence_policy == "error":
-            logger.error("Discarding result and aborting.")
+            logger.error("Balancing did not converge. Discarding the weights.")
             sys.exit(1)
 
     if stdout:

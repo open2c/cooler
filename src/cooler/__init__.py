@@ -10,7 +10,7 @@ A cool place to store your Hi-C.
 """
 from . import fileops, parallel
 from ._balance import balance_cooler
-from ._logging import get_verbosity_level, set_verbosity_level
+from ._logging import get_verbosity_level, log_to_stderr, set_verbosity_level
 from ._reduce import coarsen_cooler, merge_coolers, zoomify_cooler
 from ._version import __format_version__, __version__
 from .api import Cooler, annotate
@@ -30,6 +30,7 @@ __all__ = [
     "fetch_chromsizes",
     "fileops",
     "get_verbosity_level",
+    "log_to_stderr",
     "merge_coolers",
     "parallel",
     "read_chromsizes",

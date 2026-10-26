@@ -580,7 +580,8 @@ class _CoolerWriter:
         self._done = False
 
         with self._open(mode) as f:
-            logger.info(f'Creating cooler at "{self.file_path}::{group_path}"')
+            dest = self._replace_path or self.file_path
+            logger.info(f'Creating cooler at "{dest}::{group_path}"')
             if self._tmp_path in f:  # left over from a failed run
                 del f[self._tmp_path]
             grp = f.create_group(self._tmp_path)

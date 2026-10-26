@@ -51,6 +51,17 @@ File operations
     cooler.fileops.mv
     cooler.fileops.ln
 
+Logging
+~~~~~~~
+Cooler logs progress and diagnostics under the ``cooler`` logger, and doesn't
+configure where its records go: they propagate to the root logger, so they
+follow your own logging setup (e.g. ``logging.basicConfig``). Problems you can
+act on are issued as warnings with :mod:`warnings`. To print cooler's log
+messages without configuring logging, call :func:`cooler.log_to_stderr`.
+
+.. autosummary::
+    cooler.log_to_stderr
+
 .. Sandbox
 .. ~~~~~~~
 
@@ -72,6 +83,7 @@ cooler
 .. autofunction:: cooler.balance_cooler
 .. autofunction:: cooler.rename_chroms
 .. autofunction:: cooler.create_scool
+.. autofunction:: cooler.log_to_stderr
 
 
 ----

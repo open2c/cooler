@@ -407,7 +407,7 @@ def pairix(
     "--input-copy-status",
     type=click.Choice(["unique", "duplex"]),
     default="unique",
-    help="Deprecated, and will be removed in cooler 0.12: pairs should list "
+    help="Deprecated, and will be removed in cooler 0.13: pairs should list "
     "each contact once. | "
     "`unique`: Each contact is listed once, regardless of how the "
     "coordinates of a pair are ordered. "
@@ -534,7 +534,7 @@ def pairs(
     if explicit:
         get_logger(__name__).warning(
             "--input-copy-status is deprecated for `cooler cload pairs`, and will "
-            "be removed in cooler 0.12. Pairs should list each contact once."
+            "be removed in cooler 0.13. Pairs should list each contact once."
         )
 
     symmetric_upper = not no_symmetric_upper

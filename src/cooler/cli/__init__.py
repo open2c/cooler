@@ -1,9 +1,9 @@
-import atexit
+import logging
 import sys
 
 import click
 
-from .._logging import get_logger, set_logging_context, set_verbosity_level
+from .._logging import get_logger, setup_cli_logging
 from .._version import __version__
 
 CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"]}
@@ -16,7 +16,7 @@ class UnsortedGroup(click.Group):
         return list(self.commands)
 
 
-def setup_psutil_at_exit(logger):
+def setup_psutil_at_exit(ctx, logger):
     try:
         import psutil
     except ImportError:
@@ -37,7 +37,8 @@ def setup_psutil_at_exit(logger):
         "num_threads",
     ]
 
-    @atexit.register
+    # Runs when the command finishes, before its logging is torn down
+    @ctx.call_on_close
     def process_dump_at_exit():
         try:
             process = psutil.Process()
@@ -75,13 +76,16 @@ def cli(verbose, debug):
     Type -h or --help after any subcommand for more information.
 
     """
-    set_logging_context("cli")
-    set_verbosity_level(min(verbose + 1, 2))
+    ctx = click.get_current_context()
+    # INFO by default, DEBUG with -v
+    level = logging.DEBUG if verbose else logging.INFO
+    restore_logging = setup_cli_logging(level)
+    ctx.call_on_close(restore_logging)
     logger = get_logger()
 
     if verbose >= 2:  # pragma: no cover
-        # Dump process info at exit
-        setup_psutil_at_exit(logger)
+        # Dump process info when the command finishes
+        setup_psutil_at_exit(ctx, logger)
 
     if debug:  # pragma: no cover
         # Set hook for postmortem debugging

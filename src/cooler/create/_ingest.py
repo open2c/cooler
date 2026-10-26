@@ -76,8 +76,11 @@ def _warn_skipped_chroms(*names: Any) -> None:
         shown = ", ".join(new[:5])
         if len(new) > 5:
             shown += f" and {len(new) - 5} more"
-        logger.warning(
-            f"Skipping records on chromosomes that are not in the bin table: {shown}"
+        # A warning rather than a log record: the input may need fixing, and
+        # library users should see it without configuring logging
+        warnings.warn(
+            f"Skipping records on chromosomes that are not in the bin table: {shown}",
+            stacklevel=2,
         )
 
 
@@ -645,7 +648,7 @@ class HDF5Aggregator(ContactBinner):
             if lo == hi:
                 hi = chrom_hi
 
-            logger.info(f"{lo} {hi}")
+            logger.debug(f"Reading records {lo:,}-{hi:,}")
 
             # load chunk and assign bin IDs to each read side
             table = self._load_chunk(lo, hi)
