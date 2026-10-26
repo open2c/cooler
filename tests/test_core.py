@@ -334,4 +334,3 @@ def test_slice_matrix(mock_cooler):
         )
         arr_fill = query.to_array()
         assert np.allclose(r_fill[i0:i1, j0:j1], arr_fill)
-
