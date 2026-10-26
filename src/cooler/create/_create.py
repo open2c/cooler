@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import posixpath
 import warnings
 from collections.abc import Iterable
 from datetime import datetime
@@ -16,8 +15,6 @@ from .._typing import Tabular
 from .._version import __format_version__, __format_version_scool__, __version__
 from ..core import get, put
 from ..util import (
-    get_binsize,
-    get_chromsizes,
     infer_meta,
     parse_cooler_uri,
     rlencode,
@@ -33,7 +30,6 @@ from . import (
     COUNT_DTYPE,
     MAGIC,
     MAGIC_SCOOL,
-    PIXEL_DTYPES,
     PIXEL_FIELDS,
     URL,
 )
@@ -503,8 +499,6 @@ def create(
     ensure_sorted=False,
     lock=None,
     append=False,
-    append_scool=False,
-    scool_root_uri=None,
     **kwargs,
 ):
     """
@@ -533,11 +527,6 @@ def create(
             "Second positional argument must be a pandas DataFrame. "
             "Note that the `chromsizes` argument is now deprecated: "
             "see documentation for `create`."
-        )
-    if append_scool and scool_root_uri is None:
-        raise ValueError(
-            "If the parameter `append_scool` is set, the parameter "
-            "`scool_root_uri` must be defined."
         )
     dtypes = _get_dtypes_arg(dtypes, kwargs)
     if kwargs:
@@ -586,7 +575,6 @@ def create(
         dupcheck=dupcheck,
         ensure_sorted=ensure_sorted,
         lock=lock,
-        link_tables_from=scool_root_uri if append_scool else None,
     )
     with writer:
         logger.info("Writing pixels")
@@ -1034,150 +1022,60 @@ def create_scool(
     {notes}
 
     """
-    file_path, group_path = parse_cooler_uri(cool_uri)
-    h5opts = _set_h5opts(h5opts)
+
+    from ._writer import _ScoolWriter
 
     if isinstance(bins, pd.DataFrame):
-        bins_dict = {cell_name: bins for cell_name in cell_name_pixels_dict}
-        cell_names = sorted(cell_name_pixels_dict)
+        bins_dict = None
+        shared_bins = bins
     else:
-        # Assume bins is a dict of cell name -> dataframe
+        # A dict of cell name -> bin table, with matching keys
         bins_dict = bins
         if len(bins_dict) == 0:
             raise ValueError("At least one bin must be given.")
-        else:
-            bins = bins_dict[next(iter(bins_dict))][["chrom", "start", "end"]]
-
-        # Sort bins_dict and cell_name_pixels_dict to guarantee matching keys
-        bins_keys = sorted(bins_dict)
-        cell_names = sorted(cell_name_pixels_dict)
-        for key_bins, key_pixels in zip(bins_keys, cell_names):
-            if key_bins != key_pixels:
-                raise ValueError("Bins and pixel dicts do not have matching keys")
+        if set(bins_dict) != set(cell_name_pixels_dict):
+            raise ValueError("Bins and pixel dicts do not have matching keys")
+        shared_bins = bins_dict[next(iter(bins_dict))][["chrom", "start", "end"]]
 
     dtypes = _get_dtypes_arg(dtypes, kwargs)
-
-    for col in ["chrom", "start", "end"]:
-        if col not in bins.columns:
-            raise ValueError(f"Missing column from bin table: '{col}'.")
+    if kwargs:
+        raise TypeError(
+            "create_scool() got unexpected keyword arguments: "
+            f"{', '.join(sorted(kwargs))}"
+        )
 
     # Cells are stored under the last component of their name
+    cell_names = sorted(cell_name_pixels_dict)
     stored_names = pd.Series([key.split("/")[-1] for key in cell_names])
     if stored_names.duplicated().any():
         dups = sorted(set(stored_names[stored_names.duplicated()]))
         raise ValueError(f"Cell names would be stored under the same name: {dups}")
 
-    # Populate dtypes for expected pixel columns, and apply user overrides.
-    if dtypes is None:
-        dtypes = dict(PIXEL_DTYPES)
-    else:
-        dtypes_ = dict(dtypes)
-        dtypes = dict(PIXEL_DTYPES)
-        dtypes.update(dtypes_)
-
-    # Determine the appropriate iterable
-    # try:
-    #     from dask.dataframe import DataFrame as dask_df
-    # except (ImportError, AttributeError):  # pragma: no cover
-    #     dask_df = ()
-
-    # Prepare chroms and bins
-    bins = bins.copy()
-    bins["chrom"] = bins["chrom"].astype(object)
-    chromsizes = get_chromsizes(bins)
-    try:
-        chromsizes = chromsizes.items()
-    except AttributeError:
-        pass
-    chromnames, lengths = zip(*chromsizes)
-    chroms = pd.DataFrame(
-        {"name": chromnames, "length": lengths}, columns=["name", "length"]
+    writer = _ScoolWriter(
+        cool_uri,
+        shared_bins,
+        columns=columns,
+        dtypes=dtypes,
+        metadata=metadata,
+        assembly=assembly,
+        symmetric_upper=symmetric_upper,
+        mode=mode,
+        h5opts=h5opts,
+        boundscheck=boundscheck,
+        triucheck=triucheck,
+        dupcheck=dupcheck,
+        ensure_sorted=ensure_sorted,
+        lock=lock,
     )
-    binsize = get_binsize(bins)
-    n_chroms = len(chroms)
-    n_bins = len(bins)
-
-    # Create root group
-    write_tables = True
-    with h5py.File(file_path, mode) as f:
-        logger.info(f'Creating cooler at "{file_path}::{group_path}"')
-        if group_path == "/":
-            # Cells hard-link the root chroms and bins tables, so when
-            # appending, keep the existing tables rather than rewriting them.
-            if _same_chroms_and_bins(f, chroms, bins):
-                write_tables = False
-            elif "cells" in f and len(f["cells"]):
-                raise ValueError(
-                    "Cannot append cells with a different bin table to an "
-                    f"existing scool file: '{file_path}'."
-                )
-            else:
-                for name in ["chroms", "bins"]:
-                    if name in f:
-                        del f[name]
-        else:
-            try:
-                f.create_group(group_path)
-            except ValueError:
-                del f[group_path]
-                f.create_group(group_path)
-
-    if write_tables:
-        with h5py.File(file_path, "r+") as f:
-            h5 = f[group_path]
-
-            logger.info("Writing chroms")
-            grp = h5.create_group("chroms")
-            write_chroms(grp, chroms, h5opts)
-
-            logger.info("Writing bins")
-            grp = h5.create_group("bins")
-            write_bins(grp, bins, chroms["name"], h5opts)
-
-    with h5py.File(file_path, "r+") as f:
-        h5 = f[group_path]
-
-        logger.info("Writing info")
-        info = {}
-        info["bin-type"] = "fixed" if binsize is not None else "variable"
-        info["bin-size"] = binsize if binsize is not None else "null"
-        info["nchroms"] = n_chroms
-        info["ncells"] = len(cell_name_pixels_dict)
-        info["nbins"] = n_bins
-        if assembly is not None:
-            info["genome-assembly"] = assembly
-        if metadata is not None:
-            info["metadata"] = metadata
-        write_info(h5, info, True)
-
-    # Append single cells
-    for key in cell_names:
-        cell_name = key.split("/")[-1]
-        pixels = cell_name_pixels_dict[key]
-        if isinstance(pixels, (pd.DataFrame, dict)):
-            pixels = pd.DataFrame(pixels).sort_values(["bin1_id", "bin2_id"])
-
-        create(
-            file_path + "::" + posixpath.join(group_path, "cells", cell_name),
-            bins_dict[key],
-            pixels,
-            columns=columns,
-            dtypes=dtypes,
-            metadata=metadata,
-            assembly=assembly,
-            symmetric_upper=symmetric_upper,
-            mode="a",
-            boundscheck=boundscheck,
-            dupcheck=dupcheck,
-            triucheck=triucheck,
-            ensure_sorted=ensure_sorted,
-            h5opts=h5opts,
-            lock=lock,
-            append_scool=True,
-            scool_root_uri=cool_uri,
-        )
-
-    # Count all cells, including those from earlier appends
-    with h5py.File(file_path, "r+") as f:
-        h5 = f[group_path]
-        h5.attrs["ncells"] = len(h5["cells"]) if "cells" in h5 else 0
+    with writer:
+        for key, name in zip(cell_names, stored_names):
+            writer.add_cell(
+                name,
+                cell_name_pixels_dict[key],
+                bins=None if bins_dict is None else bins_dict[key],
+                ordered=ordered,
+                mergebuf=mergebuf,
+                max_merge=max_merge,
+                temp_dir=temp_dir,
+                delete_temp=delete_temp,
+            )

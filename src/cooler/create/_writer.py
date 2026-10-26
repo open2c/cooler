@@ -672,3 +672,227 @@ class _UnorderedCoolerWriter:
             self.finish()
         else:
             self.abort()
+
+
+class _ScoolWriter:
+    """
+    Write a single-cell (scool) file, one cell at a time.
+
+    The shared chrom and bin tables are written when the writer is created.
+    Each call to :meth:`add_cell` writes one cell as a cooler under
+    ``cells/<name>`` that hard-links the shared tables, and :meth:`finish`
+    writes the file's metadata. Each cell is written atomically, so a failure
+    while adding a cell leaves the cells already added intact.
+
+    In mode "a", cells can be added to an existing scool file with the same
+    bin table, and adding a cell with an existing name replaces it.
+
+    Parameters
+    ----------
+    scool_uri : str
+        Destination file path, optionally followed by ``::`` and a group path.
+    bins : pandas.DataFrame
+        The shared bin table: ``chrom``, ``start`` and ``end`` columns. Any
+        other columns are ignored here; per-cell bin columns can be passed to
+        :meth:`add_cell`.
+    columns, dtypes, symmetric_upper, h5opts, boundscheck, triucheck, dupcheck,
+    ensure_sorted, lock
+        As for :class:`_CoolerWriter`, applied to every cell.
+    metadata : dict, optional
+        JSON-serializable metadata, stored on the file and on every cell.
+    assembly : str, optional
+        Name of the genome assembly.
+    mode : {"w", "a"}, optional
+        "w" truncates the file; "a" adds cells to an existing scool.
+
+    """
+
+    def __init__(
+        self,
+        scool_uri: str,
+        bins: pd.DataFrame,
+        *,
+        columns: list[str] | None = None,
+        dtypes: dict | None = None,
+        metadata: dict | None = None,
+        assembly: str | None = None,
+        symmetric_upper: bool = True,
+        mode: str = "w",
+        h5opts: dict | None = None,
+        boundscheck: bool = True,
+        triucheck: bool = True,
+        dupcheck: bool = True,
+        ensure_sorted: bool = False,
+        lock: Any | None = None,
+    ):
+        from ._create import _same_chroms_and_bins
+
+        file_path, group_path = parse_cooler_uri(scool_uri)
+        self.file_path = op.realpath(file_path)
+        self.group_path = group_path
+        self.scool_uri = f"{self.file_path}::{group_path}"
+        if not isinstance(bins, pd.DataFrame):
+            raise ValueError(  # noqa: TRY004
+                "The bin table must be a pandas DataFrame."
+            )
+        self.bins, self.chroms, self.binsize = _prepare_tables(
+            bins[["chrom", "start", "end"]]
+        )
+        self.metadata = metadata
+        self.assembly = assembly
+        self.h5opts = _set_h5opts(h5opts)
+        self.cell_kwargs = {
+            "columns": columns,
+            "dtypes": dtypes,
+            "metadata": metadata,
+            "assembly": assembly,
+            "symmetric_upper": symmetric_upper,
+            "h5opts": h5opts,
+            "boundscheck": boundscheck,
+            "triucheck": triucheck,
+            "dupcheck": dupcheck,
+            "ensure_sorted": ensure_sorted,
+            "lock": lock,
+        }
+        self._added = set()
+        self._done = False
+
+        with h5py.File(self.file_path, mode) as f:
+            logger.info(f'Creating scool at "{self.file_path}::{group_path}"')
+            root = f.require_group(group_path)
+            # Cells hard-link the root chroms and bins tables, so when
+            # appending, keep the existing tables rather than rewriting them.
+            if _same_chroms_and_bins(root, self.chroms, self.bins):
+                return
+            if "cells" in root and len(root["cells"]):
+                raise ValueError(
+                    "Cannot append cells with a different bin table to an "
+                    f"existing scool file: '{self.file_path}'."
+                )
+            for name in ["chroms", "bins"]:
+                if name in root:
+                    del root[name]
+            write_chroms(root.create_group("chroms"), self.chroms, self.h5opts)
+            write_bins(
+                root.create_group("bins"), self.bins, self.chroms["name"],
+                self.h5opts,
+            )
+
+    def add_cell(
+        self,
+        name: str,
+        pixels: Any,
+        *,
+        bins: pd.DataFrame | None = None,
+        ordered: bool = True,
+        agg: dict[str, str] | None = None,
+        mergebuf: int = 20_000_000,
+        max_merge: int = 200,
+        temp_dir: str | None = None,
+        delete_temp: bool = True,
+    ) -> None:
+        """
+        Write a cell.
+
+        Parameters
+        ----------
+        name : str
+            Name of the cell. It can't contain "/".
+        pixels : DataFrame, dict or iterable of chunks
+            The cell's pixels. A DataFrame or dict of columns is sorted in
+            memory. An iterable of chunks must be sorted, unless ``ordered``
+            is False.
+        bins : pandas.DataFrame, optional
+            Bin table with additional per-cell columns (e.g. ``weight``). Its
+            ``chrom``, ``start`` and ``end`` columns must match the shared
+            bin table.
+        ordered : bool, optional
+            Whether the chunks of ``pixels`` are sorted. If False, they are
+            sorted with an external sort, using ``agg``, ``mergebuf``,
+            ``max_merge``, ``temp_dir`` and ``delete_temp`` as for
+            :func:`cooler.create_cooler`.
+
+        """
+        if self._done:
+            raise ValueError("Writer has already finished.")
+        if not name or "/" in name:
+            raise ValueError(f"Invalid cell name: '{name}'.")
+        if name in self._added:
+            raise ValueError(f"Cell '{name}' has already been added.")
+
+        cell_bins = self.bins
+        if bins is not None:
+            shared = bins[["chrom", "start", "end"]].reset_index(drop=True)
+            if not (
+                len(shared) == len(self.bins)
+                and np.array_equal(
+                    shared["chrom"].astype(str), self.bins["chrom"].astype(str)
+                )
+                and np.array_equal(shared["start"], self.bins["start"])
+                and np.array_equal(shared["end"], self.bins["end"])
+            ):
+                raise ValueError(
+                    f"The bin table of cell '{name}' doesn't match the shared "
+                    "bin table."
+                )
+            cell_bins = bins.reset_index(drop=True)
+
+        if isinstance(pixels, (pd.DataFrame, dict)):
+            pixels = [pd.DataFrame(pixels).sort_values(["bin1_id", "bin2_id"])]
+            ordered = True
+
+        cell_uri = f"{self.file_path}::" + posixpath.join(
+            self.group_path, "cells", name
+        )
+        kwargs = dict(self.cell_kwargs, mode="a", link_tables_from=self.scool_uri)
+        if ordered:
+            writer = _CoolerWriter(cell_uri, cell_bins, **kwargs)
+        else:
+            writer = _UnorderedCoolerWriter(
+                cell_uri,
+                cell_bins,
+                agg=agg,
+                mergebuf=mergebuf,
+                max_merge=max_merge,
+                temp_dir=temp_dir,
+                delete_temp=delete_temp,
+                **kwargs,
+            )
+        with writer:
+            for chunk in pixels:
+                writer.write(chunk)
+        self._added.add(name)
+
+    def finish(self) -> None:
+        """Write the scool file's metadata."""
+        if self._done:
+            return
+        self._done = True
+        info = {
+            "bin-type": "fixed" if self.binsize is not None else "variable",
+            "bin-size": self.binsize if self.binsize is not None else "null",
+            "nchroms": len(self.chroms),
+            "nbins": len(self.bins),
+        }
+        if self.assembly is not None:
+            info["genome-assembly"] = self.assembly
+        if self.metadata is not None:
+            info["metadata"] = self.metadata
+        with h5py.File(self.file_path, "r+") as f:
+            root = f[self.group_path]
+            # Count all cells, including those from earlier appends
+            info["ncells"] = len(root["cells"]) if "cells" in root else 0
+            write_info(root, info, scool=True)
+
+    def abort(self) -> None:
+        """Stop without writing the metadata. Cells already added are kept."""
+        self._done = True
+
+    def __enter__(self) -> _ScoolWriter:  # noqa: PYI034
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> None:
+        if exc_type is None:
+            self.finish()
+        else:
+            self.abort()

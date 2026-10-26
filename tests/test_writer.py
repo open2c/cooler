@@ -186,3 +186,93 @@ def test_unordered_cleans_up_temporary_files(tmp_path):
         w.write(pixels([(0, 0)]))
         w.write(pixels([(0, 99)]))  # out of bounds
     assert sorted(p.name for p in out.iterdir()) == ["u.cool"]
+
+
+def _addr(f, path):
+    return h5py.h5o.get_info(f[path].id).addr
+
+
+def test_scool_writer_adds_cells_incrementally(tmp_path):
+    from cooler.create._writer import _ScoolWriter
+
+    path = str(tmp_path / "s.scool")
+    with _ScoolWriter(path, BINS) as w:
+        # Sorted chunks
+        w.add_cell("a", iter([pixels([(0, 0), (0, 3)]), pixels([(2, 2)])]))
+        # Unsorted chunks, with an external sort
+        w.add_cell(
+            "b", iter([pixels([(4, 5), (0, 1)]), pixels([(0, 1)])]), ordered=False
+        )
+        # Per-cell bin columns
+        w.add_cell("c", pixels([(1, 1)]), bins=BINS.assign(weight=np.arange(10.0)))
+
+    assert cooler.fileops.is_scool_file(path)
+    assert cooler.fileops.list_scool_cells(path) == ["/cells/a", "/cells/b", "/cells/c"]
+    b = cooler.Cooler(path + "::/cells/b").pixels()[:]
+    assert b.values.tolist() == [[0, 1, 2], [4, 5, 1]]
+    c = cooler.Cooler(path + "::/cells/c")
+    assert c.bins()["weight"][:].tolist() == list(np.arange(10.0))
+    with h5py.File(path, "r") as f:
+        assert f.attrs["ncells"] == 3
+        for cell in "abc":
+            assert _addr(f, f"cells/{cell}/bins/start") == _addr(f, "bins/start")
+            assert _addr(f, f"cells/{cell}/chroms/name") == _addr(f, "chroms/name")
+        assert "weight" not in f["bins"]
+
+
+def test_scool_writer_rejects_bad_cells(tmp_path):
+    from cooler.create._writer import _ScoolWriter
+
+    path = str(tmp_path / "s.scool")
+    with _ScoolWriter(path, BINS) as w:
+        w.add_cell("a", pixels([(0, 0)]))
+        with pytest.raises(ValueError, match="Invalid cell name"):
+            w.add_cell("x/y", pixels([(0, 0)]))
+        with pytest.raises(ValueError, match="already been added"):
+            w.add_cell("a", pixels([(1, 1)]))
+        other = cooler.util.binnify(pd.Series({"chr1": 60, "chr2": 40}), 20)
+        with pytest.raises(ValueError, match="doesn't match"):
+            w.add_cell("b", pixels([(0, 0)]), bins=other)
+        # A failed cell leaves no trace, and earlier cells are intact
+        with pytest.raises(BadInputError):
+            w.add_cell("c", iter([pixels([(2, 2)]), pixels([(1, 1)])]))
+        w.add_cell("d", pixels([(3, 3)]))
+
+    assert cooler.fileops.list_scool_cells(path) == ["/cells/a", "/cells/d"]
+    assert tmp_groups(path) == []
+    with h5py.File(path, "r") as f:
+        assert f.attrs["ncells"] == 2
+
+
+def test_scool_writer_append_mode(tmp_path):
+    from cooler.create._writer import _ScoolWriter
+
+    path = str(tmp_path / "s.scool")
+    with _ScoolWriter(path, BINS) as w:
+        w.add_cell("a", pixels([(0, 0)]))
+    with _ScoolWriter(path, BINS, mode="a") as w:
+        w.add_cell("b", pixels([(1, 1)]))
+        w.add_cell("a", pixels([(2, 2)]))  # replaces the existing cell
+    assert cooler.fileops.list_scool_cells(path) == ["/cells/a", "/cells/b"]
+    assert cooler.Cooler(path + "::/cells/a").pixels()[:]["bin1_id"].tolist() == [2]
+    with h5py.File(path, "r") as f:
+        assert f.attrs["ncells"] == 2
+
+    other = cooler.util.binnify(pd.Series({"chr1": 60, "chr2": 40}), 20)
+    with pytest.raises(ValueError, match="different bin table"):
+        _ScoolWriter(path, other, mode="a")
+
+
+def test_create_scool_unordered_chunks_and_keys(tmp_path):
+    path = str(tmp_path / "s.scool")
+    chunks = [pixels([(4, 5), (0, 1)]), pixels([(0, 1)])]
+    cooler.create_scool(path, BINS, {"a": iter(chunks)}, ordered=False)
+    px = cooler.Cooler(path + "::/cells/a").pixels()[:]
+    assert px.values.tolist() == [[0, 1, 2], [4, 5, 1]]
+
+    with pytest.raises(ValueError, match="matching keys"):
+        cooler.create_scool(
+            str(tmp_path / "k.scool"),
+            {"a": BINS, "b": BINS},
+            {"a": pixels([(0, 0)])},
+        )
