@@ -16,7 +16,7 @@ testdir = os.path.dirname(os.path.realpath(__file__))
 )
 def test_balancing_genomewide(fp, tol):
     clr = cooler.Cooler(fp)
-    weights, _stats = _balance.iterative_correction(
+    weights, _stats = _balance.balance_cooler(
         clr, ignore_diags=1, min_nnz=10, tol=tol
     )
 
@@ -63,7 +63,7 @@ def test_marginalize_counts_diagonal_once():
 def test_balancing_no_ignore_diags(fp, tol):
     # The main diagonal must be counted once per bin in the marginals
     clr = cooler.Cooler(fp)
-    weights, _stats = _balance.iterative_correction(
+    weights, _stats = _balance.balance_cooler(
         clr, ignore_diags=0, min_nnz=10, tol=tol, max_iters=1000
     )
 
@@ -90,7 +90,7 @@ def test_balancing_cisonly(fp, tol):
     with h5py.File(fp, "r") as h5:
         clr = cooler.Cooler(h5)
         chrom_offsets = h5["indexes/chrom_offset"][:]
-        weights, _stats = _balance.iterative_correction(
+        weights, _stats = _balance.balance_cooler(
             clr, ignore_diags=1, min_nnz=10, tol=tol, cis_only=True
         )
 
@@ -140,7 +140,7 @@ def test_balancing_transonly(fp, tol):
     with h5py.File(fp, "r") as h5:
         clr = cooler.Cooler(h5)
         chrom_offsets = h5["indexes/chrom_offset"][:]
-        weights, _stats = _balance.iterative_correction(
+        weights, _stats = _balance.balance_cooler(
             clr, ignore_diags=1, min_nnz=10, tol=tol, trans_only=True
         )
 
@@ -177,13 +177,13 @@ def test_balancing_other_options(fp, tol):
     clr = cooler.Cooler(fp)
     x0 = np.random.default_rng(0).random(len(clr.bins())) + 0.5
     x0_copy = x0.copy()
-    _weights, stats = _balance.iterative_correction(
+    _weights, stats = _balance.balance_cooler(
         clr, ignore_diags=1, min_nnz=10, tol=tol, x0=x0
     )
     assert stats['converged']
     np.testing.assert_array_equal(x0, x0_copy)  # not modified
 
-    _weights, stats = _balance.iterative_correction(
+    _weights, stats = _balance.balance_cooler(
         clr,
         chunksize=3000,
         ignore_diags=1,
@@ -192,7 +192,7 @@ def test_balancing_other_options(fp, tol):
     )
     assert stats['converged']
 
-    _weights, stats = _balance.iterative_correction(
+    _weights, stats = _balance.balance_cooler(
         clr,
         ignore_diags=1,
         min_nnz=10,
@@ -202,7 +202,7 @@ def test_balancing_other_options(fp, tol):
     )
     assert stats['converged']
 
-    _weights, stats = _balance.iterative_correction(
+    _weights, stats = _balance.balance_cooler(
         clr, ignore_diags=1, min_nnz=10, tol=tol, blacklist=[0, 4]
     )
     assert stats['converged']

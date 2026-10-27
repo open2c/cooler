@@ -368,9 +368,6 @@ def binnify(chromsizes: pd.Series, binsize: int) -> pd.DataFrame:
     return bintable
 
 
-make_bintable = binnify
-
-
 def digest(fasta_records: OrderedDict[str, Any], enzyme: str) -> pd.DataFrame:
     """
     Divide a genome into restriction fragments.

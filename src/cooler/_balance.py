@@ -540,6 +540,3 @@ def balance_cooler(
         )
 
     return bias, stats
-
-
-iterative_correction = balance_cooler  # alias
