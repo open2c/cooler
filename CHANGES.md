@@ -112,6 +112,7 @@
 
 ### Documentation
 * The `agg` parameter of `merge_coolers`, `coarsen_cooler` and `zoomify_cooler`, and the `--field` help of `cooler merge`, `coarsen` and `zoomify`, describe how aggregations treat pixels that aren't stored: they don't count as zeros, so `mean` averages over stored pixels only (or, when merging, over the coolers that store the pixel). Zoomify coarsens each resolution from the previous one, so `mean` there is an unweighted mean of means.
+* `Cooler.pixels` and the concepts guide explain that `pixels().fetch(region)` returns the region's rows of the matrix as stored, selecting pixels by their first bin: it includes pixels whose second bin is outside the region, and with symmetric-upper storage, the region's contacts with earlier bins aren't returned, since they're stored in earlier rows. They show how to select pixels by both bins with the matrix selector (#455).
 
 ## [v0.11.0](https://github.com/open2c/cooler/compare/v0.10.4...v0.11.0)
 
