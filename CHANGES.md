@@ -111,6 +111,7 @@
 * CLI log messages have timestamps and a more readable format: `2026-10-26 14:03:12 INFO     cooler.cli.balance: Balancing ...` (previously `INFO:cooler.cli.balance:Balancing ...`).
 * The balancing and reduction loggers are named `cooler.balance` and `cooler.reduce` (previously `cooler._balance` and `cooler._reduce`).
 * Log messages are clearer: balancing logs the iteration number with the variance, merging and zoomifying summarize what they do, and internal details (chunk ranges, merge epochs, input fields, shell commands in `csort`) moved to DEBUG. `cooler balance` logs non-convergence once, as a warning unless `--convergence-policy error` is used. Messages show the destination of a cooler being written, not its temporary file.
+* `cooler cload tabix` no longer warns on every run that the chromosome order of the chromsizes must match the contact list; it's logged as information. The warning about merges buffering more pixels than `mergebuf` comes from `CoolerMerger` rather than `merge_breakpoints`, once per merge, and explains that a matrix row can't be split across merge epochs.
 * Removed the internal `set_logging_context`, `get_logging_context` and `configure` logging helpers.
 * Fixed deprecation warnings from NumPy (generic timedelta unit), Click (`CliRunner.isolated_filesystem`) and pandas in the code and tests.
 * `cooler cload` logs a warning naming chromosomes whose records are skipped because they are not in the bin table (once per chromosome).

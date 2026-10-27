@@ -58,8 +58,8 @@ def merge_breakpoints(
     of merging data. The bounds are calculated such that no single epoch will
     load more than ``bufsize`` records into memory.
 
-    However, the ``bufsize`` condition is not guaranteed and a warning will be
-    raised if it cannot be satisfied for one or more epochs (see Notes).
+    However, the ``bufsize`` condition is not guaranteed (see Notes): check
+    ``cum_nrecords``.
 
     Parameters
     ----------
@@ -117,16 +117,6 @@ def merge_breakpoints(
 
     bin1_partition = np.array(bin1_partition)
     cum_nrecords = np.array(cum_nrecords)
-
-    nrecords_per_epoch = np.diff(cum_nrecords)
-    n_over = (nrecords_per_epoch > bufsize).sum()
-    if n_over > 0:
-        warnings.warn(
-            f"{n_over} merge epochs will require buffering more than {bufsize} "
-            f"pixel records, with as many as {nrecords_per_epoch.max():g}.",
-            stacklevel=2,
-        )
-
     return bin1_partition, cum_nrecords
 
 
@@ -181,6 +171,13 @@ class CoolerMerger(ContactBinner):
         # of merging data.
         bin1_partition, cum_nrecords = merge_breakpoints(indexes, self.mergebuf)
         nrecords_per_epoch = np.diff(cum_nrecords)
+        if len(nrecords_per_epoch) and nrecords_per_epoch.max() > self.mergebuf:
+            warnings.warn(
+                f"Merging will buffer up to {nrecords_per_epoch.max():,} pixels at "
+                f"once, more than mergebuf={self.mergebuf:,}, because a row of "
+                "the matrix can't be split across merge epochs.",
+                stacklevel=2,
+            )
         nnzs = [len(c.pixels()) for c in self.coolers]
         logger.info(
             f"Merging {sum(nnzs):,} pixels from {len(self.coolers)} coolers in "

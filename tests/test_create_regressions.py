@@ -98,6 +98,7 @@ def test_cload_pairs_aggregation_across_chunks(tmp_path, chromsizes_file, func):
         result = run_cload_pairs(
             chromsizes_file, pairs, out,
             "--field", f"v=8:agg={func}", "--chunksize", str(chunksize),
+            "--mergebuf", "100000",
         )
         assert result.exit_code == 0, result.output
         results[chunksize] = cooler.Cooler(out).pixels()[:]
@@ -121,7 +122,7 @@ def test_cload_pairs_summary_statistics(tmp_path, chromsizes_file):
             chromsizes_file, pairs, out,
             "--field", "v=8", "--field", "n=8:agg=count,dtype=int64",
             "--field", "v2=8:agg=sum_squares",
-            "--chunksize", str(chunksize),
+            "--chunksize", str(chunksize), "--mergebuf", "100000",
         )
         assert result.exit_code == 0, result.output
         results[chunksize] = cooler.Cooler(out).pixels()[:]
@@ -151,6 +152,8 @@ def test_cload_pairs_unsupported_aggregation(tmp_path, chromsizes_file, func):
     assert "Unsupported aggregation" in result.output
 
 
+# A small mergebuf merges in several epochs, which the bug needed
+@pytest.mark.filterwarnings("ignore:Merging will buffer")
 @pytest.mark.parametrize("max_merge", [1, 2, 3, 200])
 def test_create_unordered_unsorted_chunks(tmp_path, max_merge):
     rng = np.random.default_rng(0)
@@ -378,8 +381,8 @@ def test_load_rejects_duplicates_across_chunks(tmp_path, chromsizes_file, chunks
     out = tmp_path / "d.cool"
     result = CliRunner().invoke(
         load,
-        ["-f", "coo", "--chunksize", chunksize, chromsizes_file + ":10", str(coo),
-         str(out)],
+        ["-f", "coo", "--chunksize", chunksize, "--mergebuf", "100",
+         chromsizes_file + ":10", str(coo), str(out)],
     )
     assert result.exit_code != 0
     assert "duplicate pixel (0, 1)" in str(result.exception)

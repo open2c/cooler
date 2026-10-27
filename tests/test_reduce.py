@@ -45,7 +45,9 @@ def test_merge2():
     with isolated_filesystem():
         path1 = op.join(datadir, "toy.symm.upper.2.cool")
         path2 = op.join(datadir, "toy.symm.upper.2.cool")
-        merge_coolers("test.cool", [path1, path2], mergebuf=3, agg={"count": "max"})
+        # Rows hold more pixels than mergebuf: they can't be split
+        with pytest.warns(UserWarning, match="more than mergebuf=3"):
+            merge_coolers("test.cool", [path1, path2], mergebuf=3, agg={"count": "max"})
         single = cooler.Cooler(path1)
         merged = cooler.Cooler("test.cool")
         assert merged.pixels()["count"][:].sum() == single.pixels()["count"][:].sum()

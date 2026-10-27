@@ -725,11 +725,9 @@ class TabixAggregator(ContactBinner):
                     stacklevel=2,
                 )
 
-        warnings.warn(
-            "NOTE: When using the Tabix aggregator, make sure the order of "
-            "chromosomes in the provided chromsizes agrees with the chromosome "
-            "ordering of read ends in the contact list file.",
-            stacklevel=2,
+        logger.info(
+            "The Tabix aggregator assumes that the order of chromosomes in the "
+            "chromsizes agrees with the order of read ends in the contact list."
         )
 
     def aggregate(
