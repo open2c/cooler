@@ -281,6 +281,30 @@ class Cooler:
     def pixels(self, join: bool = False, **kwargs) -> RangeSelector1D:
         """Pixel table selector
 
+        The pixel table stores the nonzero pixels of the contact matrix, one
+        row per pixel, sorted by ``bin1_id`` then ``bin2_id``. In
+        symmetric-upper storage (the default), only the upper triangle is
+        stored, so ``bin1_id <= bin2_id``.
+
+        The selector indexes rows of the pixel table, not bins:
+        ``pixels()[a:b]`` returns rows ``a`` to ``b`` of the table.
+
+        ``pixels().fetch(region)`` returns the stored pixels whose ``bin1_id``
+        is in the region: the region's rows of the matrix, as stored. This
+        includes pixels whose ``bin2_id`` is outside the region, even on other
+        chromosomes. In symmetric-upper storage, the rows only hold their
+        upper triangular part: the region's contacts with bins before it are
+        stored in earlier rows, with ``bin1_id`` and ``bin2_id`` swapped, so
+        they aren't returned. In square storage, the rows are complete. To
+        select pixels by both bins, use :meth:`matrix`:
+
+        - Pixels with both bins in the region:
+          ``clr.matrix(balance=False, as_pixels=True).fetch(region)``.
+        - All contacts of the region with the rest of the genome, as full rows
+          of the symmetric matrix:
+          ``clr.matrix(balance=False, sparse=True)[lo:hi, :]``, where
+          ``lo, hi = clr.extent(region)``.
+
         Parameters
         ----------
         join : bool, optional

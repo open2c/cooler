@@ -100,6 +100,21 @@ They support the following:
     507  chr3  13000000  14000000  0.821171
     508  chr3  14000000  15000000  0.813079
 
+Indexing the pixel table selects rows of the table, not bins. The pixel table stores each nonzero pixel once, sorted by ``bin1_id`` then ``bin2_id``, and with the default symmetric-upper storage only the upper triangle is stored (``bin1_id <= bin2_id``). So ``c.pixels().fetch(region)`` returns the pixels whose **first** bin is in the region as they occur in storage: the region's rows of the matrix, as stored. This includes pixels whose second bin is outside the region, even on other chromosomes. With symmetric-upper storage, these rows only hold their upper triangular part: the region's contacts with bins before it are stored in earlier rows, with the two bins swapped, so they aren't returned. With square storage, the rows are complete. To select pixels by both bins, use the matrix selector (see below):
+
+.. code-block:: python
+
+    >>> # Stored pixels whose first bin is on chr3
+    >>> c.pixels().fetch('chr3')
+
+    >>> # Pixels with both bins on chr3
+    >>> c.matrix(balance=False, as_pixels=True).fetch('chr3')
+
+    >>> # All contacts of chr3 with the rest of the genome, as full rows of the
+    >>> # symmetric matrix (the lower triangle is filled in)
+    >>> lo, hi = c.extent('chr3')
+    >>> c.matrix(balance=False, sparse=True)[lo:hi, :]
+
 
 
 Matrix selector
