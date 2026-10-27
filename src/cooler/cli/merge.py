@@ -1,6 +1,6 @@
 import click
 
-from .._reduce import merge_coolers
+from .._reduce import _AGGS, merge_coolers
 from . import cli
 from ._util import parse_field_param
 
@@ -21,9 +21,7 @@ from ._util import parse_field_param
     help="Specify the names of value columns to merge as '<name>'. "
     "Repeat the `--field` option for each one. "
     "Use '<name>:dtype=<dtype>' to specify the dtype. Include "
-    "',agg=<agg>' to specify an aggregation function different from 'sum'. "
-    "Aggregations apply to the coolers that store a pixel, "
-    "e.g. 'mean' averages over those coolers only.",
+    "',agg=min' or ',agg=max' to aggregate with min or max instead of sum. ",
     type=str,
     multiple=True,
 )
@@ -61,7 +59,8 @@ def merge(out_path, in_paths, chunksize, field, append):
 
     if len(field):
         field_specifiers = [
-            parse_field_param(arg, includes_colnum=False) for arg in field
+            parse_field_param(arg, includes_colnum=False, aggs=_AGGS)
+            for arg in field
         ]
         columns, _, dtypes, agg = zip(*field_specifiers)
         dtypes = {col: dt for col, dt in zip(columns, dtypes) if dt is not None}

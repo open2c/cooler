@@ -2,7 +2,7 @@ import os.path as op
 
 import click
 
-from .._reduce import coarsen_cooler
+from .._reduce import _AGGS, coarsen_cooler
 from ..parallel import get_lock
 from ..util import parse_cooler_uri
 from . import cli
@@ -42,9 +42,7 @@ from ._util import parse_field_param
     help="Specify the names of value columns to merge as '<name>'. "
     "Repeat the `--field` option for each one. "
     "Use '<name>:dtype=<dtype>' to specify the dtype. Include "
-    "',agg=<agg>' to specify an aggregation function different from 'sum'. "
-    "Aggregations apply to stored pixels only, e.g. 'mean' "
-    "averages over the stored (usually nonzero) pixels of each block.",
+    "',agg=min' or ',agg=max' to aggregate with min or max instead of sum. ",
     type=str,
     multiple=True,
 )
@@ -73,7 +71,8 @@ def coarsen(cool_uri, factor, nproc, chunksize, field, out, append):
 
     if len(field):
         field_specifiers = [
-            parse_field_param(arg, includes_colnum=False) for arg in field
+            parse_field_param(arg, includes_colnum=False, aggs=_AGGS)
+            for arg in field
         ]
         columns, _, dtypes, agg = zip(*field_specifiers)
         dtypes = {col: dt for col, dt in zip(columns, dtypes) if dt is not None}

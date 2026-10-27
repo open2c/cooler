@@ -1,6 +1,7 @@
 import json
 import io
 import sys
+from functools import partial
 
 import click
 import h5py
@@ -21,6 +22,12 @@ from . import cli, get_logger
 from ._util import parse_bins, parse_field_param, parse_kv_list_param
 
 from pandas.io.common import get_handle
+
+
+def _prepare_fields(copies, squared, chunk):
+    # Copies first: a squared field may be a copy of another field's column
+    chunk = chunk.assign(**{name: chunk[src] for name, src in copies.items()})
+    return chunk.assign(**{name: chunk[name] ** 2 for name in squared})
 
 
 # Copied from pairtools._headerops
@@ -422,9 +429,10 @@ def pairix(
     help="Specify quantitative input fields to aggregate into value columns "
     "using the syntax ``--field <field-name>=<field-number>``. "
     "Optionally, append ``:`` followed by ``dtype=<dtype>`` to specify "
-    "the data type (e.g. float), and/or ``agg=<agg>`` to "
-    "specify an aggregation function different from sum (e.g. mean). "
-    "Field numbers are 1-based. Passing 'count' as the target name will "
+    "the data type (e.g. float), and/or ``agg=<agg>`` to aggregate "
+    "with min, max, count (the number of non-missing values) or "
+    "sum_squares (the sum of the squared values) instead of sum. Field "
+    "numbers are 1-based. Passing 'count' as the target name will "
     "override the default behavior of storing pair counts. "
     "Repeat the ``--field`` option for each additional field.",
     type=str,
@@ -571,9 +579,12 @@ def pairs(
     output_field_names = []
     output_field_dtypes = {}
     aggregations = {}
+    squared = []
     if len(field):
         for arg in field:
-            name, colnum, dtype, agg = parse_field_param(arg)
+            name, colnum, dtype, agg = parse_field_param(
+                arg, aggs=("sum", "min", "max", "count", "sum_squares")
+            )
 
             # Special cases: these do not have input fields.
             # Omit field number and agg to change standard dtypes.
@@ -602,7 +613,12 @@ def pairs(
                 input_field_dtypes[name] = dtype
                 output_field_dtypes[name] = dtype
 
-            if agg is not None:
+            if agg == "sum_squares":
+                # The values are squared before aggregating, so the results
+                # are sums, also when combining chunks
+                squared.append(name)
+                aggregations[name] = "sum"
+            elif agg is not None:
                 aggregations[name] = agg
             else:
                 aggregations[name] = "sum"
@@ -639,16 +655,26 @@ def pairs(
 
     _, f_in = get_header(f_in, comment_char)
 
+    # read_csv reads each column once, so fields that use the same column
+    # (e.g. its sum and its count) get copies of the first such field
+    read_names, copies = {}, {}
+    for name in input_field_names:
+        colnum = input_field_numbers[name]
+        if colnum in read_names:
+            copies[name] = read_names[colnum]
+        else:
+            read_names[colnum] = name
+
     # read_csv assigns names to the selected columns in file order, so list
     # the names in order of column number
-    input_field_names = sorted(input_field_names, key=input_field_numbers.get)
+    read_names = [read_names[colnum] for colnum in sorted(read_names)]
 
     reader = pd.read_csv(
         f_in,
         sep="\t",
-        usecols=[input_field_numbers[name] for name in input_field_names],
-        names=input_field_names,
-        dtype=input_field_dtypes,
+        usecols=[input_field_numbers[name] for name in read_names],
+        names=read_names,
+        dtype={k: v for k, v in input_field_dtypes.items() if k in read_names},
         iterator=True,
         chunksize=chunksize,
         **kwargs,
@@ -664,9 +690,11 @@ def pairs(
         validate=True,
     )
     aggregate = aggregate_records(
-        agg=aggregations, count=True, sort=False, split_means=True
+        agg=aggregations, count=True, sort=False
     )
     pipeline = compose(aggregate, sanitize)
+    if copies or squared:
+        pipeline = compose(pipeline, partial(_prepare_fields, copies, squared))
 
     create_cooler(
         cool_path,
@@ -680,7 +708,8 @@ def pairs(
         max_merge=max_merge,
         temp_dir=temp_dir,
         delete_temp=not no_delete_temp,
-        agg=aggregations,
+        # How to combine the per-chunk results: counts add up
+        agg={k: "sum" if v == "count" else v for k, v in aggregations.items()},
         boundscheck=True,
         triucheck=False,
         dupcheck=False,

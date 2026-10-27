@@ -45,10 +45,12 @@ def test_merge2():
     with isolated_filesystem():
         path1 = op.join(datadir, "toy.symm.upper.2.cool")
         path2 = op.join(datadir, "toy.symm.upper.2.cool")
-        merge_coolers("test.cool", [path1, path2], mergebuf=3, agg={"count": "mean"})
+        merge_coolers("test.cool", [path1, path2], mergebuf=3, agg={"count": "max"})
         single = cooler.Cooler(path1)
         merged = cooler.Cooler("test.cool")
         assert merged.pixels()["count"][:].sum() == single.pixels()["count"][:].sum()
+        with pytest.raises(ValueError, match="Unsupported aggregation 'mean'"):
+            merge_coolers("x.cool", [path1, path2], mergebuf=3, agg={"count": "mean"})
 
         # different resolution
         path1 = op.join(datadir, "toy.symm.upper.2.cool")
@@ -121,9 +123,12 @@ def test_coarsen(input_uri, factor, ref_uri):
             "nproc": 1,
             "columns": None,
             "dtypes": None,
-            "agg": {"count": "mean"},
+            "agg": {"count": "max"},
         }
         coarsen_cooler(input_uri, "test.cool", factor, **kwargs)
+        kwargs["agg"] = {"count": "mean"}
+        with pytest.raises(ValueError, match="Unsupported aggregation 'mean'"):
+            coarsen_cooler(input_uri, "test.cool", factor, **kwargs)
 
         # parallel
         kwargs = {

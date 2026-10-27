@@ -128,6 +128,28 @@ def merge_breakpoints(
     return bin1_partition, cum_nrecords
 
 
+# Aggregations of value columns that give the same result however the pixels
+# are grouped: in one step or level by level when coarsening, and input by
+# input when merging. A mean isn't one: store a sum and a count, and divide
+# them when reading.
+_AGGS = ("sum", "min", "max")
+
+
+def _value_aggs(columns: list[str], agg: dict[str, Any] | None) -> dict[str, Any]:
+    result = {col: "sum" for col in columns}
+    if agg is not None:
+        unsupported = {c: f for c, f in agg.items() if f not in _AGGS}
+        if unsupported:
+            details = ", ".join(f"'{f}' for '{c}'" for c, f in unsupported.items())
+            raise ValueError(
+                f"Unsupported aggregation {details}. Use 'sum', 'min' or 'max'. "
+                "For a mean, aggregate a sum and a count with 'sum', and divide "
+                "them when reading."
+            )
+        result.update(agg)
+    return result
+
+
 class CoolerMerger(ContactBinner):
     """
     Implementation of cooler merging.
@@ -144,9 +166,7 @@ class CoolerMerger(ContactBinner):
         self.coolers = list(coolers)
         self.mergebuf = mergebuf
         self.columns = ["count"] if columns is None else columns
-        self.agg = {col: "sum" for col in self.columns}
-        if agg is not None:
-            self.agg.update(agg)
+        self.agg = _value_aggs(self.columns, agg)
 
         # check compatibility between input coolers
         binsize = coolers[0].binsize
@@ -243,12 +263,9 @@ def merge_coolers(
         Specific dtypes to use for value columns. Default is to propagate
         the current dtypes of the value columns.
     agg : dict, optional
-        Functions to use for aggregating each value column. Pass the same kind
-        of dict accepted by ``pandas.DataFrame.groupby.agg``. Default is to
-        apply 'sum' to every value column.
-        Functions are applied to the values of a pixel in the inputs that
-        store it: an input cooler without the pixel doesn't contribute a zero.
-        For example, ``"mean"`` averages over the inputs that store the pixel.
+        How to combine the values of a pixel across the input coolers: a
+        mapping of value column names to "sum" (default), "min" or "max". An
+        input without the pixel doesn't contribute a value.
     kwargs
         Passed to ``cooler.create``.
 
@@ -511,9 +528,7 @@ class CoolerCoarsener(ContactBinner):
         self.index_columns = ["bin1_id", "bin2_id"]
         self.value_columns = list(columns)
         self.columns = self.index_columns + self.value_columns
-        self.agg = {col: "sum" for col in self.value_columns}
-        if agg is not None:
-            self.agg.update(agg)
+        self.agg = _value_aggs(self.value_columns, agg)
 
         clr = Cooler(source_uri)
         chromsizes = clr.chromsizes
@@ -667,13 +682,9 @@ def coarsen_cooler(
         Specific dtypes to use for value columns. Default is to propagate
         the current dtypes of the value columns.
     agg : dict, optional
-        Functions to use for aggregating each value column. Pass the same kind
-        of dict accepted by ``pandas.DataFrame.groupby.agg``. Default is to
-        apply 'sum' to every value column.
-        Functions are applied to the stored pixels of each *k*-by-*k* block:
-        pixels that aren't stored don't count as zeros. For example,
-        ``"mean"`` averages over the stored (usually nonzero) pixels of a
-        block, not over all of its pixels.
+        How to combine the pixels of each *k*-by-*k* block: a mapping of value
+        column names to "sum" (default), "min" or "max". Pixels that aren't
+        stored don't contribute a value.
     kwargs
         Passed to ``cooler.create``.
 
@@ -784,15 +795,10 @@ def zoomify_cooler(
         Specific dtypes to use for value columns. Default is to propagate
         the current dtypes of the value columns.
     agg : dict, optional
-        Functions to use for aggregating each value column. Pass the same kind
-        of dict accepted by ``pandas.DataFrame.groupby.agg``. Default is to
-        apply 'sum' to every value column.
-        Functions are applied to the stored pixels of each *k*-by-*k* block:
-        pixels that aren't stored don't count as zeros. For example,
-        ``"mean"`` averages over the stored (usually nonzero) pixels of a
-        block, not over all of its pixels.
-        Each resolution is coarsened from the previous one, so ``"mean"``
-        gives an unweighted mean of the previous resolution's means.
+        How to combine the pixels of each block when coarsening: a mapping of
+        value column names to "sum" (default), "min" or "max". These give the
+        same result whether a resolution is coarsened from the base or from
+        the previous resolution.
     kwargs
         Passed to ``cooler.create``.
 

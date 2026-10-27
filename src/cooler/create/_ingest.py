@@ -479,20 +479,11 @@ def validate_pixels(
     )
 
 
-def mean_parts(col: str) -> tuple[str, str]:
-    """
-    Names of the hidden columns holding the sum and the number of values of a
-    column aggregated by mean, used to combine means across chunks.
-    """
-    return f"__{col}__sum", f"__{col}__n"
-
-
 def aggregate_records(
     sort: bool = True,
     count: bool = True,
     agg: dict[str, Any] | None = None,
     rename: dict[str, str] | None = None,
-    split_means: bool = False,
 ) -> Callable[[pd.DataFrame], pd.DataFrame]:
     """
     Generates a function that aggregates bin-assigned records by pixel.
@@ -509,10 +500,6 @@ def aggregate_records(
         Dict of column names -> functions or names.
     rename : dict, optional
         Dict to rename columns after aggregating.
-    split_means : bool, optional
-        Instead of the mean of a column aggregated by "mean", output the sum
-        and the number of non-null values in the hidden columns named by
-        :func:`mean_parts`, so means can be combined across chunks.
 
     Returns
     -------
@@ -535,20 +522,7 @@ def aggregate_records(
         agg["bin1_id"] = "size"
         rename["bin1_id"] = "count"
 
-    means = [col for col, func in agg.items() if func == "mean"] if split_means else []
-    for col in means:
-        sum_col, n_col = mean_parts(col)
-        del agg[col]
-        agg[sum_col] = "sum"
-        agg[n_col] = "count"
-
     def _aggregate_records(chunk):
-        if means:
-            parts = {}
-            for col in means:
-                sum_col, n_col = mean_parts(col)
-                parts[sum_col] = parts[n_col] = chunk[col]
-            chunk = chunk.assign(**parts)
         return (
             chunk.groupby(["bin1_id", "bin2_id"], sort=sort)
             .aggregate(agg)

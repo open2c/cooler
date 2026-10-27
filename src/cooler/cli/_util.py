@@ -50,7 +50,7 @@ def parse_kv_list_param(arg, item_sep=",", kv_sep="="):
     return result
 
 
-def parse_field_param(arg, includes_colnum=True, includes_agg=True):
+def parse_field_param(arg, includes_colnum=True, includes_agg=True, aggs=None):
     parts = arg.split(":")
     prefix = parts[0]
     if len(parts) == 1:
@@ -91,6 +91,13 @@ def parse_field_param(arg, includes_colnum=True, includes_agg=True):
             if prop == "dtype":
                 dtype = np.dtype(value)
             elif prop == "agg" and includes_agg:
+                if aggs is not None and value not in aggs:
+                    raise click.BadParameter(
+                        f"Unsupported aggregation '{value}'. Use one of: "
+                        f"{', '.join(aggs)}. For a mean, store a sum and a "
+                        "count, and divide them when reading.",
+                        param_hint=arg,
+                    )
                 agg = value
             else:
                 raise click.BadParameter(f"Invalid property: '{prop}'.", param_hint=arg)
