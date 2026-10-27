@@ -105,9 +105,10 @@ def test_cload_pairs_aggregation_across_chunks(tmp_path, chromsizes_file, func):
     pd.testing.assert_frame_equal(results[50], results[100_000])
 
 
-def test_cload_pairs_sum_and_count_of_a_column(tmp_path, chromsizes_file):
-    # Two fields can read the same column, e.g. to store its sum and the
-    # number of non-missing values, whose ratio is the mean
+def test_cload_pairs_summary_statistics(tmp_path, chromsizes_file):
+    # Several fields can read the same column, e.g. to store its sum, its sum
+    # of squares and its number of non-missing values, which give the mean
+    # and variance
     pairs = str(tmp_path / "v.pairs")
     records = write_value_pairs(pairs)
     records.loc[::7, "v"] = np.nan
@@ -119,6 +120,7 @@ def test_cload_pairs_sum_and_count_of_a_column(tmp_path, chromsizes_file):
         result = run_cload_pairs(
             chromsizes_file, pairs, out,
             "--field", "v=8", "--field", "n=8:agg=count,dtype=int64",
+            "--field", "v2=8:agg=sum_squares",
             "--chunksize", str(chunksize),
         )
         assert result.exit_code == 0, result.output
@@ -133,6 +135,8 @@ def test_cload_pairs_sum_and_count_of_a_column(tmp_path, chromsizes_file):
     np.testing.assert_array_equal(px["n"], expected.count().to_numpy())
     np.testing.assert_array_equal(px["count"], expected.size().to_numpy())
     np.testing.assert_allclose(px["v"] / px["n"], expected.mean().to_numpy())
+    var = px["v2"] / px["n"] - (px["v"] / px["n"]) ** 2
+    np.testing.assert_allclose(var, expected.var(ddof=0).to_numpy(), atol=1e-12)
 
 
 @pytest.mark.parametrize("func", ["mean", "median"])

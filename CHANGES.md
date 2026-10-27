@@ -5,7 +5,7 @@
 ### New features
 * `cooler.log_to_stderr()` prints cooler's log messages to stderr, for scripts and notebooks that don't configure logging.
 * The 2D range query engines (`cooler.core.DirectRangeQuery2D`, `FillLowerRangeQuery2D` and `CSRReader`) accept a list of value columns, and return them all in frame output. Matrix output still needs a single column.
-* `cooler cload pairs --field` can use the same input column for several fields, e.g. to store both the sum of a column and its number of non-missing values (`--field v=8 --field v_n=8:agg=count`), whose ratio is the mean.
+* `cooler cload pairs --field <name>=<col>:agg=sum_squares` stores the sum of the squared values of a column. Several fields can use the same input column, so a column's sum, number of non-missing values and sum of squares can be stored together (`--field v=8 --field v_n=8:agg=count --field v_ss=8:agg=sum_squares`), giving its mean and variance. These columns are sums, so they stay exact when coarsening, zoomifying and merging with the default `sum`.
 * `cooler balance --rescale-marginals/--no-rescale-marginals` (#448). With `--no-rescale-marginals`, the balanced matrix's rows sum to the mean marginal sum of the unbalanced matrix, stored as the `scale` attribute.
 * `balance_cooler(..., ignore_dist=...)` ignores intra-chromosomal pixels whose bin midpoints are less than a given distance apart, which also works with variable-size bins.
 

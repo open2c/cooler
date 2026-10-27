@@ -24,8 +24,10 @@ from ._util import parse_bins, parse_field_param, parse_kv_list_param
 from pandas.io.common import get_handle
 
 
-def _copy_columns(copies, chunk):
-    return chunk.assign(**{name: chunk[src] for name, src in copies.items()})
+def _prepare_fields(copies, squared, chunk):
+    # Copies first: a squared field may be a copy of another field's column
+    chunk = chunk.assign(**{name: chunk[src] for name, src in copies.items()})
+    return chunk.assign(**{name: chunk[name] ** 2 for name in squared})
 
 
 # Copied from pairtools._headerops
@@ -428,9 +430,9 @@ def pairix(
     "using the syntax ``--field <field-name>=<field-number>``. "
     "Optionally, append ``:`` followed by ``dtype=<dtype>`` to specify "
     "the data type (e.g. float), and/or ``agg=<agg>`` to aggregate "
-    "with min, max or count (the number of non-missing values) instead of "
-    "sum. For a mean, store a sum and a count, and divide them when reading. "
-    "Field numbers are 1-based. Passing 'count' as the target name will "
+    "with min, max, count (the number of non-missing values) or "
+    "sum_squares (the sum of the squared values) instead of sum. Field "
+    "numbers are 1-based. Passing 'count' as the target name will "
     "override the default behavior of storing pair counts. "
     "Repeat the ``--field`` option for each additional field.",
     type=str,
@@ -577,10 +579,11 @@ def pairs(
     output_field_names = []
     output_field_dtypes = {}
     aggregations = {}
+    squared = []
     if len(field):
         for arg in field:
             name, colnum, dtype, agg = parse_field_param(
-                arg, aggs=("sum", "min", "max", "count")
+                arg, aggs=("sum", "min", "max", "count", "sum_squares")
             )
 
             # Special cases: these do not have input fields.
@@ -610,7 +613,12 @@ def pairs(
                 input_field_dtypes[name] = dtype
                 output_field_dtypes[name] = dtype
 
-            if agg is not None:
+            if agg == "sum_squares":
+                # The values are squared before aggregating, so the results
+                # are sums, also when combining chunks
+                squared.append(name)
+                aggregations[name] = "sum"
+            elif agg is not None:
                 aggregations[name] = agg
             else:
                 aggregations[name] = "sum"
@@ -685,8 +693,8 @@ def pairs(
         agg=aggregations, count=True, sort=False
     )
     pipeline = compose(aggregate, sanitize)
-    if copies:
-        pipeline = compose(pipeline, partial(_copy_columns, copies))
+    if copies or squared:
+        pipeline = compose(pipeline, partial(_prepare_fields, copies, squared))
 
     create_cooler(
         cool_path,
