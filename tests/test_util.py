@@ -176,6 +176,7 @@ def test_read_chromsizes():
 
 
 def test_load_fasta():
+    pytest.importorskip("pyfaidx")
     fa = util.load_fasta(["chr1", "chr2"], op.join(datadir, "toy.fasta"))
     assert len(fa["chr1"]) == 32
     assert len(fa["chr2"]) == 32
@@ -197,6 +198,8 @@ def test_binnify():
 
 
 def test_digest():
+    pytest.importorskip("pyfaidx")
+    pytest.importorskip("Bio")
     fa = util.load_fasta(["chr1", "chr2"], op.join(datadir, "toy.fasta"))
     bins = util.digest(fa, "HindIII")
     assert len(bins) == 2
@@ -352,9 +355,8 @@ def test_compose():
         util.compose()
 
     # Composed functions can be sent to worker processes
+    import multiprocessing as mp
     import pickle
-
-    import multiprocess as mp
 
     func = util.compose(_add_one, _double)
     assert pickle.loads(pickle.dumps(func))(5) == 11

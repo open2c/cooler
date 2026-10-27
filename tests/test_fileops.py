@@ -141,6 +141,8 @@ def test_print_trees():
     fileops.pprint_attr_tree(src_file, level=3)
     fileops.pprint_data_tree(src_file, level=3)
 
+    # The notebook widget needs ipytree
+    pytest.importorskip("ipytree")
     with h5py.File(src_file) as f:
         t = fileops.TreeViewer(f)
         t._repr_mimebundle_()

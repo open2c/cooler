@@ -3,12 +3,12 @@ import io
 import json
 import sys
 from functools import partial
+from multiprocessing import Pool
 
 import click
 import h5py
 import numpy as np
 import pandas as pd
-from multiprocess import Pool
 from pandas.io.common import get_handle
 
 from ..create import (

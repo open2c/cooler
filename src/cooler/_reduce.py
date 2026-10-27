@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import multiprocessing as mp
 import os.path as op
 import warnings
 from bisect import bisect_right
@@ -8,7 +9,6 @@ from collections.abc import Iterator
 from typing import Any, Literal
 
 import h5py
-import multiprocess as mp
 import numpy as np
 import pandas as pd
 

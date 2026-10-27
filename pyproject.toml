@@ -46,12 +46,10 @@ readme = "README.md"
 dependencies = [
     "numpy>=1.26,<3",
     "scipy>=1.11",
-    "pandas>1.5",
+    "pandas>=1.5.1",
     "h5py>=3.0",
     "click>=8.0",
-    "multiprocess",
-    "pyfaidx",
-    "asciitree",
+    "asciitree>=0.3",
     "pyyaml",
 ]
 
@@ -62,6 +60,7 @@ all = [
     "ipytree>=0.2.2",
     "ipywidgets>=8.0.0",
     "matplotlib",
+    "pyfaidx",
 #    "pypairix; platform_system != 'Windows'", # doesn't compile, see 4dn-dcic/pairix#79
     "psutil",
     "pysam; platform_system != 'Windows'",

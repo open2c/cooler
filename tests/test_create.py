@@ -21,7 +21,7 @@ datadir = op.join(testdir, "data")
     "fp", [op.join(datadir, "hg19.GM12878-MboI.matrix.2000kb.cool")]
 )
 def test_create_append(fp):
-    import dask.dataframe as dd
+    dd = pytest.importorskip("dask.dataframe")
 
     c = cooler.Cooler(fp)
     # chromsizes = c.chromsizes

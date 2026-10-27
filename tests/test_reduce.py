@@ -1,8 +1,8 @@
+import multiprocessing as mp
 import os.path as op
 
 import h5py
 import hypothesis.strategies as st
-import multiprocess as mp
 import numpy as np
 import pytest
 from _common import cooler_cmp, isolated_filesystem

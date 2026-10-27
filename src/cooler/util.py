@@ -314,7 +314,10 @@ def load_fasta(names: list[str], *filepaths: str) -> OrderedDict[str, Any]:
     OrderedDict of sequence name -> sequence record
 
     """
-    import pyfaidx
+    try:
+        import pyfaidx
+    except ImportError:
+        raise ImportError("pyfaidx is required to read FASTA files.") from None
 
     if len(filepaths) == 0:
         raise ValueError("Need at least one file")

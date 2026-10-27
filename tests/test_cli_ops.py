@@ -2,9 +2,9 @@
 Tests for the commands that compute new data: merge, coarsen, zoomify and
 balance.
 """
+import multiprocessing as mp
 import shutil
 
-import multiprocess as mp
 import numpy as np
 import pandas as pd
 import pytest

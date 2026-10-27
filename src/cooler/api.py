@@ -50,7 +50,7 @@ class Cooler:
     -----
     If ``store`` is a file path, the file will be opened temporarily in
     when performing operations. This allows :py:class:`Cooler` objects to be
-    serialized for multiprocess and distributed computations.
+    serialized for multiprocessing and distributed computations.
 
     Metadata is accessible as a dictionary through the :py:attr:`info`
     property.

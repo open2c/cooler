@@ -1,10 +1,10 @@
 import sys
+from multiprocessing import Pool
 
 import click
 import h5py
 import numpy as np
 import pandas as pd
-from multiprocess import Pool
 
 from .._balance import balance_cooler
 from ..api import Cooler

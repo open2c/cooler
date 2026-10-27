@@ -690,12 +690,6 @@ class TabixAggregator(ContactBinner):
         except ImportError:
             raise ImportError("pysam is required to read tabix files") from None
 
-        import pickle
-
-        import dill
-
-        dill.settings["protocol"] = pickle.HIGHEST_PROTOCOL
-
         self._map = map
         self.n_chunks = n_chunks
         self.is_one_based = bool(is_one_based)
@@ -837,12 +831,6 @@ class PairixAggregator(ContactBinner):
             raise ImportError(
                 "pypairix is required to read pairix-indexed files"
             ) from None
-
-        import pickle
-
-        import dill
-
-        dill.settings["protocol"] = pickle.HIGHEST_PROTOCOL
 
         self._map = map
         self.n_chunks = n_chunks

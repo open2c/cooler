@@ -51,6 +51,8 @@ def test_makebins(run_cli):
     os.name == "nt", reason="Non-reproducible off-by-one bug on Win32 GitHub runner"
 )
 def test_digest(run_cli):
+    pytest.importorskip("pyfaidx")
+    pytest.importorskip("Bio")
     fasta = DATA / "toy.fasta"
     result = run_cli("digest", CHROMSIZES, fasta, "HindIII")
     assert result.stdout == "chr1\t0\t32\nchr2\t0\t32\n"
