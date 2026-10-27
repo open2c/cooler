@@ -60,9 +60,9 @@ Quick reference
     * -  Export/visualization
       -
     * - `cooler info`_
-      - Display a cooler’s info and metadata.
+      - Display a cooler's info and metadata.
     * - `cooler dump`_
-      - Dump a cooler’s data to a text stream.
+      - Dump a cooler's data to a text stream.
     * - `cooler show`_
       - Display and browse a cooler with matplotlib.
 
@@ -74,9 +74,9 @@ Quick reference
     * -  File manipulation/info
       -
     * - `cooler tree`_
-      - Display a file’s data hierarchy.
+      - Display a file's data hierarchy.
     * - `cooler attrs`_
-      - Display a file’s attribute hierarchy.
+      - Display a file's attribute hierarchy.
     * - `cooler ls`_
       - List all coolers inside a file.
     * - `cooler cp`_
@@ -123,10 +123,9 @@ cooler cload
 ------------
 
 
-    Create a cooler from genomic pairs and bins.
+Create a cooler from genomic pairs and bins.
 
-    Choose a subcommand based on the format of the input contact list.
-
+Choose a subcommand based on the format of the input contact list.
 
 
 .. program:: cooler cload
@@ -151,12 +150,12 @@ cooler cload pairs
 ------------------
 
 
-    Bin any text file or stream of pairs.
+Bin any text file or stream of pairs.
 
-    Pairs data need not be sorted. For file paths, compression is inferred from the
-    filename extension using formats supported by pandas.read_csv. LZ4 is not
-    supported.
-    To pipe input from stdin, set PAIRS_PATH to '-'.
+Pairs data need not be sorted. For file paths, compression is inferred from the
+filename extension using formats supported by pandas.read_csv. LZ4 is not
+supported.
+To pipe input from stdin, set PAIRS_PATH to '-'.
 
 
     BINS : One of the following
@@ -168,7 +167,6 @@ cooler cload pairs
     PAIRS_PATH : Path to contacts (i.e. read pairs) file.
 
     COOL_PATH : Output COOL file path or URI.
-
 
 
 .. program:: cooler cload pairs
@@ -216,10 +214,6 @@ cooler cload pairs
 
     pos2 field number (one-based)  [required]
 
-.. option:: --chunksize <chunksize>
-
-    Number of input lines to load at a time
-
 .. option:: -0, --zero-based
 
     Positions are zero-based  [default: False]
@@ -234,11 +228,23 @@ cooler cload pairs
 
 .. option:: --input-copy-status <input_copy_status>
 
-    Deprecated, and will be removed in cooler 0.13: pairs should list each contact once. | `unique`: Each contact is listed once, regardless of how the coordinates of a pair are ordered. `duplex`: Each contact is listed twice, once in each orientation. All input records that map to the lower triangle will be discarded! | If you wish to treat lower- and upper-triangle input data as distinct, use the ``--no-symmetric-upper`` option.   [default: unique]
+    Deprecated, and will be removed in cooler 0.13: pairs should list each contact once. \| `unique`: Each contact is listed once, regardless of how the coordinates of a pair are ordered. `duplex`: Each contact is listed twice, once in each orientation. All input records that map to the lower triangle will be discarded! \| If you wish to treat lower- and upper-triangle input data as distinct, use the ``--no-symmetric-upper`` option.   [default: unique]
 
 .. option:: --field <field>
 
     Specify quantitative input fields to aggregate into value columns using the syntax ``--field <field-name>=<field-number>``. Optionally, append ``:`` followed by ``dtype=<dtype>`` to specify the data type (e.g. float), and/or ``agg=<agg>`` to aggregate with min, max, count (the number of non-missing values) or sum_squares (the sum of the squared values) instead of sum. Field numbers are 1-based. Passing 'count' as the target name will override the default behavior of storing pair counts. Repeat the ``--field`` option for each additional field.
+
+.. option:: -c, --chunksize <chunksize>
+
+    Size in number of lines/records of data chunks to read and process from the input stream at a time. These chunks will be saved as temporary partial coolers and then merged.
+
+.. option:: --mergebuf <mergebuf>
+
+    Total number of pixel records to buffer per epoch of merging data. Defaults to the same value as `chunksize`.
+
+.. option:: --max-merge <max_merge>
+
+    Maximum number of chunks to merge in a single pass.  [default: 200]
 
 .. option:: --temp-dir <temp_dir>
 
@@ -247,10 +253,6 @@ cooler cload pairs
 .. option:: --no-delete-temp
 
     Do not delete temporary files when finished.
-
-.. option:: --max-merge <max_merge>
-
-    Maximum number of chunks to merge before invoking recursive merging  [default: 200]
 
 .. option:: --storage-options <storage_options>
 
@@ -267,7 +269,7 @@ cooler cload pairix
 -------------------
 
 
-    Bin a pairix-indexed contact list file.
+Bin a pairix-indexed contact list file.
 
 
     BINS : One of the following
@@ -280,10 +282,9 @@ cooler cload pairix
 
     COOL_PATH : Output COOL file path or URI.
 
-    See also: 'cooler csort' to sort and index a contact list file
+See also: 'cooler csort' to sort and index a contact list file
 
-    Pairix on GitHub: <https://github.com/4dn-dcic/pairix>.
-
+Pairix on GitHub: <https://github.com/4dn-dcic/pairix>.
 
 
 .. program:: cooler cload pairix
@@ -325,7 +326,11 @@ cooler cload pairix
 
 .. option:: -s, --max-split <max_split>
 
-    Divide the pairs from each chromosome into at most this many chunks. Smaller chromosomes will be split less frequently or not at all. Increase ths value if large chromosomes dominate the workload on multiple processors.  [default: 2]
+    Divide the pairs from each chromosome into at most this many chunks. Smaller chromosomes will be split less frequently or not at all. Increase this value if large chromosomes dominate the workload on multiple processors.  [default: 2]
+
+.. option:: --block-char <block_char>
+
+    Character separating contig names in the block names of the pairix index.  [default: \|]
 
 
 ----
@@ -334,7 +339,7 @@ cooler cload tabix
 ------------------
 
 
-    Bin a tabix-indexed contact list file.
+Bin a tabix-indexed contact list file.
 
 
     BINS : One of the following
@@ -347,10 +352,9 @@ cooler cload tabix
 
     COOL_PATH : Output COOL file path or URI.
 
-    See also: 'cooler csort' to sort and index a contact list file
+See also: 'cooler csort' to sort and index a contact list file
 
-    Tabix manpage: <http://www.htslib.org/doc/tabix.html>.
-
+Tabix manpage: <http://www.htslib.org/doc/tabix.html>.
 
 
 .. program:: cooler cload tabix
@@ -400,7 +404,7 @@ cooler cload tabix
 
 .. option:: -s, --max-split <max_split>
 
-    Divide the pairs from each chromosome into at most this many chunks. Smaller chromosomes will be split less frequently or not at all. Increase ths value if large chromosomes dominate the workload on multiple processors.  [default: 2]
+    Divide the pairs from each chromosome into at most this many chunks. Smaller chromosomes will be split less frequently or not at all. Increase this value if large chromosomes dominate the workload on multiple processors.  [default: 2]
 
 
 ----
@@ -409,7 +413,7 @@ cooler cload hiclib
 -------------------
 
 
-    Bin a hiclib HDF5 contact list (frag) file.
+Bin a hiclib HDF5 contact list (frag) file.
 
 
     BINS : One of the following
@@ -422,8 +426,7 @@ cooler cload hiclib
 
     COOL_PATH : Output COOL file path or URI.
 
-    hiclib on BitBucket: <https://github.com/mirnylab/hiclib-legacy>.
-
+hiclib: <https://github.com/mirnylab/hiclib-legacy>.
 
 
 .. program:: cooler cload hiclib
@@ -466,34 +469,33 @@ cooler load
 -----------
 
 
-    Create a cooler from a pre-binned matrix.
+Create a cooler from a pre-binned matrix.
 
-    BINS_PATH : One of the following
+BINS_PATH : One of the following
 
-        <TEXT:INTEGER> : 1. Path to a chromsizes file, 2. Bin size in bp
+    <TEXT:INTEGER> : 1. Path to a chromsizes file, 2. Bin size in bp
 
-        <TEXT> : Path to BED file defining the genomic bin segmentation.
+    <TEXT> : Path to BED file defining the genomic bin segmentation.
 
-    PIXELS_PATH : Text file containing nonzero pixel values. May be gzipped.
-    Pass '-' to use stdin.
+PIXELS_PATH : Text file containing nonzero pixel values. May be gzipped.
+Pass '-' to use stdin.
 
-    COOL_PATH : Output COOL file path or URI.
+COOL_PATH : Output COOL file path or URI.
 
-    **Notes**
+**Notes**
 
-    Two input format options (tab-delimited).
-    Input pixel file may be compressed.
+Two input format options (tab-delimited).
+Input pixel file may be compressed.
 
-    COO: COO-rdinate sparse matrix format (a.k.a. ijv triple).
-    3 columns: "bin1_id, bin2_id, count",
+COO: COO-rdinate sparse matrix format (a.k.a. ijv triple).
+3 columns: "bin1_id, bin2_id, count",
 
-    BG2: 2D version of the bedGraph format.
-    7 columns: "chrom1, start1, end1, chrom2, start2, end2, count"
+BG2: 2D version of the bedGraph format.
+7 columns: "chrom1, start1, end1, chrom2, start2, end2, count"
 
-    **Examples**
+**Examples**
 
-    cooler load -f bg2 <chrom.sizes>:<binsize> in.bg2.gz out.cool
-
+cooler load -f bg2 <chrom.sizes>:<binsize> in.bg2.gz out.cool
 
 
 .. program:: cooler load
@@ -533,17 +535,13 @@ cooler load
 
     Add supplemental value fields or override default field numbers for the specified format. Specify quantitative input fields to aggregate into value columns using the syntax ``--field <field-name>=<field-number>``. Optionally, append ``:`` followed by ``dtype=<dtype>`` to specify the data type (e.g. float). Field numbers are 1-based. Repeat the ``--field`` option for each additional field.
 
-.. option:: -c, --chunksize <chunksize>
-
-    Size (in number of lines/records) of data chunks to read and process from the input file at a time. These chunks will be saved as temporary partial Coolers and merged at the end. Also specifies the size of the buffer during the merge step.
-
 .. option:: --count-as-float
 
     Store the 'count' column as floating point values instead of as integers. Can also be specified using the `--field` option.
 
 .. option:: --one-based
 
-    Pass this flag if the bin IDs listed in a COO file are one-based instead of zero-based.
+    Pass this flag if the input is one-based: the bin IDs of a COO file, or the start coordinates of a BG2 file.
 
 .. option:: --comment-char <comment_char>
 
@@ -555,11 +553,23 @@ cooler load
 
 .. option:: --input-copy-status <input_copy_status>
 
-    Copy status of input data when using symmetric-upper storage. | `unique`: Incoming data comes from a unique half of a symmetric matrix, regardless of how element coordinates are ordered. Execution will be aborted if duplicates are detected. `duplex`: Incoming data lists both triangles of a symmetric matrix: each off-diagonal pixel appears twice and each diagonal pixel once. All lower-triangle input elements will be discarded! | If you wish to treat lower- and upper-triangle input data as distinct, use the ``--no-symmetric-upper`` option instead.   [default: unique]
+    Copy status of input data when using symmetric-upper storage. \| `unique`: Incoming data comes from a unique half of a symmetric matrix, regardless of how element coordinates are ordered. Execution will be aborted if duplicates are detected. `duplex`: Incoming data lists both triangles of a symmetric matrix: each off-diagonal pixel appears twice and each diagonal pixel once. All lower-triangle input elements will be discarded! \| If you wish to treat lower- and upper-triangle input data as distinct, use the ``--no-symmetric-upper`` option instead.   [default: unique]
+
+.. option:: -c, --chunksize <chunksize>
+
+    Size in number of lines/records of data chunks to read and process from the input stream at a time. These chunks will be saved as temporary partial coolers and then merged.
+
+.. option:: --mergebuf <mergebuf>
+
+    Total number of records to buffer per epoch of merging data. Defaults to the same value as `chunksize`.
 
 .. option:: --temp-dir <temp_dir>
 
     Create temporary files in a specified directory. Pass ``-`` to use the platform default temp dir.
+
+.. option:: --max-merge <max_merge>
+
+    Maximum number of chunks to merge in a single pass.  [default: 200]
 
 .. option:: --no-delete-temp
 
@@ -580,31 +590,30 @@ cooler merge
 ------------
 
 
-    Merge multiple coolers with identical axes.
+Merge multiple coolers with identical axes.
 
-    OUT_PATH : Output file path or URI.
+OUT_PATH : Output file path or URI.
 
-    IN_PATHS : Input file paths or URIs of coolers to merge.
+IN_PATHS : Input file paths or URIs of coolers to merge.
 
-    **Notes**
+**Notes**
 
-    Data columns merged:
+Data columns merged:
 
-        pixels/bin1_id, pixels/bin2_id, pixels/<value columns>
+    pixels/bin1_id, pixels/bin2_id, pixels/<value columns>
 
-    Data columns preserved:
+Data columns preserved:
 
-        chroms/name, chroms/length
-        bins/chrom, bins/start, bins/end
+    chroms/name, chroms/length
+    bins/chrom, bins/start, bins/end
 
-    Additional columns in the the input files are not transferred to the output.
-
+Additional columns in the input files are not transferred to the output.
 
 
 .. program:: cooler merge
 .. code-block:: shell
 
-    cooler merge [OPTIONS] OUT_PATH [IN_PATHS]...
+    cooler merge [OPTIONS] OUT_PATH IN_PATHS...
 
 .. rubric:: Arguments
 
@@ -614,7 +623,7 @@ cooler merge
 
 .. option:: IN_PATHS
 
-    Optional argument(s)
+    Required argument(s)
 
 .. rubric:: Options
 
@@ -624,7 +633,7 @@ cooler merge
 
 .. option:: --field <field>
 
-    Specify the names of value columns to merge as '<name>'. Repeat the `--field` option for each one. Use '<name>:dtype=<dtype>' to specify the dtype. Include ',agg=min' or ',agg=max' to aggregate with min or max instead of sum. For a mean, aggregate a sum and a count with sum, and divide them when reading.
+    Specify the names of value columns to merge as '<name>'. Repeat the `--field` option for each one. Append ':' and comma-separated properties to set the dtype and/or the aggregation, e.g. 'count:agg=max' or 'count:dtype=float,agg=max'. The aggregation is sum (default), min or max.
 
 .. option:: -a, --append
 
@@ -637,13 +646,12 @@ cooler coarsen
 --------------
 
 
-    Coarsen a cooler to a lower resolution.
+Coarsen a cooler to a lower resolution.
 
-    Works by pooling *k*-by-*k* neighborhoods of pixels and aggregating.
-    Each chromosomal block is coarsened individually.
+Works by pooling *k*-by-*k* neighborhoods of pixels and aggregating.
+Each chromosomal block is coarsened individually.
 
-    COOL_PATH : Path to a COOL file or Cooler URI.
-
+COOL_PATH : Path to a COOL file or Cooler URI.
 
 
 .. program:: cooler coarsen
@@ -673,7 +681,7 @@ cooler coarsen
 
 .. option:: --field <field>
 
-    Specify the names of value columns to merge as '<name>'. Repeat the `--field` option for each one. Use '<name>:dtype=<dtype>' to specify the dtype. Include ',agg=min' or ',agg=max' to aggregate with min or max instead of sum. For a mean, aggregate a sum and a count with sum, and divide them when reading.
+    Specify the names of value columns to merge as '<name>'. Repeat the `--field` option for each one. Append ':' and comma-separated properties to set the dtype and/or the aggregation, e.g. 'count:agg=max' or 'count:dtype=float,agg=max'. The aggregation is sum (default), min or max.
 
 .. option:: -o, --out <out>
 
@@ -690,10 +698,9 @@ cooler zoomify
 --------------
 
 
-    Generate a multi-resolution cooler file by coarsening.
+Generate a multi-resolution cooler file by coarsening.
 
-    COOL_PATH : Path to a COOL file or Cooler URI.
-
+COOL_PATH : Path to a COOL file or Cooler URI.
 
 
 .. program:: cooler zoomify
@@ -739,7 +746,7 @@ cooler zoomify
 
 .. option:: --field <field>
 
-    Specify the names of value columns to merge as '<name>'. Repeat the ``--field`` option for each one. Use '<name>:dtype=<dtype>' to specify the dtype. Include ',agg=min' or ',agg=max' to aggregate with min or max instead of sum. For a mean, aggregate a sum and a count with sum, and divide them when reading.
+    Specify the names of value columns to merge as '<name>'. Repeat the `--field` option for each one. Append ':' and comma-separated properties to set the dtype and/or the aggregation, e.g. 'count:agg=max' or 'count:dtype=float,agg=max'. The aggregation is sum (default), min or max.
 
 
 ----
@@ -748,13 +755,12 @@ cooler balance
 --------------
 
 
-    Out-of-core matrix balancing.
+Out-of-core matrix balancing.
 
-    Matrix must be symmetric. See the help for various filtering options to
-    mask out poorly mapped bins.
+Matrix must be symmetric. See the help for various filtering options to
+mask out poorly mapped bins.
 
-    COOL_PATH : Path to a COOL file.
-
+COOL_PATH : Path to a COOL file.
 
 
 .. program:: cooler balance
@@ -784,11 +790,11 @@ cooler balance
 
 .. option:: --ignore-dist <ignore_dist>
 
-    Distance from the diagonal in bp to ignore. The maximum of the corresponding number of diagonals and `--ignore-diags` will be used.
+    Distance from the diagonal in bp to ignore: pixels whose bin midpoints are less than this distance apart. Combined with `--ignore-diags`, whichever ignores more is used. Works with variable-size bins.
 
 .. option:: --mad-max <mad_max>
 
-    Ignore bins from the contact matrix using the 'MAD-max' filter: bins whose log marginal sum is less than ``mad-max`` median absolute deviations below the median log marginal sum of all the bins in the same chromosome.  [default: 5]
+    Ignore bins from the contact matrix using the 'MAD-max' filter. Each bin's marginal sum is divided by the median marginal sum of its chromosome, then bins whose log normalized marginal sum is less than ``mad-max`` median absolute deviations below the genome-wide median are ignored.  [default: 5]
 
 .. option:: --min-nnz <min_nnz>
 
@@ -814,6 +820,10 @@ cooler balance
 
     Threshold value of variance of the marginals for the algorithm to converge.  [default: 1e-05]
 
+.. option:: --rescale-marginals, --no-rescale-marginals
+
+    Rescale the weights so that the rows and columns of the balanced matrix sum to 1. Otherwise, they sum to the mean marginal sum of the unbalanced matrix, whose value is stored as the 'scale' attribute.  [default: True]
+
 .. option:: --max-iters <max_iters>
 
     Maximum number of iterations to perform if convergence is not achieved.  [default: 200]
@@ -824,11 +834,11 @@ cooler balance
 
 .. option:: -f, --force
 
-    Overwrite the target dataset, 'weight', if it already exists.
+    Overwrite the weight column (see --name) if it already exists.
 
 .. option:: --check
 
-    Check whether a data column 'weight' already exists.
+    Check whether the weight column (see --name) already exists.
 
 .. option:: --stdout
 
@@ -845,10 +855,9 @@ cooler info
 -----------
 
 
-    Display a cooler's info and metadata.
+Display a cooler's info and metadata.
 
-    COOL_PATH : Path to a COOL file or cooler URI.
-
+COOL_PATH : Path to a COOL file or cooler URI.
 
 
 .. program:: cooler info
@@ -883,10 +892,9 @@ cooler dump
 -----------
 
 
-    Dump a cooler's data to a text stream.
+Dump a cooler's data to a text stream.
 
-    COOL_PATH : Path to COOL file or cooler URI.
-
+COOL_PATH : Path to COOL file or cooler URI.
 
 
 .. program:: cooler dump
@@ -908,7 +916,7 @@ cooler dump
 
 .. option:: -c, --columns <columns>
 
-    Restrict output to a subset of columns, provided as a comma-separated list.
+    Restrict output to a subset of columns, provided as a comma-separated list. For pixels, the default is every column of the pixel table.
 
 .. option:: -H, --header
 
@@ -956,7 +964,7 @@ cooler dump
 
 .. option:: --one-based-starts
 
-    Print start coordinates as one-based rather than zero-based.
+    Print start coordinates as one-based rather than zero-based. Only applies with --join, which adds the start columns.
 
 .. option:: -k, --chunksize <chunksize>
 
@@ -964,7 +972,7 @@ cooler dump
 
 .. option:: -o, --out <out>
 
-    Output text file If .gz extension is detected, file is written using zlib. Default behavior is to stream to stdout.
+    Output text file. If .gz extension is detected, file is written using zlib. Default behavior is to stream to stdout.
 
 
 ----
@@ -973,13 +981,12 @@ cooler show
 -----------
 
 
-    Display and browse a cooler in matplotlib.
+Display and browse a cooler in matplotlib.
 
-    COOL_PATH : Path to a COOL file or Cooler URI.
+COOL_PATH : Path to a COOL file or Cooler URI.
 
-    RANGE : The coordinates of the genomic region to display, as a range string
-    with zero-based, half-open coordinates. Example: chr1:10,000,000-11,000,000
-
+RANGE : The coordinates of the genomic region to display, as a range string
+with zero-based, half-open coordinates. Example: chr1:10,000,000-11,000,000
 
 
 .. program:: cooler show
@@ -1025,11 +1032,11 @@ cooler show
 
 .. option:: --zmin <zmin>
 
-    The minimal value of the color scale. Units must match those of the colormap scale. To provide a negative value use a equal sign and quotes, e.g. -zmin='-0.5'
+    The minimal value of the color scale. Units must match those of the colormap scale. To provide a negative value use a equal sign and quotes, e.g. --zmin='-0.5'
 
 .. option:: --zmax <zmax>
 
-    The maximal value of the color scale. Units must match those of the colormap scale. To provide a negative value use a equal sign and quotes, e.g. -zmax='-0.5'
+    The maximal value of the color scale. Units must match those of the colormap scale. To provide a negative value use a equal sign and quotes, e.g. --zmax='-0.5'
 
 .. option:: --cmap <cmap>
 
@@ -1050,8 +1057,7 @@ cooler tree
 -----------
 
 
-    Display a file's data hierarchy.
-
+Display a file's data hierarchy.
 
 
 .. program:: cooler tree
@@ -1076,8 +1082,7 @@ cooler attrs
 ------------
 
 
-    Display a file's attribute hierarchy.
-
+Display a file's attribute hierarchy.
 
 
 .. program:: cooler attrs
@@ -1102,8 +1107,10 @@ cooler ls
 ---------
 
 
-    List all coolers inside a file.
+List all coolers inside a file.
 
+COOL_PATH : Path to a file, or a URI to list only the coolers under a
+group, e.g. data.mcool::resolutions.
 
 
 .. program:: cooler ls
@@ -1130,10 +1137,9 @@ cooler cp
 ---------
 
 
-    Copy a cooler from one file to another or within the same file.
+Copy a cooler from one file to another or within the same file.
 
-    See also: h5copy, h5repack tools from HDF5 suite.
-
+See also: h5copy, h5repack tools from HDF5 suite.
 
 
 .. program:: cooler cp
@@ -1155,7 +1161,7 @@ cooler cp
 
 .. option:: -w, --overwrite
 
-    Truncate and replace destination file if it already exists.
+    Replace the destination if it already exists. If the destination is the root of another file, the whole file is replaced.
 
 
 ----
@@ -1164,8 +1170,7 @@ cooler mv
 ---------
 
 
-    Rename a cooler within the same file.
-
+Rename a cooler within the same file.
 
 
 .. program:: cooler mv
@@ -1187,7 +1192,7 @@ cooler mv
 
 .. option:: -w, --overwrite
 
-    Truncate and replace destination file if it already exists.
+    Replace the destination if it already exists. If the destination is the root of another file, the whole file is replaced.
 
 
 ----
@@ -1196,10 +1201,9 @@ cooler ln
 ---------
 
 
-    Create a hard link to a cooler (rather than a true copy) in the same file.
-    Also supports soft links (in the same file) or external links (different
-    files).
-
+Create a hard link to a cooler (rather than a true copy) in the same file.
+Also supports soft links (in the same file) or external links (different
+files).
 
 
 .. program:: cooler ln
@@ -1221,7 +1225,7 @@ cooler ln
 
 .. option:: -w, --overwrite
 
-    Truncate and replace destination file if it already exists.
+    Replace the destination if it already exists. If the destination is the root of another file, the whole file is replaced.
 
 .. option:: -s, --soft
 
@@ -1234,15 +1238,14 @@ cooler makebins
 ---------------
 
 
-    Generate fixed-width genomic bins.
+Generate fixed-width genomic bins.
 
-    Output a genome segmentation at a fixed resolution as a BED file.
+Output a genome segmentation at a fixed resolution as a BED file.
 
-    CHROMSIZES_PATH : UCSC-like chromsizes file, with chromosomes in desired
-    order.
+CHROMSIZES_PATH : UCSC-like chromsizes file, with chromosomes in desired
+order.
 
-    BINSIZE : Resolution (bin size) in base pairs <int>.
-
+BINSIZE : Resolution (bin size) in base pairs <int>.
 
 
 .. program:: cooler makebins
@@ -1281,18 +1284,17 @@ cooler digest
 -------------
 
 
-    Generate fragment-delimited genomic bins.
+Generate fragment-delimited genomic bins.
 
-    Output a genome segmentation of restriction fragments as a BED file.
+Output a genome segmentation of restriction fragments as a BED file.
 
-    CHROMSIZES_PATH : UCSC-like chromsizes file, with chromosomes in desired
-    order.
+CHROMSIZES_PATH : UCSC-like chromsizes file, with chromosomes in desired
+order.
 
-    FASTA_PATH : Genome assembly FASTA file or folder containing FASTA files
-    (uncompressed).
+FASTA_PATH : Genome assembly FASTA file or folder containing FASTA files
+(uncompressed).
 
-    ENZYME : Name of restriction enzyme
-
+ENZYME : Name of restriction enzyme
 
 
 .. program:: cooler digest
@@ -1335,46 +1337,45 @@ cooler csort
 ------------
 
 
-    Sort and index a contact list.
+Sort and index a contact list.
 
-    Order the mates of each pair record so that all contacts are upper
-    triangular with respect to the chromosome ordering given by the chromosomes
-    file, sort contacts by genomic location, and index the resulting file.
+Order the mates of each pair record so that all contacts are upper
+triangular with respect to the chromosome ordering given by the chromosomes
+file, sort contacts by genomic location, and index the resulting file.
 
-    PAIRS_PATH : Contacts (i.e. read pairs) text file, optionally compressed.
+PAIRS_PATH : Contacts (i.e. read pairs) text file, optionally compressed.
 
-    CHROMOSOMES_PATH : File listing desired chromosomes in the desired order.
-    May be tab-delimited, e.g. a UCSC-style chromsizes file. Contacts mapping to
-    other chromosomes will be discarded.
+CHROMOSOMES_PATH : File listing desired chromosomes in the desired order.
+May be tab-delimited, e.g. a UCSC-style chromsizes file. Contacts mapping to
+other chromosomes will be discarded.
 
-    **Notes**
+**Notes**
 
-    - csort can also be used to sort and index a text representation of
-      a contact *matrix* in bedGraph-like format. In this case, substitute
-      `pos1` and `pos2` with `start1` and `start2`, respectively.
-    - Requires Unix tools: sort, bgzip + tabix or pairix.
+- csort can also be used to sort and index a text representation of
+  a contact *matrix* in bedGraph-like format. In this case, substitute
+  `pos1` and `pos2` with `start1` and `start2`, respectively.
+- Requires Unix tools: sort, bgzip + tabix or pairix.
 
-    If indexing with Tabix, the output file will have the following properties:
+If indexing with Tabix, the output file will have the following properties:
 
-    - Upper triangular: the read pairs on each row are assigned to side 1 or 2
-      in such a way that (chrom1, pos1) is always "less than" (chrom2, pos2)
-    - Rows are lexicographically sorted by chrom1, pos1, chrom2, pos2;
-      i.e. "positionally sorted"
-    - Compressed with bgzip [*]
-    - Indexed using Tabix [*] on chrom1 and pos1.
+- Upper triangular: the read pairs on each row are assigned to side 1 or 2
+  in such a way that (chrom1, pos1) is always "less than" (chrom2, pos2)
+- Rows are lexicographically sorted by chrom1, pos1, chrom2, pos2;
+  i.e. "positionally sorted"
+- Compressed with bgzip [*]
+- Indexed using Tabix [*] on chrom1 and pos1.
 
-    If indexing with Pairix, the output file will have the following properties:
+If indexing with Pairix, the output file will have the following properties:
 
-    - Upper triangular: the read pairs on each row are assigned to side 1 or 2
-      in such a way that (chrom1, pos1) is always "less than" (chrom2, pos2)
-    - Rows are lexicographically sorted by chrom1, chrom2, pos1, pos2; i.e.
-      "block sorted"
-    - Compressed with bgzip [*]
-    - Indexed using Pairix [+] on chrom1, chrom2 and pos1.
+- Upper triangular: the read pairs on each row are assigned to side 1 or 2
+  in such a way that (chrom1, pos1) is always "less than" (chrom2, pos2)
+- Rows are lexicographically sorted by chrom1, chrom2, pos1, pos2; i.e.
+  "block sorted"
+- Compressed with bgzip [*]
+- Indexed using Pairix [+] on chrom1, chrom2 and pos1.
 
-    [*] Tabix manpage: <http://www.htslib.org/doc/tabix.html>.
-    [+] Pairix on Github: <https://github.com/4dn-dcic/pairix>
-
+[*] Tabix manpage: <http://www.htslib.org/doc/tabix.html>.
+[+] Pairix on Github: <https://github.com/4dn-dcic/pairix>
 
 
 .. program:: cooler csort
@@ -1449,6 +1450,3 @@ cooler csort
 .. option:: -s2, --strand2 <strand2>
 
     strand2 field number (deprecated)
-
-
-----

@@ -62,7 +62,8 @@ def _get_help_record(opt):
     if extra:
         help = "{}[{}]".format((help and help + "  ") or "", "; ".join(extra))
 
-    return ", ".join(rv), help
+    # A "|" would start a substitution reference in reStructuredText
+    return ", ".join(rv), help.replace("|", r"\|")
 
 
 def _format_description(ctx):
@@ -369,9 +370,9 @@ Quick reference
     * -  Export/visualization
       -
     * - `cooler info`_
-      - Display a cooler`s info and metadata.
+      - Display a cooler's info and metadata.
     * - `cooler dump`_
-      - Dump a cooler`s data to a text stream.
+      - Dump a cooler's data to a text stream.
     * - `cooler show`_
       - Display and browse a cooler with matplotlib.
 
@@ -383,9 +384,9 @@ Quick reference
     * -  File manipulation/info
       -
     * - `cooler tree`_
-      - Display a file`s data hierarchy.
+      - Display a file's data hierarchy.
     * - `cooler attrs`_
-      - Display a file`s attribute hierarchy.
+      - Display a file's attribute hierarchy.
     * - `cooler ls`_
       - List all coolers inside a file.
     * - `cooler cp`_
@@ -442,7 +443,7 @@ cooler {cmd}
 """
 
 
-TEMPLATE = TEMPLATE[:-1]  # Drop the very last newline
+TEMPLATE = TEMPLATE.removesuffix("----\n\n")  # A document can't end with one
 text = TEMPLATE.format(**{cmd: get_command_docs(cmd) for cmd in COMMANDS})
 
 
