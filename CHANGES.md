@@ -18,6 +18,7 @@
 * `cooler cload pairs --input-copy-status` is deprecated and will be removed in cooler 0.13; pairs should list each contact once. Passing it logs a warning. `cooler load --input-copy-status` (matrix input) is unchanged, with a clearer description of `duplex`.
 
 ### Removed
+* `cooler csort`, which sorted and indexed pairs with Unix `sort`, `bgzip` and `tabix` or `pairix`, and didn't work on Windows. `cooler cload pairs` bins unsorted pairs directly. To sort and index pairs files, use pairtools (`pairtools sort`) with `pairix` or `tabix`.
 * The undocumented aliases `cooler.util.make_bintable` (use `cooler.binnify`) and `cooler._balance.iterative_correction` (use `cooler.balance_cooler`).
 * The deprecated `append` argument of `cooler.create.create`. Use `mode="a"`.
 * Aggregations of value columns that depend on how pixels are grouped, such as `mean` or `median`. `cooler cload pairs --field ...:agg=` accepts `sum`, `min`, `max`, `count` and `sum_squares`. `create_cooler(..., agg=...)`, `cooler coarsen`, `merge` and `zoomify --field ...:agg=`, and the `agg` of `coarsen_cooler`, `merge_coolers` and `zoomify_cooler` accept `sum`, `min` and `max`. Others, such as `mean` or `median`, raise an error. They depended on how the pixels were grouped: `mean` in coarsen and merge averaged over stored pixels only, and zoomify, which coarsens each resolution from the previous one, gave an unweighted mean of means. For a mean, store a sum and a count, which combine exactly, and divide them when reading.

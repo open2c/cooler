@@ -1,5 +1,5 @@
 """
-Tests for the top-level CLI, the small commands (makebins, digest, csort) and
+Tests for the top-level CLI, the small commands (makebins, digest) and
 the parsing helpers in cooler.cli._util.
 
 To debug a failing command, run it with ``run_cli``: an exception raised by
@@ -13,7 +13,6 @@ import pytest
 from _common import DATA
 
 from cooler.cli import _util as util
-from cooler.util import cmd_exists
 
 TOY = DATA / "toy.symm.upper.2.cool"
 CHROMSIZES = DATA / "toy.chrom.sizes"
@@ -63,18 +62,6 @@ def test_digest(run_cli):
 
     result = run_cli("digest", CHROMSIZES, fasta, "NoSuchEnzyme", exit_code=1)
 
-
-@pytest.mark.skipif(
-    not cmd_exists("bgzip") or not cmd_exists("pairix"),
-    reason="missing command line requirements for csort",
-)
-def test_csort(run_cli, tmp_path):
-    out = tmp_path / "test.pairs.blksrt"
-    run_cli(
-        "csort", "-c1", 2, "-p1", 3, "-c2", 4, "-p2", 5, "-p", 1,
-        DATA / "toy.pairs", CHROMSIZES, "-o", out,
-    )
-    assert out.exists()
 
 
 def test_delimited_tuple():

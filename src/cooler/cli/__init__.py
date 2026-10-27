@@ -97,7 +97,6 @@ from . import (  # noqa: E402,F401
     balance,
     cload,
     coarsen,
-    csort,
     digest,
     dump,
     fileops,

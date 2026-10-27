@@ -97,8 +97,6 @@ Quick reference
       - Generate fixed-width genomic bins.
     * - `cooler digest`_
       - Generate fragment-delimited genomic bins.
-    * - `cooler csort`_
-      - Sort and index a contact list.
 
 
 .. rubric:: Options
@@ -282,7 +280,7 @@ Bin a pairix-indexed contact list file.
 
     COOL_PATH : Output COOL file path or URI.
 
-See also: 'cooler csort' to sort and index a contact list file
+For unsorted pairs, see 'cooler cload pairs'.
 
 Pairix on GitHub: <https://github.com/4dn-dcic/pairix>.
 
@@ -352,7 +350,7 @@ Bin a tabix-indexed contact list file.
 
     COOL_PATH : Output COOL file path or URI.
 
-See also: 'cooler csort' to sort and index a contact list file
+For unsorted pairs, see 'cooler cload pairs'.
 
 Tabix manpage: <http://www.htslib.org/doc/tabix.html>.
 
@@ -1329,124 +1327,3 @@ ENZYME : Name of restriction enzyme
 .. option:: -i, --rel-ids <rel_ids>
 
     Include a column of relative bin IDs for each chromosome. Choose whether to report them as 0- or 1-based.
-
-
-----
-
-cooler csort
-------------
-
-
-Sort and index a contact list.
-
-Order the mates of each pair record so that all contacts are upper
-triangular with respect to the chromosome ordering given by the chromosomes
-file, sort contacts by genomic location, and index the resulting file.
-
-PAIRS_PATH : Contacts (i.e. read pairs) text file, optionally compressed.
-
-CHROMOSOMES_PATH : File listing desired chromosomes in the desired order.
-May be tab-delimited, e.g. a UCSC-style chromsizes file. Contacts mapping to
-other chromosomes will be discarded.
-
-**Notes**
-
-- csort can also be used to sort and index a text representation of
-  a contact *matrix* in bedGraph-like format. In this case, substitute
-  `pos1` and `pos2` with `start1` and `start2`, respectively.
-- Requires Unix tools: sort, bgzip + tabix or pairix.
-
-If indexing with Tabix, the output file will have the following properties:
-
-- Upper triangular: the read pairs on each row are assigned to side 1 or 2
-  in such a way that (chrom1, pos1) is always "less than" (chrom2, pos2)
-- Rows are lexicographically sorted by chrom1, pos1, chrom2, pos2;
-  i.e. "positionally sorted"
-- Compressed with bgzip [*]
-- Indexed using Tabix [*] on chrom1 and pos1.
-
-If indexing with Pairix, the output file will have the following properties:
-
-- Upper triangular: the read pairs on each row are assigned to side 1 or 2
-  in such a way that (chrom1, pos1) is always "less than" (chrom2, pos2)
-- Rows are lexicographically sorted by chrom1, chrom2, pos1, pos2; i.e.
-  "block sorted"
-- Compressed with bgzip [*]
-- Indexed using Pairix [+] on chrom1, chrom2 and pos1.
-
-[*] Tabix manpage: <http://www.htslib.org/doc/tabix.html>.
-[+] Pairix on Github: <https://github.com/4dn-dcic/pairix>
-
-
-.. program:: cooler csort
-.. code-block:: shell
-
-    cooler csort [OPTIONS] PAIRS_PATH CHROMOSOMES_PATH
-
-.. rubric:: Arguments
-
-.. option:: PAIRS_PATH
-
-    Required argument
-
-.. option:: CHROMOSOMES_PATH
-
-    Required argument
-
-.. rubric:: Options
-
-.. option:: -c1, --chrom1 <chrom1>
-
-    chrom1 field number in the input file (starting from 1)  [required]
-
-.. option:: -c2, --chrom2 <chrom2>
-
-    chrom2 field number  [required]
-
-.. option:: -p1, --pos1 <pos1>
-
-    pos1 field number  [required]
-
-.. option:: -p2, --pos2 <pos2>
-
-    pos2 field number  [required]
-
-.. option:: -i, --index <index>
-
-    Select the preset sort and indexing options  [default: pairix]
-
-.. option:: --flip-only
-
-    Only flip mates; no sorting or indexing. Write to stdout.  [default: False]
-
-.. option:: -p, --nproc <nproc>
-
-    Number of processors  [default: 8]
-
-.. option:: -0, --zero-based
-
-    Read positions are zero-based  [default: False]
-
-.. option:: --sep <sep>
-
-    Data delimiter in the input file  [default: \t]
-
-.. option:: --comment-char <comment_char>
-
-    Comment character to skip header  [default: #]
-
-.. option:: --sort-options <sort_options>
-
-    Quoted list of additional options to `sort` command
-
-.. option:: -o, --out <out>
-
-    Output gzip file
-
-.. option:: -s1, --strand1 <strand1>
-
-    strand1 field number (deprecated)
-
-.. option:: -s2, --strand2 <strand2>
-
-    strand2 field number (deprecated)

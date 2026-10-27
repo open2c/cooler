@@ -301,7 +301,6 @@ COMMANDS = [
     "ln",
     "makebins",
     "digest",
-    "csort",
 ]
 
 SUBCOMMANDS = {"cload": ["pairs", "pairix", "tabix", "hiclib"]}
@@ -407,8 +406,6 @@ Quick reference
       - Generate fixed-width genomic bins.
     * - `cooler digest`_
       - Generate fragment-delimited genomic bins.
-    * - `cooler csort`_
-      - Sort and index a contact list.
 
 
 .. rubric:: Options
@@ -448,4 +445,4 @@ text = TEMPLATE.format(**{cmd: get_command_docs(cmd) for cmd in COMMANDS})
 
 
 with open("cli.rst", "w") as f:
-    f.write(text)
+    f.write(text.rstrip("\n") + "\n")

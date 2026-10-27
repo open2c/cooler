@@ -231,7 +231,7 @@ def tabix(
 
     {}
 
-    See also: 'cooler csort' to sort and index a contact list file
+    For unsorted pairs, see 'cooler cload pairs'.
 
     Tabix manpage: <http://www.htslib.org/doc/tabix.html>.
 
@@ -333,7 +333,7 @@ def pairix(
 
     {}
 
-    See also: 'cooler csort' to sort and index a contact list file
+    For unsorted pairs, see 'cooler cload pairs'.
 
     Pairix on GitHub: <https://github.com/4dn-dcic/pairix>.
 
