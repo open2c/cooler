@@ -328,3 +328,35 @@ def test_dataframe_meta():
     util.infer_meta(df)
     # meta2 = util.get_meta(df.columns, df.dtypes)
     # assert meta1 == meta2
+
+
+def _add_one(x):
+    return x + 1
+
+
+def _double(x):
+    return 2 * x
+
+
+def _scale(x, factor=1):
+    return x * factor
+
+
+def test_compose():
+    assert util.compose(_add_one, _double)(5) == 11  # right to left
+    assert util.compose(_double, _add_one)(5) == 12
+    assert util.compose(_add_one)(5) == 6
+    assert util.compose(_add_one, _scale)(5, factor=3) == 16
+    assert "compose(" in repr(util.compose(_add_one, _double))
+    with pytest.raises(TypeError):
+        util.compose()
+
+    # Composed functions can be sent to worker processes
+    import pickle
+
+    import multiprocess as mp
+
+    func = util.compose(_add_one, _double)
+    assert pickle.loads(pickle.dumps(func))(5) == 11
+    with mp.Pool(2) as pool:
+        assert pool.map(func, [1, 2, 3]) == [3, 5, 7]

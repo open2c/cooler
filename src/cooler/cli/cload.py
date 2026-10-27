@@ -8,7 +8,6 @@ import click
 import h5py
 import numpy as np
 import pandas as pd
-from cytoolz import compose
 from multiprocess import Pool
 from pandas.io.common import get_handle
 
@@ -20,6 +19,7 @@ from ..create import (
     create_cooler,
     sanitize_records,
 )
+from ..util import compose
 from . import cli, get_logger
 from ._util import (
     copy_fields,

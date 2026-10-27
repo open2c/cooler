@@ -119,6 +119,7 @@
 * Fixed deprecation warnings from NumPy (generic timedelta unit), Click (`CliRunner.isolated_filesystem`) and pandas in the code and tests.
 * `cooler cload` logs a warning naming chromosomes whose records are skipped because they are not in the bin table (once per chromosome).
 * Removed the unused, untested `SparseBlockLoader` and `ArrayBlockLoader` classes, and compatibility code for pandas < 1.2.
+* cooler no longer depends on cytoolz, a compiled extension; `cooler.util.compose` replaces the one function used from it. The minimum click version is raised to 8.0, which the CLI already required. Python 3.13 and 3.14 are tested and listed in the package classifiers, and the package metadata uses an SPDX license expression.
 * The minimum h5py version is raised to 3.0 (from 2.5). h5py 3.0 is the oldest release with wheels for every supported Python version.
 * Removed the undocumented `cooler.create.append` function. Columns are now added to existing tables through an internal column writer (`cooler.create._writer._ColumnWriter`), which writes several columns at once in batches of rows (e.g. from polars `LazyFrame.sink_batches`), and adds or replaces them only once every row is written. A public interface will follow with the new API.
 * `create_scool` is built on an internal scool writer (`cooler.create._writer._ScoolWriter`) that writes the shared tables once and adds cells one at a time (`add_cell`), replacing the scool-specific options of `cooler.create.create` (`append_scool`, `scool_root_uri`).

@@ -527,6 +527,33 @@ def rlencode(
     return starts, lengths, values
 
 
+class compose:
+    """
+    Compose functions from right to left: ``compose(f, g)(x) == f(g(x))``.
+
+    The first function to be called (the last one given) takes any arguments;
+    the others take the result of the previous one. Composed functions can be
+    pickled, e.g. to send to worker processes, if the functions can be.
+    """
+
+    __slots__ = ("funcs",)
+
+    def __init__(self, *funcs: Any):
+        if not funcs:
+            raise TypeError("compose() needs at least one function")
+        self.funcs = funcs
+
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+        *rest, first = self.funcs
+        result = first(*args, **kwargs)
+        for func in reversed(rest):
+            result = func(result)
+        return result
+
+    def __repr__(self) -> str:
+        return f"compose({', '.join(map(repr, self.funcs))})"
+
+
 def cmd_exists(cmd: str) -> bool:
     return any(
         os.access(os.path.join(path, cmd), os.X_OK)

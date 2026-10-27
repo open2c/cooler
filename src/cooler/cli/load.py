@@ -5,7 +5,6 @@ from functools import partial
 import click
 import numpy as np
 import pandas as pd
-from cytoolz import compose
 
 from ..create import (
     BIN_DTYPE,
@@ -14,6 +13,7 @@ from ..create import (
     sanitize_pixels,
     sanitize_records,
 )
+from ..util import compose
 from . import cli, get_logger
 from ._util import (
     copy_fields,
