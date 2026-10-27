@@ -306,9 +306,8 @@ def balance(
             sys.exit(1)
 
     if stdout:
-        pd.Series(bias).to_string(
-            sys.stdout, header=False, index=False, na_rep="", float_format="%g"
-        )
+        # One line per bin, with an empty line for NaN
+        sys.stdout.write("".join("\n" if np.isnan(w) else f"{w:g}\n" for w in bias))
     else:
         # Replaces an existing column only once the new one is written
         _add_columns(

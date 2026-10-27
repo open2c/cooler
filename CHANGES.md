@@ -64,6 +64,7 @@
 * fix: Bins with no data left after filtering get NaN weights. Previously they could get finite weights with `--min-nnz 0`, or when a whole chromosome was empty, since the MAD filter skipped chromosomes without data.
 * fix: Balancing reports non-convergence (and a NaN `scale`) when every bin is filtered out. Previously it reported convergence. In cis-only balancing, an empty chromosome still counts as converged, unless all of them are empty.
 * fix: `balance_cooler(..., max_iters=0)` no longer raises an `UnboundLocalError`. `x0` is no longer modified and returned as the weights, integer `x0` works, and an `x0` of the wrong length raises an error.
+* fix: `cooler balance --stdout` writes one line per bin, ending with a newline. A NaN weight in the last bin was lost, since its empty line had no newline. Values are no longer padded with spaces.
 * fix: `cooler balance --blacklist` ignores regions on chromosomes that aren't in the cooler (e.g. chrY or chrM), with a warning, instead of crashing.
 * fix: Storing balancing weights no longer fails when the stats attributes exceed HDF5's 64 KiB limit for attributes, as with cis-only balancing of assemblies with many thousands of contigs (#226). New columns are created with an object header that stores large attributes separately.
 * fix: Balancing stats record whether `trans_only` was used. The `--mad-max` help describes the filter correctly: marginals are normalized by their chromosome's median, then compared with a genome-wide cutoff.
