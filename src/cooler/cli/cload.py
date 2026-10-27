@@ -708,7 +708,8 @@ def pairs(
         max_merge=max_merge,
         temp_dir=temp_dir,
         delete_temp=not no_delete_temp,
-        agg=aggregations,
+        # How to combine the per-chunk results: counts add up
+        agg={k: "sum" if v == "count" else v for k, v in aggregations.items()},
         boundscheck=True,
         triucheck=False,
         dupcheck=False,

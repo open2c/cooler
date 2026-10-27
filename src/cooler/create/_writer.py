@@ -45,10 +45,10 @@ _WRITING_SUFFIX = ".__writing__"
 _TABLES = ("chroms", "bins", "pixels", "indexes")
 
 
-# Aggregations of value columns that can be combined across chunks of input,
-# and the aggregation to combine the per-chunk results with. A mean isn't
-# supported: store a sum and a count, and divide them when reading.
-_MERGEABLE_AGGS = {"sum": "sum", "min": "min", "max": "max", "count": "sum"}
+# Ways to combine the values of a pixel from different chunks of input, which
+# give the same result however the input is chunked. A mean isn't one: store
+# a sum and a count, and divide them when reading.
+_COMBINE_AGGS = ("sum", "min", "max")
 
 def _set_h5opts(h5opts: dict[str, Any]) -> dict[str, Any]:
     result = {}
@@ -826,10 +826,10 @@ class _UnorderedCoolerWriter:
     pixels that occur in more than one run according to ``agg``, and writes
     the result with a :class:`_CoolerWriter`.
 
-    The aggregations are ``"sum"`` (the default), ``"min"``, ``"max"`` and
-    ``"count"``, which combine exactly across runs: a ``"count"`` column holds
-    counts (e.g. from :func:`~cooler.create.aggregate_records`), which are
-    added up. Other aggregations raise an error.
+    The aggregations are ``"sum"`` (the default), ``"min"`` and ``"max"``,
+    which give the same result however the input is chunked. Other
+    aggregations raise an error. Columns of counts, e.g. from
+    :func:`~cooler.create.aggregate_records`, are combined with ``"sum"``.
 
     Parameters
     ----------
@@ -900,18 +900,18 @@ class _UnorderedCoolerWriter:
             if unknown:
                 raise ValueError(f"Aggregations given for unknown columns: {unknown}")
             self.agg.update(agg)
-        unsupported = {c: f for c, f in self.agg.items() if f not in _MERGEABLE_AGGS}
+        unsupported = {c: f for c, f in self.agg.items() if f not in _COMBINE_AGGS}
         if unsupported:
             details = ", ".join(f"'{f}' for '{c}'" for c, f in unsupported.items())
             raise ValueError(
-                f"Unsupported aggregation {details}. Use 'sum', 'min', 'max' or "
-                "'count'. For a mean, store a sum and a count, and divide them "
-                "when reading."
+                f"Unsupported aggregation {details}. Use 'sum', 'min' or 'max'. "
+                "For a mean, store a sum and a count, and divide them when "
+                "reading."
             )
 
         self.run_columns = list(self.columns)
         self.run_dtypes = dict(self.dtypes)
-        self.merge_agg = {c: _MERGEABLE_AGGS[f] for c, f in self.agg.items()}
+        self.merge_agg = dict(self.agg)
         if duplicates == "error":
             # Count occurrences of each pixel, to detect duplicates across runs
             self.run_columns.append(_OCCURRENCES)

@@ -348,13 +348,15 @@ def test_cload_tabix_rejects_out_of_range_positions(tmp_path, chromsizes_file):
     assert "outside of chr1" in str(result.exception)
 
 
-def test_create_unordered_rejects_mean(tmp_path):
+@pytest.mark.parametrize("func", ["mean", "count"])
+def test_create_unordered_unsupported_aggregation(tmp_path, func):
+    # Only ways to combine pixel values that don't depend on the chunking
     bins = cooler.util.binnify(pd.Series({"chr1": 100}), 10)
     px = pd.DataFrame({"bin1_id": [0], "bin2_id": [1], "count": [1], "v": [2.0]})
-    with pytest.raises(ValueError, match="Unsupported aggregation 'mean'"):
+    with pytest.raises(ValueError, match=f"Unsupported aggregation '{func}'"):
         cooler.create_cooler(
             str(tmp_path / "m.cool"), bins, iter([px]), columns=["count", "v"],
-            ordered=False, agg={"v": "mean"},
+            ordered=False, agg={"v": func},
         )
 
 

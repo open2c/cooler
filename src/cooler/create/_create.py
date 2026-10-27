@@ -239,9 +239,7 @@ def create_from_unordered(
     in any particular order.
 
     Pixels that occur more than once in the input are combined using ``agg``,
-    a mapping of value column names to "sum" (default), "min", "max" or
-    "count". A "count" column holds counts (e.g. from
-    :func:`~cooler.create.aggregate_records`), which are added up. If
+    a mapping of value column names to "sum" (default), "min" or "max". If
     ``duplicates`` is "error", a pixel occurring more than once anywhere in
     the input raises instead.
 
@@ -314,9 +312,7 @@ _DOC_OTHER_PARAMS = """
     agg : dict, optional
         When ``ordered=False``, how to combine the values of a pixel that
         occurs more than once in the input: a mapping of value column names
-        to "sum" (default), "min", "max" or "count". A "count" column holds
-        counts, which are added up. For a mean, store a sum and a count, and
-        divide them when reading.
+        to "sum" (default), "min" or "max".
     duplicates : {"combine", "error"}, optional
         When ``ordered=False``, what a pixel occurring more than once in the
         input (within or across chunks) means: "combine" (default) combines
