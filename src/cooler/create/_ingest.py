@@ -597,7 +597,7 @@ class HDF5Aggregator(ContactBinner):
         )
         return pd.DataFrame(data)
 
-    def aggregate(self, chrom: str) -> pd.DataFrame:  # pragma: no cover
+    def aggregate(self, chrom: str) -> pd.DataFrame:
         h5pairs = self.h5
         C1, P1, C2, P2 = self.C1, self.P1, self.C2, self.P2
         chunksize = self.chunksize

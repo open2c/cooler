@@ -4,6 +4,7 @@ pairs and load.
 """
 import json
 
+import h5py
 import numpy as np
 import pandas as pd
 import pytest
@@ -176,3 +177,90 @@ def test_load_field_from_count_column(run_cli, tmp_path):
     pixels = cooler.Cooler(str(out)).pixels()[:]
     assert types.is_float_dtype(pixels.dtypes["v"])
     assert (pixels["v"] == pixels["count"]).all()
+
+
+def test_cload_pairs_options(run_cli, tmp_path):
+    expected = tmp_path / "expected.cool"
+    cload_pairs(run_cli, expected)
+
+    # Pairs from stdin
+    out = tmp_path / "stdin.cool"
+    run_cli(
+        "cload", "pairs", f"{CHROMSIZES}:2", "-", out,
+        "-c1", 2, "-p1", 3, "-c2", 4, "-p2", 5,
+        input=(DATA / "toy.pairs").read_text(),
+    )
+    pd.testing.assert_frame_equal(
+        cooler.Cooler(str(out)).pixels()[:], cooler.Cooler(str(expected)).pixels()[:]
+    )
+
+    # A storage option with a list value
+    cload_pairs(run_cli, out, "--storage-options", "chunks=[1]")
+    with h5py.File(out, "r") as f:
+        assert f["pixels/count"].chunks == (1,)
+
+    # Field numbers start at 1
+    cload_pairs(run_cli, out, "-c1", 0, exit_code=2)
+
+
+def write_hiclib_pairs(path):
+    # A hiclib "frag" file: chromosome IDs and zero-based positions of both
+    # sides, upper triangular and sorted by the first side
+    records = pd.read_csv(DATA / "toy.pairs", sep="\t", header=None)
+    chrom_ids = {"chr1": 0, "chr2": 1}
+    c1, p1 = records[1].map(chrom_ids), records[2] - 1
+    c2, p2 = records[3].map(chrom_ids), records[4] - 1
+    flip = (c1 > c2) | ((c1 == c2) & (p1 > p2))
+    df = pd.DataFrame({
+        "chrms1": np.where(flip, c2, c1), "cuts1": np.where(flip, p2, p1),
+        "chrms2": np.where(flip, c1, c2), "cuts2": np.where(flip, p1, p2),
+    }).sort_values(["chrms1", "cuts1"])
+    with h5py.File(path, "w") as f:
+        for name in df.columns:
+            f[name] = df[name].to_numpy()
+
+
+def test_cload_hiclib(run_cli, tmp_path):
+    frag = tmp_path / "frag.h5"
+    write_hiclib_pairs(frag)
+    (tmp_path / "meta.json").write_text(json.dumps({"foo": "bar"}))
+    out = tmp_path / "hiclib.cool"
+    run_cli(
+        "cload", "hiclib", f"{CHROMSIZES}:2", frag, out,
+        "--metadata", tmp_path / "meta.json", "--chunksize", 7,
+    )
+    expected = tmp_path / "pairs.cool"
+    cload_pairs(run_cli, expected)
+    pd.testing.assert_frame_equal(
+        cooler.Cooler(str(out)).pixels()[:], cooler.Cooler(str(expected)).pixels()[:]
+    )
+    assert cooler.Cooler(str(out)).info["metadata"] == {"foo": "bar"}
+
+
+def test_cload_tabix_metadata(run_cli, tmp_path):
+    pytest.importorskip("pysam")
+    (tmp_path / "meta.json").write_text(json.dumps({"foo": "bar"}))
+    out = tmp_path / "tabix.cool"
+    run_cli(
+        "cload", "tabix", DATA / "hg19.bins.2000kb.bed.gz",
+        DATA / "hg19.GM12878-MboI.pairs.subsample.sorted.txt.gz", out,
+        "--metadata", tmp_path / "meta.json",
+    )
+    assert cooler.Cooler(str(out)).info["metadata"] == {"foo": "bar"}
+
+
+def test_get_header():
+    import io
+
+    from cooler.cli.cload import get_header
+
+    # A binary stream with peek() but no text wrapper
+    stream = io.BufferedReader(io.BytesIO(b"#a\n#b\n1\t2\n"))
+    header, rest = get_header(stream)
+    assert header == ["#a", "#b"]
+    assert rest.read() == b"1\t2\n"
+
+    with pytest.raises(ValueError, match="comment char"):
+        get_header(stream, comment_char="")
+    with pytest.raises(ValueError, match="peek"):
+        get_header(io.StringIO("#a\n"))
