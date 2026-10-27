@@ -107,6 +107,9 @@
 * The `to_sparse_array()` method of range query engines returns a SciPy `coo_array` instead of a pydata/sparse `COO`, so it no longer needs the optional `sparse` package. `to_sparse_matrix()` now converts the same `coo_array` to a `coo_matrix`. The minimum SciPy version is raised to 1.11, the oldest compatible with NumPy 1.26.
 * Property-based tests of 2D range queries against dense NumPy references. By @nvictus in https://github.com/open2c/cooler/pull/501
 
+### Documentation
+* The `agg` parameter of `merge_coolers`, `coarsen_cooler` and `zoomify_cooler`, and the `--field` help of `cooler merge`, `coarsen` and `zoomify`, describe how aggregations treat pixels that aren't stored: they don't count as zeros, so `mean` averages over stored pixels only (or, when merging, over the coolers that store the pixel). Zoomify coarsens each resolution from the previous one, so `mean` there is an unweighted mean of means.
+
 ## [v0.11.0](https://github.com/open2c/cooler/compare/v0.10.4...v0.11.0)
 
 ### New features

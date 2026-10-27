@@ -104,7 +104,10 @@ def invoke_balance(args, resolutions, outfile):
     help="Specify the names of value columns to merge as '<name>'. "
     "Repeat the ``--field`` option for each one. "
     "Use '<name>:dtype=<dtype>' to specify the dtype. Include "
-    "',agg=<agg>' to specify an aggregation function different from 'sum'.",
+    "',agg=<agg>' to specify an aggregation function different from 'sum'. "
+    "Aggregations apply to stored pixels only, and each "
+    "resolution is coarsened from the previous one, so 'mean' "
+    "is an unweighted mean of means.",
     type=str,
     multiple=True,
 )

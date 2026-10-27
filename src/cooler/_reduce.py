@@ -246,6 +246,9 @@ def merge_coolers(
         Functions to use for aggregating each value column. Pass the same kind
         of dict accepted by ``pandas.DataFrame.groupby.agg``. Default is to
         apply 'sum' to every value column.
+        Functions are applied to the values of a pixel in the inputs that
+        store it: an input cooler without the pixel doesn't contribute a zero.
+        For example, ``"mean"`` averages over the inputs that store the pixel.
     kwargs
         Passed to ``cooler.create``.
 
@@ -667,6 +670,10 @@ def coarsen_cooler(
         Functions to use for aggregating each value column. Pass the same kind
         of dict accepted by ``pandas.DataFrame.groupby.agg``. Default is to
         apply 'sum' to every value column.
+        Functions are applied to the stored pixels of each *k*-by-*k* block:
+        pixels that aren't stored don't count as zeros. For example,
+        ``"mean"`` averages over the stored (usually nonzero) pixels of a
+        block, not over all of its pixels.
     kwargs
         Passed to ``cooler.create``.
 
@@ -780,6 +787,12 @@ def zoomify_cooler(
         Functions to use for aggregating each value column. Pass the same kind
         of dict accepted by ``pandas.DataFrame.groupby.agg``. Default is to
         apply 'sum' to every value column.
+        Functions are applied to the stored pixels of each *k*-by-*k* block:
+        pixels that aren't stored don't count as zeros. For example,
+        ``"mean"`` averages over the stored (usually nonzero) pixels of a
+        block, not over all of its pixels.
+        Each resolution is coarsened from the previous one, so ``"mean"``
+        gives an unweighted mean of the previous resolution's means.
     kwargs
         Passed to ``cooler.create``.
 

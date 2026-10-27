@@ -21,7 +21,9 @@ from ._util import parse_field_param
     help="Specify the names of value columns to merge as '<name>'. "
     "Repeat the `--field` option for each one. "
     "Use '<name>:dtype=<dtype>' to specify the dtype. Include "
-    "',agg=<agg>' to specify an aggregation function different from 'sum'.",
+    "',agg=<agg>' to specify an aggregation function different from 'sum'. "
+    "Aggregations apply to the coolers that store a pixel, "
+    "e.g. 'mean' averages over those coolers only.",
     type=str,
     multiple=True,
 )

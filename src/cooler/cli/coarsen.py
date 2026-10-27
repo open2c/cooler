@@ -42,7 +42,9 @@ from ._util import parse_field_param
     help="Specify the names of value columns to merge as '<name>'. "
     "Repeat the `--field` option for each one. "
     "Use '<name>:dtype=<dtype>' to specify the dtype. Include "
-    "',agg=<agg>' to specify an aggregation function different from 'sum'.",
+    "',agg=<agg>' to specify an aggregation function different from 'sum'. "
+    "Aggregations apply to stored pixels only, e.g. 'mean' "
+    "averages over the stored (usually nonzero) pixels of each block.",
     type=str,
     multiple=True,
 )
