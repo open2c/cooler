@@ -101,14 +101,15 @@ def _marginals(clr, spans, filters, map, use_lock, bias):
     )
 
 
-def _trans_marginals(clr, spans, filters, map, use_lock, cweights, bias):
-    return _marginals(
-        clr, spans, [*filters, _zero_cis], map, use_lock, bias * cweights
-    )
-
-
 def _iterate(
-    bias, groups, get_marginals, tol, max_iters, rescale_marginals, names=None
+    bias,
+    groups,
+    get_marginals,
+    tol,
+    max_iters,
+    rescale_marginals,
+    names=None,
+    target=None,
 ):
     """
     Balance ``bias`` in place, separately for each group of bins.
@@ -117,6 +118,10 @@ def _iterate(
     all groups are computed in one pass over the pixels per iteration, so
     pixels between different groups must be filtered out, e.g. trans pixels
     when each chromosome is a group. A group stops updating once it converges.
+
+    By default, the marginals of a group are balanced to be equal. If
+    ``target`` is given, each bin's marginal is balanced to be proportional to
+    its target instead: the marginals are divided by the targets.
 
     Returns the mean and variance of the marginals of each group at its last
     iteration, which are NaN if no iteration was done or if every bin of the
@@ -132,6 +137,8 @@ def _iterate(
     last_marg = np.full(len(bias), np.nan)
     for i in range(max_iters):
         marg = get_marginals(bias)
+        if target is not None:
+            marg = marg / target
         sel = active[groups]
         last_marg[sel] = marg[sel]
 
@@ -251,20 +258,36 @@ def _balance_transonly(
     rescale_marginals,
     use_lock,
 ):
-    n_bins = len(bias)
+    # Bins on larger chromosomes have fewer trans partners, so equal trans
+    # marginals would give them larger balanced values per pixel. Instead, the
+    # target of each bin is its share of the valid trans partners: the bins
+    # with trans data, outside its own chromosome. The balanced matrix then has
+    # the same mean trans contact per partner in every row.
+    get_marginals = partial(_marginals, clr, spans, filters, map, use_lock)
     chrom_offsets = clr._load_dset("indexes/chrom_offset")
-    cweights = 1.0 / np.concatenate(
-        [
-            [(1 - (hi - lo) / n_bins)] * (hi - lo)
-            for lo, hi in zip(chrom_offsets[:-1], chrom_offsets[1:])
-        ]
-    )
-    get_marginals = partial(
-        _trans_marginals, clr, spans, filters, map, use_lock, cweights
-    )
-    groups = np.zeros(n_bins, dtype=int)
+    chrom_of_bin = np.repeat(np.arange(len(chrom_offsets) - 1), np.diff(chrom_offsets))
+    valid = get_marginals(bias) != 0
+    n_valid = np.bincount(chrom_of_bin[valid], minlength=len(chrom_offsets) - 1)
+    target = 1 - n_valid[chrom_of_bin] / max(valid.sum(), 1)
+    target[~valid | (target == 0)] = 1  # not balanced
+    if 0 < np.count_nonzero(n_valid) < 3:
+        # With two chromosomes, scaling one chromosome's weights up and the
+        # other's down by the same factor leaves the trans data unchanged
+        warnings.warn(
+            "Trans-only balancing with fewer than three chromosomes doesn't "
+            "determine the relative scale of the chromosomes' weights.",
+            stacklevel=3,
+        )
+
+    groups = np.zeros(len(bias), dtype=int)
     scale, var = _iterate(
-        bias, groups, get_marginals, tol, max_iters, rescale_marginals
+        bias,
+        groups,
+        get_marginals,
+        tol,
+        max_iters,
+        rescale_marginals,
+        target=target,
     )
     return bias, scale[0], var[0]
 
@@ -303,7 +326,10 @@ def balance_cooler(
         Inter-chromosomal data is ignored.
     trans_only : bool, optional
         Do iterative correction on inter-chromosomal data only.
-        Intra-chromosomal data is ignored.
+        Intra-chromosomal data is ignored, also by the bin filters. Bins on
+        larger chromosomes have fewer inter-chromosomal partners, so rather
+        than equal marginals, the balanced matrix has the same mean
+        inter-chromosomal contact per valid partner bin in every row.
     ignore_diags : int or False, optional
         Drop elements occurring on the first ``ignore_diags`` diagonals of the
         matrix (including the main diagonal). Only intra-chromosomal elements
@@ -385,6 +411,8 @@ def balance_cooler(
     base_filters = []
     if cis_only:
         base_filters.append(_zero_trans)
+    if trans_only:
+        base_filters.append(_zero_cis)
     if ignore_diags:
         base_filters.append(partial(_zero_diags, ignore_diags))
     if ignore_dist:

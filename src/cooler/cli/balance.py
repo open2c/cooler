@@ -25,7 +25,8 @@ from . import cli, get_logger
 @click.option(
     "--trans-only",
     help="Calculate weights against inter-chromosomal data only instead of "
-    "genome-wide.",
+    "genome-wide. The balanced matrix has the same mean inter-chromosomal "
+    "contact per valid partner bin in every row.",
     is_flag=True,
     default=False,
 )
