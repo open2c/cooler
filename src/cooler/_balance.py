@@ -10,7 +10,7 @@ import numpy as np
 from ._logging import get_logger
 from ._typing import MapFunctor
 from .api import Cooler
-from .parallel import partition, split
+from .parallel import split
 from .util import mad
 
 __all__ = ["balance_cooler"]
@@ -107,46 +107,83 @@ def _trans_marginals(clr, spans, filters, map, use_lock, cweights, bias):
     )
 
 
-def _iterate(bias, sel, get_marginals, tol, max_iters, rescale_marginals, where=""):
+def _iterate(
+    bias, groups, get_marginals, tol, max_iters, rescale_marginals, names=None
+):
     """
-    Balance the bins ``sel`` of ``bias`` in place.
+    Balance ``bias`` in place, separately for each group of bins.
 
-    Returns the mean and variance of the marginals at the last iteration, which
-    are NaN if no iteration was done or if every bin is filtered out. Bins with
-    no data left after filtering get NaN weights.
+    ``groups`` gives the group of every bin, numbered from 0. The marginals of
+    all groups are computed in one pass over the pixels per iteration, so
+    pixels between different groups must be filtered out, e.g. trans pixels
+    when each chromosome is a group. A group stops updating once it converges.
+
+    Returns the mean and variance of the marginals of each group at its last
+    iteration, which are NaN if no iteration was done or if every bin of the
+    group is filtered out. Bins with no data left after filtering get NaN
+    weights.
 
     """
-    scale = var = np.nan
-    marg = None
+    n_groups = int(groups.max()) + 1 if len(groups) else 0
+    scale = np.full(n_groups, np.nan)
+    var = np.full(n_groups, np.nan)
+    active = np.ones(n_groups, dtype=bool)
+    # The marginals of each bin at its group's last iteration
+    last_marg = np.full(len(bias), np.nan)
     for i in range(max_iters):
-        marg = get_marginals(bias)[sel]
-        nzmarg = marg[marg != 0]
-        if not len(nzmarg):
+        marg = get_marginals(bias)
+        sel = active[groups]
+        last_marg[sel] = marg[sel]
+
+        nz = sel & (marg != 0)
+        g = groups[nz]
+        n = np.bincount(g, minlength=n_groups)
+        active &= n > 0
+        if not active.any():
             break
 
-        scale = nzmarg.mean()
-        var = nzmarg.var()
-        factor = marg / scale
+        with np.errstate(divide="ignore", invalid="ignore"):
+            mean = np.bincount(g, weights=marg[nz], minlength=n_groups) / n
+            dev = (marg[nz] - mean[g]) ** 2
+            v = np.bincount(g, weights=dev, minlength=n_groups) / n
+        scale[active] = mean[active]
+        var[active] = v[active]
+
+        sel = active[groups]
+        factor = marg[sel] / mean[groups[sel]]
         factor[factor == 0] = 1
         bias[sel] /= factor
 
-        logger.info(f"Iteration {i + 1}: variance of marginals {var:.6g}")
-        if var < tol:
+        if n_groups == 1:
+            logger.info(f"Iteration {i + 1}: variance of marginals {v[0]:.6g}")
+        else:
+            logger.info(
+                f"Iteration {i + 1}: {np.count_nonzero(v[active] >= tol)} of "
+                f"{n_groups} chromosomes left to converge, "
+                f"maximum variance of marginals {v[active].max():.6g}"
+            )
+        active &= ~(v < tol)
+        if not active.any():
             break
     else:
+        if n_groups == 1 or names is None:
+            where = ""
+        else:
+            left = [str(name) for name in np.asarray(names)[active]]
+            shown = ", ".join(left[:10]) + (", ..." if len(left) > 10 else "")
+            where = f" on {len(left)} of {n_groups} chromosomes ({shown})"
         warnings.warn(
             f"Iteration limit reached without convergence{where}.",
             ConvergenceWarning,
             stacklevel=1,
         )
 
-    b = bias[sel]
-    if marg is not None:
-        b[marg == 0] = 0
-    b[b == 0] = np.nan
-    if rescale_marginals and np.isfinite(scale):
-        b /= np.sqrt(scale)
-    bias[sel] = b
+    bias[last_marg == 0] = 0
+    bias[bias == 0] = np.nan
+    if rescale_marginals:
+        s = scale[groups]
+        ok = np.isfinite(s)
+        bias[ok] /= np.sqrt(s[ok])
     return scale, var
 
 
@@ -155,7 +192,6 @@ def _balance_genomewide(
     clr,
     spans,
     filters,
-    chunksize,
     map,
     tol,
     max_iters,
@@ -165,10 +201,11 @@ def _balance_genomewide(
     get_marginals = partial(
         _marginals, clr, spans, filters, map, use_lock
     )
+    groups = np.zeros(len(bias), dtype=int)
     scale, var = _iterate(
-        bias, slice(None), get_marginals, tol, max_iters, rescale_marginals
+        bias, groups, get_marginals, tol, max_iters, rescale_marginals
     )
-    return bias, scale, var
+    return bias, scale[0], var[0]
 
 
 def _balance_cisonly(
@@ -176,37 +213,23 @@ def _balance_cisonly(
     clr,
     spans,
     filters,
-    chunksize,
     map,
     tol,
     max_iters,
     rescale_marginals,
     use_lock,
 ):
+    # Each chromosome is balanced separately, but all of them in the same
+    # passes over the pixels: the filters remove the trans pixels
     chroms = clr.chroms()["name"][:]
-    chrom_ids = np.arange(len(clr.chroms()))
     chrom_offsets = clr._load_dset("indexes/chrom_offset")
-    bin1_offsets = clr._load_dset("indexes/bin1_offset")
-    scales = np.ones(len(chrom_ids))
-    variances = np.full_like(scales, np.nan)
-
-    for cid, lo, hi in zip(chrom_ids, chrom_offsets[:-1], chrom_offsets[1:]):
-        logger.info(f"Balancing {chroms[cid]}")
-
-        plo, phi = bin1_offsets[lo], bin1_offsets[hi]
-        spans = list(partition(plo, phi, chunksize))
-        get_marginals = partial(
-            _marginals, clr, spans, filters, map, use_lock
-        )
-        scales[cid], variances[cid] = _iterate(
-            bias,
-            slice(lo, hi),
-            get_marginals,
-            tol,
-            max_iters,
-            rescale_marginals,
-            where=f" on {chroms[cid]}",
-        )
+    groups = np.repeat(np.arange(len(chroms)), np.diff(chrom_offsets))
+    get_marginals = partial(
+        _marginals, clr, spans, filters, map, use_lock
+    )
+    scales, variances = _iterate(
+        bias, groups, get_marginals, tol, max_iters, rescale_marginals, chroms
+    )
 
     # A chromosome with nothing left to balance counts as converged, unless
     # every chromosome is empty
@@ -222,7 +245,6 @@ def _balance_transonly(
     clr,
     spans,
     filters,
-    chunksize,
     map,
     tol,
     max_iters,
@@ -240,10 +262,11 @@ def _balance_transonly(
     get_marginals = partial(
         _trans_marginals, clr, spans, filters, map, use_lock, cweights
     )
+    groups = np.zeros(n_bins, dtype=int)
     scale, var = _iterate(
-        bias, slice(None), get_marginals, tol, max_iters, rescale_marginals
+        bias, groups, get_marginals, tol, max_iters, rescale_marginals
     )
-    return bias, scale, var
+    return bias, scale[0], var[0]
 
 
 def balance_cooler(
@@ -428,7 +451,6 @@ def balance_cooler(
             clr,
             spans,
             base_filters,
-            chunksize,
             map,
             tol,
             max_iters,
@@ -441,7 +463,6 @@ def balance_cooler(
             clr,
             spans,
             base_filters,
-            chunksize,
             map,
             tol,
             max_iters,
@@ -454,7 +475,6 @@ def balance_cooler(
             clr,
             spans,
             base_filters,
-            chunksize,
             map,
             tol,
             max_iters,

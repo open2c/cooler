@@ -11,6 +11,7 @@
 
 ### Performance
 * Range queries filter pixels in a single vectorized pass instead of looping over matrix rows in Python. The pixel filtering step is about 7-16x faster, and matrix queries on HDF5 files about 1.5x faster end to end, with peak memory about the same as before. Queries spanning many rows benefit most.
+* Cis-only balancing (`cooler balance --cis-only`) balances every chromosome in the same passes over the pixels, instead of separate passes for each chromosome, each of which also read the whole bin table. For assemblies with many contigs, it's as fast as genome-wide balancing: 20 iterations on a cooler with 2,010 chromosomes took 4.6 s instead of 316 s. The weights are unchanged. Chromosomes that don't converge are named in a single warning, and progress is logged once per iteration.
 
 ### Deprecations
 * `cooler.set_verbosity_level` and `cooler.get_verbosity_level` are deprecated and will be removed in cooler 0.13. Use `cooler.log_to_stderr(level)` or `logging.getLogger("cooler").setLevel(level)`. Verbosity levels remain a CLI concept (`-v`).
