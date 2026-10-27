@@ -83,6 +83,17 @@ def _h5opts_for_dtype(h5opts: dict, dtype: Any) -> dict:
     return {k: v for k, v in h5opts.items() if k not in _NUMERIC_H5OPTS}
 
 
+def _coord_dtype(values, default: np.dtype) -> np.dtype:
+    """
+    The dtype to store chromosome lengths or bin coordinates with: the default
+    (int32), or int64 for a chromosome longer than the default allows.
+    """
+    values = np.asarray(values)
+    if len(values) and values.max() > np.iinfo(default).max:
+        return np.dtype(np.int64)
+    return np.dtype(default)
+
+
 def write_chroms(grp: h5py.Group, chroms: pd.DataFrame, h5opts: dict) -> None:
     """
     Write the chromosome table.
@@ -109,7 +120,7 @@ def write_chroms(grp: h5py.Group, chroms: pd.DataFrame, h5opts: dict) -> None:
     grp.create_dataset(
         "length",
         shape=(n_chroms,),
-        dtype=CHROMSIZE_DTYPE,
+        dtype=_coord_dtype(chroms["length"], CHROMSIZE_DTYPE),
         data=chroms["length"],
         **h5opts,
     )
@@ -176,11 +187,12 @@ def write_bins(
     if not chrom_as_enum:
         chrom_dset.attrs["enum_path"] = "/chroms/name"
 
+    coord_dtype = _coord_dtype(bins["end"], COORD_DTYPE)
     grp.create_dataset(
-        "start", shape=(n_bins,), dtype=COORD_DTYPE, data=bins["start"], **h5opts
+        "start", shape=(n_bins,), dtype=coord_dtype, data=bins["start"], **h5opts
     )
     grp.create_dataset(
-        "end", shape=(n_bins,), dtype=COORD_DTYPE, data=bins["end"], **h5opts
+        "end", shape=(n_bins,), dtype=coord_dtype, data=bins["end"], **h5opts
     )
 
     # Extra columns
