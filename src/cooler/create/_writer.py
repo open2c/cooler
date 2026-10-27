@@ -50,6 +50,22 @@ _TABLES = ("chroms", "bins", "pixels", "indexes")
 # a sum and a count, and divide them when reading.
 _COMBINE_AGGS = ("sum", "min", "max")
 
+
+def _value_aggs(columns: list[str], agg: dict[str, Any] | None) -> dict[str, Any]:
+    """How to combine each value column: "sum" unless given in ``agg``."""
+    result = {col: "sum" for col in columns}
+    if agg is not None:
+        unsupported = {c: f for c, f in agg.items() if f not in _COMBINE_AGGS}
+        if unsupported:
+            details = ", ".join(f"'{f}' for '{c}'" for c, f in unsupported.items())
+            raise ValueError(
+                f"Unsupported aggregation {details}. Use 'sum', 'min' or 'max'. "
+                "For a mean, store a sum and a count, and divide them when "
+                "reading."
+            )
+        result.update(agg)
+    return result
+
 def _set_h5opts(h5opts: dict[str, Any]) -> dict[str, Any]:
     result = {}
     if h5opts is not None:
@@ -894,20 +910,10 @@ class _UnorderedCoolerWriter:
         self.max_merge = max_merge
 
         value_cols = [c for c in self.columns if c not in ("bin1_id", "bin2_id")]
-        self.agg = {col: "sum" for col in value_cols}
-        if agg is not None:
-            unknown = sorted(set(agg) - set(value_cols))
-            if unknown:
-                raise ValueError(f"Aggregations given for unknown columns: {unknown}")
-            self.agg.update(agg)
-        unsupported = {c: f for c, f in self.agg.items() if f not in _COMBINE_AGGS}
-        if unsupported:
-            details = ", ".join(f"'{f}' for '{c}'" for c, f in unsupported.items())
-            raise ValueError(
-                f"Unsupported aggregation {details}. Use 'sum', 'min' or 'max'. "
-                "For a mean, store a sum and a count, and divide them when "
-                "reading."
-            )
+        unknown = sorted(set(agg or {}) - set(value_cols))
+        if unknown:
+            raise ValueError(f"Aggregations given for unknown columns: {unknown}")
+        self.agg = _value_aggs(value_cols, agg)
 
         self.run_columns = list(self.columns)
         self.run_dtypes = dict(self.dtypes)

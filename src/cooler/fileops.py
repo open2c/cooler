@@ -55,7 +55,9 @@ def decode_attr_value(
     JSON serializable. Strings are parsed as JSON, except for the attributes
     in ``TEXT_ATTRS``.
     """
-    if isinstance(obj, np.ndarray):
+    if isinstance(obj, bytes):  # e.g. fixed-length strings from other writers
+        return decode_attr_value(obj.decode(), key)
+    elif isinstance(obj, np.ndarray):
         o = obj.tolist()
     elif hasattr(obj, "item"):
         o = obj.item()
@@ -611,7 +613,7 @@ class TreeViewer:
 
 
 def read_attr_tree(group: h5py.Group, level: int | None) -> dict[str, Any]:
-    def _getdict(node, root=False):
+    def _getdict(node):
         attrs = node.obj.attrs
         result = {"@attrs": {k: decode_attr_value(v, k) for k, v in attrs.items()}}
         children = node.get_children()
@@ -620,7 +622,7 @@ def read_attr_tree(group: h5py.Group, level: int | None) -> dict[str, Any]:
                 result[child.get_text()] = _getdict(child)
         return result
 
-    return _getdict(AttrNode(group, level=level), root=True)
+    return _getdict(AttrNode(group, level=level))
 
 
 def pprint_attr_tree(uri: str, level: int | None) -> str:

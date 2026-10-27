@@ -506,3 +506,21 @@ def test_chromosomes_longer_than_int32(tmp_path):
     with h5py.File(small, "r") as f:
         for name in ["chroms/length", "bins/start", "bins/end"]:
             assert f[name].dtype == np.int32
+
+
+def test_create_cooler_in_memory_duplicates(tmp_path):
+    # In-memory pixels are combined like chunks, unless ordered=True
+    bins = cooler.util.binnify(pd.Series({"chr1": 100}), 10)
+    px = pd.DataFrame({"bin1_id": [0, 0, 1], "bin2_id": [1, 1, 2], "count": [2, 5, 1]})
+    out = str(tmp_path / "d.cool")
+
+    cooler.create_cooler(out, bins, px)
+    assert cooler.Cooler(out).pixels()[:]["count"].tolist() == [7, 1]
+    cooler.create_cooler(out, bins, px, agg={"count": "max"})
+    assert cooler.Cooler(out).pixels()[:]["count"].tolist() == [5, 1]
+    with pytest.raises(ValueError, match=r"duplicate pixel \(0, 1\) in the input"):
+        cooler.create_cooler(out, bins, px, duplicates="error")
+    with pytest.raises(ValueError, match="Unsupported aggregation"):
+        cooler.create_cooler(out, bins, px, agg={"count": "mean"})
+    with pytest.raises(ValueError, match="duplicate pixel"):
+        cooler.create_cooler(out, bins, px, ordered=True)

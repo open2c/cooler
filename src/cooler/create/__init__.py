@@ -56,7 +56,6 @@ __all__ = [
     "PairixAggregator",
     "TabixAggregator",
     "aggregate_records",
-    "append",
     "create",
     "create_cooler",
     "create_from_unordered",

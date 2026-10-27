@@ -17,6 +17,7 @@ from ._typing import MapFunctor
 from ._version import __format_version_mcool__
 from .api import Cooler
 from .create import ContactBinner, create
+from .create._writer import _COMBINE_AGGS, _value_aggs
 from .parallel import get_lock
 from .util import GenomeSegmentation, parse_cooler_uri
 
@@ -131,24 +132,8 @@ def merge_breakpoints(
 
 # Aggregations of value columns that give the same result however the pixels
 # are grouped: in one step or level by level when coarsening, and input by
-# input when merging. A mean isn't one: store a sum and a count, and divide
-# them when reading.
-_AGGS = ("sum", "min", "max")
-
-
-def _value_aggs(columns: list[str], agg: dict[str, Any] | None) -> dict[str, Any]:
-    result = {col: "sum" for col in columns}
-    if agg is not None:
-        unsupported = {c: f for c, f in agg.items() if f not in _AGGS}
-        if unsupported:
-            details = ", ".join(f"'{f}' for '{c}'" for c, f in unsupported.items())
-            raise ValueError(
-                f"Unsupported aggregation {details}. Use 'sum', 'min' or 'max'. "
-                "For a mean, aggregate a sum and a count with 'sum', and divide "
-                "them when reading."
-            )
-        result.update(agg)
-    return result
+# input when merging
+_AGGS = _COMBINE_AGGS
 
 
 class CoolerMerger(ContactBinner):
@@ -311,8 +296,7 @@ def merge_coolers(
             else:
                 dtype_map[col].append(pixel_dtypes[col])
 
-    if dtypes is None:
-        dtypes = {}
+    dtypes = {} if dtypes is None else dict(dtypes)
     for col in columns:
         if col not in dtypes:
             # Find a common dtype to accomodate all the inputs being merged.
@@ -735,7 +719,7 @@ def coarsen_cooler(
 
         new_bins = iterator.new_bins
 
-        kwargs.setdefault("append", True)
+        kwargs.setdefault("mode", "a")
         kwargs.setdefault("assembly", clr.info.get("genome-assembly"))
         kwargs.setdefault("metadata", clr.info.get("metadata"))
 
