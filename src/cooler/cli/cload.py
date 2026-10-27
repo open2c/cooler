@@ -19,14 +19,20 @@ from ..create import (
     sanitize_records,
 )
 from . import cli, get_logger
-from ._util import parse_bins, parse_field_param, parse_kv_list_param
+from ._util import (
+    copy_fields,
+    fields_to_read,
+    parse_bins,
+    parse_field_param,
+    parse_kv_list_param,
+)
 
 from pandas.io.common import get_handle
 
 
 def _prepare_fields(copies, squared, chunk):
     # Copies first: a squared field may be a copy of another field's column
-    chunk = chunk.assign(**{name: chunk[src] for name, src in copies.items()})
+    chunk = copy_fields(copies, chunk)
     return chunk.assign(**{name: chunk[name] ** 2 for name in squared})
 
 
@@ -651,23 +657,14 @@ def pairs(
     if pairs_path == "-":
         f_in = sys.stdin
     else:
-        f_in = get_handle(pairs_path, mode="r", compression="infer").handle
+        handles = get_handle(pairs_path, mode="r", compression="infer")
+        click.get_current_context().call_on_close(handles.close)
+        f_in = handles.handle
 
     _, f_in = get_header(f_in, comment_char)
 
-    # read_csv reads each column once, so fields that use the same column
-    # (e.g. its sum and its count) get copies of the first such field
-    read_names, copies = {}, {}
-    for name in input_field_names:
-        colnum = input_field_numbers[name]
-        if colnum in read_names:
-            copies[name] = read_names[colnum]
-        else:
-            read_names[colnum] = name
-
-    # read_csv assigns names to the selected columns in file order, so list
-    # the names in order of column number
-    read_names = [read_names[colnum] for colnum in sorted(read_names)]
+    # Fields can use the same column, e.g. for its sum and its count
+    read_names, copies = fields_to_read(input_field_names, input_field_numbers)
 
     reader = pd.read_csv(
         f_in,

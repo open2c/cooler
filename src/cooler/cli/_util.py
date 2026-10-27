@@ -89,7 +89,12 @@ def parse_field_param(arg, includes_colnum=True, includes_agg=True, aggs=None):
             except ValueError as e:
                 raise click.BadParameter(arg) from e
             if prop == "dtype":
-                dtype = np.dtype(value)
+                try:
+                    dtype = np.dtype(value)
+                except TypeError:
+                    raise click.BadParameter(
+                        f"Unknown dtype '{value}'.", param_hint=arg
+                    ) from None
             elif prop == "agg" and includes_agg:
                 if aggs is not None and value not in aggs:
                     raise click.BadParameter(
@@ -102,6 +107,30 @@ def parse_field_param(arg, includes_colnum=True, includes_agg=True, aggs=None):
             else:
                 raise click.BadParameter(f"Invalid property: '{prop}'.", param_hint=arg)
     return name, colnum, dtype, agg
+
+
+def fields_to_read(names, numbers):
+    """
+    Split input fields into the ones to read and the ones that copy another.
+
+    ``read_csv`` reads each column once, and assigns names to the selected
+    columns in file order. Returns the names to read, in order of column
+    number, and a mapping of the other names to the field whose column they
+    use (see :func:`copy_fields`).
+    """
+    read, copies = {}, {}
+    for name in names:
+        colnum = numbers[name]
+        if colnum in read:
+            copies[name] = read[colnum]
+        else:
+            read[colnum] = name
+    return [read[colnum] for colnum in sorted(read)], copies
+
+
+def copy_fields(copies, chunk):
+    """Add the fields that use the same input column as another field."""
+    return chunk.assign(**{name: chunk[src] for name, src in copies.items()})
 
 
 def parse_bins(arg):

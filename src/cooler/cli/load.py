@@ -1,9 +1,11 @@
 import json
 import sys
+from functools import partial
 
 import click
 import numpy as np
 import pandas as pd
+from cytoolz import compose
 
 from ..create import (
     BIN_DTYPE,
@@ -13,7 +15,13 @@ from ..create import (
     sanitize_records,
 )
 from . import cli, get_logger
-from ._util import parse_bins, parse_field_param, parse_kv_list_param
+from ._util import (
+    copy_fields,
+    fields_to_read,
+    parse_bins,
+    parse_field_param,
+    parse_kv_list_param,
+)
 
 
 @cli.command()
@@ -159,7 +167,6 @@ def load(
     no_delete_temp,
     storage_options,
     append,
-    **kwargs,
 ):
     """
     Create a cooler from a pre-binned matrix.
@@ -238,12 +245,12 @@ def load(
             "count": output_field_dtypes["count"],
         }
         input_field_numbers = {
-            "chrom1": kwargs.get("chrom1", 0),
-            "start1": kwargs.get("start1", 1),
-            "end1": kwargs.get("end1", 2),
-            "chrom2": kwargs.get("chrom2", 3),
-            "start2": kwargs.get("start2", 4),
-            "end2": kwargs.get("end2", 5),
+            "chrom1": 0,
+            "start1": 1,
+            "end1": 2,
+            "chrom2": 3,
+            "start2": 4,
+            "end2": 5,
             "count": 6,
         }
         pipeline = sanitize_records(
@@ -330,16 +337,17 @@ def load(
     else:
         f_in = pixels_path
 
-    # read_csv assigns names to the selected columns in file order, so list
-    # the names in order of column number
-    input_field_names = sorted(input_field_names, key=input_field_numbers.get)
+    # Fields can use the same column, e.g. count and a float copy of it
+    read_names, copies = fields_to_read(input_field_names, input_field_numbers)
+    if copies:
+        pipeline = compose(pipeline, partial(copy_fields, copies))
 
     reader = pd.read_csv(
         f_in,
         sep="\t",
-        usecols=[input_field_numbers[name] for name in input_field_names],
-        names=input_field_names,
-        dtype=input_field_dtypes,
+        usecols=[input_field_numbers[name] for name in read_names],
+        names=read_names,
+        dtype={k: v for k, v in input_field_dtypes.items() if k in read_names},
         comment=comment_char,
         iterator=True,
         chunksize=chunksize,

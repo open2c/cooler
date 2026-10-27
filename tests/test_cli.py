@@ -114,6 +114,7 @@ def test_parse_field_param():
         ("a=1=2", {}),
         ("a=1:dtype", {}),  # property without a value
         ("a=1:color=red", {}),  # unknown property
+        ("a=1:dtype=flaot", {}),  # unknown dtype
         ("a=1:agg=sum", {"includes_agg": False}),
         ("a=1:agg=mean", {"aggs": ("sum", "max")}),
     ]:

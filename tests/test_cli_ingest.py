@@ -164,3 +164,15 @@ def test_load_other_options(run_cli, tmp_path):
         run_cli, out, DATA / "toy.symm.upper.2.bg2", "bg2",
         "--input-copy-status", "duplex",
     )
+
+
+def test_load_field_from_count_column(run_cli, tmp_path):
+    # A field can read the same column as another, e.g. a float copy of count
+    out = tmp_path / "toy.1.cool"
+    run_cli(
+        "load", "-f", "coo", "--field", "v=3:dtype=float64",
+        f"{CHROMSIZES}:1", DATA / "toy.symm.upper.1.zb.coo", out,
+    )
+    pixels = cooler.Cooler(str(out)).pixels()[:]
+    assert types.is_float_dtype(pixels.dtypes["v"])
+    assert (pixels["v"] == pixels["count"]).all()

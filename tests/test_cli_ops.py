@@ -25,6 +25,7 @@ def test_merge(run_cli, tmp_path):
     run_cli("merge", out, TOY, TOY, "--field", "count:agg=max")
     assert cooler.Cooler(str(out)).pixels()["count"][:].sum() == total
     run_cli("merge", out, TOY, TOY, "--field", "count:agg=mean", exit_code=2)
+    run_cli("merge", out, exit_code=2)  # no inputs
 
 
 def test_coarsen(run_cli, tmp_path):

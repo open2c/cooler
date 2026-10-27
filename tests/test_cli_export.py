@@ -34,10 +34,11 @@ def test_info(run_cli, tmp_path):
     info = json.loads(run_cli("info", TOY).stdout)
     assert info["nbins"] == cooler.Cooler(str(TOY)).info["nbins"]
     assert run_cli("info", TOY, "--field", "bin-type").stdout.strip() == "fixed"
-    run_cli("info", TOY, "--field", "doesnotexist", exit_code=1)
+    out = tmp_path / "info.json"
+    result = run_cli("info", TOY, "--field", "doesnotexist", "-o", out, exit_code=2)
+    assert result.stdout == "" and not out.exists()
     json.loads(run_cli("info", TOY, "--metadata").stdout)
 
-    out = tmp_path / "info.json"
     run_cli("info", TOY, "-o", out)
     assert json.loads(out.read_text()) == info
 
@@ -68,7 +69,11 @@ def test_dump(run_cli, tmp_path):
     starts = read_tsv(run_cli("dump", TOY, "-H", "--join", "--one-based-starts"))
     assert (starts["start1"] == joined["start1"] + 1).all()
     run_cli("dump", TOY, "--annotate", "chrom", "--one-based-starts")
-    run_cli("dump", TOY, "--annotate", "nosuchcolumn", exit_code=1)
+    result = run_cli("dump", TOY, "--annotate", "nosuchcolumn", exit_code=2)
+    assert result.stdout == ""
+    run_cli("dump", TOY, "-t", "chroms", "-c", "nosuchcolumn", exit_code=2)
+    run_cli("dump", TOY, "-t", "bins", "-c", "nosuchcolumn", exit_code=2)
+    run_cli("dump", TOY, "-r2", "chr2", exit_code=2)  # needs --range
 
     # Unbalanced file
     run_cli("dump", TOY, "-b", exit_code=1)

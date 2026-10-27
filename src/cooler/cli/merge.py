@@ -7,7 +7,7 @@ from ._util import parse_field_param
 
 @cli.command()
 @click.argument("out_path", type=click.Path(exists=False))
-@click.argument("in_paths", nargs=-1, type=click.Path(exists=False))
+@click.argument("in_paths", nargs=-1, required=True, type=click.Path(exists=False))
 @click.option(
     "--chunksize",
     "-c",

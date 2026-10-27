@@ -20,14 +20,8 @@ from ._util import DelimitedTuple
 def make_annotator(bins, balanced, join, annotate, one_based_ids, one_based_starts):
     def annotator(chunk):
         if annotate is not None:
-            extra_fields = list(annotate)
-            try:
-                extra_cols = bins[extra_fields]
-            except KeyError as e:
-                print(f"Column not found:\n {e}")
-                sys.exit(1)
             extra = api.annotate(
-                chunk[["bin1_id", "bin2_id"]], extra_cols, replace=True
+                chunk[["bin1_id", "bin2_id"]], bins[list(annotate)], replace=True
             )
 
         if balanced:
@@ -203,7 +197,20 @@ def dump(
     COOL_PATH : Path to COOL file or cooler URI.
 
     """
+    if range2 is not None and range is None:
+        raise click.BadParameter(
+            "Give the rows' range with --range too.", param_hint="'--range2'"
+        )
     clr = api.Cooler(cool_uri)
+    if table != "pixels" and columns is not None:
+        available = (clr.chroms() if table == "chroms" else clr.bins()).columns
+        unknown = [col for col in columns if col not in available]
+        if unknown:
+            raise click.BadParameter(
+                f"Not in the {table} table: {', '.join(unknown)}",
+                param_hint="'--columns'",
+            )
+
     with contextlib.ExitStack() as stack:
         # Choose the output stream
         if out is None or out == "-":
@@ -294,6 +301,14 @@ def _pixel_chunks(
     n_bins = len(bins)
     if chunksize is None:
         chunksize = len(bins)
+
+    if annotate is not None:
+        unknown = [col for col in annotate if col not in bins.columns]
+        if unknown:
+            raise click.BadParameter(
+                f"Not in the bin table: {', '.join(unknown)}",
+                param_hint="'--annotate'",
+            )
 
     if weight_name is not None or balanced:
         balanced = weight_name or "weight"
