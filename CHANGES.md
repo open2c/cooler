@@ -5,7 +5,7 @@
 ### New features
 * `cooler.log_to_stderr()` prints cooler's log messages to stderr, for scripts and notebooks that don't configure logging.
 * The 2D range query engines (`cooler.core.DirectRangeQuery2D`, `FillLowerRangeQuery2D` and `CSRReader`) accept a list of value columns, and return them all in frame output. Matrix output still needs a single column.
-* `cooler cload pairs --field <name>=<col>:agg=mean`, and `create_cooler(..., ordered=False, agg={...: "mean"})`, now work for inputs larger than one chunk. Means are computed over all records of a pixel (ignoring missing values) by carrying sums and counts through the external sort. Other aggregations that can't be combined across chunks (e.g. `median`) still raise an error.
+* `cooler cload pairs --field` can use the same input column for several fields, e.g. to store both the sum of a column and its number of non-missing values (`--field v=8 --field v_n=8:agg=count`), whose ratio is the mean.
 * `cooler balance --rescale-marginals/--no-rescale-marginals` (#448). With `--no-rescale-marginals`, the balanced matrix's rows sum to the mean marginal sum of the unbalanced matrix, stored as the `scale` attribute.
 * `balance_cooler(..., ignore_dist=...)` ignores intra-chromosomal pixels whose bin midpoints are less than a given distance apart, which also works with variable-size bins.
 
@@ -18,6 +18,7 @@
 * `cooler cload pairs --input-copy-status` is deprecated and will be removed in cooler 0.13; pairs should list each contact once. Passing it logs a warning. `cooler load --input-copy-status` (matrix input) is unchanged, with a clearer description of `duplex`.
 
 ### Removed
+* Aggregations other than `sum`, `min`, `max` and `count` for value columns. `cooler cload pairs --field ...:agg=` and `create_cooler(..., agg=...)` accept `sum`, `min`, `max` and `count`, and `cooler coarsen`, `merge` and `zoomify --field ...:agg=` (and the `agg` of `coarsen_cooler`, `merge_coolers` and `zoomify_cooler`) accept `sum`, `min` and `max`. Others, such as `mean` or `median`, raise an error. They depended on how the pixels were grouped: `mean` in coarsen and merge averaged over stored pixels only, and zoomify, which coarsens each resolution from the previous one, gave an unweighted mean of means. For a mean, store a sum and a count, which combine exactly, and divide them when reading.
 * `cooler.sandbox`, including the experimental `cooler.sandbox.dask.read_table`, which no longer worked with current cooler or dask. For dask dataframes of pixels, the range query engines have `to_dask_frame()`.
 * `cooler zoomify --legacy` and `legacy_zoomify`, which wrote multi-resolution files in the layout used before cooler 0.8, with integer-labeled zoom levels (`::0`, `::1`, ...). Use the default `resolutions/<binsize>` layout; files in the old layout can still be read.
 
@@ -74,7 +75,7 @@
 * fix: `cooler.create.create` raises `TypeError` for unknown keyword arguments instead of silently ignoring them. This exposed options that `create_scool` passed but that had no effect (`ordered`, `mergebuf`, `delete_temp`, `temp_dir`, `max_merge`).
 * fix: `cooler cload` rejects positions at or beyond the end of a chromosome. Previously, a position equal to the chromosome length (one past the end, after conversion to zero-based) was assigned to the first bin of the next chromosome, turning a cis contact into a trans contact, or silently dropped on the last chromosome. `cload pairs` now also keeps pixel bounds checking on, and `cload tabix`/`pairix` check the second position.
 * fix: `cooler cload pairs --field` and `cooler load --field` no longer swap the values of fields given out of column order (e.g. `--field b=9 --field a=8`).
-* fix: `cooler cload pairs --field <name>=<col>:agg=<agg>` combined the per-chunk results by summing them, so `max`, `min` and other aggregations were wrong for inputs larger than `--chunksize`. Pixels are now combined with the requested aggregation; aggregations that can't be combined across chunks (e.g. `mean`) raise an error when the input spans more than one chunk. `create_cooler` gains an `agg` parameter for this.
+* fix: `cooler cload pairs --field <name>=<col>:agg=<agg>` combined the per-chunk results by summing them, so `max`, `min` and other aggregations were wrong for inputs larger than `--chunksize`. Pixels are now combined with the requested aggregation. `create_cooler` gains an `agg` parameter for this.
 * fix: `create_cooler(..., ordered=False)` sorts each input chunk, so unsorted chunks no longer produce unsorted coolers with duplicate pixels.
 * fix: `create_cooler(..., ordered=False)` and `cload pairs` handle empty input (e.g. no records on the requested chromosomes) by writing an empty cooler instead of crashing. `--max-merge` values of 1 or 2 no longer crash.
 * fix: Chromosomes longer than 2,147,483,647 bp (the int32 maximum) are stored correctly. Chromosome lengths and bin coordinates were always written as int32, so they silently overflowed to negative values. They are now written as int64 when a chromosome needs it, and as int32 otherwise, as before (#480).
@@ -111,7 +112,6 @@
 * Property-based tests of 2D range queries against dense NumPy references. By @nvictus in https://github.com/open2c/cooler/pull/501
 
 ### Documentation
-* The `agg` parameter of `merge_coolers`, `coarsen_cooler` and `zoomify_cooler`, and the `--field` help of `cooler merge`, `coarsen` and `zoomify`, describe how aggregations treat pixels that aren't stored: they don't count as zeros, so `mean` averages over stored pixels only (or, when merging, over the coolers that store the pixel). Zoomify coarsens each resolution from the previous one, so `mean` there is an unweighted mean of means.
 * `Cooler.pixels` and the concepts guide explain that `pixels().fetch(region)` returns the region's rows of the matrix as stored, selecting pixels by their first bin: it includes pixels whose second bin is outside the region, and with symmetric-upper storage, the region's contacts with earlier bins aren't returned, since they're stored in earlier rows. They show how to select pixels by both bins with the matrix selector (#455).
 
 ## [v0.11.0](https://github.com/open2c/cooler/compare/v0.10.4...v0.11.0)

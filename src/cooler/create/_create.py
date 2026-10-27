@@ -238,14 +238,12 @@ def create_from_unordered(
     into the output. This way the individual chunks do not need to be provided
     in any particular order.
 
-    Pixels that occur in more than one chunk are combined using ``agg``, a
-    mapping of value column names to aggregation names (default: "sum"). When
-    there is more than one chunk, only "sum", "min", "max", "count" and "mean"
-    are supported. For "mean", each occurrence of a pixel counts as one value,
-    unless chunks provide the sum and number of values of the column (see
-    ``aggregate_records(..., split_means=True)``). If ``duplicates`` is
-    "error", a pixel occurring more than once anywhere in the input raises
-    instead.
+    Pixels that occur more than once in the input are combined using ``agg``,
+    a mapping of value column names to "sum" (default), "min", "max" or
+    "count". A "count" column holds counts (e.g. from
+    :func:`~cooler.create.aggregate_records`), which are added up. If
+    ``duplicates`` is "error", a pixel occurring more than once anywhere in
+    the input raises instead.
 
     """
     dtypes = _get_dtypes_arg(dtypes, kwargs)
@@ -315,8 +313,10 @@ _DOC_OTHER_PARAMS = """
         directory as the output file. Pass ``-`` to use the system default.
     agg : dict, optional
         When ``ordered=False``, how to combine the values of a pixel that
-        occurs in more than one input chunk: a mapping of value column names
-        to "sum" (default), "min", "max", "count" or "mean".
+        occurs more than once in the input: a mapping of value column names
+        to "sum" (default), "min", "max" or "count". A "count" column holds
+        counts, which are added up. For a mean, store a sum and a count, and
+        divide them when reading.
     duplicates : {"combine", "error"}, optional
         When ``ordered=False``, what a pixel occurring more than once in the
         input (within or across chunks) means: "combine" (default) combines

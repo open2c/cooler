@@ -1,6 +1,7 @@
 import json
 import io
 import sys
+from functools import partial
 
 import click
 import h5py
@@ -21,6 +22,10 @@ from . import cli, get_logger
 from ._util import parse_bins, parse_field_param, parse_kv_list_param
 
 from pandas.io.common import get_handle
+
+
+def _copy_columns(copies, chunk):
+    return chunk.assign(**{name: chunk[src] for name, src in copies.items()})
 
 
 # Copied from pairtools._headerops
@@ -422,8 +427,9 @@ def pairix(
     help="Specify quantitative input fields to aggregate into value columns "
     "using the syntax ``--field <field-name>=<field-number>``. "
     "Optionally, append ``:`` followed by ``dtype=<dtype>`` to specify "
-    "the data type (e.g. float), and/or ``agg=<agg>`` to "
-    "specify an aggregation function different from sum (e.g. mean). "
+    "the data type (e.g. float), and/or ``agg=<agg>`` to aggregate "
+    "with min, max or count (the number of non-missing values) instead of "
+    "sum. For a mean, store a sum and a count, and divide them when reading. "
     "Field numbers are 1-based. Passing 'count' as the target name will "
     "override the default behavior of storing pair counts. "
     "Repeat the ``--field`` option for each additional field.",
@@ -573,7 +579,9 @@ def pairs(
     aggregations = {}
     if len(field):
         for arg in field:
-            name, colnum, dtype, agg = parse_field_param(arg)
+            name, colnum, dtype, agg = parse_field_param(
+                arg, aggs=("sum", "min", "max", "count")
+            )
 
             # Special cases: these do not have input fields.
             # Omit field number and agg to change standard dtypes.
@@ -639,16 +647,26 @@ def pairs(
 
     _, f_in = get_header(f_in, comment_char)
 
+    # read_csv reads each column once, so fields that use the same column
+    # (e.g. its sum and its count) get copies of the first such field
+    read_names, copies = {}, {}
+    for name in input_field_names:
+        colnum = input_field_numbers[name]
+        if colnum in read_names:
+            copies[name] = read_names[colnum]
+        else:
+            read_names[colnum] = name
+
     # read_csv assigns names to the selected columns in file order, so list
     # the names in order of column number
-    input_field_names = sorted(input_field_names, key=input_field_numbers.get)
+    read_names = [read_names[colnum] for colnum in sorted(read_names)]
 
     reader = pd.read_csv(
         f_in,
         sep="\t",
-        usecols=[input_field_numbers[name] for name in input_field_names],
-        names=input_field_names,
-        dtype=input_field_dtypes,
+        usecols=[input_field_numbers[name] for name in read_names],
+        names=read_names,
+        dtype={k: v for k, v in input_field_dtypes.items() if k in read_names},
         iterator=True,
         chunksize=chunksize,
         **kwargs,
@@ -664,9 +682,11 @@ def pairs(
         validate=True,
     )
     aggregate = aggregate_records(
-        agg=aggregations, count=True, sort=False, split_means=True
+        agg=aggregations, count=True, sort=False
     )
     pipeline = compose(aggregate, sanitize)
+    if copies:
+        pipeline = compose(pipeline, partial(_copy_columns, copies))
 
     create_cooler(
         cool_path,

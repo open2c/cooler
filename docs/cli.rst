@@ -238,7 +238,7 @@ cooler cload pairs
 
 .. option:: --field <field>
 
-    Specify quantitative input fields to aggregate into value columns using the syntax ``--field <field-name>=<field-number>``. Optionally, append ``:`` followed by ``dtype=<dtype>`` to specify the data type (e.g. float), and/or ``agg=<agg>`` to specify an aggregation function different from sum (e.g. mean). Field numbers are 1-based. Passing 'count' as the target name will override the default behavior of storing pair counts. Repeat the ``--field`` option for each additional field.
+    Specify quantitative input fields to aggregate into value columns using the syntax ``--field <field-name>=<field-number>``. Optionally, append ``:`` followed by ``dtype=<dtype>`` to specify the data type (e.g. float), and/or ``agg=<agg>`` to aggregate with min, max or count (the number of non-missing values) instead of sum. For a mean, store a sum and a count, and divide them when reading. Field numbers are 1-based. Passing 'count' as the target name will override the default behavior of storing pair counts. Repeat the ``--field`` option for each additional field.
 
 .. option:: --temp-dir <temp_dir>
 
@@ -624,7 +624,7 @@ cooler merge
 
 .. option:: --field <field>
 
-    Specify the names of value columns to merge as '<name>'. Repeat the `--field` option for each one. Use '<name>,dtype=<dtype>' to specify the dtype. Include ',agg=<agg>' to specify an aggregation function different from 'sum'.
+    Specify the names of value columns to merge as '<name>'. Repeat the `--field` option for each one. Use '<name>:dtype=<dtype>' to specify the dtype. Include ',agg=min' or ',agg=max' to aggregate with min or max instead of sum. For a mean, aggregate a sum and a count with sum, and divide them when reading.
 
 .. option:: -a, --append
 
@@ -673,7 +673,7 @@ cooler coarsen
 
 .. option:: --field <field>
 
-    Specify the names of value columns to merge as '<name>'. Repeat the `--field` option for each one. Use '<name>,dtype=<dtype>' to specify the dtype. Include ',agg=<agg>' to specify an aggregation function different from 'sum'.
+    Specify the names of value columns to merge as '<name>'. Repeat the `--field` option for each one. Use '<name>:dtype=<dtype>' to specify the dtype. Include ',agg=min' or ',agg=max' to aggregate with min or max instead of sum. For a mean, aggregate a sum and a count with sum, and divide them when reading.
 
 .. option:: -o, --out <out>
 
@@ -739,7 +739,7 @@ cooler zoomify
 
 .. option:: --field <field>
 
-    Specify the names of value columns to merge as '<name>'. Repeat the ``--field`` option for each one. Use '<name>:dtype=<dtype>' to specify the dtype. Include ',agg=<agg>' to specify an aggregation function different from 'sum'.
+    Specify the names of value columns to merge as '<name>'. Repeat the ``--field`` option for each one. Use '<name>:dtype=<dtype>' to specify the dtype. Include ',agg=min' or ',agg=max' to aggregate with min or max instead of sum. For a mean, aggregate a sum and a count with sum, and divide them when reading.
 
 
 ----

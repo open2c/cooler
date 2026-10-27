@@ -57,14 +57,21 @@ def test_coarsen():
                 "--factor",
                 "2",
                 "--field",
-                "count:dtype=float,agg=mean",
+                "count:dtype=float,agg=max",
                 "-o",
-                "toy.2.coarsen_2_mean.cool",
+                "toy.2.coarsen_2_max.cool",
             ],
         )
         assert result.exit_code == 0
-        pix2 = cooler.Cooler("toy.2.coarsen_2_mean.cool").pixels()["count"][:]
+        pix2 = cooler.Cooler("toy.2.coarsen_2_max.cool").pixels()["count"][:]
         assert pix2.dtype.kind == "f"
+
+        result = runner.invoke(
+            coarsen,
+            [f_in, "--factor", "2", "--field", "count:agg=mean", "-o", "x.cool"],
+        )
+        assert result.exit_code == 2
+        assert "Unsupported aggregation 'mean'" in result.output
 
 
 def test_zoomify():
@@ -92,7 +99,7 @@ def test_zoomify():
                 "--resolutions",
                 "2,4,8",
                 "--field",
-                "count:dtype=float,agg=mean",
+                "count:dtype=float,agg=max",
                 "-o",
                 "toy.2.mcool",
             ],

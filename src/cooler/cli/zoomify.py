@@ -6,6 +6,7 @@ import click
 
 from .. import api, fileops
 from .._reduce import (
+    _AGGS,
     HIGLASS_TILE_DIM,
     preferred_sequence,
     zoomify_cooler,
@@ -104,10 +105,7 @@ def invoke_balance(args, resolutions, outfile):
     help="Specify the names of value columns to merge as '<name>'. "
     "Repeat the ``--field`` option for each one. "
     "Use '<name>:dtype=<dtype>' to specify the dtype. Include "
-    "',agg=<agg>' to specify an aggregation function different from 'sum'. "
-    "Aggregations apply to stored pixels only, and each "
-    "resolution is coarsened from the previous one, so 'mean' "
-    "is an unweighted mean of means.",
+    "',agg=min' or ',agg=max' to aggregate with min or max instead of sum. ",
     type=str,
     multiple=True,
 )
@@ -184,7 +182,8 @@ def zoomify(
 
     if len(field):
         field_specifiers = [
-            parse_field_param(arg, includes_colnum=False) for arg in field
+            parse_field_param(arg, includes_colnum=False, aggs=_AGGS)
+            for arg in field
         ]
         columns, _, dtypes, agg = zip(*field_specifiers)
         columns = list(columns)

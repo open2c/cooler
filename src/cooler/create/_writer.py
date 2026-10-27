@@ -45,8 +45,9 @@ _WRITING_SUFFIX = ".__writing__"
 _TABLES = ("chroms", "bins", "pixels", "indexes")
 
 
-# Aggregations that can be applied to per-chunk results to combine them, and
-# the aggregation to combine them with.
+# Aggregations of value columns that can be combined across chunks of input,
+# and the aggregation to combine the per-chunk results with. A mean isn't
+# supported: store a sum and a count, and divide them when reading.
 _MERGEABLE_AGGS = {"sum": "sum", "min": "min", "max": "max", "count": "sum"}
 
 def _set_h5opts(h5opts: dict[str, Any]) -> dict[str, Any]:
@@ -825,13 +826,10 @@ class _UnorderedCoolerWriter:
     pixels that occur in more than one run according to ``agg``, and writes
     the result with a :class:`_CoolerWriter`.
 
-    Aggregations ``"sum"`` (the default), ``"min"``, ``"max"`` and
-    ``"count"`` combine directly across runs. ``"mean"`` is supported by
-    carrying the sum and the number of values of the column through the runs,
-    in the hidden columns named by :func:`~cooler.create._ingest.mean_parts`.
-    Chunks can provide these columns (see ``aggregate_records(...,
-    split_means=True)``); otherwise each occurrence of a pixel counts as one
-    value. Other aggregations raise an error if there is more than one run.
+    The aggregations are ``"sum"`` (the default), ``"min"``, ``"max"`` and
+    ``"count"``, which combine exactly across runs: a ``"count"`` column holds
+    counts (e.g. from :func:`~cooler.create.aggregate_records`), which are
+    added up. Other aggregations raise an error.
 
     Parameters
     ----------
@@ -875,8 +873,6 @@ class _UnorderedCoolerWriter:
         delete_temp: bool = True,
         **kwargs,
     ):
-        from ._ingest import mean_parts
-
         if duplicates not in ("combine", "error"):
             raise ValueError(
                 f"duplicates must be 'combine' or 'error', not '{duplicates}'."
@@ -904,27 +900,18 @@ class _UnorderedCoolerWriter:
             if unknown:
                 raise ValueError(f"Aggregations given for unknown columns: {unknown}")
             self.agg.update(agg)
-        self.mean_cols = [col for col, func in self.agg.items() if func == "mean"]
-        self.uncombinable = [
-            col
-            for col, func in self.agg.items()
-            if func != "mean" and func not in _MERGEABLE_AGGS
-        ]
+        unsupported = {c: f for c, f in self.agg.items() if f not in _MERGEABLE_AGGS}
+        if unsupported:
+            details = ", ".join(f"'{f}' for '{c}'" for c, f in unsupported.items())
+            raise ValueError(
+                f"Unsupported aggregation {details}. Use 'sum', 'min', 'max' or "
+                "'count'. For a mean, store a sum and a count, and divide them "
+                "when reading."
+            )
 
-        # Schema of the runs: mean columns are replaced by their parts
-        self.run_columns, self.run_dtypes = [], {}
-        self.merge_agg = {}
-        for col in self.columns:
-            if col in self.mean_cols:
-                sum_col, n_col = mean_parts(col)
-                self.run_columns += [sum_col, n_col]
-                self.run_dtypes.update({sum_col: np.float64, n_col: np.int64})
-                self.merge_agg.update({sum_col: "sum", n_col: "sum"})
-            else:
-                self.run_columns.append(col)
-                self.run_dtypes[col] = self.dtypes[col]
-                if col in self.agg:
-                    self.merge_agg[col] = _MERGEABLE_AGGS.get(self.agg[col], "sum")
+        self.run_columns = list(self.columns)
+        self.run_dtypes = dict(self.dtypes)
+        self.merge_agg = {c: _MERGEABLE_AGGS[f] for c, f in self.agg.items()}
         if duplicates == "error":
             # Count occurrences of each pixel, to detect duplicates across runs
             self.run_columns.append(_OCCURRENCES)
@@ -959,21 +946,9 @@ class _UnorderedCoolerWriter:
         return tf
 
     def _as_run(self, chunk: Any) -> dict[str, np.ndarray]:
-        from ._ingest import mean_parts
-
         if isinstance(chunk, pd.DataFrame):
             chunk = {k: v.to_numpy() for k, v in chunk.items()}
         chunk = dict(chunk)
-        for col in self.mean_cols:
-            sum_col, n_col = mean_parts(col)
-            if sum_col in chunk and n_col in chunk:
-                continue
-            if col not in chunk:
-                raise ValueError(f"Pixel columns not found in input: ['{col}']")
-            values = np.asarray(chunk.pop(col), dtype=float)
-            missing = np.isnan(values)
-            chunk[sum_col] = np.where(missing, 0.0, values)
-            chunk[n_col] = (~missing).astype(np.int64)
         if self.duplicates == "error":
             chunk[_OCCURRENCES] = np.ones(len(chunk["bin1_id"]), dtype=np.int64)
         return chunk
@@ -1011,8 +986,6 @@ class _UnorderedCoolerWriter:
         )
 
     def _finish_chunk(self, chunk: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
-        from ._ingest import mean_parts
-
         chunk = dict(chunk)
         if self.duplicates == "error":
             occurrences = chunk.pop(_OCCURRENCES)
@@ -1023,11 +996,6 @@ class _UnorderedCoolerWriter:
                     f"Found a duplicate pixel {pixel}, which occurs "
                     f"{int(occurrences[i])} times in the input."
                 )
-        for col in self.mean_cols:
-            sum_col, n_col = mean_parts(col)
-            total, n = chunk.pop(sum_col), chunk.pop(n_col)
-            with np.errstate(invalid="ignore", divide="ignore"):
-                chunk[col] = np.where(n > 0, total / n, np.nan)
         return chunk
 
     def finish(self) -> None:
@@ -1035,17 +1003,6 @@ class _UnorderedCoolerWriter:
         if self._done:
             return
         try:
-            if len(self._runs) > 1 and self.uncombinable:
-                details = ", ".join(
-                    f"'{self.agg[c]}' for '{c}'" for c in self.uncombinable
-                )
-                raise ValueError(
-                    f"Aggregation {details} can't be combined across chunks of "
-                    "input. Use 'sum', 'min', 'max', 'count' or 'mean', or a "
-                    "chunk size large enough for the whole input to fit in one "
-                    "chunk."
-                )
-
             runs = self._runs
             if len(runs) > self.max_merge > 0:
                 # Merge in two passes: groups of ~sqrt(n) runs, keeping both
