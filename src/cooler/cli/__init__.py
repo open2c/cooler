@@ -83,11 +83,11 @@ def cli(verbose, debug):
     ctx.call_on_close(restore_logging)
     logger = get_logger()
 
-    if verbose >= 2:  # pragma: no cover
+    if verbose >= 2:
         # Dump process info when the command finishes
         setup_psutil_at_exit(ctx, logger)
 
-    if debug:  # pragma: no cover
+    if debug:
         # Set hook for postmortem debugging
         setup_postmortem_debugger()
 

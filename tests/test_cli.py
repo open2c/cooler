@@ -6,6 +6,8 @@ To debug a failing command, run it with ``run_cli``: an exception raised by
 the command is re-raised with its traceback, so ``pytest --pdb`` works.
 """
 import os
+import pdb  # noqa: T100 (patched below, not used)
+import sys
 
 import click
 import numpy as np
@@ -26,10 +28,39 @@ def test_cli(run_cli):
     run_cli("no-such-command", exit_code=2)
 
 
-def test_cli_process_info(run_cli):
-    pytest.importorskip("psutil")
+def test_cli_process_info(run_cli, monkeypatch):
+    psutil = pytest.importorskip("psutil")
     result = run_cli("-vv", "info", TOY)
     assert "PSINFO:'pid'" in result.stderr
+
+    def gone():
+        raise psutil.NoSuchProcess(pid=0)
+
+    monkeypatch.setattr(psutil, "Process", gone)
+    result = run_cli("-vv", "info", TOY)
+    assert "Process no longer exists" in result.stderr
+
+
+def test_cli_process_info_without_psutil(run_cli, monkeypatch):
+    monkeypatch.setitem(sys.modules, "psutil", None)  # import fails
+    result = run_cli("-vv", "info", TOY)
+    assert "Install psutil" in result.stderr
+
+
+def test_cli_debug(run_cli, monkeypatch, capsys):
+    # -d installs a hook that prints the traceback and starts pdb post-mortem
+    monkeypatch.setattr(sys, "excepthook", sys.excepthook)
+    run_cli("-d", "info", TOY)
+    assert sys.excepthook is not sys.__excepthook__
+
+    calls = []
+    monkeypatch.setattr(pdb, "pm", lambda: calls.append("pm"))
+    try:
+        raise ValueError("boom")
+    except ValueError:
+        sys.excepthook(*sys.exc_info())
+    assert calls == ["pm"]
+    assert "ValueError: boom" in capsys.readouterr().err
 
 
 def test_makebins(run_cli):
