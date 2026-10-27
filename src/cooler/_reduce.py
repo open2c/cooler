@@ -561,7 +561,7 @@ class CoolerCoarsener(ContactBinner):
             .reset_index(drop=True)
         )
 
-    def _aggregate(self, span: tuple[int, int]) -> pd.DataFrame:
+    def aggregate(self, span: tuple[int, int]) -> pd.DataFrame:
         lo, hi = span
 
         clr = Cooler(self.source_uri)
@@ -600,13 +600,6 @@ class CoolerCoarsener(ContactBinner):
             .aggregate(self.agg)
             .reset_index()
         )
-
-    def aggregate(self, span: tuple[int, int]) -> pd.DataFrame:
-        try:
-            chunk = self._aggregate(span)
-        except MemoryError as e:  # pragma: no cover
-            raise RuntimeError(str(e)) from e
-        return chunk
 
     def __iter__(self) -> Iterator[dict[str, np.ndarray]]:
         # Distribute batches of `batchsize` pixel spans at once.
