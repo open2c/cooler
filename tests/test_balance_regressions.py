@@ -8,7 +8,7 @@ import pytest
 from click.testing import CliRunner
 
 import cooler
-from cooler._balance import balance_cooler
+from cooler._balance import ConvergenceWarning, balance_cooler
 from cooler.cli.balance import balance as balance_cli
 
 CHROMSIZES = pd.Series({"chr1": 300, "chr2": 200, "chr3": 100})
@@ -140,6 +140,29 @@ def test_bins_without_data_get_nan(tmp_path):
     weights, stats = balance_cooler(clr, ignore_diags=0, cis_only=True, **NOFILTER)
     assert np.isnan(weights[empty]).all()
     assert np.all(stats["converged"])
+
+
+def test_cis_only_balances_chromosomes_separately(tmp_path):
+    # All chromosomes are balanced in the same passes over the pixels, and
+    # each stops updating once it converges
+    bins = cooler.binnify(CHROMSIZES, 20)
+    clr = cooler.Cooler(make_cooler(str(tmp_path / "c.cool"), bins))
+    mat = dense(clr)
+    weights, stats = balance_cooler(clr, cis_only=True, ignore_diags=0, **NOFILTER)
+    assert np.all(stats["converged"])
+    offsets = clr._load_dset("indexes/chrom_offset")
+    for lo, hi in zip(offsets[:-1], offsets[1:]):
+        expected = dense_balance(mat[lo:hi, lo:hi])
+        np.testing.assert_allclose(weights[lo:hi], expected, rtol=1e-6)
+
+    # Chromosomes that don't converge are named in a single warning
+    with pytest.warns(ConvergenceWarning) as record:
+        _, stats = balance_cooler(
+            clr, cis_only=True, ignore_diags=0, max_iters=2, **NOFILTER
+        )
+    assert len(record) == 1
+    assert "on 3 of 3 chromosomes (chr1, chr2, chr3)" in str(record[0].message)
+    assert not np.any(stats["converged"])
 
 
 def test_every_bin_filtered(tmp_path):
