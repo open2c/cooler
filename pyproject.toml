@@ -120,6 +120,10 @@ extend-select = [
     "W",  # style  warnings
 ]
 
+ignore = [
+    "SIM115",  # open-file-with-context-handler: we often return/close handles later
+]
+
 [tool.ruff.lint.isort]
 known-first-party = ["cooler"]
 
