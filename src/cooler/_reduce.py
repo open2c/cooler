@@ -28,23 +28,6 @@ logger = get_logger("cooler.reduce")
 
 HIGLASS_TILE_DIM = 256
 
-ZOOMS_4DN = [
-    1000,
-    2000,
-    5000,
-    10000,
-    25000,
-    50000,
-    100000,
-    250000,
-    500000,
-    1000000,
-    2500000,
-    5000000,
-    10000000,
-]
-
-
 def merge_breakpoints(
     indexes: list[np.ndarray | h5py.Dataset],
     bufsize: int

@@ -97,17 +97,19 @@ def _sanitize_records(
     sort,
     validate,
 ):
+    chrom1, chrom2 = (chrom_field + suffix for suffix in suffixes)
+
     # Get integer contig IDs
     if decode_chroms:
         # Unspecified chroms get integer ID -1
         contigs = pd.Index(gs.contigs)
-        chrom1_ids = contigs.get_indexer(chunk["chrom1"])
-        chrom2_ids = contigs.get_indexer(chunk["chrom2"])
+        chrom1_ids = contigs.get_indexer(chunk[chrom1])
+        chrom2_ids = contigs.get_indexer(chunk[chrom2])
     else:
-        chrom1_ids = chunk["chrom1"].values
-        chrom2_ids = chunk["chrom2"].values
+        chrom1_ids = chunk[chrom1].values
+        chrom2_ids = chunk[chrom2].values
         if validate:
-            for col, dt in [("chrom1", chrom1_ids.dtype), ("chrom2", chrom2_ids.dtype)]:
+            for col, dt in [(chrom1, chrom1_ids.dtype), (chrom2, chrom2_ids.dtype)]:
                 if not is_integer_dtype(dt):
                     raise BadInputError(
                         f"`{col}` column is non-integer. "
@@ -119,7 +121,7 @@ def _sanitize_records(
     if np.any(to_drop):
         if decode_chroms:
             _warn_skipped_chroms(
-                chunk["chrom1"][chrom1_ids < 0], chunk["chrom2"][chrom2_ids < 0]
+                chunk[chrom1][chrom1_ids < 0], chunk[chrom2][chrom2_ids < 0]
             )
         mask = ~to_drop
         chrom1_ids = chrom1_ids[mask]
@@ -321,7 +323,6 @@ def sanitize_records(
 
 def _sanitize_pixels(
     chunk,
-    gs,
     is_one_based=False,
     tril_action="reflect",
     bin1_field="bin1_id",
@@ -413,8 +414,6 @@ def sanitize_pixels(
         sanitized dataframe.
 
     """
-    chromsizes = get_chromsizes(bins)
-    kwargs["gs"] = GenomeSegmentation(chromsizes, bins)
     return partial(_sanitize_pixels, **kwargs)
 
 
@@ -708,7 +707,6 @@ class TabixAggregator(ContactBinner):
 
         # find available contigs in the contact list
         self.filepath = filepath
-        self.n_records = None
         with pysam.TabixFile(filepath, "r", encoding="ascii") as f:
             try:
                 self.file_contigs = [c.decode("ascii") for c in f.contigs]
@@ -832,7 +830,6 @@ class PairixAggregator(ContactBinner):
         n_chunks: int = 1,
         is_one_based: bool = False,
         block_char: str = "|",
-        **kwargs,
     ):
         try:
             import pypairix
@@ -901,7 +898,6 @@ class PairixAggregator(ContactBinner):
 
         # find available contigs in the contact list
         self.filepath = filepath
-        self.n_records = None
 
         # warn about requested contigs not seen in the contact list
         for chrom in self.gs.contigs:

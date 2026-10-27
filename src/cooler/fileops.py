@@ -20,13 +20,6 @@ from .util import natsorted, parse_cooler_uri
 __all__ = ["cp", "is_cooler", "is_multires_file", "list_coolers", "ln", "mv"]
 
 
-def json_dumps(o: object) -> str:
-    """Write JSON in a consistent, human-readable way."""
-    return json.dumps(
-        o, indent=4, sort_keys=True, ensure_ascii=True, separators=(",", ": ")
-    )
-
-
 # Cooler attributes that are always text, so they aren't parsed as JSON even if
 # they look like it (e.g. an assembly named "123"). Other string attributes
 # are parsed as JSON when possible: "metadata", and attributes such as
@@ -40,11 +33,6 @@ TEXT_ATTRS = frozenset({
     "genome-assembly",
     "storage-mode",
 })
-
-
-def json_loads(s: str) -> object:
-    """Read JSON in a consistent way."""
-    return json.loads(s)
 
 
 def decode_attr_value(

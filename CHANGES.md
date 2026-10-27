@@ -50,6 +50,7 @@
 * fix: Coarse zoom levels whose chromosomes are each a single bin are stored with a fixed bin size; they were stored as variable-size bins. `cooler.create.create` gains a `binsize` parameter for when the bin size can't be inferred from the bin table, which coarsening and merging now pass.
 * fix: The `Cooler.matrix` docs give the right `join` default and divisive weight names (`VC_SQRT`, not `SQRT_VC`), and describe NaN values with balancing: dense output is NaN in every row and column of a bin with a NaN weight, while sparse output only has NaN values at stored pixels.
 * fix: `create_cooler` with pixels in a DataFrame or dict honors `duplicates` and `agg`: repeated pixels are combined (or rejected with `duplicates="error"`), as for an iterable of chunks. They raised an error suggesting `ordered=False`, which was already the default. With `ordered=True`, repeated pixels still raise.
+* fix: `sanitize_records(..., chrom_field=...)` uses the given chromosome column names; it ignored the option and required `chrom1` and `chrom2`.
 * fix: `from cooler.create import *` failed, since `__all__` still listed the removed `append`.
 * fix: `cooler attrs` decodes attributes stored as bytes (e.g. by other writers), instead of printing them as `!!binary`.
 * fix: `merge_coolers` no longer modifies the caller's `dtypes`.

@@ -211,7 +211,6 @@ def test_cooler_class2():
     clr = api.Cooler(path)
     clr._load_dset("indexes/chrom_offset")
     clr._load_dset("indexes/bin1_offset")
-    clr._load_attrs("bins/chrom")
 
     with clr.open("r") as f:
         pass

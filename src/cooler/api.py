@@ -117,11 +117,6 @@ class Cooler:
             grp = h5[self.root]
             return grp[path][:]
 
-    def _load_attrs(self, path: str) -> dict:
-        with open_hdf5(self.store, **self.open_kws) as h5:
-            grp = h5[self.root]
-            return dict(grp[path].attrs)
-
     def open(self, mode: str = "r", **kwargs) -> h5py.Group:
         """Open the HDF5 group containing the Cooler with :py:mod:`h5py`
 
