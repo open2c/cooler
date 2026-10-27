@@ -35,7 +35,7 @@ def interactive(
 ):  # pragma: no cover
     import matplotlib.pyplot as plt
 
-    # The code is heavily insired by
+    # The code is heavily inspired by
     # https://gist.github.com/mdboom/048aa35df685fe694330764894f0e40a
 
     def get_extent(ax):
@@ -162,14 +162,14 @@ def interactive(
     type=float,
     help="The minimal value of the color scale. "
     "Units must match those of the colormap scale. "
-    "To provide a negative value use a equal sign and quotes, e.g. -zmin='-0.5'",
+    "To provide a negative value use a equal sign and quotes, e.g. --zmin='-0.5'",
 )
 @click.option(
     "--zmax",
     type=float,
     help="The maximal value of the color scale. "
     "Units must match those of the colormap scale. "
-    "To provide a negative value use a equal sign and quotes, e.g. -zmax='-0.5'",
+    "To provide a negative value use a equal sign and quotes, e.g. --zmax='-0.5'",
 )
 @click.option(
     "--cmap",

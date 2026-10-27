@@ -721,7 +721,7 @@ class TabixAggregator(ContactBinner):
         for chrom in self.gs.contigs:
             if chrom not in self.file_contigs:
                 warnings.warn(
-                    "Did not find contig " + f" '{chrom}' in contact list file.",
+                    f"Did not find contig '{chrom}' in contact list file.",
                     stacklevel=2,
                 )
 
@@ -909,7 +909,7 @@ class PairixAggregator(ContactBinner):
         for chrom in self.gs.contigs:
             if chrom not in self.file_contigs:
                 warnings.warn(
-                    "Did not find contig " + f" '{chrom}' in contact list file.",
+                    f"Did not find contig '{chrom}' in contact list file.",
                     stacklevel=2,
                 )
 

@@ -2,11 +2,9 @@ import errno
 import os
 import os.path as op
 import sys
-from contextlib import contextmanager
 from functools import wraps
 
 import click
-import multiprocess as mp
 import numpy as np
 import pandas as pd
 
@@ -29,7 +27,7 @@ class DelimitedTuple(click.types.ParamType):
         if value is None:
             return value
         elif isinstance(value, str):
-            parts = value.split(",")
+            parts = value.split(self.sep)
         else:
             parts = value
         return tuple(self.type(x, param, ctx) for x in parts)
@@ -177,27 +175,6 @@ def parse_bins(arg):
         )
 
     return chromsizes, bins
-
-
-def check_ncpus(arg_value):
-    arg_value = int(arg_value)
-
-    if arg_value <= 0:
-        raise click.BadParameter("n_cpus must be >= 1")
-    else:
-        return min(arg_value, mp.cpu_count())
-
-
-@contextmanager
-def on_broken_pipe(handler):
-    try:
-        yield
-    except OSError as e:
-        if e.errno == errno.EPIPE:
-            handler(e)
-        else:
-            # Not a broken pipe error. Bubble up.
-            raise
 
 
 def exit_on_broken_pipe(exit_code):

@@ -130,13 +130,13 @@ from . import cli, get_logger
 @click.option(
     "--force",
     "-f",
-    help="Overwrite the target dataset, 'weight', if it already exists.",
+    help="Overwrite the weight column (see --name) if it already exists.",
     is_flag=True,
     default=False,
 )
 @click.option(
     "--check",
-    help="Check whether a data column 'weight' already exists.",
+    help="Check whether the weight column (see --name) already exists.",
     is_flag=True,
     default=False,
 )
@@ -259,12 +259,12 @@ def balance(
             bad_bins.append(result.index.values)
         bad_bins = np.concatenate(bad_bins) if bad_bins else None
 
+    if nproc > 1:
+        pool = Pool(nproc)
+        map_ = pool.imap_unordered
+    else:
+        map_ = map
     try:
-        if nproc > 1:
-            pool = Pool(nproc)
-            map_ = pool.imap_unordered
-        else:
-            map_ = map
 
         bias, stats = balance_cooler(
             clr,

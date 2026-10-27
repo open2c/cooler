@@ -53,15 +53,6 @@ def cp(src_uri, dst_uri, overwrite):
     See also: h5copy, h5repack tools from HDF5 suite.
 
     """
-    # \b\bArguments:
-    # SRC_URI : Path to source file or URI to source Cooler group
-    # DST_URI : Path to destination file or URI to destination Cooler group
-    # if dst_group in dst and dst_group != '/':
-    #     click.confirm(
-    #         "A group named '{}' already exists in '{}'. Overwrite?".format(
-    #             dst_group, dst_path),
-    #         abort=True)
-    #     del dst[dst_group]
     fileops.cp(src_uri, dst_uri, overwrite=overwrite)
 
 

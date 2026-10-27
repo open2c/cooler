@@ -169,7 +169,7 @@ def make_annotator(bins, balanced, join, annotate, one_based_ids, one_based_star
 @click.option(
     "--out",
     "-o",
-    help="Output text file If .gz extension is detected, file is written "
+    help="Output text file. If .gz extension is detected, file is written "
     "using zlib. Default behavior is to stream to stdout.",
 )
 def dump(

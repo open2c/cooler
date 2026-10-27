@@ -1,5 +1,6 @@
-import json
+import contextlib
 import io
+import json
 import sys
 from functools import partial
 
@@ -9,6 +10,7 @@ import numpy as np
 import pandas as pd
 from cytoolz import compose
 from multiprocess import Pool
+from pandas.io.common import get_handle
 
 from ..create import (
     HDF5Aggregator,
@@ -27,8 +29,6 @@ from ._util import (
     parse_kv_list_param,
 )
 
-from pandas.io.common import get_handle
-
 
 def _prepare_fields(copies, squared, chunk):
     # Copies first: a squared field may be a copy of another field's column
@@ -38,7 +38,7 @@ def _prepare_fields(copies, squared, chunk):
 
 # Copied from pairtools._headerops
 def get_header(instream, comment_char="#"):
-    """Returns a header from the stream and an the reaminder of the stream
+    """Returns a header from the stream and the remainder of the stream
     with the actual data.
     Parameters
     ----------
@@ -67,7 +67,6 @@ def get_header(instream, comment_char="#"):
             io.BufferedReader(instream.detach()), encoding=encoding
         )
     # get peekable buffer for the instream
-    read_f, peek_f = None, None
     if hasattr(instream, "buffer"):
         peek_f = instream.buffer.peek
         readline_f = instream.buffer.readline
@@ -102,10 +101,8 @@ def cload():
     Choose a subcommand based on the format of the input contact list.
 
     """
-    pass
 
 
-# flake8: noqa
 def register_subcommand(func):
     return cload.command()(
         click.argument("bins", type=str, metavar="BINS")(
@@ -161,7 +158,7 @@ def hiclib(bins, pairs_path, cool_path, metadata, assembly, chunksize):
 
     {}
 
-    hiclib on BitBucket: <https://github.com/mirnylab/hiclib-legacy>.
+    hiclib: <https://github.com/mirnylab/hiclib-legacy>.
 
     """
 
@@ -212,7 +209,7 @@ def hiclib(bins, pairs_path, cool_path, metadata, assembly, chunksize):
     "-s",
     help="Divide the pairs from each chromosome into at most this many chunks. "
     "Smaller chromosomes will be split less frequently or not at all. "
-    "Increase ths value if large chromosomes dominate the workload on "
+    "Increase this value if large chromosomes dominate the workload on "
     "multiple processors.",
     type=int,
     default=2,
@@ -246,12 +243,12 @@ def tabix(
         with open(metadata) as f:
             metadata = json.load(f)
 
+    map_func = map
+    if nproc > 1:
+        pool = Pool(nproc)
+        logger.info(f"Using {nproc} cores")
+        map_func = pool.imap
     try:
-        map_func = map
-        if nproc > 1:
-            pool = Pool(nproc)
-            logger.info(f"Using {nproc} cores")
-            map_func = pool.imap
 
         opts = {}
         if "chrom2" in kwargs:
@@ -306,7 +303,7 @@ def tabix(
     "-s",
     help="Divide the pairs from each chromosome into at most this many chunks. "
     "Smaller chromosomes will be split less frequently or not at all. "
-    "Increase ths value if large chromosomes dominate the workload on "
+    "Increase this value if large chromosomes dominate the workload on "
     "multiple processors.",
     type=int,
     default=2,
@@ -348,12 +345,12 @@ def pairix(
         with open(metadata) as f:
             metadata = json.load(f)
 
+    map_func = map
+    if nproc > 1:
+        pool = Pool(nproc)
+        logger.info(f"Using {nproc} cores")
+        map_func = pool.imap
     try:
-        map_func = map
-        if nproc > 1:
-            pool = Pool(nproc)
-            logger.info(f"Using {nproc} cores")
-            map_func = pool.imap
 
         iterator = PairixAggregator(
             pairs_path,
@@ -444,12 +441,6 @@ def pairix(
     type=str,
     multiple=True,
 )
-# @click.option(
-#     "--no-count",
-#     help="Do not store the pair counts. Use this only if you use `--field` to "
-#          "specify at least one input field for aggregation as an alternative.",
-#     is_flag=True,
-#     default=False)
 @click.option(
     "--chunksize",
     "-c",
@@ -499,11 +490,6 @@ def pairix(
     help="Pass this flag to append the output cooler to an existing file "
     "instead of overwriting the file.",
 )
-# @click.option(
-#     "--format", "-f",
-#     help="Preset data format.",
-#     type=click.Choice(['4DN', 'BEDPE']))
-# --sep
 def pairs(
     bins,
     pairs_path,
@@ -535,7 +521,7 @@ def pairs(
     {}
 
     """
-    chromsizes, bins = parse_bins(bins)
+    _, bins = parse_bins(bins)
     if mergebuf is None:
         mergebuf = chunksize
 
@@ -629,16 +615,7 @@ def pairs(
             else:
                 aggregations[name] = "sum"
 
-    # # Pairs counts are always produced, unless supressed explicitly
-    # do_count = not no_count
-    # if do_count:
-    #     if 'count' not in output_field_names:
-    #         output_field_names.append('count')  # default dtype and agg
-    # else:
-    #     if not len(output_field_names):
-    #         click.BadParameter(
-    #             "To pass `--no-count`, specify at least one input "
-    #             "value-column using `--field`.")
+    # Pair counts are always stored
     if "count" not in output_field_names:
         output_field_names.append("count")
 
@@ -652,67 +629,71 @@ def pairs(
         h5opts = None
 
     # Initialize the input stream
-    # TODO: we could save the header into metadata
-    kwargs = {}
+    handles = None
     if pairs_path == "-":
         f_in = sys.stdin
     else:
         handles = get_handle(pairs_path, mode="r", compression="infer")
-        click.get_current_context().call_on_close(handles.close)
         f_in = handles.handle
 
-    _, f_in = get_header(f_in, comment_char)
+    try:
+        _, f_in = get_header(f_in, comment_char)
 
-    # Fields can use the same column, e.g. for its sum and its count
-    read_names, copies = fields_to_read(input_field_names, input_field_numbers)
+        # Fields can use the same column, e.g. for its sum and its count
+        read_names, copies = fields_to_read(input_field_names, input_field_numbers)
 
-    reader = pd.read_csv(
-        f_in,
-        sep="\t",
-        usecols=[input_field_numbers[name] for name in read_names],
-        names=read_names,
-        dtype={k: v for k, v in input_field_dtypes.items() if k in read_names},
-        iterator=True,
-        chunksize=chunksize,
-        **kwargs,
-    )
+        reader = pd.read_csv(
+            f_in,
+            sep="\t",
+            usecols=[input_field_numbers[name] for name in read_names],
+            names=read_names,
+            dtype={k: v for k, v in input_field_dtypes.items() if k in read_names},
+            iterator=True,
+            chunksize=chunksize,
+        )
 
-    sanitize = sanitize_records(
-        bins,
-        schema="pairs",
-        decode_chroms=True,
-        is_one_based=not zero_based,
-        tril_action=tril_action,
-        sort=True,
-        validate=True,
-    )
-    aggregate = aggregate_records(
-        agg=aggregations, count=True, sort=False
-    )
-    pipeline = compose(aggregate, sanitize)
-    if copies or squared:
-        pipeline = compose(pipeline, partial(_prepare_fields, copies, squared))
+        sanitize = sanitize_records(
+            bins,
+            schema="pairs",
+            decode_chroms=True,
+            is_one_based=not zero_based,
+            tril_action=tril_action,
+            sort=True,
+            validate=True,
+        )
+        aggregate = aggregate_records(
+            agg=aggregations, count=True, sort=False
+        )
+        pipeline = compose(aggregate, sanitize)
+        if copies or squared:
+            pipeline = compose(pipeline, partial(_prepare_fields, copies, squared))
 
-    create_cooler(
-        cool_path,
-        bins,
-        map(pipeline, reader),
-        columns=output_field_names,
-        dtypes=output_field_dtypes,
-        metadata=metadata,
-        assembly=assembly,
-        mergebuf=mergebuf,
-        max_merge=max_merge,
-        temp_dir=temp_dir,
-        delete_temp=not no_delete_temp,
-        # How to combine the per-chunk results: counts add up
-        agg={k: "sum" if v == "count" else v for k, v in aggregations.items()},
-        boundscheck=True,
-        triucheck=False,
-        dupcheck=False,
-        ensure_sorted=False,
-        symmetric_upper=symmetric_upper,
-        h5opts=h5opts,
-        ordered=False,
-        mode="a" if append else "w",
-    )
+        create_cooler(
+            cool_path,
+            bins,
+            map(pipeline, reader),
+            columns=output_field_names,
+            dtypes=output_field_dtypes,
+            metadata=metadata,
+            assembly=assembly,
+            mergebuf=mergebuf,
+            max_merge=max_merge,
+            temp_dir=temp_dir,
+            delete_temp=not no_delete_temp,
+            # How to combine the per-chunk results: counts add up
+            agg={k: "sum" if v == "count" else v for k, v in aggregations.items()},
+            boundscheck=True,
+            triucheck=False,
+            dupcheck=False,
+            ensure_sorted=False,
+            symmetric_upper=symmetric_upper,
+            h5opts=h5opts,
+            ordered=False,
+            mode="a" if append else "w",
+        )
+    finally:
+        if handles is not None:
+            # get_header may have detached the stream from the opened file
+            for stream in [f_in, *handles.created_handles]:
+                with contextlib.suppress(ValueError):
+                    stream.close()

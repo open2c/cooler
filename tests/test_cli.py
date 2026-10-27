@@ -84,6 +84,8 @@ def test_delimited_tuple():
     assert param.convert(None, None, None) is None
     assert param.name == "separated[,]"
 
+    assert util.DelimitedTuple(sep=";").convert("a;b", None, None) == ("a", "b")
+
     param = util.DelimitedTuple(sep=",", type=int)
     assert param.convert("10,20", None, None) == (10, 20)
     with pytest.raises(click.BadParameter):
@@ -134,9 +136,3 @@ def test_parse_bins(tmp_path):
         util.parse_bins(f"{CHROMSIZES}:8kb")
     with pytest.raises(ValueError, match="Expected BINS"):
         util.parse_bins(str(tmp_path / "missing.bed"))
-
-
-def test_check_ncpus():
-    assert 1 <= util.check_ncpus(10) <= 10
-    with pytest.raises(click.BadParameter):
-        util.check_ncpus(0)

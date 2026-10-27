@@ -19,9 +19,10 @@ from ._util import parse_field_param
 @click.option(
     "--field",
     help="Specify the names of value columns to merge as '<name>'. "
-    "Repeat the `--field` option for each one. "
-    "Use '<name>:dtype=<dtype>' to specify the dtype. Include "
-    "',agg=min' or ',agg=max' to aggregate with min or max instead of sum. ",
+    "Repeat the `--field` option for each one. Append ':' and "
+    "comma-separated properties to set the dtype and/or the aggregation, "
+    "e.g. 'count:agg=max' or 'count:dtype=float,agg=max'. The aggregation "
+    "is sum (default), min or max.",
     type=str,
     multiple=True,
 )
@@ -52,10 +53,9 @@ def merge(out_path, in_paths, chunksize, field, append):
         chroms/name, chroms/length
         bins/chrom, bins/start, bins/end
 
-    Additional columns in the the input files are not transferred to the output.
+    Additional columns in the input files are not transferred to the output.
 
     """
-    # logger = get_logger(__name__)
 
     if len(field):
         field_specifiers = [

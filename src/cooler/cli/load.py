@@ -65,8 +65,8 @@ from ._util import (
     "--one-based",
     is_flag=True,
     default=False,
-    help="Pass this flag if the bin IDs listed in a COO file are one-based "
-    "instead of zero-based.",
+    help="Pass this flag if the input is one-based: the bin IDs of a COO "
+    "file, or the start coordinates of a BG2 file.",
 )
 @click.option(
     "--comment-char",
@@ -370,8 +370,6 @@ def load(
         temp_dir=temp_dir,
         delete_temp=not no_delete_temp,
         ensure_sorted=False,
-        # boundscheck=True,
-        # dupcheck=True,
         triucheck=bool(symmetric_upper),
         symmetric_upper=symmetric_upper,
         h5opts=h5opts,

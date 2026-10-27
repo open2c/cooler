@@ -61,7 +61,7 @@ def digest(chromsizes, fasta, enzyme, out, header, rel_ids):
     frags = util.digest(fasta_records, enzyme)
 
     if rel_ids is not None:
-        frags["id"] = frags.groupby("chrom").cumcount()
+        frags["id"] = frags.groupby("chrom", observed=True).cumcount()
         if int(rel_ids) == 1:
             frags["id"] += 1
 
