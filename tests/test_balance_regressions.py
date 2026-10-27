@@ -165,6 +165,54 @@ def test_cis_only_balances_chromosomes_separately(tmp_path):
     assert not np.any(stats["converged"])
 
 
+def test_trans_only_equal_mean_per_partner(tmp_path):
+    # Bins on larger chromosomes have fewer trans partners. Every row of the
+    # balanced trans matrix has the same mean contact per valid partner.
+    bins = cooler.binnify(CHROMSIZES, 20)
+    clr = cooler.Cooler(make_cooler(str(tmp_path / "c.cool"), bins))
+    mat = dense(clr)
+    weights, stats = balance_cooler(clr, trans_only=True, **NOFILTER)
+    assert stats["converged"]
+
+    valid = np.isfinite(weights)
+    w = np.where(valid, weights, 0)
+    trans = ~cis_mask(bins)
+    rowsums = (w[:, None] * mat * w[None, :] * trans).sum(axis=1)
+    partners = (trans & valid[None, :]).sum(axis=1)
+    per_partner = rowsums[valid] / partners[valid]
+    np.testing.assert_allclose(per_partner, per_partner.mean(), rtol=1e-6)
+    # Rescaled, the marginals relative to the targets have mean 1
+    np.testing.assert_allclose(per_partner, 1 / valid.sum(), rtol=1e-6)
+
+
+def test_trans_only_two_chromosomes_warns(tmp_path):
+    bins = cooler.binnify(CHROMSIZES[["chr1", "chr2"]], 20)
+    clr = cooler.Cooler(make_cooler(str(tmp_path / "c.cool"), bins))
+    with pytest.warns(UserWarning, match="fewer than three chromosomes"):
+        balance_cooler(clr, trans_only=True, **NOFILTER)
+
+
+def test_trans_only_filters_use_trans_data(tmp_path):
+    # A bin with plenty of cis contacts but almost no trans data is filtered
+    bins = cooler.binnify(CHROMSIZES, 20)
+    n = len(bins)
+    mat = np.triu(np.full((n, n), 5))
+    mat[0, 15:] = 0  # bin 0 is on chr1 (bins 0-14)
+    mat[0, 15] = 5
+    i, j = np.nonzero(mat)
+    path = str(tmp_path / "c.cool")
+    px = pd.DataFrame({"bin1_id": i, "bin2_id": j, "count": mat[i, j]})
+    cooler.create_cooler(path, bins, px)
+    clr = cooler.Cooler(path)
+
+    weights, _ = balance_cooler(clr, trans_only=True, min_nnz=3, mad_max=0)
+    assert np.isnan(weights[0])
+    assert np.isfinite(weights[1:]).all()
+    # Genome-wide, the bin has enough data
+    weights, _ = balance_cooler(clr, min_nnz=3, mad_max=0)
+    assert np.isfinite(weights[0])
+
+
 def test_every_bin_filtered(tmp_path):
     bins = cooler.binnify(CHROMSIZES, 20)
     clr = cooler.Cooler(make_cooler(str(tmp_path / "c.cool"), bins))
