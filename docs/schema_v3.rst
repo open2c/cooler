@@ -63,7 +63,7 @@ This storage mode does not enforce specific **column orders**, but conventional 
 
 This storage mode does not set limits on the **number or length of columns**. Additional arrays may be inserted into a table to form new columns, but they must conform to the common length of the table.
 
-The table descriptions below are given in the `datashape <http://datashape.readthedocs.org/en/latest/>`_ layout language. The column **data types** are given as numpy equivalents. They are only defaults and may be altered as desired.
+The table descriptions below are given in the `datashape <http://datashape.readthedocs.org/en/latest/>`_ layout language. The column **data types** are given as numpy equivalents. They are only defaults and may be altered as needed. Numerical columns labeled "REQUIRED" may be altered in physical width but not in kind.
 
 GZIP is chosen as the default **compression** filter for all columns. This is for portability reasons, since all versions of the HDF5 library ship with it.
 
