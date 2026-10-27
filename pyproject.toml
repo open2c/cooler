@@ -158,7 +158,8 @@ omit = [
 exclude_lines = [
     "pragma: no cover",
     "return NotImplemented",
-    "raise NotImplementedError"
+    "raise NotImplementedError",
+    "^\\s*\\.\\.\\.$",  # bodies of @overload stubs
 ]
 
 [tool.hatch.envs.default]

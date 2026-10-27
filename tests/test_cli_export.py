@@ -137,3 +137,22 @@ def test_show(run_cli, tmp_path):
         "show", path, "chr1", "-o", out, "--weight-name", "doesnotexist",
         exit_code=1,
     )
+
+
+def test_dump_more_options(run_cli, tmp_path):
+    out = tmp_path / "pixels.tsv"
+    run_cli("dump", TOY, "-o", out)
+    assert len(out.read_text().splitlines()) == cooler.Cooler(str(TOY)).info["nnz"]
+    # Only bin IDs: the pixels are still read, by their count column
+    ids = read_tsv(run_cli("dump", TOY, "-H", "-c", "bin1_id,bin2_id"))
+    assert list(ids.columns) == ["bin1_id", "bin2_id"]
+
+
+def test_show_size_limit(run_cli, tmp_path, monkeypatch):
+    pytest.importorskip("matplotlib")
+    import cooler.cli.show
+
+    monkeypatch.setattr(cooler.cli.show, "MAX_MATRIX_SIZE_FILE", 1)
+    result = run_cli("show", TOY, "chr1", "-o", tmp_path / "p.png", exit_code=1)
+    assert "too large" in result.stderr
+    run_cli("show", TOY, "chr1", "-o", tmp_path / "p.png", "--force")

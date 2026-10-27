@@ -175,3 +175,27 @@ def test_zoomify_bad_arguments(run_cli, tmp_path):
     run_cli("zoomify", TOY, "-r", "2,4", "-o", f"{out}::group", exit_code=2)
     result = run_cli("zoomify", TOY, "-r", "3", "-o", out, exit_code=1)
     assert "cannot be derived" in result.stderr
+
+
+def test_merge_default_field(run_cli, tmp_path):
+    out = tmp_path / "double.cool"
+    run_cli("merge", out, TOY, TOY)
+    total = cooler.Cooler(str(TOY)).pixels()["count"][:].sum()
+    assert cooler.Cooler(str(out)).pixels()["count"][:].sum() == 2 * total
+
+
+def test_zoomify_balance_args(run_cli, tmp_path):
+    # Levels that already have weights are skipped
+    base = tmp_path / "toy.cool"
+    shutil.copy(TOY, base)
+    run_cli("balance", base, *NOFILTER)
+    out = tmp_path / "toy.mcool"
+    run_cli("zoomify", base, "-r", "2,4", "--balance", "-o", out)
+    for res in [2, 4]:
+        assert "weight" in cooler.Cooler(f"{out}::resolutions/{res}").bins()
+
+    # A failure while balancing a level fails zoomify
+    run_cli(
+        "zoomify", TOY, "-r", "2,4", "--balance", "-o", out, "--balance-args",
+        "--max-iters 0 --convergence-policy error", exit_code=1,
+    )

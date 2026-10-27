@@ -56,6 +56,7 @@
 * fix: `from cooler.create import *` failed, since `__all__` still listed the removed `append`.
 * fix: `cooler attrs` decodes attributes stored as bytes (e.g. by other writers), instead of printing them as `!!binary`.
 * fix: `merge_coolers` no longer modifies the caller's `dtypes`.
+* fix: `merge_coolers` with coolers on different chromosomes raises "Coolers must have the same chromosomes"; pandas raised a confusing error about comparing differently labeled Series instead. Chromosome lengths stored as int32 in one cooler and int64 in another still compare equal.
 * fix: Balancing with the MAD filter no longer warns about an empty slice when no bin has data left.
 * fix: `cooler load` rejects duplicate pixels wherever they occur in the input. Previously, duplicates in the same chunk raised an error but duplicates in different chunks were silently summed, so the result depended on `--chunksize`. `create_cooler(..., ordered=False)` gains a `duplicates` option: `"combine"` (default) combines repeated pixels with `agg`, now also within a chunk; `"error"` raises.
 * fix: Creating a cooler into a new or truncated file (mode "w") writes to a temporary file that replaces the destination only when complete, so a failure leaves an existing file intact and no partial file behind.

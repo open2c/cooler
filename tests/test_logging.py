@@ -81,3 +81,15 @@ def test_cli_logs_to_stderr_and_cleans_up():
         assert "INFO" not in result.stdout
         assert "Iteration limit" not in result.stdout
         assert _logging_state() == before
+
+
+def test_stderr_handler_and_bad_verbosity():
+    import sys
+
+    from cooler._logging import _StderrHandler
+
+    handler = _StderrHandler()
+    handler.stream = None  # ignored: it always writes to the current stderr
+    assert handler.stream is sys.stderr
+    with pytest.warns(DeprecationWarning), pytest.raises(ValueError, match="Verbosity"):
+        cooler.set_verbosity_level(99)

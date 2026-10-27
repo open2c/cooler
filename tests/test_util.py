@@ -1,4 +1,5 @@
 import os.path as op
+import sys
 from io import BytesIO, StringIO
 
 import h5py
@@ -362,3 +363,31 @@ def test_compose():
     assert pickle.loads(pickle.dumps(func))(5) == 11
     with mp.Pool(2) as pool:
         assert pool.map(func, [1, 2, 3]) == [3, 5, 7]
+
+
+def test_read_chromsizes_gzipped(tmp_path):
+    import gzip
+
+    path = tmp_path / "sizes.txt.gz"
+    with gzip.open(path, "wt") as f:
+        f.write("chr1\t100\nchr2\t50\n")
+    assert util.read_chromsizes(str(path)).to_dict() == {"chr1": 100, "chr2": 50}
+
+
+def test_load_fasta_several_files(tmp_path):
+    pytest.importorskip("pyfaidx")
+    lines = open(op.join(datadir, "toy.fasta")).read().splitlines()
+    (tmp_path / "a.fa").write_text("\n".join(lines[:2]) + "\n")
+    (tmp_path / "b.fa").write_text("\n".join(lines[2:]) + "\n")
+    paths = [str(tmp_path / "a.fa"), str(tmp_path / "b.fa")]
+    fa = util.load_fasta(["chr1", "chr2"], *paths)
+    assert len(fa["chr1"]) == 32 and len(fa["chr2"]) == 32
+
+
+def test_optional_packages_missing(monkeypatch):
+    monkeypatch.setitem(sys.modules, "pyfaidx", None)
+    with pytest.raises(ImportError, match="pyfaidx"):
+        util.load_fasta(["chr1"], op.join(datadir, "toy.fasta"))
+    monkeypatch.setitem(sys.modules, "Bio", None)
+    with pytest.raises(ImportError, match="Biopython"):
+        util.digest({"chr1": "AAGCTT"}, "HindIII")

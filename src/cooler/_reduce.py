@@ -134,7 +134,12 @@ class CoolerMerger(ContactBinner):
                 raise ValueError("Coolers must have the same resolution")
             chromsizes = coolers[0].chromsizes
             for i in range(1, len(coolers)):
-                if not np.all(coolers[i].chromsizes == chromsizes):
+                other = coolers[i].chromsizes
+                # Lengths may be stored as int32 or int64
+                if not (
+                    other.index.equals(chromsizes.index)
+                    and np.array_equal(other.to_numpy(), chromsizes.to_numpy())
+                ):
                     raise ValueError("Coolers must have the same chromosomes")
         else:
             bins = coolers[0].bins()[["chrom", "start", "end"]][:]

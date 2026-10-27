@@ -264,3 +264,20 @@ def test_get_header():
         get_header(stream, comment_char="")
     with pytest.raises(ValueError, match="peek"):
         get_header(io.StringIO("#a\n"))
+
+
+def test_load_more_options(run_cli, tmp_path):
+    bg2 = DATA / "toy.symm.upper.2.bg2"
+    out = tmp_path / "toy.2.cool"
+    run_cli(
+        "load", "-f", "bg2", f"{CHROMSIZES}:2", "-", out,
+        "--storage-options", "chunks=[1]", input=bg2.read_text(),
+    )
+    assert_pixels_match_bg2(out, bg2)
+    with h5py.File(out, "r") as f:
+        assert f["pixels/count"].chunks == (1,)
+    # A value field needs a field number
+    run_cli(
+        "load", "-f", "bg2", f"{CHROMSIZES}:2", bg2, out, "--field", "score",
+        exit_code=2,
+    )

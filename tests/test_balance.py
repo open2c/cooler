@@ -206,3 +206,10 @@ def test_balancing_other_options(fp, tol):
         clr, ignore_diags=1, min_nnz=10, tol=tol, blacklist=[0, 4]
     )
     assert stats['converged']
+
+
+def test_balancing_without_chunks():
+    clr = cooler.Cooler(os.path.join(testdir, "data", "toy.symm.upper.2.cool"))
+    w1, _ = cooler.balance_cooler(clr, chunksize=None, mad_max=0, min_nnz=0)
+    w2, _ = cooler.balance_cooler(clr, chunksize=7, mad_max=0, min_nnz=0)
+    np.testing.assert_allclose(w1, w2)

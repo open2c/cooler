@@ -156,3 +156,13 @@ def test_parse_bins(tmp_path):
         util.parse_bins(f"{CHROMSIZES}:8kb")
     with pytest.raises(ValueError, match="Expected BINS"):
         util.parse_bins(str(tmp_path / "missing.bed"))
+
+
+def test_digest_fasta_directory(run_cli, tmp_path):
+    pytest.importorskip("pyfaidx")
+    pytest.importorskip("Bio")
+    import shutil
+
+    shutil.copy(DATA / "toy.fasta", tmp_path / "toy.fa")
+    result = run_cli("digest", CHROMSIZES, tmp_path, "HindIII")
+    assert result.stdout == "chr1\t0\t32\nchr2\t0\t32\n"
