@@ -776,7 +776,7 @@ cooler balance
 
 .. option:: --trans-only
 
-    Calculate weights against inter-chromosomal data only instead of genome-wide.
+    Calculate weights against inter-chromosomal data only instead of genome-wide. The balanced matrix has the same mean inter-chromosomal contact per valid partner bin in every row.
 
 .. option:: --ignore-diags <ignore_diags>
 
