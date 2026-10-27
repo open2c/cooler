@@ -99,7 +99,7 @@ In HDF5, we use the integer-backed ENUM type to encode the ``chrom`` column. For
 
 Genomic intervals are stored using a `0-start, half-open <http://genome.ucsc.edu/blog/the-ucsc-genome-browser-coordinate-counting-systems>`_ representation. The first interval in a scaffold should have ``start`` = 0 and the last interval should have ``end`` = the chromosome length. Intervals are sorted by ``chrom``, then by ``start``.
 
-Because they measure the same quantity in the same units, the coordinate columns ``chroms/length``, ``bins/start`` and ``bins/end`` should be encoded using the same data type.
+Because they measure the same quantity in the same units, the coordinate columns ``chroms/length``, ``bins/start`` and ``bins/end`` should be encoded using the same data type. Cooler writes them as int32, or as int64 if a chromosome is longer than int32 allows (2,147,483,647 bp).
 
 The :command:`cooler balance` command stores balancing weights in a column called ``weight`` by default. NaN values indicate genomic bins that were blacklisted during the balancing procedure.
 

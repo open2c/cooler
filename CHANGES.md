@@ -76,6 +76,7 @@
 * fix: `cooler cload pairs --field <name>=<col>:agg=<agg>` combined the per-chunk results by summing them, so `max`, `min` and other aggregations were wrong for inputs larger than `--chunksize`. Pixels are now combined with the requested aggregation; aggregations that can't be combined across chunks (e.g. `mean`) raise an error when the input spans more than one chunk. `create_cooler` gains an `agg` parameter for this.
 * fix: `create_cooler(..., ordered=False)` sorts each input chunk, so unsorted chunks no longer produce unsorted coolers with duplicate pixels.
 * fix: `create_cooler(..., ordered=False)` and `cload pairs` handle empty input (e.g. no records on the requested chromosomes) by writing an empty cooler instead of crashing. `--max-merge` values of 1 or 2 no longer crash.
+* fix: Chromosomes longer than 2,147,483,647 bp (the int32 maximum) are stored correctly. Chromosome lengths and bin coordinates were always written as int32, so they silently overflowed to negative values. They are now written as int64 when a chromosome needs it, and as int32 otherwise, as before (#480).
 * fix: Pixel values that don't fit in the column's integer type (e.g. counts above 2^31 - 1 with the default int32) raise an error suggesting int64, instead of being silently clipped.
 * fix: `create_scool` sorts DataFrame pixels, rejects cell names that would be stored under the same name, and works with a non-root group URI.
 * fix: `cooler cload pairs --comment-char` is now used, and `.zip` input works.

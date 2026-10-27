@@ -478,3 +478,36 @@ def test_cload_pairs_input_copy_status_is_deprecated(tmp_path, chromsizes_file):
         logger.removeHandler(handler)
     # duplex still drops the lower-triangle copy
     assert cooler.Cooler(out).info["sum"] == 1
+
+
+def test_chromosomes_longer_than_int32(tmp_path):
+    # Lengths and coordinates past 2**31 - 1 overflowed to negative values
+    big = 3_000_000_000
+    bins = cooler.binnify(pd.Series({"big": big, "small": 1_000_000}), 100_000_000)
+    n = len(bins)
+    px = pd.DataFrame({"bin1_id": [0, 29, 29], "bin2_id": [29, 29, n - 1], "count": 1})
+    path = str(tmp_path / "big.cool")
+    cooler.create_cooler(path, bins, px)
+    clr = cooler.Cooler(path)
+    assert clr.chromsizes["big"] == big
+    np.testing.assert_array_equal(clr.bins()[:]["end"], bins["end"])
+    assert clr.extent("big:2900000000-3000000000") == (29, 30)
+    assert clr.matrix(balance=False).fetch("big:2900000000-3000000000")[0, 0] == 1
+    with h5py.File(path, "r") as f:
+        for name in ["chroms/length", "bins/start", "bins/end"]:
+            assert f[name].dtype == np.int64
+
+    # Coarsening keeps them
+    out = str(tmp_path / "big2.cool")
+    cooler.coarsen_cooler(path, out, 2, 100)
+    assert cooler.Cooler(out).chromsizes["big"] == big
+    assert cooler.Cooler(out).bins()[14:15]["end"].tolist() == [big]
+
+    # Typical genomes are still written as int32
+    small = str(tmp_path / "small.cool")
+    bins = cooler.binnify(pd.Series({"a": 1000}), 100)
+    px = pd.DataFrame({"bin1_id": [0], "bin2_id": [1], "count": [1]})
+    cooler.create_cooler(small, bins, px)
+    with h5py.File(small, "r") as f:
+        for name in ["chroms/length", "bins/start", "bins/end"]:
+            assert f[name].dtype == np.int32
