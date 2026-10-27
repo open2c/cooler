@@ -51,6 +51,7 @@
 * fix: `cooler makebins` and `cooler digest` close their output files.
 * fix: `coarsen_cooler` (and `cooler coarsen`/`cooler zoomify --field`) kept only the `count` column, silently dropping other value columns, and failed if `count` wasn't selected. All requested columns are now coarsened.
 * fix: `zoomify_cooler` with several base coolers (`cooler zoomify --base-uri`) kept only one of them, and could coarsen a base resolution from a finer one, overwriting its data. Base resolutions are now all kept as given; base coolers with the same resolution are rejected.
+* fix: `cooler zoomify` no longer destroys its input when the output file is the input file. The default output name replaced `.cool` in the input path, so for an input without `.cool` in its name (e.g. `data.mcool::resolutions/1000` or `data.h5`), the output was the input itself, which was truncated before being read. The default output name now replaces the extension, and `zoomify` and `zoomify_cooler` refuse to write to a file containing one of their inputs. `-o` with a group (`out.mcool::group`) is rejected instead of the group being ignored, and invalid resolutions or resolutions that can't be made from the base give an error message instead of a traceback.
 * fix: `cooler zoomify -r <N>b` (binary progression from N) crashed.
 * fix: `cooler zoomify --balance` balances every level in the output, including base resolutions, and recognizes a column name set with `--balance-args "--name ..."`.
 * fix: Coarsening and zoomifying keep the input's `genome-assembly` and `metadata`.

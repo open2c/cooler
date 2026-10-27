@@ -7,6 +7,7 @@ import shutil
 import multiprocess as mp
 import numpy as np
 import pandas as pd
+import pytest
 from _common import DATA
 
 import cooler
@@ -149,3 +150,27 @@ def test_balance_blacklist(run_cli, tmp_path):
     ]:
         blacklist.write_text(content)
         run_cli("balance", TOY, *NOFILTER, "--blacklist", blacklist, "--stdout")
+
+
+def test_zoomify_does_not_overwrite_its_input(run_cli, tmp_path):
+    # The default output name of an .mcool or .h5 input is the input itself
+    mcool = tmp_path / "t.mcool"
+    shutil.copy(DATA / "toy.symm.upper.2.mcool", mcool)
+    before = resolutions(mcool)
+    run_cli("zoomify", "-r", "4,8", f"{mcool}::resolutions/2", exit_code=2)
+    h5 = tmp_path / "t.h5"
+    shutil.copy(TOY, h5)
+    run_cli("zoomify", "-r", "4", h5, "-o", h5, exit_code=2)
+    assert resolutions(mcool) == before
+    assert cooler.fileops.is_cooler(h5)
+
+    with pytest.raises(ValueError, match="contains the input"):
+        cooler.zoomify_cooler(str(h5), str(h5), [2, 4], 100)
+
+
+def test_zoomify_bad_arguments(run_cli, tmp_path):
+    out = tmp_path / "toy.mcool"
+    run_cli("zoomify", TOY, "-r", "2,abc", "-o", out, exit_code=2)
+    run_cli("zoomify", TOY, "-r", "2,4", "-o", f"{out}::group", exit_code=2)
+    result = run_cli("zoomify", TOY, "-r", "3", "-o", out, exit_code=1)
+    assert "cannot be derived" in result.stderr

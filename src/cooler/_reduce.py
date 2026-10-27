@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os.path as op
 import warnings
 from bisect import bisect_right
 from collections import defaultdict
@@ -816,6 +817,11 @@ def zoomify_cooler(
     base_resolutions = set()
     for input_uri in base_uris:
         infile, ingroup = parse_cooler_uri(input_uri)
+        if op.exists(outfile) and op.samefile(infile, outfile):
+            # The output file is truncated before the inputs are read
+            raise ValueError(
+                f"The output file '{outfile}' contains the input '{input_uri}'."
+            )
         clr = Cooler(infile, ingroup)
         base_binsize = 1 if clr.binsize is None else clr.binsize
         if base_binsize in parsed_uris:
