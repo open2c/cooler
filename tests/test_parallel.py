@@ -79,7 +79,7 @@ def test_import_without_semaphores():
     # Simulate environments without process-shared semaphores, like AWS Lambda
     script = """
 import errno
-import multiprocess.synchronize as sync
+import multiprocessing.synchronize as sync
 
 def _no_semaphores(self, *args, **kwargs):
     raise OSError(errno.ENOSYS, "Function not implemented")

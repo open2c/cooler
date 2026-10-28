@@ -20,13 +20,6 @@ from .util import natsorted, parse_cooler_uri
 __all__ = ["cp", "is_cooler", "is_multires_file", "list_coolers", "ln", "mv"]
 
 
-def json_dumps(o: object) -> str:
-    """Write JSON in a consistent, human-readable way."""
-    return json.dumps(
-        o, indent=4, sort_keys=True, ensure_ascii=True, separators=(",", ": ")
-    )
-
-
 # Cooler attributes that are always text, so they aren't parsed as JSON even if
 # they look like it (e.g. an assembly named "123"). Other string attributes
 # are parsed as JSON when possible: "metadata", and attributes such as
@@ -42,11 +35,6 @@ TEXT_ATTRS = frozenset({
 })
 
 
-def json_loads(s: str) -> object:
-    """Read JSON in a consistent way."""
-    return json.loads(s)
-
-
 def decode_attr_value(
     obj: str | np.generic | np.ndarray | h5py.Dataset, key: str | None = None
 ) -> str | Number | datetime | list | dict:
@@ -55,7 +43,9 @@ def decode_attr_value(
     JSON serializable. Strings are parsed as JSON, except for the attributes
     in ``TEXT_ATTRS``.
     """
-    if isinstance(obj, np.ndarray):
+    if isinstance(obj, bytes):  # e.g. fixed-length strings from other writers
+        return decode_attr_value(obj.decode(), key)
+    elif isinstance(obj, np.ndarray):
         o = obj.tolist()
     elif hasattr(obj, "item"):
         o = obj.item()
@@ -611,7 +601,7 @@ class TreeViewer:
 
 
 def read_attr_tree(group: h5py.Group, level: int | None) -> dict[str, Any]:
-    def _getdict(node, root=False):
+    def _getdict(node):
         attrs = node.obj.attrs
         result = {"@attrs": {k: decode_attr_value(v, k) for k, v in attrs.items()}}
         children = node.get_children()
@@ -620,7 +610,7 @@ def read_attr_tree(group: h5py.Group, level: int | None) -> dict[str, Any]:
                 result[child.get_text()] = _getdict(child)
         return result
 
-    return _getdict(AttrNode(group, level=level), root=True)
+    return _getdict(AttrNode(group, level=level))
 
 
 def pprint_attr_tree(uri: str, level: int | None) -> str:

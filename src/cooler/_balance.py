@@ -463,10 +463,11 @@ def balance_cooler(
             if (c_marg > 0).any():  # bins of empty chromosomes stay at 0
                 marg[lo:hi] /= np.median(c_marg[c_marg > 0])
         logNzMarg = np.log(marg[marg > 0])
-        med_logNzMarg = np.median(logNzMarg)
-        dev_logNzMarg = mad(logNzMarg)
-        cutoff = np.exp(med_logNzMarg - mad_max * dev_logNzMarg)
-        bias[marg < cutoff] = 0
+        if len(logNzMarg):  # otherwise, there's no data left to filter
+            med_logNzMarg = np.median(logNzMarg)
+            dev_logNzMarg = mad(logNzMarg)
+            cutoff = np.exp(med_logNzMarg - mad_max * dev_logNzMarg)
+            bias[marg < cutoff] = 0
 
     # Filter out pre-determined bad bins
     if blacklist is not None:
@@ -539,6 +540,3 @@ def balance_cooler(
         )
 
     return bias, stats
-
-
-iterative_correction = balance_cooler  # alias

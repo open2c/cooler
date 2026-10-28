@@ -21,7 +21,7 @@ datadir = op.join(testdir, "data")
     "fp", [op.join(datadir, "hg19.GM12878-MboI.matrix.2000kb.cool")]
 )
 def test_create_append(fp):
-    import dask.dataframe as dd
+    dd = pytest.importorskip("dask.dataframe")
 
     c = cooler.Cooler(fp)
     # chromsizes = c.chromsizes
@@ -466,3 +466,22 @@ def test_create_scool_append(fp):
         other_bins["end"] = other_bins["end"] - 1
         with pytest.raises(ValueError):
             cooler.create_scool("test.scool", other_bins, {"cell4": pixels}, mode="a")
+
+
+def test_create_argument_errors(tmp_path):
+    bins = cooler.binnify(pd.Series({"chr1": 100}), 10)
+    px = pd.DataFrame({"bin1_id": [0], "bin2_id": [1], "count": [1]})
+    out = str(tmp_path / "x.cool")
+    with pytest.raises(ValueError, match="both"):
+        cooler.create.create(
+            out, bins, px, dtype={"count": float}, dtypes={"count": int}
+        )
+    with pytest.raises(ValueError, match="DataFrame"):
+        cooler.create.create(out, bins.to_dict(), px)
+    with pytest.raises(ValueError, match="duplicates"):
+        cooler.create_cooler(out, bins, px, duplicates="sum")
+    scool = str(tmp_path / "x.scool")
+    with pytest.raises(ValueError, match="At least one bin"):
+        cooler.create_scool(scool, {}, {"a": px})
+    with pytest.raises(TypeError, match="unexpected keyword"):
+        cooler.create_scool(scool, bins, {"a": px}, nonsense=1)

@@ -314,7 +314,10 @@ def load_fasta(names: list[str], *filepaths: str) -> OrderedDict[str, Any]:
     OrderedDict of sequence name -> sequence record
 
     """
-    import pyfaidx
+    try:
+        import pyfaidx
+    except ImportError:
+        raise ImportError("pyfaidx is required to read FASTA files.") from None
 
     if len(filepaths) == 0:
         raise ValueError("Need at least one file")
@@ -366,9 +369,6 @@ def binnify(chromsizes: pd.Series, binsize: int) -> pd.DataFrame:
     )
 
     return bintable
-
-
-make_bintable = binnify
 
 
 def digest(fasta_records: OrderedDict[str, Any], enzyme: str) -> pd.DataFrame:
@@ -528,6 +528,33 @@ def rlencode(
     values = np.concatenate(values)
 
     return starts, lengths, values
+
+
+class compose:
+    """
+    Compose functions from right to left: ``compose(f, g)(x) == f(g(x))``.
+
+    The first function to be called (the last one given) takes any arguments;
+    the others take the result of the previous one. Composed functions can be
+    pickled, e.g. to send to worker processes, if the functions can be.
+    """
+
+    __slots__ = ("funcs",)
+
+    def __init__(self, *funcs: Any):
+        if not funcs:
+            raise TypeError("compose() needs at least one function")
+        self.funcs = funcs
+
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+        *rest, first = self.funcs
+        result = first(*args, **kwargs)
+        for func in reversed(rest):
+            result = func(result)
+        return result
+
+    def __repr__(self) -> str:
+        return f"compose({', '.join(map(repr, self.funcs))})"
 
 
 def cmd_exists(cmd: str) -> bool:

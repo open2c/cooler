@@ -1,8 +1,8 @@
+import multiprocessing as mp
 import os.path as op
 
 import h5py
 import hypothesis.strategies as st
-import multiprocess as mp
 import numpy as np
 import pytest
 from _common import cooler_cmp, isolated_filesystem
@@ -45,7 +45,9 @@ def test_merge2():
     with isolated_filesystem():
         path1 = op.join(datadir, "toy.symm.upper.2.cool")
         path2 = op.join(datadir, "toy.symm.upper.2.cool")
-        merge_coolers("test.cool", [path1, path2], mergebuf=3, agg={"count": "max"})
+        # Rows hold more pixels than mergebuf: they can't be split
+        with pytest.warns(UserWarning, match="more than mergebuf=3"):
+            merge_coolers("test.cool", [path1, path2], mergebuf=3, agg={"count": "max"})
         single = cooler.Cooler(path1)
         merged = cooler.Cooler("test.cool")
         assert merged.pixels()["count"][:].sum() == single.pixels()["count"][:].sum()
@@ -313,3 +315,22 @@ def test_merge_breakpoints_fuzz(data):
     assert cum_nrecords[0] == 0, "cum_nrecords[0] != 0"
     nnz = sum(index[-1] for index in indexes)
     assert cum_nrecords[-1] == nnz, f"cum_nrecords[-1] != {nnz}"
+
+
+def test_reduce_argument_errors(tmp_path):
+    from cooler._reduce import get_multiplier_sequence, preferred_sequence
+
+    with pytest.raises(ValueError, match="style"):
+        preferred_sequence(1, 100, style="odd")
+    _, pred, _ = get_multiplier_sequence([10, 20, 40])
+    assert list(pred) == [-1, 0, 1]  # the smallest resolution is the base
+
+    # Merging coolers with different chromosomes
+    import pandas as pd
+
+    px = pd.DataFrame({"bin1_id": [0], "bin2_id": [1], "count": [1]})
+    a, b = str(tmp_path / "a.cool"), str(tmp_path / "b.cool")
+    cooler.create_cooler(a, cooler.binnify(pd.Series({"chr1": 100}), 10), px)
+    cooler.create_cooler(b, cooler.binnify(pd.Series({"chrX": 100}), 10), px)
+    with pytest.raises(ValueError, match="same chromosomes"):
+        merge_coolers(str(tmp_path / "m.cool"), [a, b], mergebuf=10)

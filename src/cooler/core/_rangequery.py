@@ -6,7 +6,8 @@ from typing import Any, Callable
 import h5py
 import numpy as np
 import pandas as pd
-from cytoolz import compose
+
+from ..util import compose
 
 
 def _region_to_extent(

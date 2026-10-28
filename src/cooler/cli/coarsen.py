@@ -40,9 +40,10 @@ from ._util import parse_field_param
 @click.option(
     "--field",
     help="Specify the names of value columns to merge as '<name>'. "
-    "Repeat the `--field` option for each one. "
-    "Use '<name>:dtype=<dtype>' to specify the dtype. Include "
-    "',agg=min' or ',agg=max' to aggregate with min or max instead of sum. ",
+    "Repeat the `--field` option for each one. Append ':' and "
+    "comma-separated properties to set the dtype and/or the aggregation, "
+    "e.g. 'count:agg=max' or 'count:dtype=float,agg=max'. The aggregation "
+    "is sum (default), min or max.",
     type=str,
     multiple=True,
 )

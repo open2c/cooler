@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling", "hatch-vcs"]
+requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
 
 [project]
@@ -7,7 +7,8 @@ name = "cooler"
 version = "0.11.0"
 description = "Sparse binary format for genomic interaction matrices."
 requires-python = ">=3.9"
-license = {text = "BSD-3-Clause"}
+license = "BSD-3-Clause"
+license-files = ["LICENSE"]
 authors = [
   {name = "Nezar Abdennur", email = "nabdennur@gmail.com"},
 ]
@@ -26,13 +27,18 @@ keywords = [
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
     "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
 ]
 
 readme = "README.md"
@@ -40,13 +46,10 @@ readme = "README.md"
 dependencies = [
     "numpy>=1.26,<3",
     "scipy>=1.11",
-    "pandas>1.5",
+    "pandas>=1.5.1",
     "h5py>=3.0",
-    "click>=7",
-    "cytoolz",
-    "multiprocess",
-    "pyfaidx",
-    "asciitree",
+    "click>=8.0",
+    "asciitree>=0.3",
     "pyyaml",
 ]
 
@@ -57,6 +60,7 @@ all = [
     "ipytree>=0.2.2",
     "ipywidgets>=8.0.0",
     "matplotlib",
+    "pyfaidx",
 #    "pypairix; platform_system != 'Windows'", # doesn't compile, see 4dn-dcic/pairix#79
     "psutil",
     "pysam; platform_system != 'Windows'",
@@ -90,12 +94,10 @@ homepage = "https://open2c.github.io/cooler"
 documentation = "https://cooler.readthedocs.io"
 repository = "https://github.com/open2c/cooler"
 changelog = "https://github.com/open2c/cooler/blob/master/CHANGES.md"
+issues = "https://github.com/open2c/cooler/issues"
 
 [project.scripts]
 cooler = "cooler.cli:cli"
-
-[tool.hatch.version]
-path = "src/cooler/_version.py"
 
 [tool.ruff]
 src = ["src"]
@@ -116,6 +118,7 @@ extend-select = [
     "UP", # pyupgrade
     "W",  # style  warnings
 ]
+
 ignore = [
     "SIM115",  # open-file-with-context-handler: we often return/close handles later
 ]
@@ -149,14 +152,14 @@ source = ["cooler"]
 omit = [
     "*/cooler/__main__.py",
     "*/cooler/_version.py",
-    "*/cooler/cli/csort.py"
 ]
 
 [tool.coverage.report]
 exclude_lines = [
     "pragma: no cover",
     "return NotImplemented",
-    "raise NotImplementedError"
+    "raise NotImplementedError",
+    "^\\s*\\.\\.\\.$",  # bodies of @overload stubs
 ]
 
 [tool.hatch.envs.default]
@@ -172,4 +175,4 @@ docs = "sphinx-autobuild docs docs/_build/html"
 dependency-groups = ["dev"]
 
 [[tool.hatch.envs.test.matrix]]
-python = ["3.9", "3.10", "3.11", "3.12"]
+python = ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]

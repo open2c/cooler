@@ -211,7 +211,6 @@ def test_cooler_class2():
     clr = api.Cooler(path)
     clr._load_dset("indexes/chrom_offset")
     clr._load_dset("indexes/bin1_offset")
-    clr._load_attrs("bins/chrom")
 
     with clr.open("r") as f:
         pass
@@ -222,3 +221,25 @@ def test_cooler_class2():
     assert clr.info["nchroms"] == 2
     assert clr.chromnames == ["chr1", "chr2"]
     assert repr(clr) == '<Cooler "{}::{}">'.format("toy.symm.upper.2.cool", "/")
+
+
+def test_cooler_bad_path_and_divisive_weights(tmp_path):
+    path = str(tmp_path / "not.h5")
+    with open(path, "w") as f:
+        f.write("not hdf5")
+    with pytest.raises(ValueError, match="Not a valid path"):
+        api.Cooler(path, root="/")
+
+    # Weights named like 4DN's divisive weights are applied by division
+    import shutil
+
+    from cooler.create._writer import _add_columns
+
+    cool = str(tmp_path / "toy.cool")
+    shutil.copy(op.join(datadir, "toy.symm.upper.2.cool"), cool)
+    n_bins = api.Cooler(cool).info["nbins"]
+    _add_columns(cool, "bins", {"VC": np.full(n_bins, 2.0)})
+    clr = api.Cooler(cool)
+    np.testing.assert_allclose(
+        clr.matrix(balance="VC")[:], clr.matrix(balance=False)[:] / 4
+    )

@@ -2,6 +2,7 @@ from unittest import mock
 
 import numpy as np
 import pytest
+from click.testing import CliRunner
 from scipy import sparse
 
 
@@ -104,3 +105,34 @@ class MockCooler(MockGroup):
 def mock_cooler(request):
     chrom_offsets, binsize, density = request.param
     return MockCooler.make_random(chrom_offsets, binsize, density)
+
+
+@pytest.fixture
+def run_cli():
+    """
+    Run a cooler command in-process, e.g. ``run_cli("info", path)``.
+
+    Fails the test unless the command exits with ``exit_code`` (default 0),
+    re-raising an exception raised by the command, or else showing its output.
+    Use ``result.stdout`` for the command's output.
+    """
+    from cooler.cli import cli
+
+    def run(*args, exit_code=0, input=None):
+        try:
+            runner = CliRunner(mix_stderr=False)  # click < 8.2
+        except TypeError:
+            runner = CliRunner()  # click >= 8.2 captures stderr separately
+        args = [str(arg) for arg in args]
+        result = runner.invoke(cli, args, input=input, prog_name="cooler")
+        if result.exit_code != exit_code:
+            exc = result.exception
+            if exc is not None and not isinstance(exc, SystemExit):
+                raise exc
+            pytest.fail(
+                f"`cooler {' '.join(args)}` exited with {result.exit_code}, "
+                f"expected {exit_code}.\n{result.stdout}{result.stderr}"
+            )
+        return result
+
+    return run

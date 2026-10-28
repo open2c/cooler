@@ -1,5 +1,6 @@
 import os.path as op
 import shutil
+import sys
 
 import h5py
 import numpy as np
@@ -141,6 +142,8 @@ def test_print_trees():
     fileops.pprint_attr_tree(src_file, level=3)
     fileops.pprint_data_tree(src_file, level=3)
 
+    # The notebook widget needs ipytree
+    pytest.importorskip("ipytree")
     with h5py.File(src_file) as f:
         t = fileops.TreeViewer(f)
         t._repr_mimebundle_()
@@ -293,3 +296,66 @@ def test_detection_returns_false(tmp_path):
     not_hdf5.write_text("hello")
     assert not fileops.is_scool_file(str(not_hdf5))
     assert not fileops.is_scool_file(str(tmp_path / "missing.scool"))
+
+
+def test_decode_attr_value():
+    from datetime import datetime
+
+    class Listy:
+        def tolist(self):
+            return [1, 2]
+
+    decode = fileops.decode_attr_value
+    assert decode(Listy()) == [1, 2]
+    assert decode("2020-01-02T03:04:05.000006") == datetime(2020, 1, 2, 3, 4, 5, 6)
+    assert decode("not json") == "not json"
+    assert decode(5) == 5
+
+
+def test_corrupt_files_and_bad_paths(tmp_path):
+    src = op.join(testdir, "data", "toy.symm.upper.2.cool")
+    path = str(tmp_path / "c.cool")
+    shutil.copy(src, path)
+    with h5py.File(path, "r+") as f:
+        del f["indexes"]
+    # Still a cooler (so that it gets listed), but flagged
+    with pytest.warns(UserWarning, match="appears to be corrupt"):
+        assert fileops.is_cooler(path)
+
+    # Legacy multi-resolution files: zoom levels in groups named 0, 1, ...
+    legacy = str(tmp_path / "legacy.cool")
+    with h5py.File(src, "r") as fsrc, h5py.File(legacy, "w") as fdst:
+        fsrc.copy("/", fdst, "0")
+    assert fileops.is_multires_file(legacy)
+
+    scool = str(tmp_path / "s.scool")
+    shutil.copy(op.join(testdir, "data", "scool_test_file.scool"), scool)
+    with h5py.File(scool, "r+") as f:
+        del f["cells"]
+    with pytest.warns(UserWarning, match="appears to be corrupt"):
+        assert not fileops.is_scool_file(scool)
+
+    text = tmp_path / "x.txt"
+    text.write_text("not hdf5")
+    with pytest.raises(OSError, match="not a scool file"):
+        fileops.list_scool_cells(src)
+    with pytest.raises(OSError, match="not an HDF5 file"):
+        fileops.ls(str(text))
+    with pytest.raises(ValueError, match="at most one"):
+        fileops._copy(src, path, False, link=True, rename=True, soft_link=False)
+    with pytest.raises(OSError, match="not an HDF5 file"):
+        fileops.cp(str(text), path)
+    with pytest.raises(OSError, match="not an HDF5 file"):
+        fileops.cp(src, str(text) + "::/x")
+    with pytest.raises(ValueError, match="root group"):
+        fileops.cp(f"{src}::/indexes", f"{src}::/", overwrite=True)
+
+
+def test_tree_viewer_bytes_and_widget(monkeypatch):
+    src = op.join(testdir, "data", "toy.symm.upper.2.cool")
+    with h5py.File(src, "r") as f:
+        text = bytes(fileops.TreeViewer(f))
+        assert b"pixels" in text
+        monkeypatch.setitem(sys.modules, "ipytree", None)
+        with pytest.raises(ImportError, match="ipytree"):
+            fileops.tree_widget(f, expand=False, level=None)

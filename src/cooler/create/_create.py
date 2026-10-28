@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 import warnings
 from collections.abc import Iterable
 from typing import Any
@@ -19,12 +20,14 @@ from . import (
     CHROMID_DTYPE,
     PIXEL_FIELDS,
 )
+from ._ingest import BadInputError
 from ._writer import (
     _CoolerWriter,
     _pixel_schema,
     _ScoolWriter,
     _set_h5opts,
     _UnorderedCoolerWriter,
+    _value_aggs,
 )
 
 logger = get_logger("cooler.create")
@@ -128,7 +131,6 @@ def create(
     dupcheck=True,
     ensure_sorted=False,
     lock=None,
-    append=False,
     binsize=None,
     **kwargs,
 ):
@@ -143,17 +145,13 @@ def create(
     ---------------------
     chromsizes : Series
         Chromsizes are now inferred from ``bins``.
-    append : bool, optional
-        Append new Cooler to the file if it exists. If False, an existing file
-        with the same name will be truncated. Default is False.
-        Use the ``mode`` argument instead.
     dtype : dict, optional
         Dictionary mapping column names in the pixel table to dtypes.
         Use the ``dtypes`` argument instead.
 
     """
     if mode is None:
-        mode = "a" if append else "w"
+        mode = "w"
 
     if not isinstance(bins, pd.DataFrame):
         raise ValueError(  # noqa: TRY004
@@ -167,13 +165,10 @@ def create(
             f"create() got unexpected keyword arguments: {', '.join(sorted(kwargs))}"
         )
 
-    # Determine the appropriate iterable
-    try:
-        from dask.dataframe import DataFrame as dask_df
-    except (ImportError, AttributeError):  # pragma: no cover
-        dask_df = ()
-
-    if isinstance(pixels, dask_df):
+    # Determine the appropriate iterable. A dask DataFrame means dask is
+    # already imported, so don't import it for every other input.
+    dd = sys.modules.get("dask.dataframe")
+    if dd is not None and isinstance(pixels, dd.DataFrame):
         iterable = (x.compute() for x in pixels.to_delayed())
         input_columns = infer_meta(pixels).columns
     elif isinstance(pixels, pd.DataFrame):
@@ -328,11 +323,14 @@ _DOC_OTHER_PARAMS = """
     lock : multiprocessing.Lock, optional
         Optional lock to control concurrent access to the output file.
     ensure_sorted : bool, optional
-        Ensure that each input chunk is properly sorted.
+        Sort each input chunk. With ``ordered=True``, the chunks must still
+        be in order relative to each other.
     boundscheck : bool, optional
         Input validation: Check that all bin IDs lie in the expected range.
     dupcheck : bool, optional
-        Input validation: Check that no duplicate pixels exist within any chunk.
+        Input validation: with ``ordered=True``, check that no pixel occurs
+        more than once in the input. With ``ordered=False``, use
+        ``duplicates`` instead.
     triucheck : bool, optional
         Input validation: Check that ``bin1_id`` <= ``bin2_id`` when creating
         coolers in symmetric-upper mode.
@@ -433,6 +431,9 @@ def create_cooler(
     # dispatch to the approprate creation method
     if isinstance(pixels, (pd.DataFrame, dict)):
         pixels = pd.DataFrame(pixels).sort_values(["bin1_id", "bin2_id"])
+        if not ordered:
+            # Repeated pixels are combined, as for an iterable of chunks
+            pixels = _combine_duplicates(pixels, columns, agg, duplicates)
         ordered = True
 
     if ordered:
@@ -477,6 +478,32 @@ def create_cooler(
             agg=agg,
             duplicates=duplicates,
         )
+
+
+def _combine_duplicates(
+    pixels: pd.DataFrame,
+    columns: list[str] | None,
+    agg: dict[str, str] | None,
+    duplicates: str,
+) -> pd.DataFrame:
+    """Combine the values of repeated pixels in sorted in-memory pixels."""
+    if duplicates not in ("combine", "error"):
+        raise ValueError(
+            f"duplicates must be 'combine' or 'error', not '{duplicates}'."
+        )
+    keys = ["bin1_id", "bin2_id"]
+    if columns is None:
+        columns = ["count"]
+    value_cols = [c for c in columns if c not in keys and c in pixels.columns]
+    aggs = _value_aggs(value_cols, agg)
+    repeated = pixels.duplicated(keys)
+    if not repeated.any():
+        return pixels
+    if duplicates == "error":
+        i = int(np.argmax(repeated.to_numpy()))
+        pixel = tuple(int(x) for x in pixels[keys].iloc[i])
+        raise BadInputError(f"Found a duplicate pixel {pixel} in the input.")
+    return pixels.groupby(keys, sort=False).agg(aggs).reset_index()
 
 
 @_format_docstring(other_parameters=_DOC_OTHER_PARAMS, notes=_DOC_NOTES)
@@ -568,7 +595,7 @@ def create_scool(
 
     # Cells are stored under the last component of their name
     cell_names = sorted(cell_name_pixels_dict)
-    stored_names = pd.Series([key.split("/")[-1] for key in cell_names])
+    stored_names = pd.Series([key.split("/")[-1] for key in cell_names], dtype=object)
     if stored_names.duplicated().any():
         dups = sorted(set(stored_names[stored_names.duplicated()]))
         raise ValueError(f"Cell names would be stored under the same name: {dups}")

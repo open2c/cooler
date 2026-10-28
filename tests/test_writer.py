@@ -395,3 +395,64 @@ def test_balance_force_keeps_weights_on_failure(small_cool):
     assert result.exit_code == 0, result.output
     after = cooler.Cooler(small_cool).bins()[:]["weight"].to_numpy()
     np.testing.assert_array_equal(before, after)
+
+
+def test_writer_guards(tmp_path):
+    from cooler.create._writer import (
+        _ColumnWriter,
+        _ScoolWriter,
+        _UnorderedCoolerWriter,
+    )
+
+    path = str(tmp_path / "g.cool")
+    with pytest.raises(ValueError, match="DataFrame"):
+        _CoolerWriter(path, BINS.to_dict())
+
+    w = _CoolerWriter(path, BINS)
+    with pytest.raises(ValueError, match="not found in input"):
+        w.write({"bin1_id": [0], "bin2_id": [1]})
+    w.finish()
+    w.finish()  # finishing again does nothing
+    w.abort()  # neither does aborting a finished writer
+    with pytest.raises(ValueError, match="already finished"):
+        w.write(pixels([(0, 1)]))
+
+    with pytest.raises(ValueError, match="duplicates"):
+        _UnorderedCoolerWriter(path, BINS, duplicates="sum")
+    with pytest.raises(ValueError, match="unknown columns"):
+        _UnorderedCoolerWriter(path, BINS, agg={"nope": "sum"})
+    u = _UnorderedCoolerWriter(path, BINS)
+    u.write(pixels([(0, 1)]))
+    u.finish()
+    u.finish()
+    with pytest.raises(ValueError, match="already finished"):
+        u.write(pixels([(0, 1)]))
+
+    scool = str(tmp_path / "s.scool")
+    with pytest.raises(ValueError, match="DataFrame"):
+        _ScoolWriter(scool, BINS.to_dict())
+    s = _ScoolWriter(scool, BINS, assembly="toy", metadata={"a": 1})
+    s.add_cell("c", pixels([(0, 1)]))
+    s.finish()
+    s.finish()
+    with pytest.raises(ValueError, match="already finished"):
+        s.add_cell("d", pixels([(0, 1)]))
+    cell = cooler.Cooler(scool + "::/cells/c")
+    assert cell.info["genome-assembly"] == "toy"
+    assert cell.info["metadata"] == {"a": 1}
+
+    with pytest.raises(ValueError, match="No columns"):
+        _ColumnWriter(path, "bins", {})
+    with pytest.raises(ValueError, match="Unknown table"):
+        _ColumnWriter(path, "nope", {"x": float})
+    c = _ColumnWriter(path, "bins", {"x": float, "y": float})
+    with pytest.raises(ValueError, match="missing from batch"):
+        c.write({"x": np.zeros(10)})
+    with pytest.raises(ValueError, match="same length"):
+        c.write({"x": np.zeros(10), "y": np.zeros(9)})
+    c.write({"x": np.zeros(10), "y": np.ones(10)})
+    c.finish()
+    c.finish()
+    with pytest.raises(ValueError, match="already finished"):
+        c.write({"x": np.zeros(10), "y": np.ones(10)})
+    assert cooler.Cooler(path).bins()["y"][:].sum() == 10

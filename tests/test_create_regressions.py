@@ -98,6 +98,7 @@ def test_cload_pairs_aggregation_across_chunks(tmp_path, chromsizes_file, func):
         result = run_cload_pairs(
             chromsizes_file, pairs, out,
             "--field", f"v=8:agg={func}", "--chunksize", str(chunksize),
+            "--mergebuf", "100000",
         )
         assert result.exit_code == 0, result.output
         results[chunksize] = cooler.Cooler(out).pixels()[:]
@@ -121,7 +122,7 @@ def test_cload_pairs_summary_statistics(tmp_path, chromsizes_file):
             chromsizes_file, pairs, out,
             "--field", "v=8", "--field", "n=8:agg=count,dtype=int64",
             "--field", "v2=8:agg=sum_squares",
-            "--chunksize", str(chunksize),
+            "--chunksize", str(chunksize), "--mergebuf", "100000",
         )
         assert result.exit_code == 0, result.output
         results[chunksize] = cooler.Cooler(out).pixels()[:]
@@ -151,6 +152,8 @@ def test_cload_pairs_unsupported_aggregation(tmp_path, chromsizes_file, func):
     assert "Unsupported aggregation" in result.output
 
 
+# A small mergebuf merges in several epochs, which the bug needed
+@pytest.mark.filterwarnings("ignore:Merging will buffer")
 @pytest.mark.parametrize("max_merge", [1, 2, 3, 200])
 def test_create_unordered_unsorted_chunks(tmp_path, max_merge):
     rng = np.random.default_rng(0)
@@ -378,8 +381,8 @@ def test_load_rejects_duplicates_across_chunks(tmp_path, chromsizes_file, chunks
     out = tmp_path / "d.cool"
     result = CliRunner().invoke(
         load,
-        ["-f", "coo", "--chunksize", chunksize, chromsizes_file + ":10", str(coo),
-         str(out)],
+        ["-f", "coo", "--chunksize", chunksize, "--mergebuf", "100",
+         chromsizes_file + ":10", str(coo), str(out)],
     )
     assert result.exit_code != 0
     assert "duplicate pixel (0, 1)" in str(result.exception)
@@ -506,3 +509,21 @@ def test_chromosomes_longer_than_int32(tmp_path):
     with h5py.File(small, "r") as f:
         for name in ["chroms/length", "bins/start", "bins/end"]:
             assert f[name].dtype == np.int32
+
+
+def test_create_cooler_in_memory_duplicates(tmp_path):
+    # In-memory pixels are combined like chunks, unless ordered=True
+    bins = cooler.util.binnify(pd.Series({"chr1": 100}), 10)
+    px = pd.DataFrame({"bin1_id": [0, 0, 1], "bin2_id": [1, 1, 2], "count": [2, 5, 1]})
+    out = str(tmp_path / "d.cool")
+
+    cooler.create_cooler(out, bins, px)
+    assert cooler.Cooler(out).pixels()[:]["count"].tolist() == [7, 1]
+    cooler.create_cooler(out, bins, px, agg={"count": "max"})
+    assert cooler.Cooler(out).pixels()[:]["count"].tolist() == [5, 1]
+    with pytest.raises(ValueError, match=r"duplicate pixel \(0, 1\) in the input"):
+        cooler.create_cooler(out, bins, px, duplicates="error")
+    with pytest.raises(ValueError, match="Unsupported aggregation"):
+        cooler.create_cooler(out, bins, px, agg={"count": "mean"})
+    with pytest.raises(ValueError, match="duplicate pixel"):
+        cooler.create_cooler(out, bins, px, ordered=True)

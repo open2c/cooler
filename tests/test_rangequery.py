@@ -1,3 +1,4 @@
+
 """
 Property-based tests of 2D range queries against dense NumPy references.
 
@@ -6,6 +7,7 @@ square), queried with random bounding boxes and chunk sizes, and compared with
 plain NumPy slicing of the dense matrix.
 """
 import os.path as op
+import sys
 import tempfile
 
 import hypothesis.strategies as st
@@ -221,3 +223,17 @@ def test_csr_reader_direct_calls():
         query.get_chunk(query.n_chunks)
     with pytest.raises(IndexError):
         query.get_chunk(-1)
+
+
+def test_dask_output_needs_dask(monkeypatch):
+    path = op.join(op.dirname(__file__), "data", "toy.symm.upper.2.cool")
+    clr = cooler.Cooler(path)
+    with clr.open("r") as h5:
+        reader = core.CSRReader(h5["pixels"], h5["indexes/bin1_offset"][:])
+        query = core.DirectRangeQuery2D(reader, "count", (0, 4, 0, 4), 10)
+        monkeypatch.setitem(sys.modules, "dask", None)
+        monkeypatch.setitem(sys.modules, "dask.dataframe", None)
+        with pytest.raises(ImportError, match="dask"):
+            query.to_delayed()
+        with pytest.raises(ImportError, match="dask"):
+            query.to_dask_frame()

@@ -50,7 +50,7 @@ class Cooler:
     -----
     If ``store`` is a file path, the file will be opened temporarily in
     when performing operations. This allows :py:class:`Cooler` objects to be
-    serialized for multiprocess and distributed computations.
+    serialized for multiprocessing and distributed computations.
 
     Metadata is accessible as a dictionary through the :py:attr:`info`
     property.
@@ -116,11 +116,6 @@ class Cooler:
         with open_hdf5(self.store, **self.open_kws) as h5:
             grp = h5[self.root]
             return grp[path][:]
-
-    def _load_attrs(self, path: str) -> dict:
-        with open_hdf5(self.store, **self.open_kws) as h5:
-            grp = h5[self.root]
-            return dict(grp[path].attrs)
 
     def open(self, mode: str = "r", **kwargs) -> h5py.Group:
         """Open the HDF5 group containing the Cooler with :py:mod:`h5py`

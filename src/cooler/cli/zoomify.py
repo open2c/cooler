@@ -1,3 +1,4 @@
+import os.path as op
 import shlex
 import warnings
 from math import ceil
@@ -40,7 +41,6 @@ def invoke_balance(args, resolutions, outfile):
         try:
             balance_cmd.main(args=[uri, *args], prog_name="cooler")
         except SystemExit as e:
-            # exc_info = sys.exc_info()
             exit_code = e.code
 
             if exit_code is None:
@@ -103,9 +103,10 @@ def invoke_balance(args, resolutions, outfile):
 @click.option(
     "--field",
     help="Specify the names of value columns to merge as '<name>'. "
-    "Repeat the ``--field`` option for each one. "
-    "Use '<name>:dtype=<dtype>' to specify the dtype. Include "
-    "',agg=min' or ',agg=max' to aggregate with min or max instead of sum. ",
+    "Repeat the `--field` option for each one. Append ':' and "
+    "comma-separated properties to set the dtype and/or the aggregation, "
+    "e.g. 'count:agg=max' or 'count:dtype=float,agg=max'. The aggregation "
+    "is sum (default), min or max.",
     type=str,
     multiple=True,
 )
@@ -130,9 +131,22 @@ def zoomify(
     infile, _ = parse_cooler_uri(cool_uri)
 
     if out is None:
-        outfile = infile.replace(".cool", ".mcool")
+        outfile = op.splitext(infile)[0] + ".mcool"
     else:
-        outfile, _ = parse_cooler_uri(out)
+        outfile, group = parse_cooler_uri(out)
+        if group != "/":
+            raise click.BadParameter(
+                "zoomify writes a multi-resolution file: give a file path, not "
+                "a group.",
+                param_hint="'--out'",
+            )
+    for uri in [cool_uri, *base_uri]:
+        if op.exists(outfile) and op.samefile(parse_cooler_uri(uri)[0], outfile):
+            raise click.BadParameter(
+                f"The output file '{outfile}' contains the input '{uri}', which "
+                "would be overwritten. Give another output file.",
+                param_hint="'--out'",
+            )
 
     logger.info(f'Recursively aggregating "{cool_uri}"')
     logger.info(f'Writing to "{outfile}"')
@@ -170,14 +184,18 @@ def zoomify(
             r = preferred_sequence(curres, maxres, "binary")
         elif res == "4dn":
             r = [1000, 2000, *preferred_sequence(5000, maxres, "nice")]
-        elif res.endswith("n"):
-            res = int(res.split("n")[0])
-            r = preferred_sequence(res, maxres, "nice")
-        elif res.endswith("b"):
-            res = int(res.split("b")[0])
-            r = preferred_sequence(res, maxres, "binary")
         else:
-            r = [int(res)]
+            try:
+                if res.endswith("n"):
+                    r = preferred_sequence(int(res[:-1]), maxres, "nice")
+                elif res.endswith("b"):
+                    r = preferred_sequence(int(res[:-1]), maxres, "binary")
+                else:
+                    r = [int(res)]
+            except ValueError:
+                raise click.BadParameter(
+                    f"Invalid resolution '{res}'.", param_hint="'--resolutions'"
+                ) from None
         resolutions.extend(r)
 
     if len(field):
@@ -194,19 +212,21 @@ def zoomify(
         # Default aggregation. Dtype will be inferred.
         columns, dtypes, agg = ["count"], None, None
 
-    # logger.info("Applying resolutions {}".format(resolutions))
-
-    zoomify_cooler(
-        [cool_uri, *list(base_uri)],
-        outfile,
-        resolutions,
-        chunksize,
-        nproc=nproc,
-        lock=get_lock(),
-        columns=columns,
-        dtypes=dtypes,
-        agg=agg,
-    )
+    try:
+        zoomify_cooler(
+            [cool_uri, *list(base_uri)],
+            outfile,
+            resolutions,
+            chunksize,
+            nproc=nproc,
+            lock=get_lock(),
+            columns=columns,
+            dtypes=dtypes,
+            agg=agg,
+        )
+    except ValueError as e:
+        # e.g. resolutions that can't be made from the base resolutions
+        raise click.ClickException(str(e)) from e
 
     if balance:
         # Balance every level in the output, including the base(s)

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import multiprocessing as mp
+import os.path as op
 import warnings
 from bisect import bisect_right
 from collections import defaultdict
@@ -7,7 +9,6 @@ from collections.abc import Iterator
 from typing import Any, Literal
 
 import h5py
-import multiprocess as mp
 import numpy as np
 import pandas as pd
 
@@ -16,6 +17,7 @@ from ._typing import MapFunctor
 from ._version import __format_version_mcool__
 from .api import Cooler
 from .create import ContactBinner, create
+from .create._writer import _COMBINE_AGGS, _value_aggs
 from .parallel import get_lock
 from .util import GenomeSegmentation, parse_cooler_uri
 
@@ -25,23 +27,6 @@ __all__ = ["coarsen_cooler", "merge_coolers", "zoomify_cooler"]
 logger = get_logger("cooler.reduce")
 
 HIGLASS_TILE_DIM = 256
-
-ZOOMS_4DN = [
-    1000,
-    2000,
-    5000,
-    10000,
-    25000,
-    50000,
-    100000,
-    250000,
-    500000,
-    1000000,
-    2500000,
-    5000000,
-    10000000,
-]
-
 
 def merge_breakpoints(
     indexes: list[np.ndarray | h5py.Dataset],
@@ -56,8 +41,8 @@ def merge_breakpoints(
     of merging data. The bounds are calculated such that no single epoch will
     load more than ``bufsize`` records into memory.
 
-    However, the ``bufsize`` condition is not guaranteed and a warning will be
-    raised if it cannot be satisfied for one or more epochs (see Notes).
+    However, the ``bufsize`` condition is not guaranteed (see Notes): check
+    ``cum_nrecords``.
 
     Parameters
     ----------
@@ -115,39 +100,13 @@ def merge_breakpoints(
 
     bin1_partition = np.array(bin1_partition)
     cum_nrecords = np.array(cum_nrecords)
-
-    nrecords_per_epoch = np.diff(cum_nrecords)
-    n_over = (nrecords_per_epoch > bufsize).sum()
-    if n_over > 0:
-        warnings.warn(
-            f"{n_over} merge epochs will require buffering more than {bufsize} "
-            f"pixel records, with as many as {nrecords_per_epoch.max():g}.",
-            stacklevel=2,
-        )
-
     return bin1_partition, cum_nrecords
 
 
 # Aggregations of value columns that give the same result however the pixels
 # are grouped: in one step or level by level when coarsening, and input by
-# input when merging. A mean isn't one: store a sum and a count, and divide
-# them when reading.
-_AGGS = ("sum", "min", "max")
-
-
-def _value_aggs(columns: list[str], agg: dict[str, Any] | None) -> dict[str, Any]:
-    result = {col: "sum" for col in columns}
-    if agg is not None:
-        unsupported = {c: f for c, f in agg.items() if f not in _AGGS}
-        if unsupported:
-            details = ", ".join(f"'{f}' for '{c}'" for c, f in unsupported.items())
-            raise ValueError(
-                f"Unsupported aggregation {details}. Use 'sum', 'min' or 'max'. "
-                "For a mean, aggregate a sum and a count with 'sum', and divide "
-                "them when reading."
-            )
-        result.update(agg)
-    return result
+# input when merging
+_AGGS = _COMBINE_AGGS
 
 
 class CoolerMerger(ContactBinner):
@@ -175,7 +134,12 @@ class CoolerMerger(ContactBinner):
                 raise ValueError("Coolers must have the same resolution")
             chromsizes = coolers[0].chromsizes
             for i in range(1, len(coolers)):
-                if not np.all(coolers[i].chromsizes == chromsizes):
+                other = coolers[i].chromsizes
+                # Lengths may be stored as int32 or int64
+                if not (
+                    other.index.equals(chromsizes.index)
+                    and np.array_equal(other.to_numpy(), chromsizes.to_numpy())
+                ):
                     raise ValueError("Coolers must have the same chromosomes")
         else:
             bins = coolers[0].bins()[["chrom", "start", "end"]][:]
@@ -195,6 +159,13 @@ class CoolerMerger(ContactBinner):
         # of merging data.
         bin1_partition, cum_nrecords = merge_breakpoints(indexes, self.mergebuf)
         nrecords_per_epoch = np.diff(cum_nrecords)
+        if len(nrecords_per_epoch) and nrecords_per_epoch.max() > self.mergebuf:
+            warnings.warn(
+                f"Merging will buffer up to {nrecords_per_epoch.max():,} pixels at "
+                f"once, more than mergebuf={self.mergebuf:,}, because a row of "
+                "the matrix can't be split across merge epochs.",
+                stacklevel=2,
+            )
         nnzs = [len(c.pixels()) for c in self.coolers]
         logger.info(
             f"Merging {sum(nnzs):,} pixels from {len(self.coolers)} coolers in "
@@ -310,8 +281,7 @@ def merge_coolers(
             else:
                 dtype_map[col].append(pixel_dtypes[col])
 
-    if dtypes is None:
-        dtypes = {}
+    dtypes = {} if dtypes is None else dict(dtypes)
     for col in columns:
         if col not in dtypes:
             # Find a common dtype to accomodate all the inputs being merged.
@@ -579,7 +549,7 @@ class CoolerCoarsener(ContactBinner):
             .reset_index(drop=True)
         )
 
-    def _aggregate(self, span: tuple[int, int]) -> pd.DataFrame:
+    def aggregate(self, span: tuple[int, int]) -> pd.DataFrame:
         lo, hi = span
 
         clr = Cooler(self.source_uri)
@@ -618,13 +588,6 @@ class CoolerCoarsener(ContactBinner):
             .aggregate(self.agg)
             .reset_index()
         )
-
-    def aggregate(self, span: tuple[int, int]) -> pd.DataFrame:
-        try:
-            chunk = self._aggregate(span)
-        except MemoryError as e:  # pragma: no cover
-            raise RuntimeError(str(e)) from e
-        return chunk
 
     def __iter__(self) -> Iterator[dict[str, np.ndarray]]:
         # Distribute batches of `batchsize` pixel spans at once.
@@ -734,7 +697,7 @@ def coarsen_cooler(
 
         new_bins = iterator.new_bins
 
-        kwargs.setdefault("append", True)
+        kwargs.setdefault("mode", "a")
         kwargs.setdefault("assembly", clr.info.get("genome-assembly"))
         kwargs.setdefault("metadata", clr.info.get("metadata"))
 
@@ -816,6 +779,11 @@ def zoomify_cooler(
     base_resolutions = set()
     for input_uri in base_uris:
         infile, ingroup = parse_cooler_uri(input_uri)
+        if op.exists(outfile) and op.samefile(infile, outfile):
+            # The output file is truncated before the inputs are read
+            raise ValueError(
+                f"The output file '{outfile}' contains the input '{input_uri}'."
+            )
         clr = Cooler(infile, ingroup)
         base_binsize = 1 if clr.binsize is None else clr.binsize
         if base_binsize in parsed_uris:

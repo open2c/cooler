@@ -1,5 +1,4 @@
 import json
-import sys
 
 import click
 
@@ -32,27 +31,21 @@ def info(cool_uri, field, metadata, out):
     """
     c = Cooler(cool_uri)
 
-    # Write output
-    if out is None:
-        f = sys.stdout
-    else:
-        f = open(out, "w")
     if metadata:
-        json.dump(c.info["metadata"], f, indent=4)
-        print(end="\n", file=f)
-
+        text = json.dumps(c.info["metadata"], indent=4)
     elif field is not None:
-        try:
-            result = c.info[field]
-        except KeyError:
-            print(f"Data field {field} not found.")
-            sys.exit(1)
-        print(result, file=f)
-
+        if field not in c.info:
+            raise click.BadParameter(
+                f"No field '{field}' in the cooler's info.", param_hint="'--field'"
+            )
+        text = str(c.info[field])
     else:
         dct = c.info.copy()
         dct.pop("metadata", None)
-        json.dump(attrs_to_jsonable(dct), f, indent=4)
-        print(end="\n", file=f)
+        text = json.dumps(attrs_to_jsonable(dct), indent=4)
 
-    f.flush()
+    if out is None:
+        click.echo(text)
+    else:
+        with open(out, "w") as f:
+            print(text, file=f)

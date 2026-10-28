@@ -246,3 +246,22 @@ def test_missing_weights_message(tmp_path):
     clr = cooler.Cooler(make_cooler(str(tmp_path / "c.cool")))
     with pytest.raises(ValueError, match="'bins/weight' found"):
         clr.matrix()[:]
+
+
+def test_create_all_names_exist():
+    # `from cooler.create import *` failed on a removed name
+    import cooler.create
+
+    for name in cooler.create.__all__:
+        assert hasattr(cooler.create, name), name
+
+
+def test_attr_tree_decodes_bytes(tmp_path):
+    path = make_cooler(str(tmp_path / "c.cool"), assembly="hg19", metadata={"a": 1})
+    with h5py.File(path, "r+") as f:
+        for key in ["genome-assembly", "metadata"]:
+            f.attrs[key] = np.bytes_(f.attrs[key])
+    with h5py.File(path, "r") as f:
+        attrs = cooler.fileops.read_attr_tree(f, level=None)["@attrs"]
+    assert attrs["genome-assembly"] == "hg19"
+    assert attrs["metadata"] == {"a": 1}

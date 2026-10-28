@@ -1,126 +1,49 @@
-import os.path as op
+"""
+Tests for the commands that work on files and groups: cp, mv, ln, ls, tree and
+attrs.
+"""
+import yaml
+from _common import DATA
 
-from _common import isolated_filesystem
-from click.testing import CliRunner
+import cooler
 
-from cooler.cli import cli
-
-testdir = op.realpath(op.dirname(__file__))
-datadir = op.join(testdir, "data")
-
-
-def test_cp():
-    runner = CliRunner()
-    with isolated_filesystem():
-        result = runner.invoke(
-            cli,
-            [
-                "cp",
-                op.join(datadir, "toy.symm.upper.2.cool"),
-                "test.cool",
-            ],
-        )
-        assert result.exit_code == 0
-
-        result = runner.invoke(
-            cli,
-            [
-                "cp",
-                "test.cool",
-                "test2.cool::some/old_path",
-            ],
-        )
-        assert result.exit_code == 0
-
-        result = runner.invoke(
-            cli,
-            [
-                "mv",
-                "test2.cool::some/old_path",
-                "test2.cool::some/path",
-            ],
-        )
-        assert result.exit_code == 0
-
-        # mv only renames within a file
-        result = runner.invoke(cli, ["mv", "test.cool", "test4.cool::x"])
-        assert result.exit_code != 0
-        assert not op.exists("test4.cool")
-
-        result = runner.invoke(
-            cli,
-            [
-                "ln",
-                "test2.cool::some/path",
-                "test2.cool::hard/link",
-            ],
-        )
-        assert result.exit_code == 0
-
-        result = runner.invoke(
-            cli,
-            [
-                "ln",
-                "-s",
-                "test2.cool::some/path",
-                "test2.cool::soft/link",
-            ],
-        )
-        assert result.exit_code == 0
-
-        result = runner.invoke(
-            cli,
-            [
-                "ln",
-                "-s",
-                "test2.cool::some/path",
-                "test3.cool::ext/link",
-            ],
-        )
-        assert result.exit_code == 0
+TOY = DATA / "toy.symm.upper.2.cool"
 
 
-def test_list_coolers():
-    runner = CliRunner()
-    result = runner.invoke(
-        cli,
-        [
-            "ls",
-            op.join(datadir, "toy.symm.upper.2.cool"),
-        ],
-    )
-    assert result.exit_code == 0
+def test_cp_mv_ln(run_cli, tmp_path):
+    test = tmp_path / "test.cool"
+    test2 = tmp_path / "test2.cool"
+    run_cli("cp", TOY, test)
+    run_cli("cp", test, f"{test2}::some/old_path")
+    run_cli("mv", f"{test2}::some/old_path", f"{test2}::some/path")
+    assert cooler.fileops.list_coolers(test2) == ["/some/path"]
 
-    result = runner.invoke(
-        cli,
-        [
-            "ls",
-            "-l",
-            op.join(datadir, "toy.symm.upper.2.cool"),
-        ],
-    )
-    assert result.exit_code == 0
+    # mv only renames within a file
+    run_cli("mv", test, f"{tmp_path / 'test4.cool'}::x", exit_code=1)
+    assert not (tmp_path / "test4.cool").exists()
 
-
-def test_tree():
-    runner = CliRunner()
-    result = runner.invoke(
-        cli,
-        [
-            "tree",
-            op.join(datadir, "toy.symm.upper.2.cool"),
-        ],
-    )
-    assert result.exit_code == 0
+    run_cli("ln", f"{test2}::some/path", f"{test2}::hard/link")
+    run_cli("ln", "-s", f"{test2}::some/path", f"{test2}::soft/link")
+    run_cli("ln", "-s", f"{test2}::some/path", f"{tmp_path / 'test3.cool'}::ext/link")
+    assert cooler.fileops.list_coolers(test2) == [
+        "/hard/link", "/soft/link", "/some/path"
+    ]
+    assert cooler.fileops.list_coolers(tmp_path / "test3.cool") == ["/ext/link"]
 
 
-def test_attrs():
-    runner = CliRunner()
-    result = runner.invoke(
-        cli,
-        [
-            "attrs",
-            op.join(datadir, "toy.symm.upper.2.cool"),
-        ],
-    )
-    assert result.exit_code == 0
+def test_ls(run_cli):
+    assert run_cli("ls", TOY).stdout == f"{TOY}::/\n"
+    assert run_cli("ls", "-l", TOY).stdout == f"{TOY}::/\t2\n"
+    var = DATA / "toy.symm.upper.var.cool"
+    assert run_cli("ls", "-l", var).stdout == f"{var}::/\t<variable>\n"
+
+
+def test_tree(run_cli):
+    output = run_cli("tree", TOY).stdout
+    for name in ["chroms", "bins", "pixels", "indexes"]:
+        assert name in output
+
+
+def test_attrs(run_cli):
+    attrs = yaml.safe_load(run_cli("attrs", TOY).stdout)
+    assert attrs["@attrs"]["format"] == "HDF5::Cooler"

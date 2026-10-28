@@ -1,4 +1,5 @@
 import os.path as op
+import sys
 from io import BytesIO, StringIO
 
 import h5py
@@ -176,6 +177,7 @@ def test_read_chromsizes():
 
 
 def test_load_fasta():
+    pytest.importorskip("pyfaidx")
     fa = util.load_fasta(["chr1", "chr2"], op.join(datadir, "toy.fasta"))
     assert len(fa["chr1"]) == 32
     assert len(fa["chr2"]) == 32
@@ -197,6 +199,8 @@ def test_binnify():
 
 
 def test_digest():
+    pytest.importorskip("pyfaidx")
+    pytest.importorskip("Bio")
     fa = util.load_fasta(["chr1", "chr2"], op.join(datadir, "toy.fasta"))
     bins = util.digest(fa, "HindIII")
     assert len(bins) == 2
@@ -328,3 +332,62 @@ def test_dataframe_meta():
     util.infer_meta(df)
     # meta2 = util.get_meta(df.columns, df.dtypes)
     # assert meta1 == meta2
+
+
+def _add_one(x):
+    return x + 1
+
+
+def _double(x):
+    return 2 * x
+
+
+def _scale(x, factor=1):
+    return x * factor
+
+
+def test_compose():
+    assert util.compose(_add_one, _double)(5) == 11  # right to left
+    assert util.compose(_double, _add_one)(5) == 12
+    assert util.compose(_add_one)(5) == 6
+    assert util.compose(_add_one, _scale)(5, factor=3) == 16
+    assert "compose(" in repr(util.compose(_add_one, _double))
+    with pytest.raises(TypeError):
+        util.compose()
+
+    # Composed functions can be sent to worker processes
+    import multiprocessing as mp
+    import pickle
+
+    func = util.compose(_add_one, _double)
+    assert pickle.loads(pickle.dumps(func))(5) == 11
+    with mp.Pool(2) as pool:
+        assert pool.map(func, [1, 2, 3]) == [3, 5, 7]
+
+
+def test_read_chromsizes_gzipped(tmp_path):
+    import gzip
+
+    path = tmp_path / "sizes.txt.gz"
+    with gzip.open(path, "wt") as f:
+        f.write("chr1\t100\nchr2\t50\n")
+    assert util.read_chromsizes(str(path)).to_dict() == {"chr1": 100, "chr2": 50}
+
+
+def test_load_fasta_several_files(tmp_path):
+    pytest.importorskip("pyfaidx")
+    lines = open(op.join(datadir, "toy.fasta")).read().splitlines()
+    (tmp_path / "a.fa").write_text("\n".join(lines[:2]) + "\n")
+    (tmp_path / "b.fa").write_text("\n".join(lines[2:]) + "\n")
+    paths = [str(tmp_path / "a.fa"), str(tmp_path / "b.fa")]
+    fa = util.load_fasta(["chr1", "chr2"], *paths)
+    assert len(fa["chr1"]) == 32 and len(fa["chr2"]) == 32
+
+
+def test_optional_packages_missing(monkeypatch):
+    monkeypatch.setitem(sys.modules, "pyfaidx", None)
+    with pytest.raises(ImportError, match="pyfaidx"):
+        util.load_fasta(["chr1"], op.join(datadir, "toy.fasta"))
+    monkeypatch.setitem(sys.modules, "Bio", None)
+    with pytest.raises(ImportError, match="Biopython"):
+        util.digest({"chr1": "AAGCTT"}, "HindIII")

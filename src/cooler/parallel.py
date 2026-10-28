@@ -8,9 +8,8 @@ from __future__ import annotations
 import builtins
 from collections.abc import Iterable, Iterator, Sequence
 from functools import partial, reduce
+from multiprocessing import Lock
 from typing import Any, Callable
-
-from multiprocess import Lock
 
 from ._typing import MapFunctor
 from .api import Cooler
@@ -127,9 +126,10 @@ class MultiplexDataPipe:
 
     Notes
     -----
-    Python's multiprocessing module uses Pickle for serialization, which has
-    several limitations. Consider using a parallel map implementation that uses
-    a more versatile serializer, such as dill or cloudpickle.
+    With a process pool from Python's multiprocessing module, the pipeline's
+    functions are sent to the workers with pickle, so they must be picklable:
+    e.g. module-level functions or ``functools.partial`` objects of them, but
+    not lambdas or nested functions.
 
     See also
     --------

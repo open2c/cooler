@@ -1,5 +1,3 @@
-import sys
-
 import click
 import numpy as np
 
@@ -35,7 +33,7 @@ def interactive(
 ):  # pragma: no cover
     import matplotlib.pyplot as plt
 
-    # The code is heavily insired by
+    # The code is heavily inspired by
     # https://gist.github.com/mdboom/048aa35df685fe694330764894f0e40a
 
     def get_extent(ax):
@@ -104,7 +102,8 @@ def interactive(
         im.set_extent(extent)
         ax.figure.canvas.draw_idle()
 
-    binsize = int(c.info["bin-size"])
+    # Extents snap to bin edges; with variable-size bins, to base pairs
+    binsize = c.binsize or 1
     row_chrom_len = c.chromsizes[row_chrom]
     col_chrom_len = c.chromsizes[col_chrom]
     plotstate = {"placeholders": [], "prev_extent": get_extent(plt.gca())}
@@ -161,14 +160,14 @@ def interactive(
     type=float,
     help="The minimal value of the color scale. "
     "Units must match those of the colormap scale. "
-    "To provide a negative value use a equal sign and quotes, e.g. -zmin='-0.5'",
+    "To provide a negative value use a equal sign and quotes, e.g. --zmin='-0.5'",
 )
 @click.option(
     "--zmax",
     type=float,
     help="The maximal value of the color scale. "
     "Units must match those of the colormap scale. "
-    "To provide a negative value use a equal sign and quotes, e.g. -zmax='-0.5'",
+    "To provide a negative value use a equal sign and quotes, e.g. --zmax='-0.5'",
 )
 @click.option(
     "--cmap",
@@ -215,8 +214,7 @@ def show(
             mpl.use("Agg")
         import matplotlib.pyplot as plt
     except ImportError:  # pragma: no cover
-        print("Install matplotlib to use cooler show", file=sys.stderr)
-        sys.exit(1)
+        raise click.ClickException("Install matplotlib to use cooler show") from None
 
     c = Cooler(cool_uri)
 
@@ -232,13 +230,11 @@ def show(
     if (
         get_matrix_size(c, row_region, col_region) >= MAX_MATRIX_SIZE_FILE
     ) and not force:
-        print(
+        raise click.ClickException(
             "The matrix of the selected region is too large. "
             "Try using lower resolution, selecting a smaller region, or use "
-            "the '--force' flag to override this safety limit.",
-            file=sys.stderr,
+            "the '--force' flag to override this safety limit."
         )
-        sys.exit(1)
 
     plt.figure(figsize=(11, 10))
     plt.get_current_fig_manager().set_window_title("Contact matrix")

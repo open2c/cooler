@@ -1,10 +1,10 @@
 import sys
+from multiprocessing import Pool
 
 import click
 import h5py
 import numpy as np
 import pandas as pd
-from multiprocess import Pool
 
 from .._balance import balance_cooler
 from ..api import Cooler
@@ -130,13 +130,13 @@ from . import cli, get_logger
 @click.option(
     "--force",
     "-f",
-    help="Overwrite the target dataset, 'weight', if it already exists.",
+    help="Overwrite the weight column (see --name) if it already exists.",
     is_flag=True,
     default=False,
 )
 @click.option(
     "--check",
-    help="Check whether a data column 'weight' already exists.",
+    help="Check whether the weight column (see --name) already exists.",
     is_flag=True,
     default=False,
 )
@@ -209,12 +209,9 @@ def balance(
     with h5py.File(cool_path, "r") as h5:
         grp = h5[group_path]
         if name in grp["bins"] and not stdout and not force:
-            print(
-                f"'{name}' column already exists. "
-                + "Use --force option to overwrite.",
-                file=sys.stderr,
+            raise click.ClickException(
+                f"'{name}' column already exists. Use --force option to overwrite."
             )
-            sys.exit(1)
 
     logger.info(f'Balancing "{cool_uri}"')
     clr = Cooler(cool_uri)
@@ -259,12 +256,12 @@ def balance(
             bad_bins.append(result.index.values)
         bad_bins = np.concatenate(bad_bins) if bad_bins else None
 
+    if nproc > 1:
+        pool = Pool(nproc)
+        map_ = pool.imap_unordered
+    else:
+        map_ = map
     try:
-        if nproc > 1:
-            pool = Pool(nproc)
-            map_ = pool.imap_unordered
-        else:
-            map_ = map
 
         bias, stats = balance_cooler(
             clr,
@@ -306,9 +303,8 @@ def balance(
             sys.exit(1)
 
     if stdout:
-        pd.Series(bias).to_string(
-            sys.stdout, header=False, index=False, na_rep="", float_format="%g"
-        )
+        # One line per bin, with an empty line for NaN
+        sys.stdout.write("".join("\n" if np.isnan(w) else f"{w:g}\n" for w in bias))
     else:
         # Replaces an existing column only once the new one is written
         _add_columns(

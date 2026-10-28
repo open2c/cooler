@@ -2,11 +2,14 @@ import contextlib
 import os
 import shutil
 import tempfile
+from pathlib import Path
 
 import numpy as np
 from pandas.api.types import is_numeric_dtype
 
 import cooler
+
+DATA = Path(__file__).parent / "data"
 
 
 @contextlib.contextmanager

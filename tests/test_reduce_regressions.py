@@ -184,3 +184,13 @@ def test_merger_closes_files(tmp_path):
     assert total == (
         cooler.Cooler(a).info["sum"] + cooler.Cooler(b).info["sum"]
     )
+
+
+def test_merge_keeps_callers_dtypes(tmp_path):
+    path = str(tmp_path / "a.cool")
+    bins = cooler.binnify(pd.Series({"chr1": 100}), 10)
+    px = pd.DataFrame({"bin1_id": [0], "bin2_id": [1], "count": [1]})
+    cooler.create_cooler(path, bins, px)
+    dtypes = {}
+    cooler.merge_coolers(str(tmp_path / "m.cool"), [path, path], 100, dtypes=dtypes)
+    assert dtypes == {}
