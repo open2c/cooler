@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 import warnings
 from collections.abc import Iterable
 from typing import Any
@@ -164,13 +165,10 @@ def create(
             f"create() got unexpected keyword arguments: {', '.join(sorted(kwargs))}"
         )
 
-    # Determine the appropriate iterable
-    try:
-        from dask.dataframe import DataFrame as dask_df
-    except (ImportError, AttributeError):  # pragma: no cover
-        dask_df = ()
-
-    if isinstance(pixels, dask_df):
+    # Determine the appropriate iterable. A dask DataFrame means dask is
+    # already imported, so don't import it for every other input.
+    dd = sys.modules.get("dask.dataframe")
+    if dd is not None and isinstance(pixels, dd.DataFrame):
         iterable = (x.compute() for x in pixels.to_delayed())
         input_columns = infer_meta(pixels).columns
     elif isinstance(pixels, pd.DataFrame):
@@ -597,7 +595,7 @@ def create_scool(
 
     # Cells are stored under the last component of their name
     cell_names = sorted(cell_name_pixels_dict)
-    stored_names = pd.Series([key.split("/")[-1] for key in cell_names])
+    stored_names = pd.Series([key.split("/")[-1] for key in cell_names], dtype=object)
     if stored_names.duplicated().any():
         dups = sorted(set(stored_names[stored_names.duplicated()]))
         raise ValueError(f"Cell names would be stored under the same name: {dups}")
