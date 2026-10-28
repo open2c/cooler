@@ -209,12 +209,9 @@ def balance(
     with h5py.File(cool_path, "r") as h5:
         grp = h5[group_path]
         if name in grp["bins"] and not stdout and not force:
-            print(
-                f"'{name}' column already exists. "
-                + "Use --force option to overwrite.",
-                file=sys.stderr,
+            raise click.ClickException(
+                f"'{name}' column already exists. Use --force option to overwrite."
             )
-            sys.exit(1)
 
     logger.info(f'Balancing "{cool_uri}"')
     clr = Cooler(cool_uri)

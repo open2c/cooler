@@ -1,5 +1,3 @@
-import sys
-
 import click
 import numpy as np
 
@@ -216,8 +214,7 @@ def show(
             mpl.use("Agg")
         import matplotlib.pyplot as plt
     except ImportError:  # pragma: no cover
-        print("Install matplotlib to use cooler show", file=sys.stderr)
-        sys.exit(1)
+        raise click.ClickException("Install matplotlib to use cooler show") from None
 
     c = Cooler(cool_uri)
 
@@ -233,13 +230,11 @@ def show(
     if (
         get_matrix_size(c, row_region, col_region) >= MAX_MATRIX_SIZE_FILE
     ) and not force:
-        print(
+        raise click.ClickException(
             "The matrix of the selected region is too large. "
             "Try using lower resolution, selecting a smaller region, or use "
-            "the '--force' flag to override this safety limit.",
-            file=sys.stderr,
+            "the '--force' flag to override this safety limit."
         )
-        sys.exit(1)
 
     plt.figure(figsize=(11, 10))
     plt.get_current_fig_manager().set_window_title("Contact matrix")

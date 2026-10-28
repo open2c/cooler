@@ -313,8 +313,7 @@ def _pixel_chunks(
     if weight_name is not None or balanced:
         balanced = weight_name or "weight"
         if balanced not in bins.columns:
-            print(f"Balancing weights '{balanced}' not found", file=sys.stderr)
-            sys.exit(1)
+            raise click.ClickException(f"Balancing weights '{balanced}' not found")
 
     # Value columns to write: every one by default, or those requested
     pixel_columns = list(clr.pixels().columns)
@@ -331,8 +330,7 @@ def _pixel_chunks(
     read_fields = list(fields)
     if balanced and "count" not in read_fields:
         if "count" not in pixel_columns:
-            print("Balancing needs a 'count' column", file=sys.stderr)
-            sys.exit(1)
+            raise click.ClickException("Balancing needs a 'count' column")
         read_fields.append("count")
     if not read_fields:
         read_fields = ["count"] if "count" in pixel_columns else pixel_columns[2:3]
