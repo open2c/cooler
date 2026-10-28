@@ -15,6 +15,16 @@ class UnsortedGroup(click.Group):
     def list_commands(self, ctx):
         return list(self.commands)
 
+    def invoke(self, ctx):
+        from ..parallel import WorkerDiedError
+
+        try:
+            return super().invoke(ctx)
+        except WorkerDiedError as e:
+            raise click.ClickException(
+                f"{e} Try fewer processes (-p) or smaller chunks."
+            ) from e
+
 
 def setup_psutil_at_exit(ctx, logger):
     try:

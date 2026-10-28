@@ -3,7 +3,6 @@ import io
 import json
 import sys
 from functools import partial
-from multiprocessing import Pool
 
 import click
 import h5py
@@ -19,6 +18,7 @@ from ..create import (
     create_cooler,
     sanitize_records,
 )
+from ..parallel import _ProcessPool
 from ..util import compose
 from . import cli, get_logger
 from ._util import (
@@ -245,9 +245,9 @@ def tabix(
 
     map_func = map
     if nproc > 1:
-        pool = Pool(nproc)
+        pool = _ProcessPool(nproc)
         logger.info(f"Using {nproc} cores")
-        map_func = pool.imap
+        map_func = pool.map
     try:
         opts = {}
         if "chrom2" in kwargs:
@@ -276,7 +276,6 @@ def tabix(
     finally:
         if nproc > 1:
             pool.close()
-            pool.join()
 
 
 @register_subcommand
@@ -345,9 +344,9 @@ def pairix(
 
     map_func = map
     if nproc > 1:
-        pool = Pool(nproc)
+        pool = _ProcessPool(nproc)
         logger.info(f"Using {nproc} cores")
-        map_func = pool.imap
+        map_func = pool.map
     try:
         iterator = PairixAggregator(
             pairs_path,
@@ -370,7 +369,6 @@ def pairix(
     finally:
         if nproc > 1:
             pool.close()
-            pool.join()
 
 
 @register_subcommand

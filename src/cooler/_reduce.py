@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import multiprocessing as mp
 import os.path as op
 import warnings
 from bisect import bisect_right
@@ -18,7 +17,7 @@ from ._version import __format_version_mcool__
 from .api import Cooler
 from .create import ContactBinner, create
 from .create._writer import _COMBINE_AGGS, _value_aggs
-from .parallel import get_lock
+from .parallel import _ProcessPool, get_lock
 from .util import GenomeSegmentation, parse_cooler_uri
 
 __all__ = ["coarsen_cooler", "merge_coolers", "zoomify_cooler"]
@@ -609,7 +608,9 @@ class CoolerCoarsener(ContactBinner):
             try:
                 if batchsize > 1:
                     get_lock().acquire()
-                results = self._map(self.aggregate, spans[i : i + batchsize])
+                # Collect the batch before releasing the lock, so workers
+                # aren't reading while the output is written
+                results = list(self._map(self.aggregate, spans[i : i + batchsize]))
             finally:
                 if batchsize > 1:
                     get_lock().release()
@@ -695,7 +696,7 @@ def coarsen_cooler(
         # Note: fork before opening to prevent inconsistent global HDF5 state
         if nproc > 1:
             kwargs.setdefault("lock", get_lock())
-            pool = mp.Pool(nproc)
+            pool = _ProcessPool(nproc)
 
         iterator = CoolerCoarsener(
             base_uri,
@@ -727,7 +728,6 @@ def coarsen_cooler(
     finally:
         if nproc > 1:
             pool.close()
-            pool.join()
 
 
 def zoomify_cooler(
