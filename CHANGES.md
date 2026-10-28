@@ -1,6 +1,6 @@
 # Release notes #
 
-## Unreleased
+## [v0.12.0](https://github.com/open2c/cooler/compare/v0.11.0...v0.12.0)
 
 ### New features
 * `cooler.log_to_stderr()` prints cooler's log messages to stderr, for scripts and notebooks that don't configure logging.
@@ -26,6 +26,19 @@
 * `cooler.sandbox`, including the experimental `cooler.sandbox.dask.read_table`, which no longer worked with current cooler or dask. For dask dataframes of pixels, the range query engines have `to_dask_frame()`.
 * `cooler zoomify --legacy` and `legacy_zoomify`, which wrote multi-resolution files in the layout used before cooler 0.8, with integer-labeled zoom levels (`::0`, `::1`, ...). Use the default `resolutions/<binsize>` layout; files in the old layout can still be read.
 
+### Behavior changes
+These changes can give different results, or errors, for code and files that worked with cooler 0.11. Each is described in full under Bug fixes or Removed.
+* Balancing weights change for trans-only balancing (exact targets, and bin filters that use inter-chromosomal data only), for bins at chromosome ends with `--ignore-diags` (#211), and for bins with no data left after filtering, which get NaN. Balancing reports non-convergence when every bin is filtered out, and raises an error for coolers stored as a square matrix.
+* Value columns can only be aggregated with `sum`, `min` and `max` (plus `count` and `sum_squares` in `cload pairs`); `mean` and other aggregations raise an error.
+* Input is validated more strictly. Bin tables must tile each chromosome (#254). `cload` rejects positions at or beyond the end of a chromosome, `cooler load` rejects duplicate pixels anywhere in the input, and pixel values that don't fit their integer column raise an error instead of being clipped. `cooler.create.create` raises `TypeError` for unknown keyword arguments.
+* Selectors raise `IndexError` for out-of-range indices and `TypeError` for float indices, and slices are clamped like Python sequences. Region strings are parsed exactly, and malformed ones raise an error.
+* `Cooler.info` returns text attributes, such as `genome-assembly`, as stored instead of parsing them as JSON.
+* `to_sparse_array()` on range queries returns a SciPy `coo_array` instead of a pydata/sparse `COO`.
+* Importing cooler no longer configures logging, so its warnings and log messages are no longer printed to stdout. Use `cooler.log_to_stderr()`, or configure logging, to see them.
+* Parallel processing uses Python's `multiprocessing`, which sends work to worker processes with `pickle` instead of `dill`. Functions passed to cooler's parallel interfaces with a process pool, such as `split(...).pipe(func)`, must be picklable: lambdas and locally defined functions no longer work. On macOS, pools start workers with `spawn` instead of `fork`.
+* `cooler dump` writes every pixel column by default, not only `count`.
+* Error messages from `cooler balance`, `dump` and `show` start with `Error:`, like click's other errors.
+
 ### Bug fixes
 * fix: `Cooler.info` and `cooler attrs` no longer parse text attributes as JSON. For example, an assembly named `"123"` was returned as the integer 123. Attributes that cooler defines as text (`genome-assembly`, `generated-by`, `creation-date`, `format`, `format-url`, `bin-type`, `storage-mode`) are returned as stored. Other string attributes are still parsed as JSON, including `metadata` and numbers stored as strings by older versions.
 * fix: `list_coolers`, `is_cooler` and `cooler ls` recognize coolers in format version 2 or earlier that have no `format` attribute.
@@ -33,7 +46,7 @@
 * fix: Importing cooler no longer configures logging. Previously, it attached a handler to the `cooler` logger that printed warnings to stdout and stopped records from propagating, so they bypassed the user's logging configuration and mixed into piped output (including from worker processes started with `spawn` or `forkserver`). The `cooler` logger now only has a `NullHandler`, as recommended for libraries: records propagate to the root logger, and are silent unless logging is configured. The warning about records on chromosomes missing from the bin table is now issued with `warnings.warn`, so it is shown either way.
 * fix: The CLI sets up logging for the duration of each command and restores the previous state afterwards. Running commands repeatedly in the same process (e.g. with click's `CliRunner`) no longer logs to a stale stream, and `logging.captureWarnings` is no longer left on. Warnings are logged as one line each (`WARNING  cooler: ConvergenceWarning: ...`), instead of Python's multi-line warning output. The process information printed with `-vv` is now logged when the command finishes.
 * fix: `cooler dump` writes every column of the pixel table by default, and `-c/--columns` selects pixel columns. Previously, only `count` could be dumped, and `-c` was ignored for pixels. Unknown column names raise an error.
-* fix: CLI usage mistakes give an error message instead of a traceback or wrong output: an unknown `cooler info --field` (the message went to stdout, and `-o` left an empty file), an unknown `cooler dump --annotate` column (the message was written into the data on stdout), unknown `-c` columns with `cooler dump -t chroms` or `-t bins`, `cooler dump --range2` without `--range` (silently ignored), an unknown dtype in `--field`, and `cooler merge` without input coolers.
+* fix: CLI usage mistakes give an error message instead of a traceback or wrong output: an unknown `cooler info --field` (the message went to stdout, and `-o` left an empty file), an unknown `cooler dump --annotate` column (the message was written into the data on stdout), unknown `-c` columns with `cooler dump -t chroms` or `-t bins`, `cooler dump --range2` without `--range` (silently ignored), an unknown dtype in `--field`, and `cooler merge` without input coolers. Errors from `cooler balance`, `dump` and `show` are reported like click's other errors, so they are captured by click's test runner on all click versions.
 * fix: `cooler load --field` can read the same input column as another field, e.g. a float copy of the counts (`--field v=3:dtype=float64` with COO input); this failed while parsing the input.
 * fix: `cooler info -o` and `cooler cload pairs` close the files they open.
 * fix: `cooler show` in interactive mode works with variable-size bins; it failed when snapping the view to bin edges.
@@ -116,7 +129,7 @@
 * CI uploads test coverage to Codecov again; the upload was dropped in 2023, so the README badge was stale.
 * CLI log messages have timestamps and a more readable format: `2026-10-26 14:03:12 INFO     cooler.cli.balance: Balancing ...` (previously `INFO:cooler.cli.balance:Balancing ...`).
 * The balancing and reduction loggers are named `cooler.balance` and `cooler.reduce` (previously `cooler._balance` and `cooler._reduce`).
-* Log messages are clearer: balancing logs the iteration number with the variance, merging and zoomifying summarize what they do, and internal details (chunk ranges, merge epochs, input fields, shell commands in `csort`) moved to DEBUG. `cooler balance` logs non-convergence once, as a warning unless `--convergence-policy error` is used. Messages show the destination of a cooler being written, not its temporary file.
+* Log messages are clearer: balancing logs the iteration number with the variance, merging and zoomifying summarize what they do, and internal details (chunk ranges, merge epochs, input fields) moved to DEBUG. `cooler balance` logs non-convergence once, as a warning unless `--convergence-policy error` is used. Messages show the destination of a cooler being written, not its temporary file.
 * `cooler cload tabix` no longer warns on every run that the chromosome order of the chromsizes must match the contact list; it's logged as information. The warning about merges buffering more pixels than `mergebuf` comes from `CoolerMerger` rather than `merge_breakpoints`, once per merge, and explains that a matrix row can't be split across merge epochs.
 * Removed the internal `set_logging_context`, `get_logging_context` and `configure` logging helpers.
 * Fixed deprecation warnings from NumPy (generic timedelta unit), Click (`CliRunner.isolated_filesystem`) and pandas in the code and tests.
@@ -124,7 +137,7 @@
 * Removed the unused, untested `SparseBlockLoader` and `ArrayBlockLoader` classes, and compatibility code for pandas < 1.2.
 * Parallel commands (`balance`, `coarsen`/`zoomify`, `cload tabix/pairix` with `-p`) use Python's `multiprocessing` instead of the `multiprocess` package, so cooler no longer depends on `multiprocess` or `dill`. Results come back from worker processes with `pickle` instead of `dill`, which made parallel balancing about 2.2x faster in a benchmark. Pools use Python's default start method: `spawn` on macOS and Windows (`multiprocess` used `fork` on macOS), `fork` on Linux before Python 3.14 and `forkserver` from 3.14.
 * `pyfaidx` is an optional dependency, included in `cooler[all]`: only `cooler digest` and `cooler.util.load_fasta` use it, and `digest` also needs Biopython, which was already optional.
-* The minimum versions of the core dependencies are checked by running the test suite with each at its lowest allowed version (numpy 1.26.0, pandas 1.5.1, scipy 1.11.1, click 8.0.0). The pandas requirement is written as `>=1.5.1` (it was `>1.5`), and asciitree needs at least 0.3. pandas 1.5 through 3.x are supported.
+* The minimum versions of the core dependencies are checked by running the test suite with each at its lowest allowed version (numpy 1.26.0, pandas 1.5.1, scipy 1.11.1, click 8.0.0). The pandas requirement is written as `>=1.5.1` (it was `>1.5`), and asciitree needs at least 0.3. The test suite passes with pandas 1.5.1 through 3.1.
 * cooler no longer depends on cytoolz, a compiled extension; `cooler.util.compose` replaces the one function used from it. The minimum click version is raised to 8.0, which the CLI already required. Python 3.13 and 3.14 are tested and listed in the package classifiers, and the package metadata uses an SPDX license expression.
 * The minimum h5py version is raised to 3.0 (from 2.5). h5py 3.0 is the oldest release with wheels for every supported Python version.
 * Removed the undocumented `cooler.create.append` function. Columns are now added to existing tables through an internal column writer (`cooler.create._writer._ColumnWriter`), which writes several columns at once in batches of rows (e.g. from polars `LazyFrame.sink_batches`), and adds or replaces them only once every row is written. A public interface will follow with the new API.

@@ -11,7 +11,7 @@ If you're not already familiar with it, we follow the [fork and pull model](http
 
 This project has a number of requirements for all code contributed.
 
-* We follow the [PEP-8 style](https://www.python.org/dev/peps/pep-0008/) convention.
+* We follow the [PEP-8 style](https://www.python.org/dev/peps/pep-0008/) convention, checked with ruff (see [Linting and Formatting](#linting-and-formatting)).
 * We use [Numpy-style docstrings](https://numpydoc.readthedocs.io/en/latest/format.html).
 * It's ideal if user-facing API changes or new features have documentation added.
 
@@ -31,6 +31,15 @@ This installs cooler in editable mode, along with all optional dependencies and 
 If you prefer pip (>=25.1), use `pip install -e .[all] --group dev`.
 
 Install the git hooks with `uv run pre-commit install`.
+
+
+## Linting and Formatting
+
+We use [ruff](https://docs.astral.sh/ruff/) to lint and format the code. The pre-commit hooks run both on the files you commit. To check every file, run
+
+```sh
+uv run pre-commit run --all-files
+```
 
 
 ## Running/Adding Unit Tests
