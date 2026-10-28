@@ -99,7 +99,9 @@ from . import cli, get_logger
 )
 @click.option(
     "--tol",
-    help="Threshold value of variance of the marginals for the algorithm to converge.",
+    help="Relative tolerance for convergence: stop when every marginal sum is "
+    "within this fraction of their mean, i.e. when the rows of the balanced "
+    "matrix sum to 1 within this tolerance.",
     type=float,
     default=1e-5,
     show_default=True,
@@ -287,7 +289,7 @@ def balance(
         if convergence_policy == "store_final":
             logger.warning(
                 "Balancing did not converge. Storing the final weights; check the "
-                "variance in the log."
+                "deviation of the marginals in the log."
             )
         elif convergence_policy == "store_nan":
             logger.warning("Balancing did not converge. Storing NaN weights.")

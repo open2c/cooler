@@ -2,7 +2,11 @@
 
 ## Unreleased
 
+### Breaking changes
+* The balancing tolerance (`cooler balance --tol`, `balance_cooler(..., tol=...)`) is relative (#131, #210). Balancing converges when every marginal sum is within `tol` of their mean, i.e. when the rows of the balanced matrix sum to 1 within `tol`. Before, it converged when the variance of the marginal sums, in raw counts, was below `tol`, so the precision depended on sequencing depth and resolution: with the default `1e-5`, the row sums were within about 3e-4 of 1 on a 2 Mb Hi-C map and within about 1e-6 on a deeper 1 Mb one. The default stays at `1e-5`. It takes about as many iterations as before at 100 kb to 1 Mb, and about 20 more genome-wide at 1 kb, where the weights now end up within about 1e-5 of their converged values instead of about 2e-4 (and 2e-2 on very sparse data). The weights' attributes and `stats` add the maximum relative deviation of the marginals, as `max_rel_dev`; `var` is still stored.
+
 ### Bug fixes
+* fix: Balancing whose marginals stop being finite, e.g. because the weights overflow on very sparse data, stops with a warning that it diverged and gives NaN weights, and isn't reported as converged (#262). Before, it continued to the iteration limit, logging a NaN variance. With cis-only balancing, only the chromosomes that diverged get NaN weights.
 * fix: When worker processes fail to start, parallel commands and functions raise `cooler.parallel.WorkerStartError`, a subclass of `WorkerDiedError`, saying so, instead of suggesting that a worker ran out of memory. With the `spawn` or `forkserver` start method (macOS, and Linux from Python 3.14), the most common cause is a script that starts them outside `if __name__ == "__main__":`, which the message points out. The CLI no longer suggests fewer processes or smaller chunks in this case.
 
 ## [v0.12.1](https://github.com/open2c/cooler/compare/v0.12.0...v0.12.1)

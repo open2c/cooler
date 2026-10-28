@@ -123,16 +123,24 @@ def _iterate(
     ``target`` is given, each bin's marginal is balanced to be proportional to
     its target instead: the marginals are divided by the targets.
 
-    Returns the mean and variance of the marginals of each group at its last
-    iteration, which are NaN if no iteration was done or if every bin of the
-    group is filtered out. Bins with no data left after filtering get NaN
-    weights.
+    A group converges when every one of its marginals is within a relative
+    tolerance ``tol`` of their mean. If a group's marginals stop being finite,
+    e.g. because the weights overflow, the group diverged: it stops updating
+    and its weights are set to NaN.
+
+    Returns the mean, variance and maximum relative deviation from the mean of
+    the marginals of each group at its last iteration, which are NaN if no
+    iteration was done, if every bin of the group is filtered out, or if the
+    group diverged, and which groups diverged. Bins with no data left after
+    filtering get NaN weights.
 
     """
     n_groups = int(groups.max()) + 1 if len(groups) else 0
     scale = np.full(n_groups, np.nan)
     var = np.full(n_groups, np.nan)
+    err = np.full(n_groups, np.nan)
     active = np.ones(n_groups, dtype=bool)
+    diverged = np.zeros(n_groups, dtype=bool)
     # The marginals of each bin at its group's last iteration
     last_marg = np.full(len(bias), np.nan)
     for i in range(max_iters):
@@ -149,49 +157,75 @@ def _iterate(
         if not active.any():
             break
 
-        with np.errstate(divide="ignore", invalid="ignore"):
+        with np.errstate(divide="ignore", invalid="ignore", over="ignore"):
             mean = np.bincount(g, weights=marg[nz], minlength=n_groups) / n
             dev = (marg[nz] - mean[g]) ** 2
             v = np.bincount(g, weights=dev, minlength=n_groups) / n
+            e = np.zeros(n_groups)
+            np.maximum.at(e, g, np.abs(marg[nz] / mean[g] - 1))
+
+        bad = active & ~(np.isfinite(mean) & np.isfinite(v) & np.isfinite(e))
+        if bad.any():
+            diverged |= bad
+            active &= ~bad
+            scale[bad] = var[bad] = err[bad] = np.nan
         scale[active] = mean[active]
         var[active] = v[active]
+        err[active] = e[active]
 
         sel = active[groups]
         factor = marg[sel] / mean[groups[sel]]
         factor[factor == 0] = 1
-        bias[sel] /= factor
+        with np.errstate(over="ignore"):
+            bias[sel] /= factor
 
         if n_groups == 1:
-            logger.info(f"Iteration {i + 1}: variance of marginals {v[0]:.6g}")
-        else:
             logger.info(
-                f"Iteration {i + 1}: {np.count_nonzero(v[active] >= tol)} of "
-                f"{n_groups} chromosomes left to converge, "
-                f"maximum variance of marginals {v[active].max():.6g}"
+                f"Iteration {i + 1}: maximum relative deviation of marginals {e[0]:.6g}"
             )
-        active &= ~(v < tol)
+        elif active.any():
+            logger.info(
+                f"Iteration {i + 1}: {np.count_nonzero(e[active] >= tol)} of "
+                f"{n_groups} chromosomes left to converge, "
+                f"maximum relative deviation of marginals {e[active].max():.6g}"
+            )
+        active &= ~(e < tol)
         if not active.any():
             break
     else:
-        if n_groups == 1 or names is None:
-            where = ""
-        else:
-            left = [str(name) for name in np.asarray(names)[active]]
-            shown = ", ".join(left[:10]) + (", ..." if len(left) > 10 else "")
-            where = f" on {len(left)} of {n_groups} chromosomes ({shown})"
         warnings.warn(
-            f"Iteration limit reached without convergence{where}.",
+            f"Iteration limit reached without convergence"
+            f"{_where(active, n_groups, names)}.",
+            ConvergenceWarning,
+            stacklevel=1,
+        )
+
+    if diverged.any():
+        warnings.warn(
+            f"Balancing diverged{_where(diverged, n_groups, names)}: the "
+            "marginals stopped being finite, so the weights are NaN. The data "
+            "may be too sparse to balance; try stricter bin filters.",
             ConvergenceWarning,
             stacklevel=1,
         )
 
     bias[last_marg == 0] = 0
     bias[bias == 0] = np.nan
+    bias[diverged[groups]] = np.nan
     if rescale_marginals:
         s = scale[groups]
         ok = np.isfinite(s)
         bias[ok] /= np.sqrt(s[ok])
-    return scale, var
+    return scale, var, err, diverged
+
+
+def _where(mask, n_groups, names):
+    # Which groups a warning is about, unless there's only one
+    if n_groups == 1 or names is None:
+        return ""
+    left = [str(name) for name in np.asarray(names)[mask]]
+    shown = ", ".join(left[:10]) + (", ..." if len(left) > 10 else "")
+    return f" on {len(left)} of {n_groups} chromosomes ({shown})"
 
 
 def _balance_genomewide(
@@ -207,10 +241,10 @@ def _balance_genomewide(
 ):
     get_marginals = partial(_marginals, clr, spans, filters, map, use_lock)
     groups = np.zeros(len(bias), dtype=int)
-    scale, var = _iterate(
+    scale, var, err, _ = _iterate(
         bias, groups, get_marginals, tol, max_iters, rescale_marginals
     )
-    return bias, scale[0], var[0]
+    return bias, scale[0], var[0], err[0]
 
 
 def _balance_cisonly(
@@ -230,17 +264,19 @@ def _balance_cisonly(
     chrom_offsets = clr._load_dset("indexes/chrom_offset")
     groups = np.repeat(np.arange(len(chroms)), np.diff(chrom_offsets))
     get_marginals = partial(_marginals, clr, spans, filters, map, use_lock)
-    scales, variances = _iterate(
+    scales, variances, errs, diverged = _iterate(
         bias, groups, get_marginals, tol, max_iters, rescale_marginals, chroms
     )
 
     # A chromosome with nothing left to balance counts as converged, unless
-    # every chromosome is empty
-    empty = np.isnan(scales)
-    if max_iters > 0 and not empty.all():
+    # every chromosome is empty or failed
+    failed = np.isnan(scales)
+    if max_iters > 0 and not failed.all():
+        empty = failed & ~diverged
         variances[empty] = 0.0
+        errs[empty] = 0.0
 
-    return bias, scales, variances
+    return bias, scales, variances, errs
 
 
 def _balance_transonly(
@@ -276,7 +312,7 @@ def _balance_transonly(
         )
 
     groups = np.zeros(len(bias), dtype=int)
-    scale, var = _iterate(
+    scale, var, err, _ = _iterate(
         bias,
         groups,
         get_marginals,
@@ -285,7 +321,7 @@ def _balance_transonly(
         rescale_marginals,
         target=target,
     )
-    return bias, scale[0], var[0]
+    return bias, scale[0], var[0], err[0]
 
 
 def balance_cooler(
@@ -364,8 +400,12 @@ def balance_cooler(
         Initial weight vector to use. Default is to start with ones(n_bins).
         It is not modified. NaN values are treated as filtered-out bins.
     tol : float, optional
-        Convergence criterion is the variance of the marginal (row/col) sum
-        vector.
+        Relative tolerance for convergence: balancing stops when every
+        marginal (row/col) sum is within ``tol`` of their mean, i.e. when the
+        rows of the balanced matrix sum to 1 within ``tol``. With cis-only
+        balancing, this applies to each chromosome. Balancing that diverges,
+        i.e. whose marginals stop being finite, stops early and gives NaN
+        weights.
     max_iters : int, optional
         Iteration limit.
     store : bool, optional
@@ -383,7 +423,11 @@ def balance_cooler(
         N[i, j] = O[i, j] * bias[i] * bias[j]
     stats : dict
         Summary of parameters used to perform balancing and the average
-        magnitude of the corrected matrix's marginal sum at convergence.
+        magnitude of the corrected matrix's marginal sum at convergence
+        (``scale``). Also whether balancing converged (``converged``), and the
+        maximum relative deviation (``max_rel_dev``) and variance (``var``) of
+        the marginals at the last iteration, per chromosome with cis-only
+        balancing.
 
     """
     # Balancing with a single weight vector is only defined for symmetric
@@ -471,7 +515,7 @@ def balance_cooler(
 
     # Do balancing
     if cis_only:
-        bias, scale, var = _balance_cisonly(
+        bias, scale, var, err = _balance_cisonly(
             bias,
             clr,
             spans,
@@ -483,7 +527,7 @@ def balance_cooler(
             use_lock,
         )
     elif trans_only:
-        bias, scale, var = _balance_transonly(
+        bias, scale, var, err = _balance_transonly(
             bias,
             clr,
             spans,
@@ -495,7 +539,7 @@ def balance_cooler(
             use_lock,
         )
     else:
-        bias, scale, var = _balance_genomewide(
+        bias, scale, var, err = _balance_genomewide(
             bias,
             clr,
             spans,
@@ -516,7 +560,8 @@ def balance_cooler(
         "trans_only": trans_only,
         "ignore_diags": ignore_diags,
         "scale": scale,
-        "converged": var < tol,
+        "converged": err < tol,
+        "max_rel_dev": err,
         "var": var,
         "divisive_weights": False,
     }
