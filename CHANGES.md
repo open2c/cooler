@@ -123,7 +123,7 @@ These changes can give different results, or errors, for code and files that wor
 * fix: `list_coolers`, `cooler ls`, `cooler tree` and `cooler attrs` report objects under the link paths used to reach them, skip dangling links, and no longer recurse forever on link cycles.
 * fix: `cooler attrs` no longer crashes on array-valued attributes.
 * fix: `is_cooler` returns False for a missing group, and `is_scool_file` for a missing or non-HDF5 file, as documented. `list_scool_cells` lists only the cells under `/cells`.
-* fix: `to_dask_frame()` on range queries works with current dask versions; it relied on dask's legacy `DataFrame` constructor, which newer dask releases removed. By @nvictus in https://github.com/open2c/cooler/pull/501
+* fix: `to_dask_frame()` on range queries works with current dask versions; it relied on dask's legacy `DataFrame` constructor, which newer dask releases removed.
 
 ### Maintenance
 * CI uploads test coverage to Codecov again; the upload was dropped in 2023, so the README badge was stale.
@@ -145,7 +145,7 @@ These changes can give different results, or errors, for code and files that wor
 * `create_from_unordered` is built on an internal external-sort writer (`cooler.create._writer._UnorderedCoolerWriter`), which validates its options up front and removes its temporary files on error.
 * Cooler creation is built on an internal chunked writer (`cooler.create._writer._CoolerWriter`) that validates, writes and finalizes a cooler one chunk at a time, keeping the output file open between chunks unless a lock is shared with readers.
 * The `to_sparse_array()` method of range query engines returns a SciPy `coo_array` instead of a pydata/sparse `COO`, so it no longer needs the optional `sparse` package. `to_sparse_matrix()` now converts the same `coo_array` to a `coo_matrix`. The minimum SciPy version is raised to 1.11, the oldest compatible with NumPy 1.26.
-* Property-based tests of 2D range queries against dense NumPy references. By @nvictus in https://github.com/open2c/cooler/pull/501
+* Property-based tests of 2D range queries against dense NumPy references.
 
 ### Documentation
 * `Cooler.pixels` and the concepts guide explain that `pixels().fetch(region)` returns the region's rows of the matrix as stored, selecting pixels by their first bin: it includes pixels whose second bin is outside the region, and with symmetric-upper storage, the region's contacts with earlier bins aren't returned, since they're stored in earlier rows. They show how to select pixels by both bins with the matrix selector (#455).
