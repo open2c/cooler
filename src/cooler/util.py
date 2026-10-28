@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import functools
 import os
 import re
 from collections import OrderedDict, defaultdict
@@ -351,23 +352,29 @@ def binnify(chromsizes: pd.Series, binsize: int) -> pd.DataFrame:
 
     """
 
-    def _each(chrom):
-        clen = chromsizes[chrom]
-        n_bins = int(np.ceil(clen / binsize))
-        binedges = np.arange(0, (n_bins + 1)) * binsize
-        binedges[-1] = clen
-        return pd.DataFrame(
-            {"chrom": [chrom] * n_bins, "start": binedges[:-1], "end": binedges[1:]},
-            columns=["chrom", "start", "end"],
-        )
-
-    bintable = pd.concat(map(_each, chromsizes.keys()), axis=0, ignore_index=True)
-
-    bintable["chrom"] = pd.Categorical(
-        bintable["chrom"], categories=list(chromsizes.index), ordered=True
+    # A whole number, e.g. 1e6, given as any numeric type
+    if not (float(binsize).is_integer() and binsize > 0):
+        raise ValueError(f"The bin size must be a positive integer, not {binsize!r}.")
+    binsize = int(binsize)
+    lengths = np.asarray(chromsizes.to_numpy(), dtype=np.int64)
+    n_bins = -(-lengths // binsize)
+    # Build the columns as whole arrays, in place where possible: one chrom
+    # code per bin, not a name
+    codes = np.repeat(np.arange(len(lengths), dtype=np.int32), n_bins)
+    offsets = np.r_[0, np.cumsum(n_bins)]
+    start = np.arange(offsets[-1], dtype=np.int64)
+    start -= np.repeat(offsets[:-1], n_bins)
+    start *= binsize
+    end = start + binsize
+    end[offsets[1:][n_bins > 0] - 1] = lengths[n_bins > 0]
+    chrom = pd.Categorical.from_codes(
+        codes, categories=list(chromsizes.index), ordered=True
     )
-
-    return bintable
+    return pd.DataFrame(
+        {"chrom": chrom, "start": start, "end": end},
+        columns=["chrom", "start", "end"],
+        copy=False,
+    )
 
 
 def digest(fasta_records: OrderedDict[str, Any], enzyme: str) -> pd.DataFrame:
@@ -426,15 +433,22 @@ def get_binsize(bins: pd.DataFrame) -> int | None:
     int or None if bins are non-uniform
 
     """
-    sizes = set()
-    for _chrom, group in bins.groupby("chrom", observed=True):
-        sizes.update((group["end"] - group["start"]).iloc[:-1].unique())
-        if len(sizes) > 1:
-            return None
-    if len(sizes) == 1:
-        return next(iter(sizes))
-    else:
+    chrom = bins["chrom"]
+    if len(chrom) == 0:
         return None
+    if isinstance(chrom.dtype, pd.CategoricalDtype):
+        codes = chrom.cat.codes.to_numpy()
+    else:
+        codes = pd.factorize(chrom)[0]
+    sizes = (bins["end"] - bins["start"]).to_numpy()
+    # The last bin of each chromosome can be shorter
+    last = np.r_[codes[1:] != codes[:-1], True]
+    if last.all():
+        return None
+    binsize = sizes[np.argmin(last)]
+    if not ((sizes == binsize) | last).all():
+        return None
+    return binsize
 
 
 def get_chromsizes(bins: pd.DataFrame) -> pd.Series:
@@ -796,14 +810,14 @@ def get_meta(
 
 def check_bins(bins: pd.DataFrame, chromsizes: pd.Series) -> pd.DataFrame:
     is_cat = isinstance(bins["chrom"].dtype, pd.CategoricalDtype)
-    bins = bins.copy()
-    if not is_cat:
-        bins["chrom"] = pd.Categorical(
-            bins.chrom, categories=list(chromsizes.index), ordered=True
-        )
-    else:
+    if is_cat:
         assert (bins["chrom"].cat.categories == chromsizes.index).all()
-
+        return bins
+    # A shallow copy: the other columns are shared, not copied
+    bins = bins.copy(deep=False)
+    bins["chrom"] = pd.Categorical(
+        bins.chrom, categories=list(chromsizes.index), ordered=True
+    )
     return bins
 
 
@@ -841,8 +855,10 @@ def balanced_partition(
 class GenomeSegmentation:
     def __init__(self, chromsizes: pd.Series, bins: pd.DataFrame):
         bins = check_bins(bins, chromsizes)
-        self._bins_grouped = bins.groupby("chrom", observed=True, sort=False)
-        nbins_per_chrom = self._bins_grouped.size().values
+        codes = bins["chrom"].cat.codes.to_numpy()
+        if (codes < 0).any():
+            raise ValueError("The bin table has chromosomes not in chromsizes.")
+        nbins_per_chrom = np.bincount(codes, minlength=len(chromsizes))
 
         self.chromsizes = chromsizes
         self.binsize = get_binsize(bins)
@@ -851,8 +867,19 @@ class GenomeSegmentation:
         self.idmap = pd.Series(index=chromsizes.keys(), data=range(len(chromsizes)))
         self.chrom_binoffset = np.r_[0, np.cumsum(nbins_per_chrom)]
         self.chrom_abspos = np.r_[0, np.cumsum(chromsizes.values)]
-        self.start_abspos = (
-            self.chrom_abspos[bins["chrom"].cat.codes] + bins["start"].values
+
+    # These hold an array or index per bin, and are only needed for
+    # variable-size bins and for querying bins by region, so they're computed
+    # on first use
+
+    @functools.cached_property
+    def _bins_grouped(self) -> Any:
+        return self.bins.groupby("chrom", observed=True, sort=False)
+
+    @functools.cached_property
+    def start_abspos(self) -> np.ndarray:
+        return (
+            self.chrom_abspos[self.bins["chrom"].cat.codes] + self.bins["start"].values
         )
 
     def fetch(self, region: GenomicRangeSpecifier) -> pd.DataFrame:

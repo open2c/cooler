@@ -181,8 +181,15 @@ def write_bins(
     n_bins = len(bins)
     idmap = dict(zip(chromnames, range(n_chroms)))
 
-    # Convert chrom names to enum
-    chrom_ids = [idmap[chrom] for chrom in bins["chrom"]]
+    # Convert chrom names to enum, factorizing so names are looked up once
+    codes, names = pd.factorize(bins["chrom"])
+    if (codes < 0).any():
+        raise ValueError("The bin table has missing chromosome names.")
+    ids = pd.Index(chromnames).get_indexer(names)
+    if (ids < 0).any():
+        missing = list(pd.Index(names)[ids < 0])
+        raise ValueError(f"Chromosomes not in the chrom table: {missing}")
+    chrom_ids = ids.astype(CHROMID_DTYPE)[codes]
     if chrom_as_enum:
         chrom_dtype = h5py.special_dtype(enum=(CHROMID_DTYPE, idmap))
     else:
@@ -457,8 +464,6 @@ def _prepare_tables(
     else:
         binsize = int(binsize)
         _check_binsize(bins, binsize)
-    bins = bins.copy()
-    bins["chrom"] = bins["chrom"].astype(object)
     chromsizes = get_chromsizes(bins)
     try:
         chromsizes = chromsizes.items()

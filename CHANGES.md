@@ -3,7 +3,13 @@
 ## Unreleased
 
 ### Performance
-* Merging coolers with many bins needs much less memory. The merger read the whole `bin1_offset` index of every input into memory at once, one integer per bin per input; it now reads every k-th entry, at most about 16.7 million in total, and merge epochs start and end on those bins. This applies to `cooler merge`, and to `cooler cload pairs` and `create_cooler(..., ordered=False)` at high resolution, which merge their temporary chunks the same way. Binning 1M pairs on a 500 Mb chromosome at 10 bp (50M bins) in 20 chunks, the final merge's peak memory went from 12.1 GB to 4.3 GB, the output's own bin table and index. The result is unchanged.
+* Creating and merging coolers with many bins needs much less memory and time. With 1M pairs on a 500 Mb chromosome at 10 bp (50M bins), `cooler cload pairs` in 20 chunks peaked at 1.9 GB instead of 12.1 GB, and took 112 s instead of 208 s, with identical output.
+  * The merger read the whole `bin1_offset` index of every input into memory at once, one integer per bin per input. It now reads every k-th entry, at most about 16.7 million in total, and merge epochs start and end on those bins. This applies to `cooler merge`, and to `cooler cload pairs` and `create_cooler(..., ordered=False)`, which merge their temporary chunks the same way.
+  * Writing a cooler no longer copies the bin table or converts its chromosome names to Python objects, and looks up each chromosome's ID once instead of once per bin. `cooler.binnify`, `cooler.util.get_binsize` and the internal genome segmentation are vectorized, and the segmentation no longer copies the bin table.
+
+### Bug fixes
+* fix: `cooler.binnify` accepts a bin size given as any whole number, such as `1e6` or a NumPy integer, and always returns integer coordinates (a float bin size gave float coordinates). A bin size that isn't a positive integer raises a `ValueError`; a bin size of 0 gave an `OverflowError`.
+* fix: The internal genome segmentation gives a chromosome in `chromsizes` that has no bins an empty range of bin IDs, instead of leaving it out and shifting the bin offsets of later chromosomes, and raises an error for chromosomes in the bin table that aren't in `chromsizes`.
 
 ## [v0.12.0](https://github.com/open2c/cooler/compare/v0.11.0...v0.12.0)
 

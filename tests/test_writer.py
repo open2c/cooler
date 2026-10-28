@@ -32,6 +32,30 @@ def tmp_groups(path):
         return found
 
 
+def test_bin_table_chrom_ids(tmp_path):
+    # Chromosome IDs follow the chrom table, whatever the order of a
+    # categorical's categories, and the caller's bin table isn't modified
+    bins = cooler.binnify(pd.Series({"chr1": 30, "chr2": 20}), 10)
+    bins["chrom"] = pd.Categorical(
+        bins["chrom"].astype(str), categories=["chr2", "chr1"]
+    )
+    before = bins.copy()
+    path = str(tmp_path / "t.cool")
+    with _CoolerWriter(path, bins) as w:
+        w.write({"bin1_id": [0], "bin2_id": [1], "count": [1]})
+    pd.testing.assert_frame_equal(bins, before)
+    clr = cooler.Cooler(path)
+    assert list(clr.chromnames) == ["chr1", "chr2"]
+    assert list(clr.bins()["chrom"][:]) == ["chr1"] * 3 + ["chr2"] * 2
+    with h5py.File(path, "r") as f:
+        assert list(f["bins/chrom"][:]) == [0, 0, 0, 1, 1]
+
+    bins = bins.astype({"chrom": object})
+    bins.loc[4, "chrom"] = None
+    with pytest.raises(ValueError):
+        _CoolerWriter(str(tmp_path / "u.cool"), bins)
+
+
 def test_chunks_match_single_write(tmp_path):
     chunks = [pixels([(0, 0), (0, 5)]), pixels([]), pixels([(1, 1), (3, 9)], 2)]
     path = str(tmp_path / "w.cool")
