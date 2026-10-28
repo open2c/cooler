@@ -28,6 +28,9 @@ logger = get_logger("cooler.reduce")
 
 HIGLASS_TILE_DIM = 256
 
+# The most bin1_offset entries a merge reads from all its inputs combined
+_MERGE_INDEX_SAMPLES = 2**24
+
 
 def merge_breakpoints(
     indexes: list[np.ndarray | h5py.Dataset], bufsize: int
@@ -149,20 +152,34 @@ class CoolerMerger(ContactBinner):
                     raise ValueError("Coolers must have same bin structure")
 
     def __iter__(self) -> Iterator[dict[str, np.ndarray]]:
-        # Load the bin1_offset indexes, without keeping the files open.
+        # Load the bin1_offset indexes, without keeping the files open. With
+        # many bins and inputs, whole indexes don't fit in memory, so only
+        # every stride-th entry is read, and epochs start and end on those bins.
+        with self.coolers[0].open("r") as grp:
+            n = len(grp["indexes/bin1_offset"])
+        stride = max(1, -(-n * len(self.coolers) // _MERGE_INDEX_SAMPLES))
+        sampled_bin1_ids = np.arange(0, n, stride)
+        if sampled_bin1_ids[-1] != n - 1:
+            sampled_bin1_ids = np.append(sampled_bin1_ids, n - 1)
         indexes = []
         for c in self.coolers:
             with c.open("r") as grp:
-                indexes.append(grp["indexes/bin1_offset"][:])
+                dset = grp["indexes/bin1_offset"]
+                index = dset[::stride]
+                if len(index) < len(sampled_bin1_ids):
+                    index = np.append(index, dset[n - 1])
+                indexes.append(index)
 
         # Calculate the common partition of bin1 offsets that define the epochs
         # of merging data.
-        bin1_partition, cum_nrecords = merge_breakpoints(indexes, self.mergebuf)
+        partition, cum_nrecords = merge_breakpoints(indexes, self.mergebuf)
+        bin1_partition = sampled_bin1_ids[partition]
         nrecords_per_epoch = np.diff(cum_nrecords)
         if len(nrecords_per_epoch) and nrecords_per_epoch.max() > self.mergebuf:
+            unit = "a row" if stride == 1 else f"a block of {stride:,} rows"
             warnings.warn(
                 f"Merging will buffer up to {nrecords_per_epoch.max():,} pixels at "
-                f"once, more than mergebuf={self.mergebuf:,}, because a row of "
+                f"once, more than mergebuf={self.mergebuf:,}, because {unit} of "
                 "the matrix can't be split across merge epochs.",
                 stacklevel=2,
             )
@@ -176,8 +193,8 @@ class CoolerMerger(ContactBinner):
         logger.debug(f"Pixels per epoch: {nrecords_per_epoch}")
 
         starts = [0] * len(self.coolers)
-        for bin1_id in bin1_partition[1:]:
-            stops = [index[bin1_id] for index in indexes]
+        for i in partition[1:]:
+            stops = [index[i] for index in indexes]
 
             # extract, concat
             combined = pd.concat(

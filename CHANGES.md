@@ -1,5 +1,10 @@
 # Release notes #
 
+## Unreleased
+
+### Performance
+* Merging coolers with many bins needs much less memory. The merger read the whole `bin1_offset` index of every input into memory at once, one integer per bin per input; it now reads every k-th entry, at most about 16.7 million in total, and merge epochs start and end on those bins. This applies to `cooler merge`, and to `cooler cload pairs` and `create_cooler(..., ordered=False)` at high resolution, which merge their temporary chunks the same way. Binning 1M pairs on a 500 Mb chromosome at 10 bp (50M bins) in 20 chunks, the final merge's peak memory went from 12.1 GB to 4.3 GB, the output's own bin table and index. The result is unchanged.
+
 ## [v0.12.0](https://github.com/open2c/cooler/compare/v0.11.0...v0.12.0)
 
 ### New features

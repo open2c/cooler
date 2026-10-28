@@ -41,6 +41,20 @@ def test_merge(path1, path2):
         )
 
 
+@pytest.mark.parametrize("samples", [7, 200])
+def test_merge_sampled_index(monkeypatch, tmp_path, samples):
+    # Merges read every stride-th entry of the inputs' indexes when they're
+    # too large to read whole; the result must not change
+    path = op.join(datadir, "hg19.GM12878-MboI.matrix.2000kb.cool")
+    merge_coolers(str(tmp_path / "full.cool"), [path, path], mergebuf=5000)
+    monkeypatch.setattr(cooler._reduce, "_MERGE_INDEX_SAMPLES", samples)
+    merge_coolers(str(tmp_path / "sampled.cool"), [path, path], mergebuf=5000)
+    cooler_cmp(str(tmp_path / "full.cool"), str(tmp_path / "sampled.cool"))
+    # Coarser epochs: a whole block of rows can't be split
+    with pytest.warns(UserWarning, match="a block of .* rows"):
+        merge_coolers(str(tmp_path / "x.cool"), [path, path], mergebuf=10)
+
+
 def test_merge2():
     with isolated_filesystem():
         path1 = op.join(datadir, "toy.symm.upper.2.cool")
