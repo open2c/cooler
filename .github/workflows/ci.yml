@@ -33,6 +33,15 @@ jobs:
           # stop the build if there are Python syntax errors or undefined names
           uv run --locked ruff check . --select=E9,F63,F7,F82
           uv run --locked pytest
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v7
+        with:
+          files: coverage.xml
+          name: ${{ matrix.os }}-py${{ matrix.python-version }}
+          # Pull requests from forks don't get the secret; Codecov accepts
+          # their uploads without one
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
 
   Test-latest-deps:
     # Resolve the newest available dependencies, ignoring the lockfile, to catch

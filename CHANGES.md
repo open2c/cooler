@@ -113,6 +113,7 @@
 * fix: `to_dask_frame()` on range queries works with current dask versions; it relied on dask's legacy `DataFrame` constructor, which newer dask releases removed. By @nvictus in https://github.com/open2c/cooler/pull/501
 
 ### Maintenance
+* CI uploads test coverage to Codecov again; the upload was dropped in 2023, so the README badge was stale.
 * CLI log messages have timestamps and a more readable format: `2026-10-26 14:03:12 INFO     cooler.cli.balance: Balancing ...` (previously `INFO:cooler.cli.balance:Balancing ...`).
 * The balancing and reduction loggers are named `cooler.balance` and `cooler.reduce` (previously `cooler._balance` and `cooler._reduce`).
 * Log messages are clearer: balancing logs the iteration number with the variance, merging and zoomifying summarize what they do, and internal details (chunk ranges, merge epochs, input fields, shell commands in `csort`) moved to DEBUG. `cooler balance` logs non-convergence once, as a warning unless `--convergence-policy error` is used. Messages show the destination of a cooler being written, not its temporary file.
