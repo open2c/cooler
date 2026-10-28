@@ -243,6 +243,8 @@ def test_get_binsize():
         {"chrom": ["chr1", "chr2", "chr3"], "start": [0, 0, 0], "end": [100, 200, 300]}
     )
     assert util.get_binsize(bins) is None
+    empty = pd.DataFrame({"chrom": [], "start": [], "end": []})
+    assert util.get_binsize(empty) is None
 
 
 def test_get_chromsizes():

@@ -9,7 +9,7 @@ import pytest
 
 import cooler
 from cooler.create import BadInputError
-from cooler.create._writer import _CoolerWriter
+from cooler.create._writer import _CoolerWriter, write_bins
 
 BINS = cooler.util.binnify(pd.Series({"chr1": 60, "chr2": 40}), 10)  # 10 bins
 
@@ -54,6 +54,14 @@ def test_bin_table_chrom_ids(tmp_path):
     bins.loc[4, "chrom"] = None
     with pytest.raises(ValueError):
         _CoolerWriter(str(tmp_path / "u.cool"), bins)
+
+    # write_bins can be given a chrom table that doesn't match the bins
+    with h5py.File(tmp_path / "v.h5", "w") as f:
+        with pytest.raises(ValueError, match="missing chromosome names"):
+            write_bins(f.create_group("a"), bins, ["chr1", "chr2"], {})
+        bins = bins.dropna()
+        with pytest.raises(ValueError, match=r"not in the chrom table: \['chr2'\]"):
+            write_bins(f.create_group("b"), bins, ["chr1"], {})
 
 
 def test_chunks_match_single_write(tmp_path):
