@@ -4,6 +4,7 @@ Code adapted from the sphinx-click project.
 <https://github.com/click-contrib/sphinx-click>
 
 """
+
 import click
 from docutils import statemachine
 
