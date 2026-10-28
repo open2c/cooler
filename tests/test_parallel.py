@@ -225,16 +225,52 @@ def test_process_pool_start_fails(monkeypatch):
         shutdowns.append(kwargs)
         return orig(self, *args, **kwargs)
 
-    def fail(future):
-        raise parallel.WorkerDiedError("no workers")
+    def submit(self, *args, **kwargs):
+        raise RuntimeError("no workers")
 
     monkeypatch.setattr(parallel.ProcessPoolExecutor, "shutdown", shutdown)
-    monkeypatch.setattr(
-        parallel._ProcessPool, "_result", lambda self, future: fail(future)
-    )
-    with pytest.raises(parallel.WorkerDiedError, match="no workers"):
+    monkeypatch.setattr(parallel.ProcessPoolExecutor, "submit", submit)
+    with pytest.raises(RuntimeError, match="no workers"):
         parallel._ProcessPool(2)
     assert shutdowns and shutdowns[0]["cancel_futures"]
+
+
+def test_process_pool_unguarded_script(tmp_path):
+    # With spawn, each worker imports the main script. Without a __main__
+    # guard, it starts another pool and exits, which isn't running out of
+    # memory.
+    script = tmp_path / "script.py"
+    script.write_text(
+        "import multiprocessing\n"
+        "multiprocessing.set_start_method('spawn', force=True)\n"
+        "from cooler.parallel import _ProcessPool\n"
+        "_ProcessPool(2)\n"
+    )
+    result = subprocess.run(
+        [sys.executable, str(script)],
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=120,
+        cwd=tmp_path,
+    )
+    assert result.returncode != 0
+    assert "WorkerStartError: Worker processes failed to start" in result.stderr
+    assert "With the 'spawn' start method" in result.stderr
+    assert 'if __name__ == "__main__":' in result.stderr
+    assert "ran out of memory" not in result.stderr
+
+
+def test_cli_worker_start_error(run_cli, monkeypatch):
+    class _NoStartPool:
+        def __init__(self, nproc):
+            raise parallel.WorkerStartError("Worker processes failed to start.")
+
+    monkeypatch.setattr(cooler.cli.balance, "_ProcessPool", _NoStartPool)
+    path = op.join(datadir, "hg19.GM12878-MboI.matrix.2000kb.cool")
+    result = run_cli("balance", path, "--stdout", "-p", 2, exit_code=1)
+    assert "Error: Worker processes failed to start." in result.stderr
+    assert "Try fewer processes" not in result.stderr
 
 
 class _DyingPool(parallel._ProcessPool):
