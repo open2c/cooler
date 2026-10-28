@@ -1,5 +1,4 @@
 import sys
-from multiprocessing import Pool
 
 import click
 import h5py
@@ -9,6 +8,7 @@ import pandas as pd
 from .._balance import balance_cooler
 from ..api import Cooler
 from ..create._writer import _add_columns
+from ..parallel import _ProcessPool
 from ..util import bedslice, parse_cooler_uri
 from . import cli, get_logger
 
@@ -256,7 +256,7 @@ def balance(
         bad_bins = np.concatenate(bad_bins) if bad_bins else None
 
     if nproc > 1:
-        pool = Pool(nproc)
+        pool = _ProcessPool(nproc)
         map_ = pool.imap_unordered
     else:
         map_ = map
@@ -282,7 +282,6 @@ def balance(
     finally:
         if nproc > 1:
             pool.close()
-            pool.join()
 
     if not np.all(stats["converged"]):
         if convergence_policy == "store_final":

@@ -7,7 +7,10 @@ coolers.
 from __future__ import annotations
 
 import builtins
+from collections import deque
 from collections.abc import Iterable, Iterator, Sequence
+from concurrent.futures import FIRST_COMPLETED, Future, ProcessPoolExecutor, wait
+from concurrent.futures.process import BrokenProcessPool
 from functools import partial, reduce
 from multiprocessing import Lock
 from typing import Any, Callable
@@ -71,6 +74,117 @@ def __getattr__(name: str) -> Any:
     if name == "lock":
         return get_lock()
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+class WorkerDiedError(RuntimeError):
+    """A worker process exited without finishing its task."""
+
+
+def _init_worker(lock: Any) -> None:  # pragma: no cover (runs in workers)
+    # Workers started with spawn or forkserver don't inherit the parent's lock
+    global _lock
+    _lock = lock
+
+
+def _noop() -> None:  # pragma: no cover (runs in workers)
+    pass
+
+
+class _ProcessPool:
+    """
+    A process pool for cooler's parallel tasks.
+
+    Unlike ``multiprocessing.Pool``, which waits forever for the task of a
+    worker that dies (e.g. killed for using too much memory), this raises
+    :class:`WorkerDiedError`. Its ``map`` and ``imap_unordered`` are lazy and
+    keep at most ``max_pending`` tasks in flight, so neither the inputs nor
+    the results pile up in memory.
+
+    Workers share the parent's lock (see :func:`get_lock`) whatever the start
+    method, and are started when the pool is created: with fork, before the
+    parent opens any more HDF5 files.
+    """
+
+    def __init__(self, nproc: int, max_pending: int | None = None):
+        self.nproc = nproc
+        self.max_pending = max_pending or 2 * nproc
+        self._executor = ProcessPoolExecutor(
+            nproc, initializer=_init_worker, initargs=(get_lock(),)
+        )
+        try:
+            self._result(self._executor.submit(_noop))
+        except BaseException:
+            self._executor.shutdown(wait=False, cancel_futures=True)
+            raise
+
+    def _result(self, future: Future) -> Any:
+        try:
+            return future.result()
+        except BrokenProcessPool as e:
+            # The executor fails the pending tasks before it stops the other
+            # workers. Wait for them to exit, so none still has a file open
+            # when the caller cleans up, e.g. removes a partly written cooler.
+            self._executor.shutdown(wait=True)
+            raise WorkerDiedError(
+                "A worker process exited unexpectedly, most likely because it "
+                "ran out of memory and was killed."
+            ) from e
+
+    def map(self, func: Callable, iterable: Iterable) -> Iterator[Any]:
+        """Apply ``func`` to each item, yielding results in order."""
+        items = iter(iterable)
+        pending = deque()
+        try:
+            for item in items:
+                pending.append(self._executor.submit(func, item))
+                if len(pending) >= self.max_pending:
+                    yield self._result(pending.popleft())
+            while pending:
+                yield self._result(pending.popleft())
+        finally:
+            self._stop(pending)
+
+    def imap_unordered(self, func: Callable, iterable: Iterable) -> Iterator[Any]:
+        """Apply ``func`` to each item, yielding results as they finish."""
+        items = iter(iterable)
+        pending = set()
+        try:
+            for item in items:
+                pending.add(self._executor.submit(func, item))
+                if len(pending) >= self.max_pending:
+                    done, pending = wait(pending, return_when=FIRST_COMPLETED)
+                    for future in done:
+                        yield self._result(future)
+            while pending:
+                done, pending = wait(pending, return_when=FIRST_COMPLETED)
+                for future in done:
+                    yield self._result(future)
+        finally:
+            self._stop(pending)
+
+    def _stop(self, pending: Iterable[Future]) -> None:
+        # On an error or an early exit, cancel the queued tasks and wait for
+        # the running ones, so no worker is still reading a file when the
+        # caller handles the error
+        running = [future for future in pending if not future.cancel()]
+        wait(running)
+        # If a worker died meanwhile, the executor failed these tasks before
+        # stopping the other workers: wait for them to exit too
+        if any(
+            not future.cancelled() and isinstance(future.exception(), BrokenProcessPool)
+            for future in running
+        ):
+            self._executor.shutdown(wait=True)
+
+    def close(self) -> None:
+        """Wait for running tasks, cancel queued ones, and stop the workers."""
+        self._executor.shutdown(wait=True, cancel_futures=True)
+
+    def __enter__(self) -> _ProcessPool:  # noqa: PYI034
+        return self
+
+    def __exit__(self, *exc: object) -> None:
+        self.close()
 
 
 KeyType = Any
