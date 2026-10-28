@@ -196,6 +196,24 @@ def test_binnify():
     chromsizes = util.read_chromsizes(op.join(datadir, "toy.chrom.sizes"))
     bins = util.binnify(chromsizes, 10)
     assert len(bins) == 8
+    assert list(bins["end"]) == [10, 20, 30, 32, 10, 20, 30, 32]
+    assert list(bins["chrom"].cat.categories) == ["chr1", "chr2"]
+
+    # Chromosomes shorter than a bin, or without length
+    cs = pd.Series({"a": 5, "b": 0, "c": 25})
+    bins = util.binnify(cs, 10)
+    assert list(bins["chrom"]) == ["a", "c", "c", "c"]
+    assert list(bins["start"]) == [0, 0, 10, 20]
+    assert list(bins["end"]) == [5, 10, 20, 25]
+
+    # Any whole number is a bin size, and coordinates are integers
+    for binsize in [10.0, 1e1, np.uint64(10), np.int32(10)]:
+        bins = util.binnify(chromsizes, binsize)
+        assert len(bins) == 8
+        assert bins["start"].dtype == bins["end"].dtype == np.int64
+    for binsize in [0, -10, 7.5, float("nan")]:
+        with pytest.raises(ValueError, match="positive integer"):
+            util.binnify(chromsizes, binsize)
 
 
 def test_digest():
@@ -225,6 +243,8 @@ def test_get_binsize():
         {"chrom": ["chr1", "chr2", "chr3"], "start": [0, 0, 0], "end": [100, 200, 300]}
     )
     assert util.get_binsize(bins) is None
+    empty = pd.DataFrame({"chrom": [], "start": [], "end": []})
+    assert util.get_binsize(empty) is None
 
 
 def test_get_chromsizes():
@@ -312,8 +332,12 @@ def test_check_bins():
     chromsizes = util.read_chromsizes(op.join(datadir, "toy.chrom.sizes"))
     bins = util.binnify(chromsizes, 10)
     bins["chrom"] = bins["chrom"].astype(str)
-    bins = util.check_bins(bins, chromsizes)
-    assert isinstance(bins["chrom"].dtype, pd.CategoricalDtype)
+    checked = util.check_bins(bins, chromsizes)
+    assert isinstance(checked["chrom"].dtype, pd.CategoricalDtype)
+    # The input isn't modified
+    assert not isinstance(bins["chrom"].dtype, pd.CategoricalDtype)
+    # Categorical input is used as is, without a copy
+    assert util.check_bins(checked, chromsizes) is checked
 
 
 def test_genome_segmentation():
@@ -325,6 +349,17 @@ def test_genome_segmentation():
     df = gs.fetch("chr1:2-30")
     assert len(df) == 3
     util.balanced_partition(gs, 2, ["chr1"])
+    assert list(gs.chrom_binoffset) == [0, 4, 8]
+    assert np.array_equal(gs.start_abspos, [0, 10, 20, 30, 32, 42, 52, 62])
+
+    # A chromosome without bins gets an empty range of bin IDs
+    cs = pd.Series({"chr1": 32, "chrM": 16, "chr2": 32})
+    bins2 = bins.copy()
+    bins2["chrom"] = pd.Categorical(bins2["chrom"].astype(str), categories=cs.index)
+    gs = util.GenomeSegmentation(cs, bins2)
+    assert list(gs.chrom_binoffset) == [0, 4, 4, 8]
+    with pytest.raises(ValueError, match="not in chromsizes"):
+        util.GenomeSegmentation(chromsizes[:1], bins.astype({"chrom": str}))
 
 
 def test_dataframe_meta():

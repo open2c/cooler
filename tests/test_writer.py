@@ -9,7 +9,7 @@ import pytest
 
 import cooler
 from cooler.create import BadInputError
-from cooler.create._writer import _CoolerWriter
+from cooler.create._writer import _CoolerWriter, write_bins
 
 BINS = cooler.util.binnify(pd.Series({"chr1": 60, "chr2": 40}), 10)  # 10 bins
 
@@ -30,6 +30,38 @@ def tmp_groups(path):
         found = []
         f.visit(lambda name: found.append(name) if "__writing__" in name else None)
         return found
+
+
+def test_bin_table_chrom_ids(tmp_path):
+    # Chromosome IDs follow the chrom table, whatever the order of a
+    # categorical's categories, and the caller's bin table isn't modified
+    bins = cooler.binnify(pd.Series({"chr1": 30, "chr2": 20}), 10)
+    bins["chrom"] = pd.Categorical(
+        bins["chrom"].astype(str), categories=["chr2", "chr1"]
+    )
+    before = bins.copy()
+    path = str(tmp_path / "t.cool")
+    with _CoolerWriter(path, bins) as w:
+        w.write({"bin1_id": [0], "bin2_id": [1], "count": [1]})
+    pd.testing.assert_frame_equal(bins, before)
+    clr = cooler.Cooler(path)
+    assert list(clr.chromnames) == ["chr1", "chr2"]
+    assert list(clr.bins()["chrom"][:]) == ["chr1"] * 3 + ["chr2"] * 2
+    with h5py.File(path, "r") as f:
+        assert list(f["bins/chrom"][:]) == [0, 0, 0, 1, 1]
+
+    bins = bins.astype({"chrom": object})
+    bins.loc[4, "chrom"] = None
+    with pytest.raises(ValueError):
+        _CoolerWriter(str(tmp_path / "u.cool"), bins)
+
+    # write_bins can be given a chrom table that doesn't match the bins
+    with h5py.File(tmp_path / "v.h5", "w") as f:
+        with pytest.raises(ValueError, match="missing chromosome names"):
+            write_bins(f.create_group("a"), bins, ["chr1", "chr2"], {})
+        bins = bins.dropna()
+        with pytest.raises(ValueError, match=r"not in the chrom table: \['chr2'\]"):
+            write_bins(f.create_group("b"), bins, ["chr1"], {})
 
 
 def test_chunks_match_single_write(tmp_path):
