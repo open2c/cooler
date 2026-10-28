@@ -123,16 +123,17 @@ def _exit_on(target, func, item):
     return func(item)
 
 
-def _fail_or_hold(target, die, path, func, item):
-    # The target's task fails, or its worker dies, while the others have
-    # `path` open for reading
-    if item == target:
-        time.sleep(0.5)
-        if die:
+def _fail_or_hold(events, path, func, item):
+    # Tasks in `events` fail or kill their worker after a delay; the others
+    # hold `path` open for reading meanwhile
+    if item in events:
+        delay, event = events[item]
+        time.sleep(delay)
+        if event == "die":
             os._exit(1)
         raise ValueError("task failed")
     with h5py.File(path, "r"):
-        time.sleep(2)
+        time.sleep(3)
     return func(item)
 
 
@@ -270,28 +271,38 @@ def test_balance_worker_dies(run_cli, monkeypatch):
 
 class _FailingWhileReadingPool(parallel._ProcessPool):
     path = None
-    die = True
+    events = ()  # (delay, event) for the first tasks
 
     def map(self, func, iterable):
         items = list(iterable)
-        func = partial(_fail_or_hold, items[0], self.die, self.path, func)
-        return super().map(func, items)
+        events = dict(zip(items, self.events))
+        return super().map(partial(_fail_or_hold, events, self.path, func), items)
 
 
-@pytest.mark.parametrize("die", [True, False])
-def test_zoomify_task_fails_while_others_read(run_cli, monkeypatch, tmp_path, die):
+@pytest.mark.parametrize(
+    "events",
+    [
+        [(0.5, "die")],
+        [(0.5, "raise")],
+        # A worker dies while the pool waits for the running tasks after an
+        # error: the task's error is raised, after the workers have exited
+        [(0.5, "raise"), (1.0, "die")],
+    ],
+    ids=["die", "raise", "raise-then-die"],
+)
+def test_zoomify_task_fails_while_others_read(run_cli, monkeypatch, tmp_path, events):
     # Zoomify's workers read the output file. When a task fails or its worker
     # dies, the other workers must be done with the file before the partly
     # written level is removed; otherwise HDF5's file lock fails, hiding the
     # error and leaving the level behind.
     out = tmp_path / "out.mcool"
     monkeypatch.setattr(_FailingWhileReadingPool, "path", str(out))
-    monkeypatch.setattr(_FailingWhileReadingPool, "die", die)
+    monkeypatch.setattr(_FailingWhileReadingPool, "events", events)
     monkeypatch.setattr(cooler._reduce, "_ProcessPool", _FailingWhileReadingPool)
     path = op.join(datadir, "hg19.GM12878-MboI.matrix.2000kb.cool")
-    args = ["zoomify", path, "-r", "2000000,4000000", "-p", 2, "-c", 5000, "-o", out]
+    args = ["zoomify", path, "-r", "2000000,4000000", "-p", 3, "-c", 5000, "-o", out]
     result = _run_with_timeout(lambda: run_cli(*args, exit_code=1))
-    if die:
+    if events[0][1] == "die":
         assert "Error: A worker process exited unexpectedly" in result.stderr
     else:
         # The task's error, not a file-locking error during cleanup

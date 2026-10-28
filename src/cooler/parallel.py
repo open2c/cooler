@@ -162,13 +162,19 @@ class _ProcessPool:
         finally:
             self._stop(pending)
 
-    @staticmethod
-    def _stop(pending: Iterable[Future]) -> None:
+    def _stop(self, pending: Iterable[Future]) -> None:
         # On an error or an early exit, cancel the queued tasks and wait for
         # the running ones, so no worker is still reading a file when the
         # caller handles the error
         running = [future for future in pending if not future.cancel()]
         wait(running)
+        # If a worker died meanwhile, the executor failed these tasks before
+        # stopping the other workers: wait for them to exit too
+        if any(
+            not future.cancelled() and isinstance(future.exception(), BrokenProcessPool)
+            for future in running
+        ):
+            self._executor.shutdown(wait=True)
 
     def close(self) -> None:
         """Wait for running tasks, cancel queued ones, and stop the workers."""
