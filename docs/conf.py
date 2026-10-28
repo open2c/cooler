@@ -58,7 +58,7 @@ from importlib.metadata import metadata
 info = metadata("cooler")
 project = info["Name"]
 author = "Nezar Abdennur"
-copyright = f"2016-{datetime.now():%Y}, {author}."
+copyright = f"2015-{datetime.now():%Y}, {author}."
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
