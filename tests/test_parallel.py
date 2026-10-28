@@ -3,9 +3,11 @@ import os.path as op
 import subprocess
 import sys
 import threading
+import time
 from functools import partial
 from operator import add
 
+import h5py
 import pytest
 
 import cooler
@@ -121,6 +123,19 @@ def _exit_on(target, func, item):
     return func(item)
 
 
+def _fail_or_hold(target, die, path, func, item):
+    # The target's task fails, or its worker dies, while the others have
+    # `path` open for reading
+    if item == target:
+        time.sleep(0.5)
+        if die:
+            os._exit(1)
+        raise ValueError("task failed")
+    with h5py.File(path, "r"):
+        time.sleep(2)
+    return func(item)
+
+
 def _try_lock(_):
     lock = parallel.get_lock()
     got = lock.acquire(timeout=0.5)
@@ -213,7 +228,9 @@ def test_process_pool_start_fails(monkeypatch):
         raise parallel.WorkerDiedError("no workers")
 
     monkeypatch.setattr(parallel.ProcessPoolExecutor, "shutdown", shutdown)
-    monkeypatch.setattr(parallel._ProcessPool, "_result", staticmethod(fail))
+    monkeypatch.setattr(
+        parallel._ProcessPool, "_result", lambda self, future: fail(future)
+    )
     with pytest.raises(parallel.WorkerDiedError, match="no workers"):
         parallel._ProcessPool(2)
     assert shutdowns and shutdowns[0]["cancel_futures"]
@@ -249,3 +266,35 @@ def test_balance_worker_dies(run_cli, monkeypatch):
     )
     assert "Error: A worker process exited unexpectedly" in result.stderr
     assert "Try fewer processes (-p) or smaller chunks." in result.stderr
+
+
+class _FailingWhileReadingPool(parallel._ProcessPool):
+    path = None
+    die = True
+
+    def map(self, func, iterable):
+        items = list(iterable)
+        func = partial(_fail_or_hold, items[0], self.die, self.path, func)
+        return super().map(func, items)
+
+
+@pytest.mark.parametrize("die", [True, False])
+def test_zoomify_task_fails_while_others_read(run_cli, monkeypatch, tmp_path, die):
+    # Zoomify's workers read the output file. When a task fails or its worker
+    # dies, the other workers must be done with the file before the partly
+    # written level is removed; otherwise HDF5's file lock fails, hiding the
+    # error and leaving the level behind.
+    out = tmp_path / "out.mcool"
+    monkeypatch.setattr(_FailingWhileReadingPool, "path", str(out))
+    monkeypatch.setattr(_FailingWhileReadingPool, "die", die)
+    monkeypatch.setattr(cooler._reduce, "_ProcessPool", _FailingWhileReadingPool)
+    path = op.join(datadir, "hg19.GM12878-MboI.matrix.2000kb.cool")
+    args = ["zoomify", path, "-r", "2000000,4000000", "-p", 2, "-c", 5000, "-o", out]
+    result = _run_with_timeout(lambda: run_cli(*args, exit_code=1))
+    if die:
+        assert "Error: A worker process exited unexpectedly" in result.stderr
+    else:
+        # The task's error, not a file-locking error during cleanup
+        assert "Error: task failed" in result.stderr
+    with h5py.File(out, "r") as f:
+        assert list(f["resolutions"]) == ["2000000"]

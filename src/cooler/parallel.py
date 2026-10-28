@@ -117,11 +117,14 @@ class _ProcessPool:
             self._executor.shutdown(wait=False, cancel_futures=True)
             raise
 
-    @staticmethod
-    def _result(future: Future) -> Any:
+    def _result(self, future: Future) -> Any:
         try:
             return future.result()
         except BrokenProcessPool as e:
+            # The executor fails the pending tasks before it stops the other
+            # workers. Wait for them to exit, so none still has a file open
+            # when the caller cleans up, e.g. removes a partly written cooler.
+            self._executor.shutdown(wait=True)
             raise WorkerDiedError(
                 "A worker process exited unexpectedly, most likely because it "
                 "ran out of memory and was killed."
@@ -139,8 +142,7 @@ class _ProcessPool:
             while pending:
                 yield self._result(pending.popleft())
         finally:
-            for future in pending:
-                future.cancel()
+            self._stop(pending)
 
     def imap_unordered(self, func: Callable, iterable: Iterable) -> Iterator[Any]:
         """Apply ``func`` to each item, yielding results as they finish."""
@@ -158,8 +160,15 @@ class _ProcessPool:
                 for future in done:
                     yield self._result(future)
         finally:
-            for future in pending:
-                future.cancel()
+            self._stop(pending)
+
+    @staticmethod
+    def _stop(pending: Iterable[Future]) -> None:
+        # On an error or an early exit, cancel the queued tasks and wait for
+        # the running ones, so no worker is still reading a file when the
+        # caller handles the error
+        running = [future for future in pending if not future.cancel()]
+        wait(running)
 
     def close(self) -> None:
         """Wait for running tasks, cancel queued ones, and stop the workers."""
