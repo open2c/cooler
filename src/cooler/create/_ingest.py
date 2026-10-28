@@ -6,6 +6,7 @@ Binners are iterators that convert input data of various flavors into a
 properly sorted, chunked stream of binned contacts.
 
 """
+
 from __future__ import annotations
 
 import itertools
@@ -249,9 +250,7 @@ def _sanitize_records(
 
 
 def sanitize_records(
-    bins: pd.DataFrame,
-    schema: str | None = None,
-    **kwargs
+    bins: pd.DataFrame, schema: str | None = None, **kwargs
 ) -> Callable[[pd.DataFrame], pd.DataFrame]:
     """
     Builds a funtion to sanitize and assign bin IDs to a data frame of
@@ -466,7 +465,7 @@ def validate_pixels(
     boundscheck: bool,
     triucheck: bool,
     dupcheck: bool,
-    ensure_sorted: bool
+    ensure_sorted: bool,
 ) -> Callable[[pd.DataFrame], pd.DataFrame]:
     return partial(
         _validate_pixels,
@@ -568,7 +567,7 @@ class HDF5Aggregator(ContactBinner):
         chromsizes: pd.Series,
         bins: pd.DataFrame,
         chunksize: int,
-        **kwargs
+        **kwargs,
     ):
         self.h5 = h5pairs
         self.C1 = kwargs.pop("C1", "chrms1")
@@ -850,9 +849,9 @@ class PairixAggregator(ContactBinner):
                 "specify the correct character as `block_char`."
             )
         self.file_contigs = set(
-            itertools.chain.from_iterable([
-                blockname.split(block_char) for blockname in blocknames
-            ])
+            itertools.chain.from_iterable(
+                [blockname.split(block_char) for blockname in blocknames]
+            )
         )
 
         if not len(self.file_contigs):

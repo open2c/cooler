@@ -33,9 +33,7 @@ from ._writer import (
 logger = get_logger("cooler.create")
 
 
-def _rename_chroms(
-    grp: h5py.Group, rename_dict: dict[str, str], h5opts: dict
-) -> None:
+def _rename_chroms(grp: h5py.Group, rename_dict: dict[str, str], h5opts: dict) -> None:
     chroms = get(grp["chroms"]).set_index("name")
     n_chroms = len(chroms)
     new_names = np.array(
@@ -69,11 +67,7 @@ def _rename_chroms(
             )
 
 
-def rename_chroms(
-    clr,
-    rename_dict: dict[str, str],
-    h5opts: dict | None = None
-) -> None:
+def rename_chroms(clr, rename_dict: dict[str, str], h5opts: dict | None = None) -> None:
     """
     Substitute existing chromosome/contig names for new ones. They will be
     written to the file and the Cooler object will be refreshed.
@@ -97,15 +91,12 @@ def rename_chroms(
 
 
 def _get_dtypes_arg(
-    dtypes: pd.Series | dict | None,
-    kwargs: dict[str, Any]
+    dtypes: pd.Series | dict | None, kwargs: dict[str, Any]
 ) -> pd.Series | dict | None:
     if "dtype" in kwargs:
         if dtypes is None:
             dtypes = kwargs.pop("dtype")
-            warnings.warn(
-                "Use dtypes= instead of dtype=", FutureWarning, stacklevel=2
-            )
+            warnings.warn("Use dtypes= instead of dtype=", FutureWarning, stacklevel=2)
         else:
             raise ValueError(
                 'Received both "dtypes" and "dtype" arguments. '

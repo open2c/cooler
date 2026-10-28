@@ -1,6 +1,7 @@
 """
 Tests for the commands that read coolers: info, dump and show.
 """
+
 import gzip
 import json
 import shutil
@@ -64,7 +65,12 @@ def test_dump(run_cli, tmp_path):
     # Joining and annotating
     joined = read_tsv(run_cli("dump", TOY, "-H", "--join"))
     assert list(joined.columns[:6]) == [
-        "chrom1", "start1", "end1", "chrom2", "start2", "end2"
+        "chrom1",
+        "start1",
+        "end1",
+        "chrom2",
+        "start2",
+        "end2",
     ]
     starts = read_tsv(run_cli("dump", TOY, "-H", "--join", "--one-based-starts"))
     assert (starts["start1"] == joined["start1"] + 1).all()
@@ -134,7 +140,13 @@ def test_show(run_cli, tmp_path):
     path = with_custom_weights(tmp_path)
     run_cli("show", path, "chr1", "-o", out, "--weight-name", "custom")
     run_cli(
-        "show", path, "chr1", "-o", out, "--weight-name", "doesnotexist",
+        "show",
+        path,
+        "chr1",
+        "-o",
+        out,
+        "--weight-name",
+        "doesnotexist",
         exit_code=1,
     )
 

@@ -16,9 +16,7 @@ testdir = os.path.dirname(os.path.realpath(__file__))
 )
 def test_balancing_genomewide(fp, tol):
     clr = cooler.Cooler(fp)
-    weights, _stats = _balance.balance_cooler(
-        clr, ignore_diags=1, min_nnz=10, tol=tol
-    )
+    weights, _stats = _balance.balance_cooler(clr, ignore_diags=1, min_nnz=10, tol=tol)
 
     # Extract matrix and apply weights
     mat = cooler.Cooler(fp).matrix(balance=False, sparse=True)[:, :]
@@ -180,7 +178,7 @@ def test_balancing_other_options(fp, tol):
     _weights, stats = _balance.balance_cooler(
         clr, ignore_diags=1, min_nnz=10, tol=tol, x0=x0
     )
-    assert stats['converged']
+    assert stats["converged"]
     np.testing.assert_array_equal(x0, x0_copy)  # not modified
 
     _weights, stats = _balance.balance_cooler(
@@ -190,7 +188,7 @@ def test_balancing_other_options(fp, tol):
         min_nnz=10,
         tol=tol,
     )
-    assert stats['converged']
+    assert stats["converged"]
 
     _weights, stats = _balance.balance_cooler(
         clr,
@@ -200,12 +198,12 @@ def test_balancing_other_options(fp, tol):
         mad_max=12,
         tol=tol,
     )
-    assert stats['converged']
+    assert stats["converged"]
 
     _weights, stats = _balance.balance_cooler(
         clr, ignore_diags=1, min_nnz=10, tol=tol, blacklist=[0, 4]
     )
-    assert stats['converged']
+    assert stats["converged"]
 
 
 def test_balancing_without_chunks():

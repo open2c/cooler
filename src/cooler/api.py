@@ -657,8 +657,10 @@ def annotate(
 
     # Select bin annotations that correspond to the bin1 IDs in the pixels df
     if "bin1_id" in columns:
-        bin1 = pixels["bin1_id"].to_numpy().astype(
-            np.int64, copy=False, casting="same_kind"
+        bin1 = (
+            pixels["bin1_id"]
+            .to_numpy()
+            .astype(np.int64, copy=False, casting="same_kind")
         )
         if len(bin1) == 0:
             bmin = bmax = 0
@@ -675,8 +677,10 @@ def annotate(
 
     # Select bin annotations that correspond to the bin2 IDs in the pixels df
     if "bin2_id" in columns:
-        bin2 = pixels["bin2_id"].to_numpy().astype(
-            np.int64, copy=False, casting="same_kind"
+        bin2 = (
+            pixels["bin2_id"]
+            .to_numpy()
+            .astype(np.int64, copy=False, casting="same_kind")
         )
         if len(bin2) == 0:
             bmin = bmax = 0

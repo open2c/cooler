@@ -99,8 +99,7 @@ from . import cli, get_logger
 )
 @click.option(
     "--tol",
-    help="Threshold value of variance of the marginals for the algorithm to "
-    "converge.",
+    help="Threshold value of variance of the marginals for the algorithm to converge.",
     type=float,
     default=1e-5,
     show_default=True,
@@ -262,7 +261,6 @@ def balance(
     else:
         map_ = map
     try:
-
         bias, stats = balance_cooler(
             clr,
             chunksize=chunksize,

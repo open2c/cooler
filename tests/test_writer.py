@@ -1,4 +1,5 @@
 """Tests of the chunked cooler writer underneath the create functions."""
+
 import threading
 
 import h5py
@@ -86,7 +87,10 @@ def test_ensure_sorted_sorts_within_chunks(tmp_path):
         w.write(pixels([(3, 9), (1, 1)]))
     px = cooler.Cooler(path).pixels()[:]
     assert px[["bin1_id", "bin2_id"]].values.tolist() == [
-        [0, 0], [0, 5], [1, 1], [3, 9]
+        [0, 0],
+        [0, 5],
+        [1, 1],
+        [3, 9],
     ]
 
 
@@ -389,8 +393,15 @@ def test_balance_force_keeps_weights_on_failure(small_cool):
     # A forced rebalance that is discarded leaves the previous weights
     result = runner.invoke(
         balance,
-        [small_cool, *args, "--force", "--max-iters", "1",
-         "--convergence-policy", "discard"],
+        [
+            small_cool,
+            *args,
+            "--force",
+            "--max-iters",
+            "1",
+            "--convergence-policy",
+            "discard",
+        ],
     )
     assert result.exit_code == 0, result.output
     after = cooler.Cooler(small_cool).bins()[:]["weight"].to_numpy()

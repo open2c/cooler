@@ -103,7 +103,11 @@ def test_merge2():
 def test_coarsen(input_uri, factor, ref_uri):
     with isolated_filesystem():
         kwargs = {
-            "chunksize": 10, "nproc": 1, "columns": None, "dtypes": None, "agg": None
+            "chunksize": 10,
+            "nproc": 1,
+            "columns": None,
+            "dtypes": None,
+            "agg": None,
         }
         coarsen_cooler(input_uri, "test.cool", factor, **kwargs)
         cooler_cmp("test.cool", ref_uri)
@@ -134,7 +138,11 @@ def test_coarsen(input_uri, factor, ref_uri):
 
         # parallel
         kwargs = {
-            "chunksize": 10, "nproc": 2, "columns": None, "dtypes": None, "agg": None
+            "chunksize": 10,
+            "nproc": 2,
+            "columns": None,
+            "dtypes": None,
+            "agg": None,
         }
         coarsen_cooler(input_uri, "test.cool", factor, **kwargs)
         # worker processes have exited

@@ -2,6 +2,7 @@
 Tests for the commands that compute new data: merge, coarsen, zoomify and
 balance.
 """
+
 import multiprocessing as mp
 import shutil
 
@@ -35,13 +36,26 @@ def test_coarsen(run_cli, tmp_path):
     pd.testing.assert_frame_equal(cooler.Cooler(str(out)).pixels()[:], expected)
 
     run_cli(
-        "coarsen", TOY, "--factor", 2, "--field", "count:dtype=float,agg=max",
-        "-o", out,
+        "coarsen",
+        TOY,
+        "--factor",
+        2,
+        "--field",
+        "count:dtype=float,agg=max",
+        "-o",
+        out,
     )
     assert cooler.Cooler(str(out)).pixels()["count"][:].dtype.kind == "f"
 
     result = run_cli(
-        "coarsen", TOY, "--factor", 2, "--field", "count:agg=mean", "-o", out,
+        "coarsen",
+        TOY,
+        "--factor",
+        2,
+        "--field",
+        "count:agg=mean",
+        "-o",
+        out,
         exit_code=2,
     )
     assert "Unsupported aggregation 'mean'" in result.stderr
@@ -59,8 +73,14 @@ def test_zoomify(run_cli, tmp_path):
         assert "weight" in cooler.Cooler(f"{out}::resolutions/{res}").bins()
 
     run_cli(
-        "zoomify", TOY, "--resolutions", "2,4,8", "--field",
-        "count:dtype=float,agg=max", "-o", out,
+        "zoomify",
+        TOY,
+        "--resolutions",
+        "2,4,8",
+        "--field",
+        "count:dtype=float,agg=max",
+        "-o",
+        out,
     )
     assert resolutions(out) == [2, 4, 8]
     clr = cooler.Cooler(f"{out}::resolutions/8")
@@ -196,6 +216,14 @@ def test_zoomify_balance_args(run_cli, tmp_path):
 
     # A failure while balancing a level fails zoomify
     run_cli(
-        "zoomify", TOY, "-r", "2,4", "--balance", "-o", out, "--balance-args",
-        "--max-iters 0 --convergence-policy error", exit_code=1,
+        "zoomify",
+        TOY,
+        "-r",
+        "2,4",
+        "--balance",
+        "-o",
+        out,
+        "--balance-args",
+        "--max-iters 0 --convergence-policy error",
+        exit_code=1,
     )

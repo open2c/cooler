@@ -1,6 +1,7 @@
 """
 Regression tests for bugs in the API, selectors and table operations.
 """
+
 import copy
 import pathlib
 import pickle
@@ -77,11 +78,13 @@ def test_bin_table_must_tile(tmp_path, bins, match):
 def test_variable_bins_region_before_first_bin(tmp_path):
     # Files written before bin tables were checked can have a first bin that
     # doesn't start at 0. A query must not reach the previous chromosome.
-    bins = pd.DataFrame({
-        "chrom": ["chr1"] * 3 + ["chr2"] * 2,
-        "start": [0, 30, 70, 0, 25],
-        "end": [30, 70, 100, 25, 60],
-    })
+    bins = pd.DataFrame(
+        {
+            "chrom": ["chr1"] * 3 + ["chr2"] * 2,
+            "start": [0, 30, 70, 0, 25],
+            "end": [30, 70, 100, 25, 60],
+        }
+    )
     path = make_cooler(str(tmp_path / "v.cool"), bins)
     with h5py.File(path, "r+") as f:
         f["bins/start"][3] = 10
@@ -122,9 +125,12 @@ def test_single_column_selector(tmp_path):
 def test_put_appends(tmp_path):
     with h5py.File(tmp_path / "t.h5", "w") as f:
         grp = f.create_group("t")
-        put(grp, pd.DataFrame({
-            "cat": pd.Categorical(["a", "b", "a"]), "s": ["x", "yy", "z"]
-        }))
+        put(
+            grp,
+            pd.DataFrame(
+                {"cat": pd.Categorical(["a", "b", "a"]), "s": ["x", "yy", "z"]}
+            ),
+        )
         more = pd.DataFrame({"cat": pd.Categorical(["b", "b"]), "s": ["p", "q"]})
         put(grp, more, lo=3)
         out = get(grp)
@@ -205,9 +211,7 @@ def test_text_attributes_are_not_decoded(tmp_path):
 
     from cooler.cli.fileops import attrs as attrs_cli
 
-    path = make_cooler(
-        str(tmp_path / "c.cool"), assembly="123", metadata={"a": [1, 2]}
-    )
+    path = make_cooler(str(tmp_path / "c.cool"), assembly="123", metadata={"a": [1, 2]})
     with h5py.File(path, "r+") as f:
         f.attrs["format-version"] = "3"  # as stored by older versions
     info = cooler.Cooler(path).info
@@ -223,11 +227,13 @@ def test_text_attributes_are_not_decoded(tmp_path):
     assert out["metadata"] == {"a": [1, 2]}
 
     # Variable-size bins store bin-size as "null"
-    bins = pd.DataFrame({
-        "chrom": ["chr1", "chr1", "chr1", "chr2"],
-        "start": [0, 30, 50, 0],
-        "end": [30, 50, 100, 60],
-    })
+    bins = pd.DataFrame(
+        {
+            "chrom": ["chr1", "chr1", "chr1", "chr2"],
+            "start": [0, 30, 50, 0],
+            "end": [30, 50, 100, 60],
+        }
+    )
     path = make_cooler(str(tmp_path / "v.cool"), bins)
     assert cooler.Cooler(path).info["bin-size"] is None
 

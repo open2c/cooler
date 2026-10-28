@@ -24,15 +24,17 @@ __all__ = ["cp", "is_cooler", "is_multires_file", "list_coolers", "ln", "mv"]
 # they look like it (e.g. an assembly named "123"). Other string attributes
 # are parsed as JSON when possible: "metadata", and attributes such as
 # "format-version" that older versions of cooler stored as strings.
-TEXT_ATTRS = frozenset({
-    "bin-type",
-    "creation-date",
-    "format",
-    "format-url",
-    "generated-by",
-    "genome-assembly",
-    "storage-mode",
-})
+TEXT_ATTRS = frozenset(
+    {
+        "bin-type",
+        "creation-date",
+        "format",
+        "format-url",
+        "generated-by",
+        "genome-assembly",
+        "storage-mode",
+    }
+)
 
 
 def decode_attr_value(
@@ -138,7 +140,7 @@ class AttrNode(TreeNode):
 def visititems(
     group: h5py.Group,
     func: Callable[[str, h5py.Group | h5py.Dataset], Any],
-    level: int | None = None
+    level: int | None = None,
 ) -> dict[str, Any]:
     """Like :py:method:`h5py.Group.visititems`, but much faster somehow."""
 
@@ -334,8 +336,8 @@ def _copy(
     dst_uri: str,
     overwrite: bool,
     link: bool,
-    rename:bool,
-    soft_link: bool
+    rename: bool,
+    soft_link: bool,
 ) -> None:
     src_path, src_group = parse_cooler_uri(src_uri)
     dst_path, dst_group = parse_cooler_uri(dst_uri)
@@ -451,9 +453,7 @@ def mv(src_uri: str, dst_uri: str, overwrite: bool = False) -> None:
     _copy(src_uri, dst_uri, overwrite, link=False, rename=True, soft_link=False)
 
 
-def ln(
-    src_uri: str, dst_uri: str, soft: bool = False, overwrite: bool = False
-) -> None:
+def ln(src_uri: str, dst_uri: str, soft: bool = False, overwrite: bool = False) -> None:
     """
     Create a hard link to a group or dataset in the same file. Also supports
     soft links (in the same file) or external links (different files).
@@ -468,6 +468,7 @@ def ln(
 ######
 # Tree rendering. Borrowed from zarr-python.
 
+
 def tree_widget(group: h5py.Group, expand: bool, level: int | None) -> Any:
     try:
         import ipytree
@@ -480,7 +481,7 @@ def tree_widget(group: h5py.Group, expand: bool, level: int | None) -> Any:
         ) from None
 
     def _tree_get_icon(
-        stype: Literal["Dataset", "Array", "Group", "File"]
+        stype: Literal["Dataset", "Array", "Group", "File"],
     ) -> Literal["table", "folder"]:
         if stype in {"Dataset", "Array"}:
             return "table"
@@ -496,8 +497,9 @@ def tree_widget(group: h5py.Group, expand: bool, level: int | None) -> Any:
         result = ipytree.Node()
         result.icon = _tree_get_icon(node.get_type())
         if (
-            root or (expand is True) or
-            (isinstance(expand, int) and node.depth < expand)
+            root
+            or (expand is True)
+            or (isinstance(expand, int) and node.depth < expand)
         ):
             result.opened = True
         else:
@@ -545,7 +547,7 @@ class TreeViewer:
         group: h5py.Group,
         expand: bool = False,
         level: int | None = None,
-        node_cls: Any = TreeNode
+        node_cls: Any = TreeNode,
     ):
         self.group = group
         self.expand = expand
@@ -564,7 +566,7 @@ class TreeViewer:
             "UP_AND_RIGHT": "\u2514",
             "HORIZONTAL": "\u2500",
             "VERTICAL": "\u2502",
-            "VERTICAL_AND_RIGHT": "\u251C",
+            "VERTICAL_AND_RIGHT": "\u251c",
         }
 
         self.node_cls = node_cls

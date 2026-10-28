@@ -5,6 +5,7 @@ the parsing helpers in cooler.cli._util.
 To debug a failing command, run it with ``run_cli``: an exception raised by
 the command is re-raised with its traceback, so ``pytest --pdb`` works.
 """
+
 import os
 import pdb  # noqa: T100 (patched below, not used)
 import sys
@@ -88,13 +89,10 @@ def test_digest(run_cli):
     result = run_cli("digest", CHROMSIZES, fasta, "HindIII")
     assert result.stdout == "chr1\t0\t32\nchr2\t0\t32\n"
 
-    result = run_cli(
-        "digest", "--header", "--rel-ids", 1, CHROMSIZES, fasta, "HindIII"
-    )
+    result = run_cli("digest", "--header", "--rel-ids", 1, CHROMSIZES, fasta, "HindIII")
     assert result.stdout == "chrom\tstart\tend\tid\nchr1\t0\t32\t1\nchr2\t0\t32\t1\n"
 
     result = run_cli("digest", CHROMSIZES, fasta, "NoSuchEnzyme", exit_code=1)
-
 
 
 def test_delimited_tuple():
@@ -122,10 +120,16 @@ def test_parse_kv_list_param():
 
 def test_parse_field_param():
     assert util.parse_field_param("count=7:dtype=int,agg=sum") == (
-        "count", 6, np.dtype(int), "sum"
+        "count",
+        6,
+        np.dtype(int),
+        "sum",
     )
     assert util.parse_field_param("count:agg=max", includes_colnum=False) == (
-        "count", None, None, "max"
+        "count",
+        None,
+        None,
+        "max",
     )
     assert util.parse_field_param("count") == ("count", None, None, None)
 

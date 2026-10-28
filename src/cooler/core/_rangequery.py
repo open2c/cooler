@@ -38,7 +38,7 @@ def region_to_offset(
     h5: h5py.Group,
     chrom_ids: dict[str, int],
     region: tuple[str, int, int],
-    binsize: int | None = None
+    binsize: int | None = None,
 ) -> int:
     return next(_region_to_extent(h5, chrom_ids, region, binsize))
 
@@ -47,22 +47,18 @@ def region_to_extent(
     h5: h5py.Group,
     chrom_ids: dict[str, int],
     region: tuple[str, int, int],
-    binsize: int | None = None
+    binsize: int | None = None,
 ) -> tuple[int, int]:
     return tuple(_region_to_extent(h5, chrom_ids, region, binsize))
 
 
-def _comes_before(
-    a0: int, a1: int, b0: int, b1: int, strict: bool = False
-) -> bool:
+def _comes_before(a0: int, a1: int, b0: int, b1: int, strict: bool = False) -> bool:
     if a0 < b0:
         return a1 <= b0 if strict else a1 <= b1
     return False
 
 
-def _contains(
-    a0: int, a1: int, b0: int, b1: int, strict: bool = False
-) -> bool:
+def _contains(a0: int, a1: int, b0: int, b1: int, strict: bool = False) -> bool:
     if a0 > b0 or a1 < b1:
         return False
     if strict and (a0 == b0 or a1 == b1):
@@ -110,7 +106,7 @@ def sparray_slice_from_dict(
     row_stop: int,
     col_start: int,
     col_stop: int,
-    field: str
+    field: str,
 ) -> Any:
     from scipy.sparse import coo_array
 
@@ -128,7 +124,7 @@ def spmatrix_slice_from_dict(
     row_stop: int,
     col_start: int,
     col_stop: int,
-    field: str
+    field: str,
 ) -> Any:
     from scipy.sparse import coo_matrix
 
@@ -143,7 +139,7 @@ def array_slice_from_dict(
     row_stop: int,
     col_start: int,
     col_stop: int,
-    field: str
+    field: str,
 ) -> np.ndarray:
     mat = spmatrix_slice_from_dict(dct, row_start, row_stop, col_start, col_stop, field)
     return mat.toarray()
@@ -187,9 +183,7 @@ class CSRReader:
         self.bin1_offsets = bin1_offsets
 
     def get_spans(
-        self,
-        bbox: tuple[int, int, int, int],
-        chunksize: int
+        self, bbox: tuple[int, int, int, int], chunksize: int
     ) -> list[tuple[int, int]]:
         # Prune away (downsample) some bin1 offsets so that we extract big
         # enough chunks of matrix rows at a time.
@@ -200,9 +194,7 @@ class CSRReader:
             edges = i0 + arg_prune_partition(self.bin1_offsets[i0 : i1 + 1], chunksize)
         return list(zip(edges[:-1], edges[1:]))
 
-    def get_dict_meta(
-        self, field: str | list[str], return_index: bool = False
-    ) -> dict:
+    def get_dict_meta(self, field: str | list[str], return_index: bool = False) -> dict:
         dct = {
             "bin1_id": np.empty((0,), dtype=self.dtypes["bin1_id"]),
             "bin2_id": np.empty((0,), dtype=self.dtypes["bin2_id"]),
@@ -222,7 +214,7 @@ class CSRReader:
         bbox: tuple[int, int, int, int],
         row_span: tuple[int, int] | None = None,
         reflect: bool = False,
-        return_index: bool = False
+        return_index: bool = False,
     ) -> dict[str, np.ndarray]:
         """
         Materialize a sparse 2D range query as a dict.
@@ -321,6 +313,7 @@ class BaseRangeQuery2D:
     pre-assembled tasks.
 
     """
+
     reader: CSRReader
     bbox: tuple[int, int, int, int]
     field: str | list[str]
@@ -437,7 +430,7 @@ class DirectRangeQuery2D(BaseRangeQuery2D):
         field: str | list[str],
         bbox: tuple[int, int, int, int],
         chunksize: int,
-        return_index: bool = False
+        return_index: bool = False,
     ):
         self.reader = reader
         self.field = field
@@ -501,7 +494,7 @@ class FillLowerRangeQuery2D(BaseRangeQuery2D):
         field: str | list[str],
         bbox: tuple[int, int, int, int],
         chunksize: int,
-        return_index: bool = False
+        return_index: bool = False,
     ):
         self.reader = reader
         self.field = field

@@ -70,7 +70,7 @@ def digest(chromsizes, fasta, enzyme, out, header, rel_ids):
     with output as f:
         if header:
             frags[0:0].to_csv(
-                f, sep="\t", lineterminator='\n', index=False, header=True
+                f, sep="\t", lineterminator="\n", index=False, header=True
             )
-        frags.to_csv(f, sep="\t", lineterminator='\n', index=False, header=False)
+        frags.to_csv(f, sep="\t", lineterminator="\n", index=False, header=False)
         f.flush()

@@ -328,12 +328,19 @@ def test_aggregate_records():
 def test_sanitize_records_chrom_field():
     # chrom_field was ignored: the columns had to be named chrom1 and chrom2
     bins = cooler.binnify(pd.Series({"chr1": 100, "chr2": 50}), 10)
-    records = pd.DataFrame({
-        "contig1": ["chr1", "chr2"], "pos1": [5, 3],
-        "contig2": ["chr2", "chr1"], "pos2": [7, 95],
-    })
+    records = pd.DataFrame(
+        {
+            "contig1": ["chr1", "chr2"],
+            "pos1": [5, 3],
+            "contig2": ["chr2", "chr1"],
+            "pos2": [7, 95],
+        }
+    )
     sanitize = sanitize_records(
-        bins, schema="pairs", chrom_field="contig", sided_fields=("contig", "pos"),
+        bins,
+        schema="pairs",
+        chrom_field="contig",
+        sided_fields=("contig", "pos"),
         decode_chroms=True,
     )
     out = sanitize(records)

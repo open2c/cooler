@@ -1,6 +1,7 @@
 """
 Regression tests for bugs in matrix balancing.
 """
+
 import h5py
 import numpy as np
 import pandas as pd
@@ -94,9 +95,9 @@ def test_ignore_dist(tmp_path):
     parts = []
     for chrom, size in CHROMSIZES.items():
         edges = np.unique(np.r_[0, rng.choice(np.arange(1, size), 9), size])
-        parts.append(pd.DataFrame(
-            {"chrom": chrom, "start": edges[:-1], "end": edges[1:]}
-        ))
+        parts.append(
+            pd.DataFrame({"chrom": chrom, "start": edges[:-1], "end": edges[1:]})
+        )
     vbins = pd.concat(parts, ignore_index=True)
     clr = cooler.Cooler(make_cooler(str(tmp_path / "v.cool"), vbins))
     mat = dense(clr)
@@ -117,9 +118,9 @@ def test_bins_without_data_get_nan(tmp_path):
     path = str(tmp_path / "c.cool")
     rng = np.random.default_rng(0)
     # No contacts on chr3 at all, and none for bin 3 of chr1
-    px = pd.DataFrame({
-        "bin1_id": rng.integers(0, 25, 200), "bin2_id": rng.integers(0, 25, 200)
-    })
+    px = pd.DataFrame(
+        {"bin1_id": rng.integers(0, 25, 200), "bin2_id": rng.integers(0, 25, 200)}
+    )
     px = px[(px.bin1_id != 3) & (px.bin2_id != 3)]
     px[["bin1_id", "bin2_id"]] = np.sort(px[["bin1_id", "bin2_id"]].to_numpy(), 1)
     px = px.groupby(["bin1_id", "bin2_id"]).size().rename("count").reset_index()

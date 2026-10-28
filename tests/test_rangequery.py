@@ -1,4 +1,3 @@
-
 """
 Property-based tests of 2D range queries against dense NumPy references.
 
@@ -6,6 +5,7 @@ Random dense matrices are stored as CSR pixel tables (upper triangle or full
 square), queried with random bounding boxes and chunk sizes, and compared with
 plain NumPy slicing of the dense matrix.
 """
+
 import os.path as op
 import sys
 import tempfile
@@ -29,9 +29,7 @@ MAX_BINS = 25
 def dense_matrices(draw, symmetric):
     n = draw(st.integers(1, MAX_BINS))
     # Mostly zeros, so the pixel tables are sparse
-    mat = draw(
-        arrays(np.int32, (n, n), elements=st.sampled_from([0, 0, 0, 1, 2, 7]))
-    )
+    mat = draw(arrays(np.int32, (n, n), elements=st.sampled_from([0, 0, 0, 1, 2, 7])))
     if symmetric:
         mat = np.triu(mat) + np.triu(mat, 1).T
     return mat
@@ -111,9 +109,7 @@ def test_direct_query_symmetric_upper(data, chunksize):
 
     # Only what is stored: the upper triangle
     i0, i1, j0, j1 = bbox
-    query = core.DirectRangeQuery2D(
-        reader, "count", bbox, chunksize, return_index=True
-    )
+    query = core.DirectRangeQuery2D(reader, "count", bbox, chunksize, return_index=True)
     check_result(query, pixels, np.triu(mat)[i0:i1, j0:j1])
 
 
@@ -126,9 +122,7 @@ def test_direct_query_square(data, chunksize):
     reader = core.CSRReader(pixels, offsets)
 
     i0, i1, j0, j1 = bbox
-    query = core.DirectRangeQuery2D(
-        reader, "count", bbox, chunksize, return_index=True
-    )
+    query = core.DirectRangeQuery2D(reader, "count", bbox, chunksize, return_index=True)
     check_result(query, pixels, mat[i0:i1, j0:j1])
 
 

@@ -59,8 +59,7 @@ def merge(out_path, in_paths, chunksize, field, append):
 
     if len(field):
         field_specifiers = [
-            parse_field_param(arg, includes_colnum=False, aggs=_AGGS)
-            for arg in field
+            parse_field_param(arg, includes_colnum=False, aggs=_AGGS) for arg in field
         ]
         columns, _, dtypes, agg = zip(*field_specifiers)
         dtypes = {col: dt for col, dt in zip(columns, dtypes) if dt is not None}

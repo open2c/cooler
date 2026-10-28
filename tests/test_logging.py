@@ -1,6 +1,7 @@
 """
 Tests for logging in the library and the CLI.
 """
+
 import logging
 import os.path as op
 import warnings

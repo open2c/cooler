@@ -2,6 +2,7 @@
 Tests for the commands that work on files and groups: cp, mv, ln, ls, tree and
 attrs.
 """
+
 import yaml
 from _common import DATA
 
@@ -26,7 +27,9 @@ def test_cp_mv_ln(run_cli, tmp_path):
     run_cli("ln", "-s", f"{test2}::some/path", f"{test2}::soft/link")
     run_cli("ln", "-s", f"{test2}::some/path", f"{tmp_path / 'test3.cool'}::ext/link")
     assert cooler.fileops.list_coolers(test2) == [
-        "/hard/link", "/soft/link", "/some/path"
+        "/hard/link",
+        "/soft/link",
+        "/some/path",
     ]
     assert cooler.fileops.list_coolers(tmp_path / "test3.cool") == ["/ext/link"]
 

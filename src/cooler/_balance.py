@@ -205,9 +205,7 @@ def _balance_genomewide(
     rescale_marginals,
     use_lock,
 ):
-    get_marginals = partial(
-        _marginals, clr, spans, filters, map, use_lock
-    )
+    get_marginals = partial(_marginals, clr, spans, filters, map, use_lock)
     groups = np.zeros(len(bias), dtype=int)
     scale, var = _iterate(
         bias, groups, get_marginals, tol, max_iters, rescale_marginals
@@ -231,9 +229,7 @@ def _balance_cisonly(
     chroms = clr.chroms()["name"][:]
     chrom_offsets = clr._load_dset("indexes/chrom_offset")
     groups = np.repeat(np.arange(len(chroms)), np.diff(chrom_offsets))
-    get_marginals = partial(
-        _marginals, clr, spans, filters, map, use_lock
-    )
+    get_marginals = partial(_marginals, clr, spans, filters, map, use_lock)
     scales, variances = _iterate(
         bias, groups, get_marginals, tol, max_iters, rescale_marginals, chroms
     )

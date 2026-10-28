@@ -1,6 +1,7 @@
 """
 Regression tests for bugs in cooler dump, cooler ls and multi-column queries.
 """
+
 import gzip
 import io
 
@@ -62,7 +63,13 @@ def test_dump_columns(tmp_path):
 
     out = run_dump([path, "-H", "-c", "foo", "--join"])
     assert list(out.columns) == [
-        "chrom1", "start1", "end1", "chrom2", "start2", "end2", "foo"
+        "chrom1",
+        "start1",
+        "end1",
+        "chrom2",
+        "start2",
+        "end2",
+        "foo",
     ]
 
     result = CliRunner().invoke(dump, [path, "-c", "nope"])
@@ -119,9 +126,7 @@ def test_ls_uri(tmp_path):
         assert result.exit_code == 0, result.output
         return [line.split("::")[1] for line in result.output.splitlines()]
 
-    assert listing(mcool) == [
-        "/resolutions/10", "/resolutions/20", "/resolutions/40"
-    ]
+    assert listing(mcool) == ["/resolutions/10", "/resolutions/20", "/resolutions/40"]
     assert listing(mcool + "::resolutions") == listing(mcool)
     assert listing(mcool + "::/resolutions/20") == ["/resolutions/20"]
     assert listing(mcool + "::/resolutions/2") == []  # not a prefix match

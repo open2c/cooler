@@ -2,6 +2,7 @@
 Tests for the commands that create coolers from contacts or pixels: cload
 pairs and load.
 """
+
 import json
 
 import h5py
@@ -18,17 +19,41 @@ CHROMSIZES = DATA / "toy.chrom.sizes"
 
 def cload_pairs(run_cli, out, *args, binsize=2, exit_code=0):
     return run_cli(
-        "cload", "pairs", f"{CHROMSIZES}:{binsize}", DATA / "toy.pairs", out,
-        "-c1", 2, "-p1", 3, "-c2", 4, "-p2", 5,
-        "--assembly", "toy", "--chunksize", 10, *args,
+        "cload",
+        "pairs",
+        f"{CHROMSIZES}:{binsize}",
+        DATA / "toy.pairs",
+        out,
+        "-c1",
+        2,
+        "-p1",
+        3,
+        "-c2",
+        4,
+        "-p2",
+        5,
+        "--assembly",
+        "toy",
+        "--chunksize",
+        10,
+        *args,
         exit_code=exit_code,
     )
 
 
 def load(run_cli, out, matrix_file, format, *args, binsize=2):
     return run_cli(
-        "load", "-f", format, f"{CHROMSIZES}:{binsize}", matrix_file, out,
-        "--assembly", "toy", "--chunksize", 10, *args,
+        "load",
+        "-f",
+        format,
+        f"{CHROMSIZES}:{binsize}",
+        matrix_file,
+        out,
+        "--assembly",
+        "toy",
+        "--chunksize",
+        10,
+        *args,
     )
 
 
@@ -102,9 +127,12 @@ def test_cload_other_options(run_cli, tmp_path):
     (tmp_path / "meta.json").write_text(json.dumps(meta))
     out = tmp_path / "toy.2.cool"
     cload_pairs(
-        run_cli, out,
-        "--metadata", tmp_path / "meta.json",
-        "--storage-options", "shuffle=True,fletcher32=True,compression=lzf",
+        run_cli,
+        out,
+        "--metadata",
+        tmp_path / "meta.json",
+        "--storage-options",
+        "shuffle=True,fletcher32=True,compression=lzf",
     )
     clr = cooler.Cooler(str(out))
     assert clr.info["metadata"] == meta
@@ -147,11 +175,18 @@ def test_load_other_options(run_cli, tmp_path):
     (tmp_path / "meta.json").write_text(json.dumps(meta))
     out = tmp_path / "toy.2.cool"
     load(
-        run_cli, out, DATA / "toy.symm.upper.2.bg2", "bg2",
-        "--metadata", tmp_path / "meta.json",
-        "--field", "bin1_id:dtype=int32",
-        "--field", "count:dtype=float32",
-        "--storage-options", "compression=lzf",
+        run_cli,
+        out,
+        DATA / "toy.symm.upper.2.bg2",
+        "bg2",
+        "--metadata",
+        tmp_path / "meta.json",
+        "--field",
+        "bin1_id:dtype=int32",
+        "--field",
+        "count:dtype=float32",
+        "--storage-options",
+        "compression=lzf",
     )
     clr = cooler.Cooler(str(out))
     assert clr.info["metadata"] == meta
@@ -162,8 +197,12 @@ def test_load_other_options(run_cli, tmp_path):
 
     # The input copy status of a matrix with both triangles
     load(
-        run_cli, out, DATA / "toy.symm.upper.2.bg2", "bg2",
-        "--input-copy-status", "duplex",
+        run_cli,
+        out,
+        DATA / "toy.symm.upper.2.bg2",
+        "bg2",
+        "--input-copy-status",
+        "duplex",
     )
 
 
@@ -171,8 +210,14 @@ def test_load_field_from_count_column(run_cli, tmp_path):
     # A field can read the same column as another, e.g. a float copy of count
     out = tmp_path / "toy.1.cool"
     run_cli(
-        "load", "-f", "coo", "--field", "v=3:dtype=float64",
-        f"{CHROMSIZES}:1", DATA / "toy.symm.upper.1.zb.coo", out,
+        "load",
+        "-f",
+        "coo",
+        "--field",
+        "v=3:dtype=float64",
+        f"{CHROMSIZES}:1",
+        DATA / "toy.symm.upper.1.zb.coo",
+        out,
     )
     pixels = cooler.Cooler(str(out)).pixels()[:]
     assert types.is_float_dtype(pixels.dtypes["v"])
@@ -186,8 +231,19 @@ def test_cload_pairs_options(run_cli, tmp_path):
     # Pairs from stdin
     out = tmp_path / "stdin.cool"
     run_cli(
-        "cload", "pairs", f"{CHROMSIZES}:2", "-", out,
-        "-c1", 2, "-p1", 3, "-c2", 4, "-p2", 5,
+        "cload",
+        "pairs",
+        f"{CHROMSIZES}:2",
+        "-",
+        out,
+        "-c1",
+        2,
+        "-p1",
+        3,
+        "-c2",
+        4,
+        "-p2",
+        5,
         input=(DATA / "toy.pairs").read_text(),
     )
     pd.testing.assert_frame_equal(
@@ -211,10 +267,14 @@ def write_hiclib_pairs(path):
     c1, p1 = records[1].map(chrom_ids), records[2] - 1
     c2, p2 = records[3].map(chrom_ids), records[4] - 1
     flip = (c1 > c2) | ((c1 == c2) & (p1 > p2))
-    df = pd.DataFrame({
-        "chrms1": np.where(flip, c2, c1), "cuts1": np.where(flip, p2, p1),
-        "chrms2": np.where(flip, c1, c2), "cuts2": np.where(flip, p1, p2),
-    }).sort_values(["chrms1", "cuts1"])
+    df = pd.DataFrame(
+        {
+            "chrms1": np.where(flip, c2, c1),
+            "cuts1": np.where(flip, p2, p1),
+            "chrms2": np.where(flip, c1, c2),
+            "cuts2": np.where(flip, p1, p2),
+        }
+    ).sort_values(["chrms1", "cuts1"])
     with h5py.File(path, "w") as f:
         for name in df.columns:
             f[name] = df[name].to_numpy()
@@ -226,8 +286,15 @@ def test_cload_hiclib(run_cli, tmp_path):
     (tmp_path / "meta.json").write_text(json.dumps({"foo": "bar"}))
     out = tmp_path / "hiclib.cool"
     run_cli(
-        "cload", "hiclib", f"{CHROMSIZES}:2", frag, out,
-        "--metadata", tmp_path / "meta.json", "--chunksize", 7,
+        "cload",
+        "hiclib",
+        f"{CHROMSIZES}:2",
+        frag,
+        out,
+        "--metadata",
+        tmp_path / "meta.json",
+        "--chunksize",
+        7,
     )
     expected = tmp_path / "pairs.cool"
     cload_pairs(run_cli, expected)
@@ -242,9 +309,13 @@ def test_cload_tabix_metadata(run_cli, tmp_path):
     (tmp_path / "meta.json").write_text(json.dumps({"foo": "bar"}))
     out = tmp_path / "tabix.cool"
     run_cli(
-        "cload", "tabix", DATA / "hg19.bins.2000kb.bed.gz",
-        DATA / "hg19.GM12878-MboI.pairs.subsample.sorted.txt.gz", out,
-        "--metadata", tmp_path / "meta.json",
+        "cload",
+        "tabix",
+        DATA / "hg19.bins.2000kb.bed.gz",
+        DATA / "hg19.GM12878-MboI.pairs.subsample.sorted.txt.gz",
+        out,
+        "--metadata",
+        tmp_path / "meta.json",
     )
     assert cooler.Cooler(str(out)).info["metadata"] == {"foo": "bar"}
 
@@ -270,14 +341,28 @@ def test_load_more_options(run_cli, tmp_path):
     bg2 = DATA / "toy.symm.upper.2.bg2"
     out = tmp_path / "toy.2.cool"
     run_cli(
-        "load", "-f", "bg2", f"{CHROMSIZES}:2", "-", out,
-        "--storage-options", "chunks=[1]", input=bg2.read_text(),
+        "load",
+        "-f",
+        "bg2",
+        f"{CHROMSIZES}:2",
+        "-",
+        out,
+        "--storage-options",
+        "chunks=[1]",
+        input=bg2.read_text(),
     )
     assert_pixels_match_bg2(out, bg2)
     with h5py.File(out, "r") as f:
         assert f["pixels/count"].chunks == (1,)
     # A value field needs a field number
     run_cli(
-        "load", "-f", "bg2", f"{CHROMSIZES}:2", bg2, out, "--field", "score",
+        "load",
+        "-f",
+        "bg2",
+        f"{CHROMSIZES}:2",
+        bg2,
+        out,
+        "--field",
+        "score",
         exit_code=2,
     )

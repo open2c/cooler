@@ -78,7 +78,7 @@ class RangeSelector1D(_IndexingMixin):
         fields: str | list[str] | None,
         slicer: Callable[[ColumnsArg, int, int], Any],
         fetcher: Callable[[GenomicRangeArg], tuple[int, int]],
-        nmax: int
+        nmax: int,
     ):
         self.fields = fields
         self._slice = slicer
@@ -113,16 +113,13 @@ class RangeSelector1D(_IndexingMixin):
         return key in self.columns
 
     @overload
-    def __getitem__(self, key: str | list[str]) -> RangeSelector1D:
-        ...
+    def __getitem__(self, key: str | list[str]) -> RangeSelector1D: ...
 
     @overload
-    def __getitem__(self, key: int | slice) -> pd.DataFrame | pd.Series:
-        ...
+    def __getitem__(self, key: int | slice) -> pd.DataFrame | pd.Series: ...
 
     def __getitem__(
-        self,
-        key: str | list[str] | int | slice
+        self, key: str | list[str] | int | slice
     ) -> RangeSelector1D | pd.DataFrame | pd.Series:
         # requesting a subset of columns
         if isinstance(key, str):

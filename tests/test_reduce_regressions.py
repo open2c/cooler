@@ -1,6 +1,7 @@
 """
 Regression tests for bugs in coarsening, zoomifying and merging.
 """
+
 import h5py
 import numpy as np
 import pandas as pd
@@ -118,7 +119,10 @@ def test_zoomify_multiple_base_coolers(tmp_path):
     out = str(tmp_path / "z.mcool")
     zoomify_cooler([b10, b30], out, [10, 20, 30, 60], chunksize=50)
     assert cooler.fileops.list_coolers(out) == [
-        "/resolutions/10", "/resolutions/20", "/resolutions/30", "/resolutions/60"
+        "/resolutions/10",
+        "/resolutions/20",
+        "/resolutions/30",
+        "/resolutions/60",
     ]
     # Both bases are kept, and 60 is coarsened from the 30 base
     c30 = cooler.Cooler(b30)
@@ -146,9 +150,16 @@ def test_zoomify_cli_binary_resolutions_and_balance(tmp_path):
     out = str(tmp_path / "z.mcool")
     result = CliRunner().invoke(
         zoomify_cli,
-        [src, "-r", "20,40", "--balance",
-         "--balance-args", "--name ice --ignore-diags 0 --mad-max 0 --min-nnz 0",
-         "-o", out],
+        [
+            src,
+            "-r",
+            "20,40",
+            "--balance",
+            "--balance-args",
+            "--name ice --ignore-diags 0 --mad-max 0 --min-nnz 0",
+            "-o",
+            out,
+        ],
     )
     assert result.exit_code == 0, result.output
     levels = cooler.fileops.list_coolers(out)
@@ -181,9 +192,7 @@ def test_merger_closes_files(tmp_path):
     total = sum(chunk["count"].sum() for chunk in merger)
     after = h5py.h5f.get_obj_count(h5py.h5f.OBJ_ALL, h5py.h5f.OBJ_FILE)
     assert after == before
-    assert total == (
-        cooler.Cooler(a).info["sum"] + cooler.Cooler(b).info["sum"]
-    )
+    assert total == (cooler.Cooler(a).info["sum"] + cooler.Cooler(b).info["sum"])
 
 
 def test_merge_keeps_callers_dtypes(tmp_path):

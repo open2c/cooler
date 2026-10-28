@@ -28,6 +28,7 @@ CLI usage
 ---------
 The CLI sets up a stderr handler for the duration of each command.
 """
+
 from __future__ import annotations
 
 import logging

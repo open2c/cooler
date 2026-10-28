@@ -30,9 +30,7 @@ def invoke_balance(args, resolutions, outfile):
 
     for res in resolutions:
         uri = outfile + "::resolutions/" + str(res)
-        ctx = balance_cmd.make_context(
-            "balance", [uri, *args], resilient_parsing=True
-        )
+        ctx = balance_cmd.make_context("balance", [uri, *args], resilient_parsing=True)
         name = ctx.params.get("name") or "weight"
         if name in api.Cooler(uri).bins() and not ctx.params.get("force"):
             continue
@@ -200,8 +198,7 @@ def zoomify(
 
     if len(field):
         field_specifiers = [
-            parse_field_param(arg, includes_colnum=False, aggs=_AGGS)
-            for arg in field
+            parse_field_param(arg, includes_colnum=False, aggs=_AGGS) for arg in field
         ]
         columns, _, dtypes, agg = zip(*field_specifiers)
         columns = list(columns)

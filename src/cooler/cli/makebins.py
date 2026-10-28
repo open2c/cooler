@@ -52,8 +52,6 @@ def makebins(chromsizes, binsize, out, header, rel_ids):
     output = open(out, "w") if out else contextlib.nullcontext(sys.stdout)
     with output as f:
         if header:
-            bins[0:0].to_csv(
-                f, sep="\t", lineterminator='\n', index=False, header=True
-            )
-        bins.to_csv(f, sep="\t", lineterminator='\n', index=False, header=False)
+            bins[0:0].to_csv(f, sep="\t", lineterminator="\n", index=False, header=True)
+        bins.to_csv(f, sep="\t", lineterminator="\n", index=False, header=False)
         f.flush()

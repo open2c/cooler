@@ -1,6 +1,7 @@
 """
 Regression tests for bugs in cooler creation and ingestion.
 """
+
 import os.path as op
 import warnings
 import zipfile
@@ -30,9 +31,18 @@ def run_cload_pairs(chromsizes_file, pairs_file, out, *args):
     result = CliRunner().invoke(
         cload_pairs,
         [
-            "-c1", "2", "-p1", "3", "-c2", "4", "-p2", "5",
+            "-c1",
+            "2",
+            "-p1",
+            "3",
+            "-c2",
+            "4",
+            "-p2",
+            "5",
             *args,
-            chromsizes_file + ":10", pairs_file, out,
+            chromsizes_file + ":10",
+            pairs_file,
+            out,
         ],
     )
     return result
@@ -81,8 +91,16 @@ def write_value_pairs(path, n=500, seed=1):
     p1, p2 = np.minimum(p1, p2), np.maximum(p1, p2)
     v = rng.integers(1, 10, n)
     df = pd.DataFrame(
-        {"id": [f"r{i}" for i in range(n)], "c1": "chr1", "p1": p1, "c2": "chr1",
-         "p2": p2, "s1": "+", "s2": "+", "v": v}
+        {
+            "id": [f"r{i}" for i in range(n)],
+            "c1": "chr1",
+            "p1": p1,
+            "c2": "chr1",
+            "p2": p2,
+            "s1": "+",
+            "s2": "+",
+            "v": v,
+        }
     )
     df.to_csv(path, sep="\t", header=False, index=False)
     return df
@@ -96,9 +114,15 @@ def test_cload_pairs_aggregation_across_chunks(tmp_path, chromsizes_file, func):
     for chunksize in [50, 100_000]:
         out = str(tmp_path / f"v{chunksize}.cool")
         result = run_cload_pairs(
-            chromsizes_file, pairs, out,
-            "--field", f"v=8:agg={func}", "--chunksize", str(chunksize),
-            "--mergebuf", "100000",
+            chromsizes_file,
+            pairs,
+            out,
+            "--field",
+            f"v=8:agg={func}",
+            "--chunksize",
+            str(chunksize),
+            "--mergebuf",
+            "100000",
         )
         assert result.exit_code == 0, result.output
         results[chunksize] = cooler.Cooler(out).pixels()[:]
@@ -119,10 +143,19 @@ def test_cload_pairs_summary_statistics(tmp_path, chromsizes_file):
     for chunksize in [50, 100_000]:
         out = str(tmp_path / f"m{chunksize}.cool")
         result = run_cload_pairs(
-            chromsizes_file, pairs, out,
-            "--field", "v=8", "--field", "n=8:agg=count,dtype=int64",
-            "--field", "v2=8:agg=sum_squares",
-            "--chunksize", str(chunksize), "--mergebuf", "100000",
+            chromsizes_file,
+            pairs,
+            out,
+            "--field",
+            "v=8",
+            "--field",
+            "n=8:agg=count,dtype=int64",
+            "--field",
+            "v2=8:agg=sum_squares",
+            "--chunksize",
+            str(chunksize),
+            "--mergebuf",
+            "100000",
         )
         assert result.exit_code == 0, result.output
         results[chunksize] = cooler.Cooler(out).pixels()[:]
@@ -145,8 +178,11 @@ def test_cload_pairs_unsupported_aggregation(tmp_path, chromsizes_file, func):
     pairs = str(tmp_path / "v.pairs")
     write_value_pairs(pairs)
     result = run_cload_pairs(
-        chromsizes_file, pairs, str(tmp_path / "out.cool"),
-        "--field", f"v=8:agg={func}",
+        chromsizes_file,
+        pairs,
+        str(tmp_path / "out.cool"),
+        "--field",
+        f"v=8:agg={func}",
     )
     assert result.exit_code == 2
     assert "Unsupported aggregation" in result.output
@@ -184,8 +220,11 @@ def test_create_unordered_unsorted_chunks(tmp_path, max_merge):
 def test_create_unordered_empty_input(tmp_path):
     bins = cooler.util.binnify(pd.Series({"chr1": 100}), 10)
     empty = pd.DataFrame(
-        {"bin1_id": np.array([], int), "bin2_id": np.array([], int),
-         "count": np.array([], int)}
+        {
+            "bin1_id": np.array([], int),
+            "bin2_id": np.array([], int),
+            "count": np.array([], int),
+        }
     )
     for i, chunks in enumerate([[], [empty, empty]]):
         out = str(tmp_path / f"e{i}.cool")
@@ -221,9 +260,7 @@ def test_cload_pairs_comment_char(tmp_path, chromsizes_file):
     pairs = tmp_path / "c.pairs"
     pairs.write_text("@HD header\n@PG other\nr1\tchr1\t10\tchr1\t50\n")
     out = str(tmp_path / "c.cool")
-    result = run_cload_pairs(
-        chromsizes_file, str(pairs), out, "--comment-char", "@"
-    )
+    result = run_cload_pairs(chromsizes_file, str(pairs), out, "--comment-char", "@")
     assert result.exit_code == 0, result.output
     assert cooler.Cooler(out).info["sum"] == 1
 
@@ -271,8 +308,9 @@ def test_create_scool_sorts_and_names(tmp_path):
     path = str(tmp_path / "s.scool")
     cooler.create_scool(path, bins, {"cellA": shuffled})
     clr = cooler.Cooler(path + "::/cells/cellA")
-    pd.testing.assert_frame_equal(clr.pixels()[:], df.reset_index(drop=True),
-                                  check_dtype=False)
+    pd.testing.assert_frame_equal(
+        clr.pixels()[:], df.reset_index(drop=True), check_dtype=False
+    )
 
     # Names stored under the same basename are rejected before writing
     path = str(tmp_path / "d.scool")
@@ -309,13 +347,24 @@ def test_field_order_does_not_swap_columns(tmp_path, chromsizes_file):
     out = str(tmp_path / "f.cool")
     result = CliRunner().invoke(
         load,
-        ["-f", "coo", "--field", "y=5", "--field", "x=4",
-         chromsizes_file + ":10", str(coo), out],
+        [
+            "-f",
+            "coo",
+            "--field",
+            "y=5",
+            "--field",
+            "x=4",
+            chromsizes_file + ":10",
+            str(coo),
+            out,
+        ],
     )
     assert result.exit_code == 0, result.output
     px = cooler.Cooler(out).pixels()[:]
     assert (px["count"].tolist(), px["x"].tolist(), px["y"].tolist()) == (
-        [5], [0.5], [9.0]
+        [5],
+        [0.5],
+        [9.0],
     )
 
 
@@ -340,8 +389,15 @@ def test_cload_tabix_rejects_out_of_range_positions(tmp_path, chromsizes_file):
         pysam.tabix_index(gz, seq_col=1, start_col=2, end_col=2, force=True)
         return CliRunner().invoke(
             cload_tabix,
-            ["-c2", "4", "-p2", "5", chromsizes_file + ":10", gz,
-             str(tmp_path / "t.cool")],
+            [
+                "-c2",
+                "4",
+                "-p2",
+                "5",
+                chromsizes_file + ":10",
+                gz,
+                str(tmp_path / "t.cool"),
+            ],
         )
 
     result = run(["r1\tchr1\t10\tchr1\t100\n"])  # last base of chr1
@@ -358,8 +414,12 @@ def test_create_unordered_unsupported_aggregation(tmp_path, func):
     px = pd.DataFrame({"bin1_id": [0], "bin2_id": [1], "count": [1], "v": [2.0]})
     with pytest.raises(ValueError, match=f"Unsupported aggregation '{func}'"):
         cooler.create_cooler(
-            str(tmp_path / "m.cool"), bins, iter([px]), columns=["count", "v"],
-            ordered=False, agg={"v": func},
+            str(tmp_path / "m.cool"),
+            bins,
+            iter([px]),
+            columns=["count", "v"],
+            ordered=False,
+            agg={"v": func},
         )
 
 
@@ -381,8 +441,17 @@ def test_load_rejects_duplicates_across_chunks(tmp_path, chromsizes_file, chunks
     out = tmp_path / "d.cool"
     result = CliRunner().invoke(
         load,
-        ["-f", "coo", "--chunksize", chunksize, "--mergebuf", "100",
-         chromsizes_file + ":10", str(coo), str(out)],
+        [
+            "-f",
+            "coo",
+            "--chunksize",
+            chunksize,
+            "--mergebuf",
+            "100",
+            chromsizes_file + ":10",
+            str(coo),
+            str(out),
+        ],
     )
     assert result.exit_code != 0
     assert "duplicate pixel (0, 1)" in str(result.exception)
@@ -402,7 +471,10 @@ def test_unordered_duplicates_option(tmp_path):
     for chunks in [[a], [a.iloc[:1], b]]:
         with pytest.raises(cooler.create.BadInputError, match="duplicate"):
             cooler.create_cooler(
-                str(tmp_path / "e.cool"), bins, iter(chunks), ordered=False,
+                str(tmp_path / "e.cool"),
+                bins,
+                iter(chunks),
+                ordered=False,
                 duplicates="error",
             )
 
@@ -425,9 +497,7 @@ def test_square_storage_does_not_warn(tmp_path):
     px = pd.DataFrame({"bin1_id": [3], "bin2_id": [1], "count": [1]})
     with warnings.catch_warnings():
         warnings.filterwarnings("error", message=".*triucheck.*")
-        cooler.create_cooler(
-            str(tmp_path / "s.cool"), bins, px, symmetric_upper=False
-        )
+        cooler.create_cooler(str(tmp_path / "s.cool"), bins, px, symmetric_upper=False)
 
 
 def test_skipped_chromosomes_are_reported_once(tmp_path, chromsizes_file):

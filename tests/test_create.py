@@ -243,7 +243,10 @@ def test_write():
     with tempfile.TemporaryDirectory() as tmp:
         path = op.join(tmp, "test.cool")
         with cooler.create._writer._CoolerWriter(
-            path, bins, columns=["count", "foo"], dtypes={"foo": float},
+            path,
+            bins,
+            columns=["count", "foo"],
+            dtypes={"foo": float},
             h5opts=h5opts,
         ) as writer:
             writer.write(pixels.assign(foo=42.0))

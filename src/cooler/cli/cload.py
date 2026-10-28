@@ -249,7 +249,6 @@ def tabix(
         logger.info(f"Using {nproc} cores")
         map_func = pool.imap
     try:
-
         opts = {}
         if "chrom2" in kwargs:
             opts["C2"] = kwargs["chrom2"] - 1
@@ -311,8 +310,7 @@ def tabix(
 )
 @click.option(
     "--block-char",
-    help="Character separating contig names in the block names of the pairix "
-    "index.",
+    help="Character separating contig names in the block names of the pairix index.",
     type=str,
     default="|",
     show_default=True,
@@ -351,7 +349,6 @@ def pairix(
         logger.info(f"Using {nproc} cores")
         map_func = pool.imap
     try:
-
         iterator = PairixAggregator(
             pairs_path,
             chromsizes,
@@ -661,9 +658,7 @@ def pairs(
             sort=True,
             validate=True,
         )
-        aggregate = aggregate_records(
-            agg=aggregations, count=True, sort=False
-        )
+        aggregate = aggregate_records(agg=aggregations, count=True, sort=False)
         pipeline = compose(aggregate, sanitize)
         if copies or squared:
             pipeline = compose(pipeline, partial(_prepare_fields, copies, squared))

@@ -157,8 +157,7 @@ def parse_region_string(s: str) -> tuple[str, int | None, int | None]:
 
 
 def parse_region(
-    reg: GenomicRangeSpecifier,
-    chromsizes: dict | pd.Series | None = None
+    reg: GenomicRangeSpecifier, chromsizes: dict | pd.Series | None = None
 ) -> GenomicRangeTuple:
     """
     Genomic regions are represented as zero-based, half-open intervals
@@ -480,8 +479,7 @@ def asarray_or_dataset(x: Any) -> np.ndarray | h5py.Dataset:
 
 
 def rlencode(
-    array: np.ndarray,
-    chunksize: int | None = None
+    array: np.ndarray, chunksize: int | None = None
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     Run length encoding.
@@ -570,10 +568,7 @@ def mad(data: np.ndarray, axis: int | None = None) -> np.ndarray:
 
 @contextmanager
 def open_hdf5(
-    fp: str | h5py.Group,
-    mode: str = "r",
-    *args,
-    **kwargs
+    fp: str | h5py.Group, mode: str = "r", *args, **kwargs
 ) -> Generator[h5py.Group, None, None]:
     """
     Context manager like ``h5py.File`` but accepts already open HDF5 file
@@ -708,7 +703,7 @@ def infer_meta(x, index=None):  # pragma: no cover
             dtype = x.dtype if hasattr(x, "dtype") else np.dtype(type(x))
             return _scalar_from_dtype(dtype)
         else:
-            raise TypeError("Can't handle meta of type " f"'{type(x).__name__}'")
+            raise TypeError(f"Can't handle meta of type '{type(x).__name__}'")
 
     def _empty_series(name, dtype, index=None):
         if isinstance(dtype, str) and dtype == "category":
@@ -733,9 +728,7 @@ def infer_meta(x, index=None):  # pragma: no cover
         return _empty_series(x[0], x[1], index=index)
     elif isinstance(x, (list, tuple)):
         if not all(isinstance(i, tuple) and len(i) == 2 for i in x):
-            raise ValueError(
-                "Expected iterable of tuples of (name, dtype), " f"got {x}"
-            )
+            raise ValueError(f"Expected iterable of tuples of (name, dtype), got {x}")
         return pd.DataFrame(
             {c: _empty_series(c, d, index=index) for (c, d) in x},
             columns=[c for c, d in x],
@@ -818,7 +811,7 @@ def balanced_partition(
     gs: GenomeSegmentation,
     n_chunk_max: int,
     file_contigs: list[str],
-    loadings: list[int | float] | None = None
+    loadings: list[int | float] | None = None,
 ) -> list[GenomicRangeTuple]:
     # n_bins = len(gs.bins)
     grouped = gs._bins_grouped
@@ -873,8 +866,7 @@ class GenomeSegmentation:
 
 
 def buffered(
-    chunks: Iterable[pd.DataFrame],
-    size: int = 10000000
+    chunks: Iterable[pd.DataFrame], size: int = 10000000
 ) -> Iterator[pd.DataFrame]:
     """
     Take an incoming iterator of small data frame chunks and buffer them into

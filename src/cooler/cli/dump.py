@@ -260,7 +260,7 @@ def dump(
                     chunk[0:0].to_csv(
                         f,
                         sep="\t",
-                        lineterminator='\n',
+                        lineterminator="\n",
                         index=False,
                         header=True,
                         float_format=float_format,
@@ -271,7 +271,7 @@ def dump(
             chunk.to_csv(
                 f,
                 sep="\t",
-                lineterminator='\n',
+                lineterminator="\n",
                 index=False,
                 header=False,
                 float_format=float_format,

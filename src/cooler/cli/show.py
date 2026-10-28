@@ -83,8 +83,7 @@ def interactive(
                 txt = plt.text(
                     0.5,
                     0.5,
-                    "The requested region is too large\n"
-                    "to display at this resolution.",
+                    "The requested region is too large\nto display at this resolution.",
                     horizontalalignment="center",
                     verticalalignment="center",
                     transform=ax.transAxes,

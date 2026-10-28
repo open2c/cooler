@@ -28,9 +28,9 @@ logger = get_logger("cooler.reduce")
 
 HIGLASS_TILE_DIM = 256
 
+
 def merge_breakpoints(
-    indexes: list[np.ndarray | h5py.Dataset],
-    bufsize: int
+    indexes: list[np.ndarray | h5py.Dataset], bufsize: int
 ) -> tuple[np.ndarray, np.ndarray]:
     """
     Given ``k`` bin1_offset indexes, determine how to partition the data from
@@ -120,7 +120,7 @@ class CoolerMerger(ContactBinner):
         coolers: list[Cooler],
         mergebuf: int,
         columns: list[str] | None = None,
-        agg: dict[str, Any] | None = None
+        agg: dict[str, Any] | None = None,
     ):
         self.coolers = list(coolers)
         self.mergebuf = mergebuf
@@ -210,7 +210,7 @@ def merge_coolers(
     columns: list[str] | None = None,
     dtypes: dict[str, Any] | None = None,
     agg: dict[str, Any] | None = None,
-    **kwargs
+    **kwargs,
 ) -> None:
     """
     Merge multiple coolers with identical axes.
@@ -275,8 +275,7 @@ def merge_coolers(
         for col in columns:
             if col not in pixel_dtypes:
                 raise ValueError(
-                    f"Pixel value column '{col}' not found in "
-                    f"input '{clr.filename}'."
+                    f"Pixel value column '{col}' not found in input '{clr.filename}'."
                 )
             else:
                 dtype_map[col].append(pixel_dtypes[col])
@@ -350,9 +349,7 @@ def niceprog(start: int) -> Iterator[int]:
 
 
 def preferred_sequence(
-    start: int,
-    stop: int,
-    style: Literal["binary", "nice"] = "nice"
+    start: int, stop: int, style: Literal["binary", "nice"] = "nice"
 ) -> list[int]:
     """
     Return a sequence of integers with a "preferred" stepping pattern.
@@ -411,8 +408,7 @@ def preferred_sequence(
 
 
 def get_multiplier_sequence(
-    resolutions: list[int],
-    bases: list[int] | None = None
+    resolutions: list[int], bases: list[int] | None = None
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     From a set of target resolutions and one or more base resolutions
@@ -543,8 +539,7 @@ class CoolerCoarsener(ContactBinner):
             return out
 
         return (
-            old_bins
-            .groupby("chrom", observed=True)[["chrom", "start", "end"]]
+            old_bins.groupby("chrom", observed=True)[["chrom", "start", "end"]]
             .apply(_each)
             .reset_index(drop=True)
         )
@@ -674,7 +669,7 @@ def coarsen_cooler(
     for col in columns:
         if col not in input_dtypes:
             raise ValueError(
-                f"Pixel value column '{col}' not found in " f"input '{clr.filename}'."
+                f"Pixel value column '{col}' not found in input '{clr.filename}'."
             )
         else:
             dtypes.setdefault(col, input_dtypes[col])

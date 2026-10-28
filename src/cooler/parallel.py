@@ -3,6 +3,7 @@ Experimental API for developing split-apply-combine style algorithms on
 coolers.
 
 """
+
 from __future__ import annotations
 
 import builtins
@@ -220,10 +221,7 @@ class MultiplexDataPipe:
         return self
 
     def pipe(
-        self,
-        func: Callable[[Any], Any] | Callable[[Any, Any], Any],
-        *args,
-        **kwargs
+        self, func: Callable[[Any], Any] | Callable[[Any, Any], Any], *args, **kwargs
     ) -> MultiplexDataPipe:
         """
         Append new task(s) to the pipeline
@@ -261,10 +259,7 @@ class MultiplexDataPipe:
         return self.map(pipeline, self.keys)
 
     def gather(
-        self,
-        combine: Callable[[Iterable], Sequence] = list,
-        *args,
-        **kwargs
+        self, combine: Callable[[Iterable], Sequence] = list, *args, **kwargs
     ) -> Sequence[Any]:
         """
         Run the pipeline and gather outputs
@@ -341,12 +336,8 @@ def split(
     map: MapFunctor = map,
     chunksize: int = 10_000_000,
     spans: Iterable[tuple[int, int]] | None = None,
-    **kwargs
+    **kwargs,
 ) -> MultiplexDataPipe:
     if spans is None:
         spans = partition(0, int(clr.info["nnz"]), chunksize)
-    return MultiplexDataPipe(
-        get=chunkgetter(clr, **kwargs),
-        keys=spans,
-        map=map
-    )
+    return MultiplexDataPipe(get=chunkgetter(clr, **kwargs), keys=spans, map=map)

@@ -15,8 +15,7 @@ def get(
     fields: str | list[str] | None,
     convert_enum: bool,
     as_dict: Literal[True],
-) -> dict[str, np.ndarray]:
-    ...
+) -> dict[str, np.ndarray]: ...
 
 
 @overload
@@ -27,8 +26,7 @@ def get(
     fields: list[str] | None,
     convert_enum: bool,
     as_dict: Literal[False],
-) -> pd.DataFrame:
-    ...
+) -> pd.DataFrame: ...
 
 
 @overload
@@ -39,8 +37,7 @@ def get(
     fields: str,
     convert_enum: bool,
     as_dict: Literal[False],
-) -> pd.Series:
-    ...
+) -> pd.Series: ...
 
 
 def get(
@@ -49,7 +46,7 @@ def get(
     hi: int | None = None,
     fields: str | list[str] | None = None,
     convert_enum: bool = True,
-    as_dict: bool = False
+    as_dict: bool = False,
 ) -> pd.DataFrame | pd.Series | dict[str, np.ndarray]:
     """
     Query a range of rows from a table as a dataframe.
@@ -129,7 +126,7 @@ def put(
     df: pd.DataFrame | pd.Series,
     lo: int = 0,
     store_categories: bool = True,
-    h5opts: dict | None = None
+    h5opts: dict | None = None,
 ) -> None:
     """
     Store a dataframe into a column-oriented table store.

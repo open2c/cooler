@@ -66,6 +66,7 @@ def _value_aggs(columns: list[str], agg: dict[str, Any] | None) -> dict[str, Any
         result.update(agg)
     return result
 
+
 def _set_h5opts(h5opts: dict[str, Any]) -> dict[str, Any]:
     result = {}
     if h5opts is not None:
@@ -88,6 +89,7 @@ def _set_h5opts(h5opts: dict[str, Any]) -> dict[str, Any]:
         result["compression_opts"] = 6
     result.setdefault("shuffle", True)
     return result
+
 
 # Storage options that only apply to numeric datasets
 _NUMERIC_H5OPTS = {"scaleoffset", "fillvalue"}
@@ -148,6 +150,7 @@ def write_chroms(grp: h5py.Group, chroms: pd.DataFrame, h5opts: dict) -> None:
         columns.remove(col)
     if columns:
         put(grp, chroms[columns])
+
 
 def write_bins(
     grp: h5py.Group,
@@ -219,6 +222,7 @@ def write_bins(
     if columns:
         put(grp, bins[columns])
 
+
 def prepare_pixels(
     grp: h5py.Group,
     n_bins: int,
@@ -269,6 +273,7 @@ def prepare_pixels(
                 **h5opts,
             )
 
+
 def _check_fits_dtype(col: str, values: np.ndarray, dtype: np.dtype) -> None:
     """Raise if integer values would be clipped when stored as ``dtype``."""
     dtype = np.dtype(dtype)
@@ -285,6 +290,7 @@ def _check_fits_dtype(col: str, values: np.ndarray, dtype: np.dtype) -> None:
             f"or --field {col}:dtype=int64 on the command line."
         )
 
+
 def index_pixels(grp: h5py.Group, n_bins: int, nnz: int) -> np.ndarray:
     bin1 = grp["bin1_id"]
     bin1_offset = np.zeros(n_bins + 1, dtype=BIN1OFFSET_DTYPE)
@@ -294,6 +300,7 @@ def index_pixels(grp: h5py.Group, n_bins: int, nnz: int) -> np.ndarray:
         curr_val = value + 1
     bin1_offset[curr_val:] = nnz
     return bin1_offset
+
 
 def index_bins(grp: h5py.Group, n_chroms: int, n_bins: int) -> np.ndarray:
     chrom_ids = grp["chrom"]
@@ -305,11 +312,9 @@ def index_bins(grp: h5py.Group, n_chroms: int, n_bins: int) -> np.ndarray:
     chrom_offset[curr_val:] = n_bins
     return chrom_offset
 
+
 def write_indexes(
-    grp: h5py.Group,
-    chrom_offset: np.ndarray,
-    bin1_offset: np.ndarray,
-    h5opts: dict
+    grp: h5py.Group, chrom_offset: np.ndarray, bin1_offset: np.ndarray, h5opts: dict
 ) -> None:
     """
     Write the indexes.
@@ -340,6 +345,7 @@ def write_indexes(
         data=bin1_offset,
         **h5opts,
     )
+
 
 def write_info(grp: h5py.Group, info: dict, scool: bool = False) -> None:
     """
@@ -376,6 +382,7 @@ def write_info(grp: h5py.Group, info: dict, scool: bool = False) -> None:
         info["format-version"] = __format_version__
     info["format-url"] = URL
     grp.attrs.update(info)
+
 
 def _same_chroms_and_bins(
     grp: h5py.Group, chroms: pd.DataFrame, bins: pd.DataFrame
@@ -617,7 +624,9 @@ class _CoolerWriter:
             if link_tables_from is None:
                 write_chroms(grp.create_group("chroms"), self.chroms, self.h5opts)
                 write_bins(
-                    grp.create_group("bins"), self.bins, self.chroms["name"],
+                    grp.create_group("bins"),
+                    self.bins,
+                    self.chroms["name"],
                     self.h5opts,
                 )
             else:
@@ -627,8 +636,12 @@ class _CoolerWriter:
             else:
                 max_size = self.n_bins * self.n_bins
             prepare_pixels(
-                grp.create_group("pixels"), self.n_bins, max_size, self.columns,
-                self.dtypes, self.h5opts,
+                grp.create_group("pixels"),
+                self.n_bins,
+                max_size,
+                self.columns,
+                self.dtypes,
+                self.h5opts,
             )
 
         if lock is None:
@@ -751,7 +764,9 @@ class _CoolerWriter:
                 chrom_offset = index_bins(grp["bins"], len(self.chroms), self.n_bins)
                 bin1_offset = index_pixels(grp["pixels"], self.n_bins, self.nnz)
                 write_indexes(
-                    grp.create_group("indexes"), chrom_offset, bin1_offset,
+                    grp.create_group("indexes"),
+                    chrom_offset,
+                    bin1_offset,
                     self.h5opts,
                 )
                 write_info(grp, self._info())
@@ -896,7 +911,10 @@ class _UnorderedCoolerWriter:
         self.duplicates = duplicates
 
         allowed = set(inspect.signature(_CoolerWriter).parameters) - {
-            "cool_uri", "bins", "columns", "dtypes"
+            "cool_uri",
+            "bins",
+            "columns",
+            "dtypes",
         }
         unknown = sorted(set(kwargs) - allowed)
         if unknown:
@@ -1026,8 +1044,12 @@ class _UnorderedCoolerWriter:
                     uri = f"{tf2.name}::{lo}-{hi}"
                     logger.info(f"Merging chunks {lo}-{hi}: {uri}")
                     with _CoolerWriter(
-                        uri, self.bins, columns=self.run_columns,
-                        dtypes=self.run_dtypes, mode="a", **self.run_kwargs,
+                        uri,
+                        self.bins,
+                        columns=self.run_columns,
+                        dtypes=self.run_dtypes,
+                        mode="a",
+                        **self.run_kwargs,
                     ) as w:
                         for chunk in self._merged(runs[lo:hi]):
                             w.write(chunk)
@@ -1170,7 +1192,9 @@ class _ScoolWriter:
                     del root[name]
             write_chroms(root.create_group("chroms"), self.chroms, self.h5opts)
             write_bins(
-                root.create_group("bins"), self.bins, self.chroms["name"],
+                root.create_group("bins"),
+                self.bins,
+                self.chroms["name"],
                 self.h5opts,
             )
 
@@ -1394,8 +1418,7 @@ class _ColumnWriter:
                 # Tracking attribute order gives the dataset a newer object
                 # header that can hold attributes larger than 64 KiB (#226)
                 dset = tmp.create_dataset(
-                    col, shape=(self.nrows,), dtype=dtype, track_order=True,
-                    **h5opts
+                    col, shape=(self.nrows,), dtype=dtype, track_order=True, **h5opts
                 )
                 dset.attrs.update(self.attrs.get(col, {}))
 
