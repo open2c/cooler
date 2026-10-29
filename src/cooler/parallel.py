@@ -12,7 +12,7 @@ from collections.abc import Iterable, Iterator, Sequence
 from concurrent.futures import FIRST_COMPLETED, Future, ProcessPoolExecutor, wait
 from concurrent.futures.process import BrokenProcessPool
 from functools import partial, reduce
-from multiprocessing import Lock
+from multiprocessing import Lock, get_start_method
 from typing import Any, Callable
 
 from ._typing import MapFunctor
@@ -80,6 +80,23 @@ class WorkerDiedError(RuntimeError):
     """A worker process exited without finishing its task."""
 
 
+class WorkerStartError(WorkerDiedError):
+    """The worker processes exited before running any task."""
+
+
+def _start_error_message() -> str:
+    msg = "Worker processes failed to start; see their error output above."
+    method = get_start_method()
+    if method in ("spawn", "forkserver"):
+        # Each worker imports the main script, and an unguarded script starts
+        # another pool from inside the worker
+        msg += (
+            f" With the '{method}' start method, a script that runs cooler with "
+            'several processes must start them inside `if __name__ == "__main__":`.'
+        )
+    return msg
+
+
 def _init_worker(lock: Any) -> None:  # pragma: no cover (runs in workers)
     # Workers started with spawn or forkserver don't inherit the parent's lock
     global _lock
@@ -112,7 +129,12 @@ class _ProcessPool:
             nproc, initializer=_init_worker, initargs=(get_lock(),)
         )
         try:
-            self._result(self._executor.submit(_noop))
+            self._executor.submit(_noop).result()
+        except BrokenProcessPool as e:
+            # Not out of memory: a worker that fails before running anything
+            # couldn't start, e.g. it failed to import the main script
+            self._executor.shutdown(wait=True)
+            raise WorkerStartError(_start_error_message()) from e
         except BaseException:
             self._executor.shutdown(wait=False, cancel_futures=True)
             raise
