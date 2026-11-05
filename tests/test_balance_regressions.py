@@ -9,7 +9,7 @@ import pytest
 from click.testing import CliRunner
 
 import cooler
-from cooler._balance import ConvergenceWarning, balance_cooler
+from cooler._balance import ConvergenceWarning, _iterate, balance_cooler
 from cooler.cli.balance import balance as balance_cli
 
 CHROMSIZES = pd.Series({"chr1": 300, "chr2": 200, "chr3": 100})
@@ -35,13 +35,13 @@ def dense(clr):
     return clr.matrix(balance=False)[:].astype(float)
 
 
-def dense_balance(mat, tol=1e-14, max_iters=10_000):
+def dense_balance(mat, tol=1e-13, max_iters=10_000):
     """Reference: balance a dense symmetric matrix, dropping empty bins."""
     bias = (mat.sum(axis=0) > 0).astype(float)
     for _ in range(max_iters):
         marg = (bias[:, None] * mat * bias[None, :]).sum(axis=0)
         nz = marg != 0
-        if marg[nz].var() / marg[nz].mean() ** 2 < tol:
+        if np.abs(marg[nz] / marg[nz].mean() - 1).max() < tol:
             break
         bias[nz] /= marg[nz] / marg[nz].mean()
     marg = (bias[:, None] * mat * bias[None, :]).sum(axis=0)
@@ -54,7 +54,7 @@ def cis_mask(bins):
     return chroms[:, None] == chroms[None, :]
 
 
-NOFILTER = {"mad_max": 0, "min_nnz": 0, "tol": 1e-12}
+NOFILTER = {"mad_max": 0, "min_nnz": 0, "tol": 1e-10}
 
 
 def test_square_storage(tmp_path):
@@ -239,6 +239,76 @@ def test_max_iters_and_x0(tmp_path):
     assert (x0 == 1).all()
     with pytest.raises(ValueError, match="x0"):
         balance_cooler(clr, x0=np.ones(3))
+
+
+@pytest.mark.parametrize("cis_only", [False, True])
+def test_tol_is_relative(tmp_path, cis_only):
+    # Balancing stops once every marginal is within tol of the mean, however
+    # deep the data, so scaling the counts doesn't change the weights (#131)
+    bins = cooler.binnify(CHROMSIZES, 20)
+    clr = cooler.Cooler(make_cooler(str(tmp_path / "c.cool"), bins))
+    px = clr.pixels()[:]
+    px["count"] *= 10_000
+    deep = str(tmp_path / "deep.cool")
+    cooler.create_cooler(deep, bins, px)
+
+    tol = 1e-4
+    opts = {"mad_max": 0, "min_nnz": 0, "ignore_diags": 0, "cis_only": cis_only}
+    weights, stats = balance_cooler(clr, tol=tol, **opts)
+    deep_weights, deep_stats = balance_cooler(cooler.Cooler(deep), tol=tol, **opts)
+    assert np.all(stats["converged"]) and np.all(deep_stats["converged"])
+    np.testing.assert_allclose(deep_weights * 100, weights, rtol=1e-12)
+    np.testing.assert_allclose(deep_stats["max_rel_dev"], stats["max_rel_dev"])
+
+    # The rows of the balanced matrix sum to 1 within tol
+    mat = dense(clr)
+    if cis_only:
+        mat[~cis_mask(bins)] = 0
+    w = np.nan_to_num(weights)
+    rowsums = (w[:, None] * mat * w[None, :]).sum(axis=1)
+    assert np.all(np.abs(rowsums[rowsums > 0] - 1) < tol)
+    assert np.all(stats["max_rel_dev"] < tol)
+
+
+def test_divergence_stops_early():
+    # Non-finite marginals, e.g. from overflowing weights, stop the
+    # iterations of their group instead of running to the limit (#262)
+    groups = np.array([0, 0, 1, 1, 2, 2])
+    calls = []
+
+    def get_marginals(bias):
+        calls.append(1)
+        marg = np.array([1.0, 2.0, 2.0, 1.0, 3.0, 4.0]) * bias
+        if len(calls) >= 2:
+            marg[2] = np.inf
+        return marg
+
+    bias = np.ones(6)
+    with pytest.warns(ConvergenceWarning) as record:
+        scale, var, err, diverged = _iterate(
+            bias, groups, get_marginals, 1e-6, 200, True, ["a", "b", "c"]
+        )
+    messages = [str(r.message) for r in record]
+    assert any("diverged on 1 of 3 chromosomes (b)" in m for m in messages)
+    assert len(calls) < 200
+    np.testing.assert_array_equal(diverged, [False, True, False])
+    assert np.isnan(err[1]) and np.isnan(scale[1]) and np.isnan(var[1])
+    assert np.isnan(bias[2:4]).all()
+    assert np.isfinite(bias[[0, 1, 4, 5]]).all()
+    assert err[0] < 1e-6 and err[2] < 1e-6
+
+
+def test_divergence_not_converged(tmp_path, monkeypatch):
+    from cooler import _balance
+
+    bins = cooler.binnify(CHROMSIZES, 20)
+    clr = cooler.Cooler(make_cooler(str(tmp_path / "c.cool"), bins))
+    marginals = _balance._marginals
+    monkeypatch.setattr(_balance, "_marginals", lambda *args: marginals(*args) * np.inf)
+    with pytest.warns(ConvergenceWarning, match="diverged"):
+        weights, stats = balance_cooler(clr, **NOFILTER)
+    assert not stats["converged"]
+    assert np.isnan(weights).all()
 
 
 def test_large_stats_attributes(tmp_path):

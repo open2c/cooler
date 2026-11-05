@@ -33,8 +33,7 @@ def test_balancing_genomewide(fp, tol):
 
     # Check that the balanced marginal is flat
     marg = np.sum(arr, axis=0)
-    var = np.var(marg[marg != 0])
-    assert var < tol
+    assert np.abs(marg[marg != 0] - 1).max() < tol
 
     # Check that the balanced marginal is unity
     conv_marg = marg[~np.isnan(marg)].mean()
@@ -75,8 +74,7 @@ def test_balancing_no_ignore_diags(fp, tol):
 
     # Check that the balanced marginal, including the diagonal, is flat
     marg = np.sum(arr, axis=0)
-    var = np.var(marg[marg != 0])
-    assert var < tol
+    assert np.abs(marg[marg != 0] - 1).max() < tol
 
 
 @pytest.mark.filterwarnings("ignore")
