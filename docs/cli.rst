@@ -196,21 +196,25 @@ To pipe input from stdin, set PAIRS_PATH to '-'.
 
     Name of genome assembly (e.g. hg19, mm10)
 
+.. option:: --preset [dcic]
+
+    Use DCIC pairs columns (chrom1=2, pos1=3, chrom2=4, pos2=5). Explicit field numbers override the preset. Without a preset, specify all four fields.
+
 .. option:: -c1, --chrom1 <chrom1>
 
-    chrom1 field number (one-based)  [required]
+    chrom1 field number (one-based)
 
 .. option:: -p1, --pos1 <pos1>
 
-    pos1 field number (one-based)  [required]
+    pos1 field number (one-based)
 
 .. option:: -c2, --chrom2 <chrom2>
 
-    chrom2 field number (one-based)  [required]
+    chrom2 field number (one-based)
 
 .. option:: -p2, --pos2 <pos2>
 
-    pos2 field number (one-based)  [required]
+    pos2 field number (one-based)
 
 .. option:: -0, --zero-based
 

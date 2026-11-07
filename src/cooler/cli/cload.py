@@ -374,17 +374,16 @@ def pairix(
 @register_subcommand
 @add_arg_help
 @click.option(
-    "--chrom1", "-c1", help="chrom1 field number (one-based)", type=int, required=True
+    "--preset",
+    type=click.Choice(["dcic"]),
+    help="Use DCIC pairs columns (chrom1=2, pos1=3, chrom2=4, pos2=5). "
+    "Explicit field numbers override the preset. "
+    "Without a preset, specify all four fields.",
 )
-@click.option(
-    "--pos1", "-p1", help="pos1 field number (one-based)", type=int, required=True
-)
-@click.option(
-    "--chrom2", "-c2", help="chrom2 field number (one-based)", type=int, required=True
-)
-@click.option(
-    "--pos2", "-p2", help="pos2 field number (one-based)", type=int, required=True
-)
+@click.option("--chrom1", "-c1", help="chrom1 field number (one-based)", type=int)
+@click.option("--pos1", "-p1", help="pos1 field number (one-based)", type=int)
+@click.option("--chrom2", "-c2", help="chrom2 field number (one-based)", type=int)
+@click.option("--pos2", "-p2", help="pos2 field number (one-based)", type=int)
 @click.option(
     "--zero-based",
     "-0",
@@ -503,6 +502,7 @@ def pairs(
     max_merge,
     storage_options,
     append,
+    preset=None,
     **kwargs,
 ):
     """
@@ -516,6 +516,25 @@ def pairs(
     {}
 
     """
+    input_field_names = [
+        "chrom1",
+        "pos1",
+        "chrom2",
+        "pos2",
+    ]
+    input_field_numbers = {}
+    for dcic_column, name in enumerate(input_field_names, start=2):
+        column = kwargs.get(name)
+        if column is None:
+            if preset != "dcic":
+                raise click.MissingParameter(
+                    param_type="option", param_hint=f"--{name}"
+                )
+            column = dcic_column
+        if column < 1:
+            raise click.BadParameter("Field numbers start at 1", param_hint=name)
+        input_field_numbers[name] = column - 1
+
     _, bins = parse_bins(bins)
     if mergebuf is None:
         mergebuf = chunksize
@@ -544,23 +563,12 @@ def pairs(
         with open(metadata) as f:
             metadata = json.load(f)
 
-    input_field_names = [
-        "chrom1",
-        "pos1",
-        "chrom2",
-        "pos2",
-    ]
     input_field_dtypes = {
         "chrom1": str,
         "pos1": np.int64,
         "chrom2": str,
         "pos2": np.int64,
     }
-    input_field_numbers = {}
-    for name in ["chrom1", "pos1", "chrom2", "pos2"]:
-        if kwargs[name] == 0:
-            raise click.BadParameter("Field numbers start at 1", param_hint=name)
-        input_field_numbers[name] = kwargs[name] - 1
 
     # Include input value columns
     output_field_names = []
