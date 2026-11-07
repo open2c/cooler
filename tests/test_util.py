@@ -227,6 +227,27 @@ def test_digest():
         util.digest(fa, "HindMCMXCIX")
 
 
+def test_digest_enzyme_list():
+    pytest.importorskip("Bio")
+    fasta = {"chr": "AAAAGATCAAAAGAATTCAAAA"}
+    pd.testing.assert_frame_equal(
+        util.digest(fasta, "DpnII, DpnII"), util.digest(fasta, "DpnII")
+    )
+    with pytest.raises(ValueError, match="Unknown enzyme name: MissingEnzyme"):
+        util.digest(fasta, "EcoRI,MissingEnzyme")
+
+
+def test_digest_multiple_enzymes_at_endpoints():
+    pytest.importorskip("Bio")
+    fasta = {"terminal": "AAAAGTAC", "empty": ""}
+    # RsaI cuts at the terminal boundary using cooler's existing coordinates.
+    for enzymes in ["RsaI,RsaI", "RsaI,DpnII"]:
+        fragments = util.digest(fasta, enzymes)
+        assert list(fragments.itertuples(index=False, name=None)) == [
+            ("terminal", 0, 8)
+        ]
+
+
 def test_get_binsize():
     chromsizes = util.read_chromsizes(op.join(datadir, "toy.chrom.sizes"))
     bins = util.binnify(chromsizes, 10)

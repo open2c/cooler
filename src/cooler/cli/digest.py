@@ -43,7 +43,7 @@ def digest(chromsizes, fasta, enzyme, out, header, rel_ids):
     FASTA_PATH : Genome assembly FASTA file or folder containing FASTA files
     (uncompressed).
 
-    ENZYME : Name of restriction enzyme
+    ENZYME : One restriction enzyme or a comma-separated list, e.g. DpnII,EcoRI.
 
     """
     chromsizes = util.read_chromsizes(chromsizes, all_names=True)
