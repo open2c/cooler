@@ -224,6 +224,41 @@ def test_load_field_from_count_column(run_cli, tmp_path):
     assert (pixels["v"] == pixels["count"]).all()
 
 
+def test_cload_pairs_dcic_preset(run_cli, tmp_path):
+    expected = tmp_path / "explicit.cool"
+    cload_pairs(run_cli, expected)
+    ref = cooler.Cooler(str(expected)).pixels()[:]
+    args = ("cload", "pairs", f"{CHROMSIZES}:2")
+    out = tmp_path / "preset.cool"
+    run_cli(*args, DATA / "toy.pairs", out, "--preset", "dcic")
+    pd.testing.assert_frame_equal(cooler.Cooler(str(out)).pixels()[:], ref)
+
+    # Move pos1 to the end to verify an explicit column overrides the preset.
+    lines = []
+    for line in (DATA / "toy.pairs").read_text().splitlines():
+        fields = line.split("\t")
+        fields.append(fields[2])
+        fields[2] = "."
+        lines.append("\t".join(fields))
+    run_cli(*args, "-", out, "--preset", "dcic", "-p1", 9, input="\n".join(lines))
+    pd.testing.assert_frame_equal(cooler.Cooler(str(out)).pixels()[:], ref)
+
+    result = run_cli(*args, DATA / "toy.pairs", out, "-c1", 2, exit_code=2)
+    assert "--pos1" in result.stderr
+
+
+def test_cload_pairs_missing_columns_before_io(run_cli, tmp_path):
+    result = run_cli(
+        "cload",
+        "pairs",
+        tmp_path / "missing.bins",
+        "-",
+        tmp_path / "out.cool",
+        exit_code=2,
+    )
+    assert "--chrom1" in result.stderr
+
+
 def test_cload_pairs_options(run_cli, tmp_path):
     expected = tmp_path / "expected.cool"
     cload_pairs(run_cli, expected)
