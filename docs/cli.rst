@@ -1292,7 +1292,7 @@ order.
 FASTA_PATH : Genome assembly FASTA file or folder containing FASTA files
 (uncompressed).
 
-ENZYME : Name of restriction enzyme
+ENZYME : One restriction enzyme or a comma-separated list, e.g. DpnII,EcoRI.
 
 
 .. program:: cooler digest

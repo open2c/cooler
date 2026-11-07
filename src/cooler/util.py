@@ -386,7 +386,7 @@ def digest(fasta_records: OrderedDict[str, Any], enzyme: str) -> pd.DataFrame:
     fasta_records : OrderedDict
         Dictionary of chromosome names to sequence records.
     enzyme: str
-        Name of restriction enzyme (e.g., 'DpnII').
+        One enzyme name or a comma-separated list (e.g., 'DpnII,EcoRI').
 
     Returns
     -------
@@ -404,14 +404,23 @@ def digest(fasta_records: OrderedDict[str, Any], enzyme: str) -> pd.DataFrame:
 
     # http://biopython.org/DIST/docs/cookbook/Restriction.html#mozTocId447698
     chroms = fasta_records.keys()
-    try:
-        cut_finder = getattr(biorst, enzyme).search
-    except AttributeError as e:
-        raise ValueError(f"Unknown enzyme name: {enzyme}") from e
+    names = [name.strip() for name in enzyme.split(",")]
+    cut_finders = []
+    for name in dict.fromkeys(names):
+        try:
+            cut_finders.append(getattr(biorst, name).search)
+        except AttributeError as e:
+            raise ValueError(f"Unknown enzyme name: {name}") from e
 
     def _each(chrom):
         seq = bioseq.Seq(str(fasta_records[chrom][:]))
-        cuts = np.r_[0, np.array(cut_finder(seq)) + 1, len(seq)].astype(np.int64)
+        sites = [np.asarray(find(seq), dtype=np.int64) for find in cut_finders]
+        if len(names) == 1:
+            cuts = np.r_[0, sites[0] + 1, len(seq)]
+        else:
+            internal = np.concatenate(sites) + 1
+            internal = internal[(internal > 0) & (internal < len(seq))]
+            cuts = np.unique(np.r_[0, internal, len(seq)])
         n_frags = len(cuts) - 1
 
         frags = pd.DataFrame(

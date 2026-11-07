@@ -95,6 +95,25 @@ def test_digest(run_cli):
     result = run_cli("digest", CHROMSIZES, fasta, "NoSuchEnzyme", exit_code=1)
 
 
+def test_digest_multiple_enzymes(run_cli, tmp_path):
+    pytest.importorskip("pyfaidx")
+    pytest.importorskip("Bio")
+    fasta = tmp_path / "genome.fa"
+    fasta.write_bytes(b">two\nAAAAGATCAAAAGAATTCAAAAGATCAAAA\n>none\nAAAAAA\n")
+    sizes = tmp_path / "chrom.sizes"
+    sizes.write_text("none\t6\ntwo\t30\n")
+
+    # MboI and DpnII cut the same sites; EcoRI adds a cut between them.
+    result = run_cli("digest", "--rel-ids", 1, sizes, fasta, "DpnII,EcoRI,MboI")
+    assert result.stdout.splitlines() == [
+        "none\t0\t6\t1",
+        "two\t0\t6\t1",
+        "two\t6\t15\t2",
+        "two\t15\t24\t3",
+        "two\t24\t30\t4",
+    ]
+
+
 def test_delimited_tuple():
     param = util.DelimitedTuple(sep=",")
     assert param.convert("spam,eggs", None, None) == ("spam", "eggs")
