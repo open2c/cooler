@@ -60,6 +60,23 @@ def test_pixeltable(mock_cooler):
     assert table.shape == (hi - lo, len(mock_cooler["pixels"]) + 4)
 
 
+def test_joined_pixels_many_contigs():
+    clr = api.Cooler(op.join(datadir, "manycontigs.1.cool"))
+    pixels = clr.pixels()[:10]
+    joined = clr.pixels(join=True)[:10]
+    raw = clr.pixels(join=True, convert_enum=False)[:10]
+    with clr.open() as h5:
+        assert h5py.check_enum_dtype(h5["bins/chrom"].dtype) is None
+        names = h5["chroms/name"].asstr()[:]
+        chrom_ids = h5["bins/chrom"][: int(pixels["bin2_id"].max()) + 1]
+
+    pd.testing.assert_series_equal(joined["count"], pixels["count"])
+    for suffix in ("1", "2"):
+        expected_ids = chrom_ids[pixels[f"bin{suffix}_id"]]
+        np.testing.assert_array_equal(joined[f"chrom{suffix}"], names[expected_ids])
+        np.testing.assert_array_equal(raw[f"chrom{suffix}"], expected_ids)
+
+
 def test_annotate(mock_cooler):
     clr = api.Cooler(mock_cooler)
 

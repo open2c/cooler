@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Bug fixes
+* fix: `Cooler.pixels(join=True)` returns contig names when the file stores `bins/chrom` as integers without an HDF5 ENUM. (#546)
 * fix: When worker processes fail to start, parallel commands and functions raise `cooler.parallel.WorkerStartError`, a subclass of `WorkerDiedError`, saying so, instead of suggesting that a worker ran out of memory. With the `spawn` or `forkserver` start method (macOS, and Linux from Python 3.14), the most common cause is a script that starts them outside `if __name__ == "__main__":`, which the message points out. The CLI no longer suggests fewer processes or smaller chunks in this case.
 
 ## [v0.12.1](https://github.com/open2c/cooler/compare/v0.12.0...v0.12.1)
