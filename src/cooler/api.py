@@ -783,7 +783,16 @@ def matrix(
             + "calculate balancing weights or set balance=False."
         )
 
-    reader = CSRReader(h5["pixels"], h5["indexes/bin1_offset"][:])
+    # A reflected query may read rows from either axis of the rectangle.
+    if fill_lower and not as_pixels:
+        row_start, row_stop = min(i0, j0), max(i1, j1)
+    else:
+        row_start, row_stop = i0, i1
+    reader = CSRReader(
+        h5["pixels"],
+        h5["indexes/bin1_offset"][row_start : row_stop + 1],
+        bin1_start=row_start,
+    )
 
     if as_pixels:
         # The historical behavior for as_pixels is to return only explicitly stored

@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### Performance
+* `Cooler.matrix` reads the row index for the query's bin range, so queries over small windows do not read the genome-wide index. (#PRNUM)
+
 ### Bug fixes
 * fix: When worker processes fail to start, parallel commands and functions raise `cooler.parallel.WorkerStartError`, a subclass of `WorkerDiedError`, saying so, instead of suggesting that a worker ran out of memory. With the `spawn` or `forkserver` start method (macOS, and Linux from Python 3.14), the most common cause is a script that starts them outside `if __name__ == "__main__":`, which the message points out. The CLI no longer suggests fewer processes or smaller chunks in this case.
 
