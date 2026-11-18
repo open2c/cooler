@@ -26,7 +26,10 @@ def make_annotator(bins, balanced, join, annotate, one_based_ids, one_based_star
 
         if balanced:
             df = api.annotate(chunk, bins[[balanced]])
-            chunk["balanced"] = df[f"{balanced}1"] * df[f"{balanced}2"] * chunk["count"]
+            weight1, weight2 = df[f"{balanced}1"], df[f"{balanced}2"]
+            if balanced in api._4DN_DIVISIVE_WEIGHTS:
+                weight1, weight2 = 1 / weight1, 1 / weight2
+            chunk["balanced"] = weight1 * weight2 * chunk["count"]
 
         if join:
             chunk = api.annotate(chunk, bins[["chrom", "start", "end"]], replace=True)
@@ -126,7 +129,8 @@ def make_annotator(bins, balanced, join, annotate, one_based_ids, one_based_star
 @click.option(
     "--weight-name",
     help="Name of the bin table column containing the balancing weights. "
-    "Implies --balanced. [default: weight]",
+    "Implies --balanced. KR, VC and VC_SQRT weights are applied by division. "
+    "[default: weight]",
 )
 @click.option(
     "--join",

@@ -129,6 +129,20 @@ def test_dump_weight_name(run_cli, tmp_path):
     run_cli("dump", path, "--weight-name", "doesnotexist", exit_code=1)
 
 
+@pytest.mark.parametrize("name", ["KR", "VC", "VC_SQRT"])
+def test_dump_divisive_weights(run_cli, tmp_path, name):
+    path = with_custom_weights(tmp_path)
+    clr = cooler.Cooler(path)
+    _add_columns(str(path), "bins", {name: np.full(clr.shape[0], 2.0)})
+
+    pixels = read_tsv(run_cli("dump", path, "-H", "--weight-name", name))
+    raw = clr.pixels()[:]
+    pd.testing.assert_series_equal(pixels["count"], raw["count"], check_dtype=False)
+    np.testing.assert_array_equal(pixels["balanced"], raw["count"] / 4)
+    expected = clr.matrix(as_pixels=True, balance=name)[:]
+    np.testing.assert_array_equal(pixels["balanced"], expected["balanced"])
+
+
 def test_show(run_cli, tmp_path):
     pytest.importorskip("matplotlib")
     out = tmp_path / "plot.png"
