@@ -946,7 +946,7 @@ COOL_PATH : Path to COOL file or cooler URI.
 
 .. option:: --weight-name <weight_name>
 
-    Name of the bin table column containing the balancing weights. Implies --balanced. [default: weight]
+    Name of the bin table column containing the balancing weights. Implies --balanced. KR, VC and VC_SQRT weights are applied by division. [default: weight]
 
 .. option:: --join
 
