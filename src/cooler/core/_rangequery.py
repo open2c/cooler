@@ -168,7 +168,9 @@ class CSRReader:
     pixel_grp : h5py.Group or dict-like
         Pixel group with keys {'bin1_id', 'bin2_id'}.
     bin1_offsets : 1D array-like
-        The offsets of each bin1 in the pixel table (aka indptr).
+        The offsets of consecutive bin1 IDs in the pixel table (aka indptr).
+    bin1_start : int, optional
+        Bin ID corresponding to the first offset. Default is 0.
 
     """
 
@@ -176,11 +178,17 @@ class CSRReader:
         self,
         pixel_grp: h5py.Group,
         bin1_offsets: np.ndarray,
+        *,
+        bin1_start: int = 0,
     ):
         # TODO: replace with file_path/handle, pixel_table_path
         self.pixel_grp = pixel_grp
         self.dtypes = {col: pixel_grp[col].dtype for col in pixel_grp}
         self.bin1_offsets = bin1_offsets
+        self.bin1_start = bin1_start
+
+    def _row_offsets(self, start: int, stop: int) -> np.ndarray:
+        return self.bin1_offsets[start - self.bin1_start : stop - self.bin1_start + 1]
 
     def get_spans(
         self, bbox: tuple[int, int, int, int], chunksize: int
@@ -191,7 +199,7 @@ class CSRReader:
         if (i1 - i0 < 1) or (j1 - j0 < 1):
             edges = np.array([], dtype=int)
         else:
-            edges = i0 + arg_prune_partition(self.bin1_offsets[i0 : i1 + 1], chunksize)
+            edges = i0 + arg_prune_partition(self._row_offsets(i0, i1), chunksize)
         return list(zip(edges[:-1], edges[1:]))
 
     def get_dict_meta(self, field: str | list[str], return_index: bool = False) -> dict:
@@ -258,7 +266,8 @@ class CSRReader:
             return self.get_dict_meta(field, return_index)
 
         # Find the offsets of our row limits in the pixel table.
-        offset_lo, offset_hi = self.bin1_offsets[s0], self.bin1_offsets[s1]
+        row_offsets = self._row_offsets(s0, s1)
+        offset_lo, offset_hi = row_offsets[0], row_offsets[-1]
         slc = slice(offset_lo, offset_hi)
 
         # TODO: open file in context manager in here
@@ -275,7 +284,6 @@ class CSRReader:
         # Look up the i coordinate of each kept pixel from the row offsets,
         # rather than reading bin1_id from storage. Doing this after filtering
         # keeps the extra memory proportional to the number of kept pixels.
-        row_offsets = self.bin1_offsets[s0 : s1 + 1]
         bin1 = np.searchsorted(row_offsets, index, side="right") - 1 + s0
         result = {
             "bin1_id": bin1.astype(bin1_selector.dtype, copy=False),
