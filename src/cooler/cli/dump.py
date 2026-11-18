@@ -367,9 +367,10 @@ def _pixel_chunks(
     else:
         engine = DirectRangeQuery2D(reader, read_fields, bbox, chunksize)
 
+    records = engine if engine.n_chunks else (reader.get_dict_meta(read_fields),)
     chunks = (
         pd.DataFrame(dct, columns=["bin1_id", "bin2_id", *read_fields])
-        for dct in engine
+        for dct in records
     )
 
     if balanced or join or annotate or one_based_ids:
