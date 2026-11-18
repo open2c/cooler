@@ -160,6 +160,16 @@ def test_dump_more_options(run_cli, tmp_path):
     assert list(ids.columns) == ["bin1_id", "bin2_id"]
 
 
+@pytest.mark.parametrize("fill_lower", [False, True])
+def test_dump_header_in_empty_region(run_cli, fill_lower):
+    path = DATA / "yeast.10kb.cool"
+    options = ["--fill-lower"] if fill_lower else []
+    result = run_cli(
+        "dump", path, "-H", "--join", "-r", "chrIV:1530000-1531932", *options
+    )
+    assert result.stdout == "chrom1\tstart1\tend1\tchrom2\tstart2\tend2\tcount\n"
+
+
 def test_show_size_limit(run_cli, tmp_path, monkeypatch):
     pytest.importorskip("matplotlib")
     import cooler.cli.show
