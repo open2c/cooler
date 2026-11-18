@@ -599,8 +599,8 @@ def pixels(
     df = get(h5["pixels"], lo, hi, fields, **kwargs)
 
     if join:
-        bins = get(h5["bins"], 0, None, ["chrom", "start", "end"], **kwargs)
-        df = annotate(df, bins, replace=True)
+        coordinates = bins(h5, 0, None, ["chrom", "start", "end"], **kwargs)
+        df = annotate(df, coordinates, replace=True)
 
     return df
 
