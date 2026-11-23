@@ -4630,14 +4630,14 @@ wheels = [
 
 [[package]]
 name = "pyfaidx"
-version = "0.9.2.2"
+version = "0.9.2.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "packaging" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/78/79/bf282d0e06196e9db2dfab832d06695eba46aeef831ad0aa0a5aa76188da/pyfaidx-0.9.2.2.tar.gz", hash = "sha256:6ad50a5ac00b396dc117b7322adcbbac945aa60ac05a345a7628422d7852f038", size = 75338, upload-time = "2026-10-29T15:12:53.657Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/10/b6/9b9ea1ed086ef5f73f968566312ce44002ecfa4c17d9d2cc6a5d61ce946f/pyfaidx-0.9.2.3.tar.gz", hash = "sha256:27c7caf72ef2c4d3f3b8e8557526621b81e4edc0bee3f37af10bcfb59c10dbbb", size = 75628, upload-time = "2026-11-19T19:22:52.414Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/26/1d/629275c099b5e97ed4b8a4adb38605e53ccfe68220d33467657ffb63e122/pyfaidx-0.9.2.2-py3-none-any.whl", hash = "sha256:98f265500ec0141a82f1b6adfc5d3a67240eb1ccec5ffe44feb3ccce60089df5", size = 30085, upload-time = "2026-10-29T15:12:52.358Z" },
+    { url = "https://files.pythonhosted.org/packages/28/ac/8968e6aaf4e3d204a907d0b26df9a36b11a8f1ea772853b9d045abc2c415/pyfaidx-0.9.2.3-py3-none-any.whl", hash = "sha256:45f32be5a221bb177bf747d8b4adfafd28d8aff535b648bd022b18d9b031530d", size = 30103, upload-time = "2026-11-19T19:22:51.26Z" },
 ]
 
 [[package]]
